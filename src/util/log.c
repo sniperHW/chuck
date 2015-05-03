@@ -88,7 +88,7 @@ int32_t write_prefix(char *buf,uint8_t loglev)
 				   _tm.tm_min,
 				   _tm.tm_sec,
 				   (int32_t)tv.tv_nsec/1000000,
-				   (uint32_t)pthread_self());
+				   (uint32_t)thread_id());
 }
 
 static void* log_routine(void *arg){

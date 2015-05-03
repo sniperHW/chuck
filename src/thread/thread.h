@@ -38,10 +38,6 @@ thread *thread_new(int32_t flag,void *(*routine)(void*),void *ud);
 
 void   *thread_del(thread*);
 void   *thread_join(thread*);
-
-
-static inline pthread_t thread_id(thread *t){
-    return t->threadid;
-}
+pid_t   thread_id();
 
 #endif

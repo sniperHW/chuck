@@ -1,6 +1,9 @@
 #include <stdlib.h>
+#include <sys/types.h>
 #include "thread.h"
 #include "sync.h"
+
+__thread pid_t tid = 0;
 
 struct start_arg{
 	void           *arg;
@@ -72,5 +75,14 @@ void* thread_del(thread *t)
 	pthread_join(t->threadid,&result);
 	free(t);
 	return result;	
+}
+
+extern pid_t gettid(void);
+
+pid_t   thread_id(){
+	if(!tid){
+		tid = gettid();
+	}
+	return tid;
 }
 
