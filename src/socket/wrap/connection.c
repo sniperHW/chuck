@@ -1,0 +1,320 @@
+#include "socket/wrap/connection.h"
+#include "engine/engine.h"
+#include "packet/rawpacket.h"
+
+static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
+
+enum{
+	RECVING   = 1 << 5,
+	SENDING   = 1 << 6,
+};
+
+static inline void prepare_recv(connection *c){
+	bytebuffer *buf;
+	int32_t     i = 0;
+	uint32_t    free_buffer_size,recv_size,pos;
+	if(!c->next_recv_buf){
+		c->next_recv_buf = bytebuffer_new(c->recv_bufsize);
+		c->next_recv_pos = 0;
+	}
+	buf = c->next_recv_buf;
+	pos = c->next_recv_pos;
+	recv_size = c->recv_bufsize;
+	do
+	{
+		free_buffer_size = buf->cap - pos;
+		free_buffer_size = recv_size > free_buffer_size ? free_buffer_size:recv_size;
+		c->wrecvbuf[i].iov_len = free_buffer_size;
+		c->wrecvbuf[i].iov_base = buf->data + pos;
+		recv_size -= free_buffer_size;
+		pos += free_buffer_size;
+		if(recv_size && pos >= buf->cap)
+		{
+			pos = 0;
+			if(!buf->next)
+				buf->next = bytebuffer_new(c->recv_bufsize);
+			buf = buf->next;
+		}
+		++i;
+	}while(recv_size);
+	c->recv_overlap.iovec_count = i;
+	c->recv_overlap.iovec = c->wrecvbuf;
+}
+
+static inline void PostRecv(connection *c){
+	((socket_*)c)->status |= RECVING;
+	prepare_recv(c);
+	stream_socket_recv((handle*)c,&c->recv_overlap,IO_POST);		
+}
+
+static inline int32_t Recv(connection *c){
+	prepare_recv(c);
+	return stream_socket_recv((handle*)c,&c->recv_overlap,IO_NOW);		
+}
+
+static inline int32_t Send(connection *c,int32_t flag){
+	int32_t ret = stream_socket_send((handle*)c,&c->send_overlap,flag);		
+	if(ret < 0 && -ret == EAGAIN)
+		((socket_*)c)->status |= SENDING;
+	return ret; 
+}
+
+
+static inline void update_next_recv_pos(connection *c,int32_t _bytestransfer)
+{
+	assert(_bytestransfer >= 0);
+	uint32_t bytestransfer = (uint32_t)_bytestransfer;
+	uint32_t size;
+	decoder *decoder_ = c->decoder_;
+	if(!decoder_->buff)
+		decoder_init(decoder_,c->next_recv_buf,c->next_recv_pos);
+	decoder_->size += bytestransfer;
+	do{
+		size = c->next_recv_buf->cap - c->next_recv_pos;
+		size = size > bytestransfer ? bytestransfer:size;
+		c->next_recv_buf->size += size;
+		c->next_recv_pos += size;
+		bytestransfer -= size;
+		if(c->next_recv_pos >= c->next_recv_buf->cap)
+		{
+			bytebuffer_set(&c->next_recv_buf,c->next_recv_buf->next);
+			c->next_recv_pos = 0;
+		}
+	}while(bytestransfer);
+}
+
+
+static inline void _close(connection *c,int32_t err){
+	if(((socket_*)c)->status & SOCKET_CLOSE)
+		return;
+	if(c->on_disconnected) c->on_disconnected(c,err);
+	close_socket((handle*)c);
+}
+
+static void RecvFinish(connection *c,int32_t bytestransfer,int32_t err_code)
+{
+	int32_t total_recv = 0;
+	packet *pk;	
+	do{	
+		if(bytestransfer == 0 || (bytestransfer < 0 && err_code != EAGAIN)){
+			_close(c,err_code);
+			return;	
+		}else if(bytestransfer > 0){
+			update_next_recv_pos(c,bytestransfer);
+			int32_t unpack_err;
+			do{
+				pk = c->decoder_->unpack(c->decoder_,&unpack_err);
+				if(pk){
+					c->on_packet(c,pk,PKEV_RECV);
+					packet_del(pk);
+					if(((socket_*)c)->status & SOCKET_CLOSE)
+						return;
+				}else if(unpack_err != 0){
+					_close(c,err_code);
+					return;
+				}
+			}while(pk);
+			if(total_recv >= c->recv_bufsize){
+				PostRecv(c);
+				return;
+			}else{
+				bytestransfer = Recv(c);
+				if(bytestransfer < 0 && (err_code = -bytestransfer) == EAGAIN) 
+					return;
+				else if(bytestransfer > 0)
+					total_recv += bytestransfer;
+			}
+		}
+	}while(1);
+}
+
+static inline iorequest *prepare_send(connection *c)
+{
+	int32_t     i = 0;
+	packet     *w = (packet*)list_begin(&c->send_list);
+	bytebuffer *b;
+	iorequest * O = NULL;
+	uint32_t    buffer_size,size,pos;
+	uint32_t    send_size_remain = MAX_SEND_SIZE;
+	while(w && i < MAX_WBAF && send_size_remain > 0)
+	{
+		pos = ((packet*)w)->spos;
+		b =   ((packet*)w)->head;
+		buffer_size = ((packet*)w)->len_packet;
+		while(i < MAX_WBAF && b && buffer_size && send_size_remain > 0)
+		{
+			c->wsendbuf[i].iov_base = b->data + pos;
+			size = b->size - pos;
+			size = size > buffer_size ? buffer_size:size;
+			size = size > send_size_remain ? send_size_remain:size;
+			buffer_size -= size;
+			send_size_remain -= size;
+			c->wsendbuf[i].iov_len = size;
+			++i;
+			b = b->next;
+			pos = 0;
+		}
+		if(send_size_remain > 0) w = (packet*)((listnode*)w)->next;
+	}
+	if(i){
+		c->send_overlap.iovec_count = i;
+		c->send_overlap.iovec = c->wsendbuf;
+		O = (iorequest*)&c->send_overlap;
+	}
+	return O;
+
+}
+static inline void update_send_list(connection *c,int32_t _bytestransfer)
+{
+	assert(_bytestransfer >= 0);
+	packet     *w;
+	uint32_t    bytestransfer = (uint32_t)_bytestransfer;
+	uint32_t    size;
+	do{
+		w = (packet*)list_begin(&c->send_list);
+		assert(w);
+		if((uint32_t)bytestransfer >= ((packet*)w)->len_packet)
+		{
+			if(w->mask){
+				c->on_packet(c,w,PKEV_SEND);
+				if(((socket_*)c)->status & SOCKET_CLOSE)
+					return;
+			}
+			list_pop(&c->send_list);
+			bytestransfer -= ((packet*)w)->len_packet;
+			packet_del(w);
+		}else{
+			do{
+				size = ((packet*)w)->head->size - ((packet*)w)->spos;
+				size = size > (uint32_t)bytestransfer ? (uint32_t)bytestransfer:size;
+				bytestransfer -= size;
+				((packet*)w)->spos += size;
+				((packet*)w)->len_packet -= size;
+				if(((packet*)w)->spos >= ((packet*)w)->head->size)
+				{
+					((packet*)w)->spos = 0;
+					((packet*)w)->head = ((packet*)w)->head->next;
+				}
+			}while(bytestransfer);
+		}
+	}while(bytestransfer);
+}
+
+
+static void SendFinish(connection *c,int32_t bytestransfer)
+{
+	update_send_list(c,bytestransfer);
+	if(((socket_*)c)->status & SOCKET_CLOSE)
+			return;
+	if(!prepare_send(c)) {
+		((socket_*)c)->status ^= SENDING;
+		return;
+	}
+	Send(c,IO_POST);		
+}
+
+static void IoFinish(handle *sock,void *_,int32_t bytestransfer,int32_t err_code)
+{
+	iorequest  *io = ((iorequest*)_);
+	connection *c  = (connection*)sock;
+	if(((socket_*)c)->status & SOCKET_CLOSE)
+		return;
+	if(io == (iorequest*)&c->send_overlap && bytestransfer > 0)
+		SendFinish(c,bytestransfer);
+	else if(io == (iorequest*)&c->recv_overlap)
+		RecvFinish(c,bytestransfer,err_code);
+	else{
+		_close(c,0);	
+	}
+}	
+
+static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
+	int32_t ret;
+	assert(e && h && callback);
+	if(h->e) return -EASSENG;
+	//call the base_engine_add first
+	ret = base_engine_add(e,h,(generic_callback)IoFinish);
+	if(ret == 0){
+		((connection*)h)->on_packet = (void(*)(connection*,packet*,int32_t))callback;
+		//post the first recv request
+		if(!(((socket_*)h)->status & RECVING))
+			PostRecv((connection*)h);
+	}
+	return ret;
+}
+
+int32_t connection_send(connection *c,packet *p,int32_t send_fsh_notify){
+	int32_t ret;
+	if(p->type != WPACKET && p->type != RAWPACKET){
+		packet_del(p);
+		return -EINVIPK;
+	}	
+	if(send_fsh_notify) p->mask = 1;	
+	list_pushback(&c->send_list,(listnode*)p);
+	if(!(((socket_*)c)->status & SENDING)){
+		prepare_send(c);
+		ret = Send(c,IO_NOW);
+		if(ret < 0 && ret == -EAGAIN) 
+			return -EAGAIN;
+		else if(ret > 0)
+			update_send_list(c,ret);
+		return ret;
+	}
+	return -EAGAIN;
+}
+
+void connection_dctor(void *_)
+{
+	connection *c = (connection*)_;
+	packet *p;
+	while((p = (packet*)list_pop(&c->send_list))!=NULL)
+		packet_del(p);
+	bytebuffer_set(&c->next_recv_buf,NULL);
+	decoder_del(c->decoder_);	
+}
+
+connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
+{
+	buffersize = size_of_pow2(buffersize);
+    if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
+	connection *c 	 = calloc(1,sizeof(*c));
+	((handle*)c)->fd = fd;
+	c->recv_bufsize  = buffersize;
+	c->next_recv_buf = bytebuffer_new(buffersize);
+	construct_stream_socket(&c->base);
+	//save socket_ imp_engine_add,and replace with self
+	if(!base_engine_add)
+		base_engine_add = ((handle*)c)->imp_engine_add; 
+	((handle*)c)->imp_engine_add = imp_engine_add;
+	((socket_*)c)->dctor = connection_dctor;
+	c->decoder_ = d ? d:conn_raw_decoder_new();
+	decoder_init(c->decoder_,c->next_recv_buf,0);
+	return c;
+}
+
+void connection_close(connection *c){
+	_close(c,0);	
+}
+
+static packet *rawpk_unpack(decoder *d,int32_t *err){
+	rawpacket  *raw;
+	uint32_t    size;
+	if(err) *err = 0;
+	if(!d->size) return NULL;
+
+	raw = rawpacket_new_by_buffer(d->buff,d->pos);
+	size = d->buff->size - d->pos;
+	d->pos  += size;
+	d->size -= size;
+	if(d->pos >= d->buff->cap){
+		d->pos = 0;
+		bytebuffer_set(&d->buff,d->buff->next);
+	}
+	return (packet*)raw;
+}
+
+decoder *conn_raw_decoder_new(){
+	decoder *d = calloc(1,sizeof(*d));
+	d->unpack = rawpk_unpack;
+	return d;	
+}
