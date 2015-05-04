@@ -95,7 +95,6 @@ chucklua:$(source)
 	$(CC) $(SHARED) $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
 	$(CC) $(CFLAGS) $(SHARED) -o chuck.so *.o $(LDFLAGS)
 
-
 clean:
 	rm *.o
 	rm *.a	

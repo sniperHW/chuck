@@ -273,8 +273,7 @@ void connection_dctor(void *_)
 		packet_del(p);
 	bytebuffer_set(&c->next_recv_buf,NULL);
 	decoder_del(c->decoder_);
-	release_luaRef(&c->lua_cb_packet);
-	release_luaRef(&c->lua_cb_disconnected);
+	free(c);
 }
 
 static void connection_init(connection *c,int32_t fd,uint32_t buffersize,decoder *d)
@@ -287,7 +286,6 @@ static void connection_init(connection *c,int32_t fd,uint32_t buffersize,decoder
 	if(!base_engine_add)
 		base_engine_add = ((handle*)c)->imp_engine_add; 
 	((handle*)c)->imp_engine_add = imp_engine_add;
-	((socket_*)c)->dctor = connection_dctor;
 	c->decoder_ = d ? d:conn_raw_decoder_new();
 	decoder_init(c->decoder_,c->next_recv_buf,0);
 }
@@ -298,6 +296,7 @@ connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
     if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
 	connection *c 	 = calloc(1,sizeof(*c));
 	connection_init(c,fd,buffersize,d);
+	((socket_*)c)->dctor = connection_dctor;
 	return c;
 }
 
@@ -334,11 +333,25 @@ decoder *conn_raw_decoder_new(){
 
 #define LUA_METATABLE "conn_mata"
 
+
+void lua_connection_dctor(void *_)
+{
+	connection *c = (connection*)_;
+	packet *p;
+	while((p = (packet*)list_pop(&c->send_list))!=NULL)
+		packet_del(p);
+	bytebuffer_set(&c->next_recv_buf,NULL);
+	decoder_del(c->decoder_);
+	release_luaRef(&c->lua_cb_packet);
+	release_luaRef(&c->lua_cb_disconnected);
+	//should not invoke free
+}
+
 connection *lua_toconnection(lua_State *L, int index) {
     return (connection*)luaL_testudata(L, index, LUA_METATABLE);
 }
 
-int32_t lua_connection_new(lua_State *L){
+static int32_t lua_connection_new(lua_State *L){
 	int32_t  fd;
 	int32_t  buffersize;
 	decoder *d = NULL;
@@ -355,6 +368,7 @@ int32_t lua_connection_new(lua_State *L){
 
 	connection *c = (connection*)lua_newuserdata(L, sizeof(*c));
 	connection_init(c,fd,buffersize,d);
+	((socket_*)c)->dctor = lua_connection_dctor;
 	luaL_getmetatable(L, LUA_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -363,28 +377,37 @@ int32_t lua_connection_new(lua_State *L){
 typedef struct{
 	luaPushFunctor base;
 	connection    *c;
-	packet        *p;
-	int32_t        num;
 }stPushConn;
+
+typedef struct{
+	luaPushFunctor base;
+	packet        *p;
+}stPushPk;
 
 static void PushConn(lua_State *L,luaPushFunctor *_){
 	stPushConn *self = (stPushConn*)_;
 	lua_pushlightuserdata(L,self->c);
 	luaL_getmetatable(L, LUA_METATABLE);
-	lua_setmetatable(L, -2);
-	if(self->p) lua_pushpacket(L,self->p);
-	lua_pushnumber(L,self->num);		
+	lua_setmetatable(L, -2);		
+}
+
+static void PushPk(lua_State *L,luaPushFunctor *_){
+	stPushPk *self = (stPushPk*)_;
+	lua_pushpacket(L,self->p);
 }
 
 static void lua_on_packet(connection *c,packet *p,int32_t event)
 {
 	const char * error;
-	stPushConn st;
-	st.c = c;
-	st.p = p;
-	st.num = event;
-	st.base.Push = PushConn;
-	if((error = LuaCallRefFunc(c->lua_cb_packet,"f",&st))){
+	stPushConn st1;
+	st1.c = c;
+	st1.base.Push = PushConn;
+	stPushPk st2;
+	st2.p = p;
+	st2.base.Push = PushPk;	
+	if((error = LuaCallRefFunc(c->lua_cb_packet,"ffs",
+							   &st1,&st2,
+							   event == PKEV_RECV ? "RECV":"SEND"))){
 		SYS_LOG(LOG_ERROR,"error on lua_cb_packet:%s\n",error);	
 	}	
 }
@@ -395,10 +418,8 @@ static void lua_on_disconnected(connection *c,int32_t err)
 	const char * error;
 	stPushConn st;
 	st.c = c;
-	st.p = NULL;
-	st.num = err;
 	st.base.Push = PushConn;
-	if((error = LuaCallRefFunc(c->lua_cb_disconnected,"f",&st))){
+	if((error = LuaCallRefFunc(c->lua_cb_disconnected,"fi",&st,err))){
 		SYS_LOG(LOG_ERROR,"error on lua_cb_disconnected:%s\n",error);	
 	}
 }*/
@@ -408,7 +429,7 @@ static int32_t lua_engine_add(lua_State *L){
 	connection *c = lua_toconnection(L,1);
 	engine     *e = lua_toengine(L,2);
 	if(c && e){
-		if(imp_engine_add(e,(handle*)c,(generic_callback)lua_on_packet)){
+		if(0 == imp_engine_add(e,(handle*)c,(generic_callback)lua_on_packet)){
 			c->lua_cb_packet = toluaRef(L,3);
 		}
 	}
@@ -468,8 +489,6 @@ void    reg_luaconnection(lua_State *L){
     luaL_newlib(L, conn_methods);
     lua_setfield(L, -2, "__index");
     lua_pop(L, 1);
-
-   	lua_newtable(L);
 
    	SET_FUNCTION(L,"connection",lua_connection_new);
 }

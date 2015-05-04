@@ -102,10 +102,11 @@ static void on_events(handle *h,int32_t events){
 		s->status ^= SOCKET_INLOOP;
 	}while(0);
 	if(s->status & SOCKET_CLOSE){
+		close(h->fd);		
 		if(s->dctor) 
-			s->dctor(s);		
-		close(h->fd);
-		free(h);		
+			s->dctor(s);
+		else		
+			free(h);		
 	}
 }
 

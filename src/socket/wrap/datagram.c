@@ -150,7 +150,8 @@ void datagram_dctor(void *_)
 {
 	datagram *d = (datagram*)_;
 	bytebuffer_set(&d->next_recv_buf,NULL);
-	decoder_del(d->decoder_);	
+	decoder_del(d->decoder_);
+	free(d);	
 }
 
 datagram *datagram_new(int32_t fd,uint32_t buffersize,decoder *d)

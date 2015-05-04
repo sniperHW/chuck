@@ -95,7 +95,6 @@ static connector *lua_toconnector(lua_State *L, int index) {
 static int32_t lua_connector_del(lua_State *L){
 	connector *c = lua_toconnector(L,1);
 	release_luaRef(&c->luacallback);
-	free(c);
 	return 0;
 }
 
@@ -119,7 +118,8 @@ static int32_t lua_connector_new(lua_State *L){
 	c->timeout = timeout;
 	c->ud = c;
 	easy_close_on_exec(fd);
-
+	luaL_getmetatable(L, LUA_METATABLE);
+	lua_setmetatable(L, -2);
 	return 1;
 }
 
@@ -135,7 +135,7 @@ static int32_t lua_engine_add(lua_State *L){
 	connector *c = lua_toconnector(L,1);
 	engine     *e = lua_toengine(L,2);
 	if(c && e){
-		if(imp_engine_add(e,(handle*)c,(generic_callback)luacallback)){
+		if(0 == imp_engine_add(e,(handle*)c,(generic_callback)luacallback)){
 			c->luacallback = toluaRef(L,3);
 		}
 	}
