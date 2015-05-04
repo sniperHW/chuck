@@ -1,8 +1,8 @@
 CFLAGS = -g -Wall -fno-strict-aliasing 
-LDFLAGS = -lpthread -lrt -lm
+LDFLAGS = -lpthread -lrt -llua -lm 
 SHARED  = -fPIC -shared
 DEPDIR  = 
-INCLUDE = -I./ -I../deps/lua-5.3.0/src
+INCLUDE = -I./ 
 DEFINE  =
 LIBNAME = libchuck.a
 
