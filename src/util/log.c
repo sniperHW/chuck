@@ -79,7 +79,7 @@ int32_t write_prefix(char *buf,uint8_t loglev)
     clock_gettime (CLOCK_REALTIME, &tv);
 	struct tm _tm;
 	localtime_r(&tv.tv_sec, &_tm);
-	return sprintf(buf,"[%s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%x]:",
+	return sprintf(buf,"[%s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u]:",
 				   log_lev_str[loglev],
 				   _tm.tm_year+1900,
 				   _tm.tm_mon+1,

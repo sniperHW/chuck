@@ -19,7 +19,8 @@
 
 #include <stdint.h>
 #include "comm.h"
-#include "util/timewheel.h"    
+#include "util/timewheel.h"  
+#include "lua/lua_util.h"  
 
 engine *engine_new();
 void    engine_del(engine*);
@@ -28,6 +29,9 @@ void    engine_stop(engine*);
 int32_t engine_add(engine*,handle*,generic_callback);
 int32_t engine_remove(handle*);
 timer  *engine_regtimer(engine*,uint32_t timeout,int32_t(*)(uint32_t,uint64_t,void*),void*);
+
+engine *lua_toengine(lua_State *L, int index);
+void    reg_luaengine(lua_State *L);
 
 //private function
 int32_t event_add(engine*,handle*,int32_t events);

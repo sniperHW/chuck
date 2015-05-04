@@ -8,20 +8,9 @@
 #include "exception.h"
 #include "log.h"
 
-pthread_key_t g_exception_key;
-#ifndef __GNUC__
-pthread_once_t g_exception_key_once = PTHREAD_ONCE_INIT;
-#endif
-
-static void delete_thd_exstack(void  *arg)
-{
-	exception_perthd_st *epst = (exception_perthd_st*)arg;
-	while(list_size(&epst->csf_pool))
-		free(list_pop(&epst->csf_pool));
-	free(arg);
-}
-
 int32_t setup_sigsegv();
+
+static __thread exception_perthd_st *__perthread_exception_st = NULL;
 
 static void signal_segv(int32_t signum,siginfo_t* info, void*ptr){
 	exception_throw(except_segv_fault,__FILE__,__FUNCTION__,__LINE__,info);
@@ -71,15 +60,32 @@ int32_t setup_sigfpe(){
 	return 1;
 }
 
-#ifndef __GNUC__
-void exception_once_routine(){
-#else
-__attribute__((constructor(103))) static void exception_init(){
-#endif	
-	pthread_key_create(&g_exception_key,delete_thd_exstack);
-	setup_sigsegv();
-	setup_sigbus();
-	setup_sigfpe();
+static void reset_perthread_exception_st()
+{
+	if(__perthread_exception_st){
+		while(list_size(&__perthread_exception_st->csf_pool))
+			free(list_pop(&__perthread_exception_st->csf_pool));
+		free(__perthread_exception_st);
+		__perthread_exception_st = NULL;
+	}
+}
+
+
+exception_perthd_st *__get_perthread_exception_st(){
+	int32_t i;
+    if(!__perthread_exception_st){
+        __perthread_exception_st = calloc(1,sizeof(*__perthread_exception_st));
+		list_init(&__perthread_exception_st->expstack);	
+		list_init(&__perthread_exception_st->csf_pool);
+		for(i = 0;i < 256; ++i)
+			list_pushfront(&__perthread_exception_st->csf_pool,
+						   (listnode*)calloc(1,sizeof(callstack_frame)));
+		setup_sigsegv();
+		setup_sigbus();
+		setup_sigfpe();
+		pthread_atfork(NULL,NULL,reset_perthread_exception_st);        
+    }
+    return __perthread_exception_st;
 }
 
 
@@ -134,7 +140,7 @@ void exception_throw(int32_t code,const char *file,const char *func,int32_t line
 		if(info)frame->addr = info->si_addr;
 		sz = backtrace(bt, 64);
 		strings = backtrace_symbols(bt, sz);
-		epst = (exception_perthd_st*)pthread_getspecific(g_exception_key);
+		epst = __get_perthread_exception_st();
 		if(code == except_segv_fault || code == except_sigbus || code == except_arith) 
 			i = 3;
 		else{

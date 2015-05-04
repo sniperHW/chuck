@@ -20,7 +20,8 @@
 
 #include "socket/wrap/decoder.h"
 #include "socket/socket.h"  
-#include "socket/wrap/wrap_comm.h" 
+#include "socket/wrap/wrap_comm.h"
+#include "lua/lua_util.h" 
 
 enum{
     PKEV_RECV,            //recv a packet
@@ -40,6 +41,8 @@ typedef struct connection{
     void         (*on_packet)(struct connection*,packet*,int32_t event);
     void         (*on_disconnected)(struct connection*,int32_t err);
     decoder     *decoder_;
+    luaRef       lua_cb_packet;
+    luaRef       lua_cb_disconnected;
 }connection;
 
 connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d);
@@ -55,5 +58,7 @@ connection_set_discnt_callback(connection *c,
 {
     c->on_disconnected = on_disconnected;
 }
+
+void        reg_luaconnection(lua_State *L);
 
 #endif    

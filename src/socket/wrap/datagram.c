@@ -1,46 +1,6 @@
-/*
-static void datagram_destroy(void *ptr)
-{
-	datagram_t c = (datagram_t)ptr;
-	buffer_release(c->recv_buf);
-	kn_close_sock(c->handle);
-	destroy_decoder(c->_decoder);
-	if(c->ud && c->destroy_ud){
-		c->destroy_ud(c->ud);
-	}
-	free(c);				
-}
-
-static int raw_unpack(decoder *_,void* _1){
-	((void)_);
-	datagram_t c = (datagram_t)_1;
-	packet_t r = (packet_t)rawpacket_create1(c->recv_buf,0,c->recv_buf->size);
-	c->on_packet(c,r,&c->recv_overlap.addr); 
-	destroy_packet(r);
-	return 0;
-}
-
-static int rpk_unpack(decoder *_,void *_1){
-	((void)_);
-	datagram_t c = (datagram_t)_1;
-	if(c->recv_buf->size <= sizeof(uint32_t))
-		return 0;	
-	uint32_t pk_len = 0;
-	uint32_t pk_hlen;
-	buffer_read(c->recv_buf,0,(int8_t*)&pk_len,sizeof(pk_len));
-	pk_hlen = kn_ntoh32(pk_len);
-	uint32_t pk_total_size = pk_hlen+sizeof(pk_len);
-	if(c->recv_buf->size < pk_total_size)
-		return 0;	
-	packet_t r = (packet_t)rpk_create(c->recv_buf,0,pk_len);
-	c->on_packet(c,r,&c->recv_overlap.addr); 
-	destroy_packet(r);	
-	return 0;
-}	
-*/
-
 #include "socket/wrap/datagram.h"
 #include "engine/engine.h"
+#include "packet/rawpacket.h"
 
 enum{
 	RECVING   = 1 << 5,
@@ -50,7 +10,7 @@ static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NUL
 
 int32_t datagram_send(datagram *d,packet *p,sockaddr_ *addr)
 {
-	iorequest  *o;
+	iorequest   o;
 	int32_t     ret,i;
 	uint32_t    size,pos,buffer_size;
 	bytebuffer *b;	
@@ -86,37 +46,88 @@ int32_t datagram_send(datagram *d,packet *p,sockaddr_ *addr)
 		o.iovec_count = i;
 		o.iovec = d->wsendbuf;
 		o.addr = *addr;
-		ret = datagram_socket_send((handle*)d,o,IO_NOW);
+		ret = datagram_socket_send((handle*)d,&o);
 	}while(0);
 	packet_del(p);
 	return ret;
 }
 
 static inline void prepare_recv(datagram *d){
-	if(d->recv_buf)
-		buffer_release(d->recv_buf);
-	c->recv_buf = buffer_create(c->recv_bufsize);
-	c->wrecvbuf.iov_len = c->recv_bufsize;
-	c->wrecvbuf.iov_base = c->recv_buf->data;
-	c->recv_overlap.iovec_count = 1;
-	c->recv_overlap.iovec = &c->wrecvbuf;	
-}
-
-static inline void Recv(datagram_t c){
-	(((socket_*)h)->status |= RECVING;
-	prepare_recv(c);
-	kn_sock_post_recv(c->handle,&c->recv_overlap);	
-	c->doing_recv = 1;	
-}
-
-static void IoFinish(handle *sock,void *_,int32_t bytestransfer,int32_t err_code)
-{
-	datagram *c = (datagram*)sock;	
-	if(bytestransfer > 0 && ((iorequest)_)->recvflags != MSG_TRUNC){
-		//c->recv_buf->size = bytestransfer;
-		//c->_decoder->unpack(c->_decoder,c);
+	bytebuffer *buf;
+	int32_t     i = 0;
+	uint32_t    free_buffer_size,recv_size,pos;
+	if(!d->next_recv_buf){
+		d->next_recv_buf = bytebuffer_new(d->recv_bufsize);
+		d->next_recv_pos = 0;
 	}
-	PostRecv(c);
+	buf = d->next_recv_buf;
+	pos = d->next_recv_pos;
+	recv_size = d->recv_bufsize;
+	do
+	{
+		free_buffer_size = buf->cap - pos;
+		free_buffer_size = recv_size > free_buffer_size ? free_buffer_size:recv_size;
+		d->wrecvbuf[i].iov_len = free_buffer_size;
+		d->wrecvbuf[i].iov_base = buf->data + pos;
+		recv_size -= free_buffer_size;
+		pos += free_buffer_size;
+		if(recv_size && pos >= buf->cap)
+		{
+			pos = 0;
+			if(!buf->next)
+				buf->next = bytebuffer_new(d->recv_bufsize);
+			buf = buf->next;
+		}
+		++i;
+	}while(recv_size);
+	d->recv_overlap.iovec_count = i;
+	d->recv_overlap.iovec = d->wrecvbuf;
+}
+
+static inline void PostRecv(datagram *d){
+	((socket_*)d)->status |= RECVING;
+	prepare_recv(d);
+	datagram_socket_recv((handle*)d,&d->recv_overlap,IO_POST,NULL);		
+}
+
+static inline void update_next_recv_pos(datagram *d,int32_t _bytestransfer)
+{
+	assert(_bytestransfer >= 0);
+	uint32_t bytestransfer = (uint32_t)_bytestransfer;
+	uint32_t size;
+	decoder *decoder_ = d->decoder_;
+	if(!decoder_->buff)
+		decoder_init(decoder_,d->next_recv_buf,d->next_recv_pos);
+	decoder_->size += bytestransfer;
+	do{
+		size = d->next_recv_buf->cap - d->next_recv_pos;
+		size = size > bytestransfer ? bytestransfer:size;
+		d->next_recv_buf->size += size;
+		d->next_recv_pos += size;
+		bytestransfer -= size;
+		if(d->next_recv_pos >= d->next_recv_buf->cap)
+		{
+			bytebuffer_set(&d->next_recv_buf,d->next_recv_buf->next);
+			d->next_recv_pos = 0;
+		}
+	}while(bytestransfer);
+}
+
+static void IoFinish(handle *sock,void *_,int32_t bytestransfer,int32_t err_code,int32_t recvflags)
+{
+	int32_t unpack_err;
+	datagram *d = (datagram*)sock;	
+	if(bytestransfer > 0 && recvflags != MSG_TRUNC){
+		update_next_recv_pos(d,bytestransfer);
+		packet *pk = d->decoder_->unpack(d->decoder_,&unpack_err);
+		if(pk){
+			d->on_packet(d,pk,&d->recv_overlap.addr);
+			packet_del(pk);
+			if(((socket_*)d)->status & SOCKET_CLOSE)
+				return;
+		}
+	}
+	PostRecv(d);
 }
 
 
@@ -127,10 +138,10 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
 	//call the base_engine_add first
 	ret = base_engine_add(e,h,(generic_callback)IoFinish);
 	if(ret == 0){
-		((datagram*)h)->on_packet = (void(*)(datagram*,packet*))callback;
+		((datagram*)h)->on_packet = (void(*)(datagram*,packet*,sockaddr_*))callback;
 		//post the first recv request
 		if(!(((socket_*)h)->status & RECVING))
-			Recv((datagram*)h);
+			PostRecv((datagram*)h);
 	}
 	return ret;
 }
@@ -156,7 +167,37 @@ datagram *datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
 		base_engine_add = ((handle*)dgarm)->imp_engine_add; 
 	((handle*)dgarm)->imp_engine_add = imp_engine_add;
 	((socket_*)dgarm)->dctor = datagram_dctor;
-	dgarm->decoder_ = d ? d:rawpacket_decoder_new();
+	dgarm->decoder_ = d ? d:dgram_raw_decoder_new();
 	decoder_init(dgarm->decoder_,dgarm->next_recv_buf,0);
-	return c;
+	return dgarm;
+}
+
+static packet *rawpk_unpack(decoder *d,int32_t *err){
+	rawpacket    *raw;
+	uint32_t      size;
+	buffer_writer writer;
+	bytebuffer   *buff;
+	if(err) *err = 0;
+	if(!d->size) return NULL;
+	raw = rawpacket_new(d->size);
+	buffer_writer_init(&writer,((packet*)raw)->head,0);
+	((packet*)raw)->len_packet = d->size;
+	while(d->size){
+		buff = d->buff;
+		size = buff->size - d->pos;
+		buffer_write(&writer,buff->data + d->pos,size);
+		d->size -= size;
+		d->pos += size;
+		if(d->pos >= buff->cap){
+			d->pos = 0;
+			bytebuffer_set(&d->buff,buff->next);
+		}
+	}
+	return (packet*)raw;
+}
+
+decoder *dgram_raw_decoder_new(){
+	decoder *d = calloc(1,sizeof(*d));
+	d->unpack = rawpk_unpack;
+	return d;	
 }

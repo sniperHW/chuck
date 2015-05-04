@@ -19,6 +19,7 @@
 #define _ACCEPTOR_H
 
 #include "comm.h"
+#include "lua/lua_util.h"  
 
 //typedef void (*accepted_callback)(int32_t fd,sockaddr_*,void *ud);
 
@@ -26,10 +27,13 @@ typedef struct{
     handle  base;
     void   *ud;      
     void    (*callback)(int32_t fd,sockaddr_*,void *ud);
+    luaRef  luacallback;
 }acceptor;    
 
 handle *acceptor_new(int32_t fd,void *ud);
-void    acceptor_del(handle*);    
+void    acceptor_del(handle*); 
+
+void    reg_luaacceptor(lua_State *L);   
 
 
 #endif

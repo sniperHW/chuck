@@ -41,7 +41,8 @@ enum{
 int32_t stream_socket_send(handle*,iorequest*,int32_t flag);
 int32_t stream_socket_recv(handle*,iorequest*,int32_t flag);
 
-int32_t datagram_socket_send(handle*,iorequest*,int32_t flag);
+//Synchronous send noly
+int32_t datagram_socket_send(handle*,iorequest*);
 int32_t datagram_socket_recv(handle*,iorequest*,int32_t flag,int32_t *recvflags);
 
 //use by subclass to construct base part

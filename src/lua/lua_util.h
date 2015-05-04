@@ -35,7 +35,7 @@ typedef struct luaPushFunctor{
 
 static inline void release_luaRef(luaRef *ref)
 {
-	if(ref->rindex != LUA_REFNIL){
+	if(ref->L && ref->rindex != LUA_REFNIL){
 		luaL_unref(ref->L,LUA_REGISTRYINDEX,ref->rindex);
 		ref->L = NULL;
 		ref->rindex = LUA_REFNIL;

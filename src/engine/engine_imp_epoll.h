@@ -81,15 +81,15 @@ timer *engine_regtimer(engine *e,uint32_t timeout,
 }
 
 
-engine* engine_new(){
+static int32_t engine_init(engine *e){
+	epoll_ *ep = (epoll_*)e;
 	int32_t epfd = epoll_create1(EPOLL_CLOEXEC);
-	if(epfd < 0) return NULL;
+	if(epfd < 0) return -1;
 	int32_t tmp[2];
 	if(pipe2(tmp,O_NONBLOCK|O_CLOEXEC) != 0){
 		close(epfd);
-		return NULL;
+		return -1;
 	}		
-	epoll_ *ep = calloc(1,sizeof(*ep));
 	ep->epfd = epfd;
 	ep->maxevents = 64;
 	ep->events = calloc(1,(sizeof(*ep->events)*ep->maxevents));
@@ -104,10 +104,30 @@ engine* engine_new(){
 		close(tmp[0]);
 		close(tmp[1]);
 		free(ep->events);
-		free(ep);
-		return NULL;
+		return -1;
 	}	
+	return 0;
+} 
+
+engine* engine_new(){
+	epoll_ *ep = calloc(1,sizeof(*ep));
+	if(0 != engine_init((engine*)ep)){
+		free(ep);
+		ep = NULL;
+	}
 	return (engine*)ep;
+}
+
+static int32_t lua_engine_new(lua_State *L){
+	epoll_ *ep = (epoll_*)lua_newuserdata(L, sizeof(*ep));
+	if(0 != engine_init((engine*)ep)){
+		free(ep);
+		lua_pushnil(L);
+		return 1;
+	}	
+	luaL_getmetatable(L, LUAENGINE_METATABLE);
+	lua_setmetatable(L, -2);
+	return 1;
 }
 
 void engine_del(engine *e){

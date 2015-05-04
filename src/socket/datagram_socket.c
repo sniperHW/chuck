@@ -59,6 +59,7 @@ static void process_read(socket_ *s){
 	}
 }
 
+/*
 static void process_write(socket_ *s){
 	iorequest *req = NULL;
 	int32_t bytes_transfer = 0;
@@ -82,7 +83,7 @@ static void process_write(socket_ *s){
 	if(!list_size(&s->pending_send)){
 		disable_write((handle*)s);
 	}			
-}
+}*/
 
 
 static void on_events(handle *h,int32_t events){
@@ -96,8 +97,8 @@ static void on_events(handle *h,int32_t events){
 			if(s->status & SOCKET_CLOSE) 
 				break;								
 		}		
-		if(events & EVENT_WRITE)
-			process_write(s);			
+		//if(events & EVENT_WRITE)
+		//	process_write(s);			
 		s->status ^= SOCKET_INLOOP;
 	}while(0);
 	if(s->status & SOCKET_CLOSE){
@@ -106,7 +107,13 @@ static void on_events(handle *h,int32_t events){
 		close(h->fd);
 		free(h);		
 	}
-}	
+}
+
+void    construct_datagram_socket(socket_ *s){
+	((handle*)s)->on_events = on_events;
+	((handle*)s)->imp_engine_add = imp_engine_add;
+	s->status = SOCKET_DATAGRAM;	
+}		
 
 handle *new_datagram_socket(int32_t fd){
 	socket_ *s = calloc(1,sizeof(*s));
@@ -150,7 +157,7 @@ int32_t datagram_socket_recv(handle *h,iorequest *req,int32_t flag,int32_t *recv
 	return -EAGAIN;	
 }
 
-int32_t datagram_socket_send(handle *h,iorequest *req,int32_t flag){
+int32_t datagram_socket_send(handle *h,iorequest *req){
 	socket_ *s = (socket_*)h;
 	if(!h->e)
 		return -ENOASSENG;
@@ -159,23 +166,18 @@ int32_t datagram_socket_send(handle *h,iorequest *req,int32_t flag){
 	else if(!(s->status & SOCKET_DATAGRAM))
 		return -EINVISOKTYPE;	
 	errno = 0;
-	if(flag == IO_NOW && list_size(&s->pending_send)){
-		struct msghdr _msghdr = {
-			.msg_name = &req->addr,
-			.msg_namelen = sizeof(req->addr),
-			.msg_iov = req->iovec,
-			.msg_iovlen = req->iovec_count,
-			.msg_flags = 0,
-			.msg_control = NULL,
-			.msg_controllen = 0
-		};		
-		int32_t bytes_transfer = TEMP_FAILURE_RETRY(sendmsg(((handle*)s)->fd,&_msghdr,0));		
-		if(bytes_transfer >= 0)
-			return bytes_transfer;
-		else if(errno != EAGAIN)
-			return -errno;
-	}
-	list_pushback(&s->pending_send,(listnode*)req);
-	if(!is_write_enable(h)) enable_write(h);
-	return -EAGAIN;	
+	struct msghdr _msghdr = {
+		.msg_name = &req->addr,
+		.msg_namelen = sizeof(req->addr),
+		.msg_iov = req->iovec,
+		.msg_iovlen = req->iovec_count,
+		.msg_flags = 0,
+		.msg_control = NULL,
+		.msg_controllen = 0
+	};		
+	int32_t bytes_transfer = TEMP_FAILURE_RETRY(sendmsg(((handle*)s)->fd,&_msghdr,0));		
+	if(bytes_transfer >= 0)
+		return bytes_transfer;
+	else
+		return -errno;	
 }

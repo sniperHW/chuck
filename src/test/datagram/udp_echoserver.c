@@ -7,16 +7,14 @@ typedef struct {
 	iorequest base;
 	struct iovec wbuf[1];
 	char   	  buf[4096];	
-	int32_t   type;//0 for recv,1 for send
 }udp_request;
 
-udp_request *new_request(type){
+udp_request *new_request(){
 	udp_request *req = calloc(1,sizeof(*req));
 	req->wbuf[0].iov_base = req->buf;
 	req->wbuf[0].iov_len = 4096;
 	req->base.iovec_count = 1;
 	req->base.iovec = req->wbuf;
-	req->type = type;
 	return req;
 }
 
@@ -34,16 +32,9 @@ static void datagram_callback(handle *h,void *_,int32_t bytes,int32_t err,int32_
 		return;
 	}
 	if(req){
-		if(bytes){
-			if(req->type == 0){
-				totalbytes += bytes;
-				req->type = 1;
-				datagram_socket_send(h,(iorequest*)req,IO_POST);
-			}else{
-				req->type = 0;
-				datagram_socket_recv(h,(iorequest*)req,IO_POST,NULL);
-			}
-		}
+		totalbytes += bytes;
+		datagram_socket_send(h,(iorequest*)req);
+		datagram_socket_recv(h,(iorequest*)req,IO_POST,NULL);
 	}
 }
 
@@ -59,7 +50,7 @@ int main(int argc,char **argv){
 	if(0 == easy_bind(fd,&server)){
 		handle *udpserver = new_datagram_socket(fd); 
 		engine_add(e,udpserver,(generic_callback)datagram_callback);
-		datagram_socket_recv(udpserver,(iorequest*)new_request(0),IO_POST,NULL);
+		datagram_socket_recv(udpserver,(iorequest*)new_request(),IO_POST,NULL);
 		handle *tfd = timerfd_new(1000,NULL);
 		engine_add(e,tfd,(generic_callback)timer_callback);
 		engine_run(e);

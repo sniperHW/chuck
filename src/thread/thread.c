@@ -1,9 +1,18 @@
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/syscall.h>  
 #include "thread.h"
 #include "sync.h"
 
+#define gettidv1() syscall(__NR_gettid)  
+#define gettidv2() syscall(SYS_gettid)  
+
 __thread pid_t tid = 0;
+
+
+static void child(){
+	tid = 0;
+}
 
 struct start_arg{
 	void           *arg;
@@ -77,11 +86,10 @@ void* thread_del(thread *t)
 	return result;	
 }
 
-extern pid_t gettid(void);
-
 pid_t   thread_id(){
 	if(!tid){
-		tid = gettid();
+		tid = gettidv1();
+		pthread_atfork(NULL,NULL,child);
 	}
 	return tid;
 }

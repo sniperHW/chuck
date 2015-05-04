@@ -1,6 +1,8 @@
 #include "socket/wrap/connection.h"
 #include "engine/engine.h"
 #include "packet/rawpacket.h"
+#include "util/log.h"
+#include "packet/luapacket.h"
 
 static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
 
@@ -270,14 +272,13 @@ void connection_dctor(void *_)
 	while((p = (packet*)list_pop(&c->send_list))!=NULL)
 		packet_del(p);
 	bytebuffer_set(&c->next_recv_buf,NULL);
-	decoder_del(c->decoder_);	
+	decoder_del(c->decoder_);
+	release_luaRef(&c->lua_cb_packet);
+	release_luaRef(&c->lua_cb_disconnected);
 }
 
-connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
+static void connection_init(connection *c,int32_t fd,uint32_t buffersize,decoder *d)
 {
-	buffersize = size_of_pow2(buffersize);
-    if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
-	connection *c 	 = calloc(1,sizeof(*c));
 	((handle*)c)->fd = fd;
 	c->recv_bufsize  = buffersize;
 	c->next_recv_buf = bytebuffer_new(buffersize);
@@ -289,6 +290,14 @@ connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
 	((socket_*)c)->dctor = connection_dctor;
 	c->decoder_ = d ? d:conn_raw_decoder_new();
 	decoder_init(c->decoder_,c->next_recv_buf,0);
+}
+
+connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
+{
+	buffersize = size_of_pow2(buffersize);
+    if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
+	connection *c 	 = calloc(1,sizeof(*c));
+	connection_init(c,fd,buffersize,d);
 	return c;
 }
 
@@ -306,6 +315,7 @@ static packet *rawpk_unpack(decoder *d,int32_t *err){
 	size = d->buff->size - d->pos;
 	d->pos  += size;
 	d->size -= size;
+	((packet*)raw)->len_packet = size;
 	if(d->pos >= d->buff->cap){
 		d->pos = 0;
 		bytebuffer_set(&d->buff,d->buff->next);
@@ -317,4 +327,149 @@ decoder *conn_raw_decoder_new(){
 	decoder *d = calloc(1,sizeof(*d));
 	d->unpack = rawpk_unpack;
 	return d;	
+}
+
+
+//for lua
+
+#define LUA_METATABLE "conn_mata"
+
+connection *lua_toconnection(lua_State *L, int index) {
+    return (connection*)luaL_testudata(L, index, LUA_METATABLE);
+}
+
+int32_t lua_connection_new(lua_State *L){
+	int32_t  fd;
+	int32_t  buffersize;
+	decoder *d = NULL;
+	if(LUA_TNUMBER != lua_type(L,1))
+		return luaL_error(L,"arg1 should be number");
+	if(LUA_TNUMBER != lua_type(L,2))
+		return luaL_error(L,"arg2 should be number");	
+	
+
+	fd = (int32_t)lua_tonumber(L,1);
+	buffersize = (int32_t)lua_tonumber(L,2);
+	if(LUA_TUSERDATA == lua_type(L,3))
+		d = (decoder*)lua_touserdata(L,3);
+
+	connection *c = (connection*)lua_newuserdata(L, sizeof(*c));
+	connection_init(c,fd,buffersize,d);
+	luaL_getmetatable(L, LUA_METATABLE);
+	lua_setmetatable(L, -2);
+	return 1;
+}
+
+typedef struct{
+	luaPushFunctor base;
+	connection    *c;
+	packet        *p;
+	int32_t        num;
+}stPushConn;
+
+static void PushConn(lua_State *L,luaPushFunctor *_){
+	stPushConn *self = (stPushConn*)_;
+	lua_pushlightuserdata(L,self->c);
+	luaL_getmetatable(L, LUA_METATABLE);
+	lua_setmetatable(L, -2);
+	if(self->p) lua_pushpacket(L,self->p);
+	lua_pushnumber(L,self->num);		
+}
+
+static void lua_on_packet(connection *c,packet *p,int32_t event)
+{
+	const char * error;
+	stPushConn st;
+	st.c = c;
+	st.p = p;
+	st.num = event;
+	st.base.Push = PushConn;
+	if((error = LuaCallRefFunc(c->lua_cb_packet,"f",&st))){
+		SYS_LOG(LOG_ERROR,"error on lua_cb_packet:%s\n",error);	
+	}	
+}
+
+/*
+static void lua_on_disconnected(connection *c,int32_t err)
+{
+	const char * error;
+	stPushConn st;
+	st.c = c;
+	st.p = NULL;
+	st.num = err;
+	st.base.Push = PushConn;
+	if((error = LuaCallRefFunc(c->lua_cb_disconnected,"f",&st))){
+		SYS_LOG(LOG_ERROR,"error on lua_cb_disconnected:%s\n",error);	
+	}
+}*/
+
+
+static int32_t lua_engine_add(lua_State *L){
+	connection *c = lua_toconnection(L,1);
+	engine     *e = lua_toengine(L,2);
+	if(c && e){
+		if(imp_engine_add(e,(handle*)c,(generic_callback)lua_on_packet)){
+			c->lua_cb_packet = toluaRef(L,3);
+		}
+	}
+	return 0;
+}
+
+static int32_t lua_engine_remove(lua_State *L){
+	connection *c = lua_toconnection(L,1);
+	if(c){
+		engine_remove((handle*)c);
+	}
+	return 0;
+}
+
+
+static int32_t lua_conn_close(lua_State *L){
+
+	return 0;
+}
+
+static int32_t lua_conn_send(lua_State *L){
+	connection *c = lua_toconnection(L,1);
+	luapacket  *p = lua_topacket(L,2);
+	lua_pushnumber(L,connection_send(c,p->_packet,0));
+	return 1;
+}
+
+static int32_t lua_connection_del(lua_State *L){
+	connection *c = lua_toconnection(L,1);
+	connection_close(c);
+	return 0;
+}
+
+#define SET_FUNCTION(L,NAME,FUNC) do{\
+	lua_pushstring(L,NAME);\
+	lua_pushcfunction(L,FUNC);\
+	lua_settable(L, -3);\
+}while(0)
+
+void    reg_luaconnection(lua_State *L){
+    luaL_Reg conn_mt[] = {
+        {"__gc", lua_connection_del},
+        {NULL, NULL}
+    };
+
+    luaL_Reg conn_methods[] = {
+        {"Send",    lua_conn_send},
+        {"Close",   lua_conn_close},
+        {"Add2Engine",lua_engine_add},
+        {"RemoveEngine",lua_engine_remove},
+        {NULL,     NULL}
+    };
+
+    luaL_newmetatable(L, LUA_METATABLE);
+    luaL_setfuncs(L, conn_mt, 0);
+
+    luaL_newlib(L, conn_methods);
+    lua_setfield(L, -2, "__index");
+    lua_pop(L, 1);
+
+   	lua_newtable(L);
+
+   	SET_FUNCTION(L,"connection",lua_connection_new);
 }

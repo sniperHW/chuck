@@ -24,16 +24,13 @@
 #include <pthread.h>
 #include "comm.h" 
 
-
-extern pthread_key_t g_systime_key;
-#ifndef __GNUC__
-extern pthread_once_t g_systime_key_once;
-#endif
 struct _clock
 {
     uint64_t last_tsc;
     uint64_t last_time;
 };
+
+static __thread struct _clock *__t_clock = NULL;
 
 static inline void _clock_gettime_boot(struct timespec *ts){
         if(unlikely(!ts)) return;
@@ -78,35 +75,32 @@ static inline uint64_t _clock_time()
     return tv.tv_sec * (uint64_t) 1000 + tv.tv_nsec / 1000000;
 }
 
-static inline void _clock_init (struct _clock *c)
+static void __clock_child_at_fork(){
+    if(__t_clock){        
+        free(__t_clock);
+        __t_clock = NULL;
+    }
+}
+
+static inline void _clock_init()
 {
-    c->last_tsc = _clock_rdtsc();
-    c->last_time = _clock_time();
+    __t_clock->last_tsc = _clock_rdtsc();
+    __t_clock->last_time = _clock_time();
+    pthread_atfork(NULL,NULL,__clock_child_at_fork);
 }
 
 static inline struct _clock* get_thread_clock()
 {
-    struct _clock* c = (struct _clock*)pthread_getspecific(g_systime_key);
-    if(unlikely(!c)){
-       c = calloc(1,sizeof(*c));
-       _clock_init(c);
-       pthread_setspecific(g_systime_key,c);
+    if(!__t_clock){
+        __t_clock = calloc(1,sizeof(*__t_clock));
+        _clock_init();
     }
-    return c;
+    return __t_clock;
 }
 
-
-#ifndef __GNUC__
-static inline void systick_once_routine(){
-    pthread_key_create(&g_systime_key,NULL);
-}
+  
 static inline uint64_t systick64()
 {
-    pthread_once(&g_systime_key_once,systick_once_routine);
-#else    
-static inline uint64_t systick64()
-{
-#endif
     uint64_t tsc = _clock_rdtsc();
     if (!tsc)
         return _clock_time();

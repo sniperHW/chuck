@@ -20,7 +20,8 @@
 
 #include "socket/wrap/decoder.h"
 #include "socket/socket.h"  
-#include "socket/wrap/wrap_comm.h"      
+#include "socket/wrap/wrap_comm.h"
+#include "lua/lua_util.h"      
 
 typedef struct datagram{
     socket_      base;
@@ -30,7 +31,7 @@ typedef struct datagram{
     uint32_t     next_recv_pos;
     bytebuffer  *next_recv_buf;        
     uint32_t     recv_bufsize;
-    void         (*on_packet)(struct datagram*,packet*);
+    void         (*on_packet)(struct datagram*,packet*,sockaddr_*);
     decoder     *decoder_;
 }datagram;
 
@@ -40,6 +41,8 @@ int32_t   datagram_send(datagram *d,packet *p,sockaddr_ *addr);
 void      datagram_close(datagram *d);
 
 decoder  *dgram_raw_decoder_new();
+
+int32_t   datagram_reg_tolua(lua_State *L);
 
 
 #endif    

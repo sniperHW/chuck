@@ -19,7 +19,7 @@
 #define _SOCKET_HELPER_H
 
 #include "./socket.h"
-
+#include "lua/lua_util.h"
 
 int32_t easy_listen(int32_t fd,sockaddr_ *server);
 
@@ -75,5 +75,7 @@ static inline int32_t easy_sockaddr_un(sockaddr_ *addr,const char *path){
     strncpy(addr->un.sun_path,path,sizeof(addr->un.sun_path)-1);
     return 0;
 }
+
+void reg_luasocket_helper(lua_State *L);
 
 #endif
