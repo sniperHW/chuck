@@ -4,16 +4,23 @@
 #include "packet/rpacket.h"
 #include "lua/lua_util_packet.h"
 
-#define LUAPACKET_METATABLE "luapacket_metatable"
+#define LUARPACKET_METATABLE   "luarpacket_metatable"
+#define LUAWPACKET_METATABLE   "luawpacket_metatable"
+#define LUARAWPACKET_METATABLE "luarawpacket_metatable"
 
 luapacket *lua_topacket(lua_State *L, int index){
-    return (luapacket*)luaL_testudata(L, index, LUAPACKET_METATABLE);
+    return (luapacket*)lua_touserdata(L, index);
 }
 
 void lua_pushpacket(lua_State *L,packet *pk){
 	luapacket *p = (luapacket*)lua_newuserdata(L, sizeof(*p));
-	p->_packet = pk;	
-	luaL_getmetatable(L, LUAPACKET_METATABLE);
+	p->_packet = pk;
+	if(pk->type == RPACKET)	
+		luaL_getmetatable(L, LUARPACKET_METATABLE);
+	else if(pk->type == WPACKET)
+		luaL_getmetatable(L, LUAWPACKET_METATABLE);
+	else
+		luaL_getmetatable(L, LUARAWPACKET_METATABLE);
 	lua_setmetatable(L, -2);
 }
 
@@ -214,7 +221,7 @@ static int32_t lua_new_wpacket(lua_State *L){
 		if(argtype == LUA_TNUMBER) len = size_of_pow2(lua_tointeger(L,1));
 		if(len < 64) len = 64;
 		luapacket *p = (luapacket*)lua_newuserdata(L, sizeof(*p));
-		luaL_getmetatable(L, LUAPACKET_METATABLE);
+		luaL_getmetatable(L, LUAWPACKET_METATABLE);
 		lua_setmetatable(L, -2);
 		p->_packet = (packet*)wpacket_new(len);
 		return 1;			
@@ -225,7 +232,7 @@ static int32_t lua_new_wpacket(lua_State *L){
 		if(other->_packet->type == RAWPACKET)
 			return luaL_error(L,"invaild opration for arg1");
 		luapacket *p = (luapacket*)lua_newuserdata(L, sizeof(*p));
-		luaL_getmetatable(L, LUAPACKET_METATABLE);
+		luaL_getmetatable(L, LUAWPACKET_METATABLE);
 		lua_setmetatable(L, -2);
 		p->_packet = make_writepacket(other->_packet);
 		return 1;												
@@ -242,7 +249,7 @@ static int32_t lua_new_rpacket(lua_State *L){
 		if(other->_packet->type == RAWPACKET)
 			return luaL_error(L,"invaild opration for arg1");
 		luapacket *p = (luapacket*)lua_newuserdata(L, sizeof(*p));
-		luaL_getmetatable(L,LUAPACKET_METATABLE);
+		luaL_getmetatable(L,LUARPACKET_METATABLE);
 		lua_setmetatable(L, -2);
 		p->_packet = make_readpacket(other->_packet);
 		return 1;					
@@ -257,24 +264,46 @@ static int32_t lua_new_rawpacket(lua_State *L){
 		size_t len;
 		char *data = (char*)lua_tolstring(L,1,&len);
 		luapacket *p = (luapacket*)lua_newuserdata(L, sizeof(*p));
-		luaL_getmetatable(L, LUAPACKET_METATABLE);
+		luaL_getmetatable(L, LUARAWPACKET_METATABLE);
 		lua_setmetatable(L, -2);				
 		p->_packet = (packet*)rawpacket_new(len);
 		rawpacket_append((rawpacket*)p->_packet,data,len);
 		return 1;
 	}else if(argtype ==  LUA_TUSERDATA){
-		luapacket* other = lua_topacket(L,1);
+		luapacket *other = lua_topacket(L,1);
 		if(!other)
 			return luaL_error(L,"invaild opration for arg1");
 		if(other->_packet->type != RAWPACKET)
 			return luaL_error(L,"invaild opration for arg1");
 		luapacket *p = (luapacket*)lua_newuserdata(L, sizeof(*p));
-		luaL_getmetatable(L, LUAPACKET_METATABLE);
+		luaL_getmetatable(L, LUARAWPACKET_METATABLE);
 		lua_setmetatable(L, -2);
 		p->_packet = clone_packet(other->_packet);
 		return 1;							
 	}else
 		return luaL_error(L,"invaild opration for arg1");	
+}
+
+static int32_t lua_clone_packet(lua_State *L){
+	luapacket *p,*other;
+	if(lua_type(L,1) !=  LUA_TUSERDATA)
+		return luaL_error(L,"arg1 should be a packet");
+	other = lua_topacket(L,1);
+	if(other->_packet->type == RPACKET){
+		p = (luapacket*)lua_newuserdata(L, sizeof(*p));
+		luaL_getmetatable(L, LUARPACKET_METATABLE);
+	}else if(other->_packet->type == WPACKET){
+		p = (luapacket*)lua_newuserdata(L, sizeof(*p));
+		luaL_getmetatable(L, LUAWPACKET_METATABLE);
+	}else if(other->_packet->type == RAWPACKET){
+		p = (luapacket*)lua_newuserdata(L, sizeof(*p));
+		luaL_getmetatable(L, LUARAWPACKET_METATABLE);		
+	}else{
+		return luaL_error(L,"invaild packet type");
+	}
+	lua_setmetatable(L, -2);	
+	p->_packet = clone_packet(other->_packet);
+	return 1;	
 }
 
 #define SET_FUNCTION(L,NAME,FUNC) do{\
@@ -284,12 +313,22 @@ static int32_t lua_new_rawpacket(lua_State *L){
 }while(0)
 
 void reg_luapacket(lua_State *L){
-    luaL_Reg packet_mt[] = {
+    luaL_Reg rpacket_mt[] = {
         {"__gc", luapacket_gc},
         {NULL, NULL}
     };
 
-    luaL_Reg packet_methods[] = {
+    luaL_Reg wpacket_mt[] = {
+        {"__gc", luapacket_gc},
+        {NULL, NULL}
+    };
+
+    luaL_Reg rawpacket_mt[] = {
+        {"__gc", luapacket_gc},
+        {NULL, NULL}
+    };        
+
+    luaL_Reg rpacket_methods[] = {
         {"ReadU8",  _read_uint8},
         {"ReadU16", _read_uint16},
         {"ReadU32", _read_uint32},
@@ -300,29 +339,53 @@ void reg_luapacket(lua_State *L){
         {"ReadStr", _read_string},
         {"ReadTab", _read_table},
         {"ReadBin", _read_rawbin},
-                 
+        {NULL, NULL}
+    };
+
+    luaL_Reg wpacket_methods[] = {                 
         {"WriteU8", _write_uint8},
         {"WriteU16",_write_uint16},
         {"WriteU32",_write_uint32},
         {"WriteNum",_write_double},        
         {"WriteStr",_write_string},
         {"WriteTab",_write_table},
-
         {NULL, NULL}
-    };
+    }; 
 
-    luaL_newmetatable(L, LUAPACKET_METATABLE);
-    luaL_setfuncs(L, packet_mt, 0);
+    luaL_Reg rawpacket_methods[] = {                 
+		{"ReadBin", _read_rawbin},
+        {NULL, NULL}
+    };             
 
-    luaL_newlib(L, packet_methods);
+    luaL_newmetatable(L, LUARPACKET_METATABLE);
+    luaL_setfuncs(L, rpacket_mt, 0);
+
+    luaL_newlib(L, rpacket_methods);
     lua_setfield(L, -2, "__index");
     lua_pop(L, 1);
+
+    luaL_newmetatable(L, LUAWPACKET_METATABLE);
+    luaL_setfuncs(L, wpacket_mt, 0);
+
+    luaL_newlib(L, wpacket_methods);
+    lua_setfield(L, -2, "__index");
+    lua_pop(L, 1);
+
+    luaL_newmetatable(L, LUARAWPACKET_METATABLE);
+    luaL_setfuncs(L, rawpacket_mt, 0);
+
+    luaL_newlib(L, rawpacket_methods);
+    lua_setfield(L, -2, "__index");
+    lua_pop(L, 1);
+
+
 
    	lua_newtable(L);
 
    	SET_FUNCTION(L,"rpacket",lua_new_rpacket);
    	SET_FUNCTION(L,"wpacket",lua_new_wpacket);
    	SET_FUNCTION(L,"rawpacket",lua_new_rawpacket);
+   	SET_FUNCTION(L,"clone",lua_clone_packet);
 
 
 }

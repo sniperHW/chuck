@@ -38,7 +38,11 @@ function on_new_client(fd)
 	table.insert(clients,conn)--hold the conn to prevent lua gc
 end
 
-if 0 == socket_helper.listen(fd,"127.0.0.1",8010) then
+local ip = "127.0.0.1"
+local port = 8010
+
+if 0 == socket_helper.listen(fd,ip,port) then
+	print("server start",ip,port)
 	print("server start")
 	local server = acceptor(fd)
 	engine = chuck.engine()

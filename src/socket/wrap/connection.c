@@ -67,10 +67,7 @@ static inline void update_next_recv_pos(connection *c,int32_t _bytestransfer)
 	assert(_bytestransfer >= 0);
 	uint32_t bytestransfer = (uint32_t)_bytestransfer;
 	uint32_t size;
-	decoder *decoder_ = c->decoder_;
-	if(!decoder_->buff)
-		decoder_init(decoder_,c->next_recv_buf,c->next_recv_pos);
-	decoder_->size += bytestransfer;
+	decoder_update(c->decoder_,c->next_recv_buf,c->next_recv_pos,bytestransfer);
 	do{
 		size = c->next_recv_buf->cap - c->next_recv_pos;
 		size = size > bytestransfer ? bytestransfer:size;

@@ -95,10 +95,7 @@ static inline void update_next_recv_pos(datagram *d,int32_t _bytestransfer)
 	assert(_bytestransfer >= 0);
 	uint32_t bytestransfer = (uint32_t)_bytestransfer;
 	uint32_t size;
-	decoder *decoder_ = d->decoder_;
-	if(!decoder_->buff)
-		decoder_init(decoder_,d->next_recv_buf,d->next_recv_pos);
-	decoder_->size += bytestransfer;
+	decoder_update(d->decoder_,d->next_recv_buf,d->next_recv_pos,bytestransfer);
 	do{
 		size = d->next_recv_buf->cap - d->next_recv_pos;
 		size = size > bytestransfer ? bytestransfer:size;

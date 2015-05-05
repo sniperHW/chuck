@@ -7,7 +7,7 @@ local engine
 
 function on_packet(conn,p,event)
 	if event == "RECV" then
-		conn:Send(packet.rawpacket(p),"notify")
+		conn:Send(packet.clone(p),"notify")
 	elseif event == "SEND" then
 		conn:Close()
 	end
@@ -28,8 +28,12 @@ local fd =  socket_helper.socket(socket_helper.AF_INET,
 								 socket_helper.IPPROTO_TCP)
 socket_helper.addr_reuse(fd,1)
 
-if 0 == socket_helper.listen(fd,"127.0.0.1",8010) then
-	print("server start")
+
+local ip = "127.0.0.1"
+local port = 8010
+
+if 0 == socket_helper.listen(fd,ip,port) then
+	print("server start",ip,port)
 	local server = chuck.acceptor(fd)
 	engine = chuck.engine()
 	server:Add2Engine(engine,on_new_client)

@@ -4,9 +4,12 @@
 int      client_count = 0;
 double   totalbytes   = 0;
 
-static void timer_callback(void *ud){
-	printf("client_count:%d,totalbytes:%f MB/s\n",client_count,totalbytes/1024/1024);
-	totalbytes = 0.0;
+int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
+	if(event == TEVENT_TIMEOUT){
+		printf("client_count:%d,totalbytes:%f MB/s\n",client_count,totalbytes/1024/1024);
+		totalbytes = 0.0;
+	}
+	return 0;
 }
 
 static void on_packet(connection *c,packet *p,int32_t event){
@@ -28,7 +31,7 @@ static void on_connection(int32_t fd,sockaddr_ *_,void *ud){
 	engine *e = (engine*)ud;
 	connection *c = connection_new(fd,64,NULL);
 	connection_set_discnt_callback(c,on_disconnected);
-	engine_add(e,(handle*)c,(generic_callback)on_packet);
+	engine_associate(e,c,on_packet);
 	++client_count;
 }
 
@@ -44,9 +47,8 @@ int main(int argc,char **argv){
 	easy_addr_reuse(fd,1);
 	if(0 == easy_listen(fd,&server)){
 		handle *accptor = acceptor_new(fd,e);
-		engine_add(e,accptor,(generic_callback)on_connection);
-		handle *tfd = timerfd_new(1000,NULL);
-		engine_add(e,tfd,(generic_callback)timer_callback);
+		engine_associate(e,accptor,on_connection);
+		engine_regtimer(e,1000,timer_callback,NULL);
 		engine_run(e);
 	}else{
 		close(fd);

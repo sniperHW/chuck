@@ -38,7 +38,7 @@ int main(int argc,char **argv){
 	}
 	int32_t fd = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
 	handle *udpclient = new_datagram_socket(fd); 
-	engine_add(e,udpclient,(generic_callback)datagram_callback);
+	engine_associate(e,udpclient,datagram_callback);
 	iorequest *req = (iorequest*)new_request();
 	memcpy(&req->addr,&server,sizeof(server));
 	datagram_socket_send(udpclient,req);

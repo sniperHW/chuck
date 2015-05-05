@@ -5,7 +5,7 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 	if(fd >= 0 && err == 0){
 		engine *e = (engine*)ud;
 		handle *h = new_stream_socket(fd);
-		engine_add(e,h,(generic_callback)transfer_finish);
+		engine_associate(e,h,transfer_finish);
 		struct session *s = session_new(h);
 		session_send(s,65535);
 	}else if(err == ETIMEDOUT){
@@ -29,7 +29,7 @@ int main(int argc,char **argv){
 			on_connected(fd,0,e);
 		else if(ret == -EINPROGRESS){
 			handle *contor = connector_new(fd,e,2000);
-			engine_add(e,contor,(generic_callback)on_connected);			
+			engine_associate(e,contor,on_connected);			
 		}else{
 			close(fd);
 			printf("connect to %s %d error\n",argv[1],atoi(argv[2]));

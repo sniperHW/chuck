@@ -50,6 +50,13 @@ static inline void decoder_init(decoder *d,bytebuffer *buff,uint32_t pos){
     d->size = 0;
 }
 
+static inline void decoder_update(decoder *d,bytebuffer *buff,uint32_t pos,uint32_t size){
+    if(!d->buff){
+        decoder_init(d,buff,pos);
+    }else
+        d->size += size;
+}
+
 void reg_luadecoder(lua_State *L);
 
 

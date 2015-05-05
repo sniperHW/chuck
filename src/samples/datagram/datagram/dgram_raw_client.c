@@ -2,10 +2,7 @@
 #include "packet/rawpacket.h"
 
 static void on_packet(datagram *d,packet *p,sockaddr_ *from){
-	//rawpacket *raw = (rawpacket*)p;
-	//printf("%s\n",(const char *)rawpacket_data(raw,NULL));
-	int32_t ret = datagram_send(d,make_writepacket(p),from);
-	//printf("%d\n",ret);
+	datagram_send(d,make_writepacket(p),from);
 }
 
 
@@ -18,7 +15,7 @@ int main(int argc,char **argv){
 	}
 	int32_t fd = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
 	datagram *udpclient = datagram_new(fd,4096,NULL); 
-	engine_add(e,(handle*)udpclient,(generic_callback)on_packet);
+	engine_associate(e,udpclient,on_packet);
 	rawpacket *raw = rawpacket_new(512);
 	rawpacket_append(raw,"hello world",strlen("hello world") + 1);
 	datagram_send(udpclient,(packet*)raw,&server);

@@ -20,9 +20,12 @@ udp_request *new_request(){
 
 double totalbytes = 0.0;
 
-static void timer_callback(void *ud){
-	printf("totalbytes:%f MB/s\n",totalbytes/1024/1024);
-	totalbytes = 0.0;
+int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
+	if(event == TEVENT_TIMEOUT){
+		printf("totalbytes:%f MB/s\n",totalbytes/1024/1024);
+		totalbytes = 0.0;
+	}
+	return 0;
 }
 
 static void datagram_callback(handle *h,void *_,int32_t bytes,int32_t err,int32_t recvflags){
@@ -49,10 +52,9 @@ int main(int argc,char **argv){
 	easy_addr_reuse(fd,1);
 	if(0 == easy_bind(fd,&server)){
 		handle *udpserver = new_datagram_socket(fd); 
-		engine_add(e,udpserver,(generic_callback)datagram_callback);
+		engine_associate(e,udpserver,datagram_callback);
 		datagram_socket_recv(udpserver,(iorequest*)new_request(),IO_POST,NULL);
-		handle *tfd = timerfd_new(1000,NULL);
-		engine_add(e,tfd,(generic_callback)timer_callback);
+		engine_regtimer(e,1000,timer_callback,NULL);
 		engine_run(e);
 	}
 	return 0;

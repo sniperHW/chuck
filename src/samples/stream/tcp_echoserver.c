@@ -13,7 +13,7 @@ static void on_connection(int32_t fd,sockaddr_ *_,void *ud){
 	printf("on_connection\n");
 	engine *e = (engine*)ud;
 	handle *h = new_stream_socket(fd);
-	engine_add(e,h,(generic_callback)transfer_finish);
+	engine_associate(e,h,transfer_finish);
 	struct session *s = session_new(h);
 	session_recv(s);
 	++client_count;
@@ -32,7 +32,7 @@ int main(int argc,char **argv){
 	easy_addr_reuse(fd,1);
 	if(0 == easy_listen(fd,&server)){
 		handle *accptor = acceptor_new(fd,e);
-		engine_add(e,accptor,(generic_callback)on_connection);
+		engine_associate(e,accptor,on_connection);
 		engine_regtimer(e,1000,timer_callback,NULL);
 		engine_run(e);
 	}else{

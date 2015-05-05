@@ -2,13 +2,16 @@
 
 uint32_t   packet_count = 0;
 
-static void timer_callback(void *ud){
-	printf("packet_count:%u/s\n",packet_count);
-	packet_count = 0;
+int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
+	if(event == TEVENT_TIMEOUT){
+		printf("packet_count:%u/s\n",packet_count);
+		packet_count = 0;
+	}
+	return 0;
 }
 
 static void on_packet(datagram *d,packet *p,sockaddr_ *from){
-	int32_t ret = datagram_send(d,make_writepacket(p),from);
+	datagram_send(d,make_writepacket(p),from);
 	++packet_count;
 }
 
@@ -24,9 +27,8 @@ int main(int argc,char **argv){
 	easy_addr_reuse(fd,1);
 	if(0 == easy_bind(fd,&server)){
 		datagram *udpserver = datagram_new(fd,4096,rpacket_decoder_new(4096));
-		engine_add(e,(handle*)udpserver,(generic_callback)on_packet);
-		handle *tfd = timerfd_new(1000,NULL);
-		engine_add(e,tfd,(generic_callback)timer_callback);
+		engine_associate(e,udpserver,on_packet);
+		engine_regtimer(e,1000,timer_callback,NULL);
 		engine_run(e);
 	}
 	return 0;

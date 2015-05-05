@@ -15,7 +15,7 @@ int main(int argc,char **argv){
 	}
 	int32_t fd = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
 	datagram *udpclient = datagram_new(fd,4096,rpacket_decoder_new(4096)); 
-	engine_add(e,(handle*)udpclient,(generic_callback)on_packet);
+	engine_associate(e,udpclient,on_packet);
 	wpacket *w = wpacket_new(512);
 	wpacket_write_uint32(w,100);
 	wpacket_write_string(w,"hello world\n");

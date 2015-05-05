@@ -33,6 +33,8 @@ timer  *engine_regtimer(engine*,uint32_t timeout,int32_t(*)(uint32_t,uint64_t,vo
 engine *lua_toengine(lua_State *L, int index);
 void    reg_luaengine(lua_State *L);
 
+#define engine_associate(E,H,C) engine_add((E),(handle*)(H),(generic_callback)(C))
+
 //private function
 int32_t event_add(engine*,handle*,int32_t events);
 int32_t event_remove(handle*);

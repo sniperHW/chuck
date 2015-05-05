@@ -20,7 +20,7 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 	if(fd >= 0 && err == 0){
 		engine *e = (engine*)ud;
 		connection *c = connection_new(fd,65535,rpacket_decoder_new(1024));
-		engine_add(e,(handle*)c,(generic_callback)on_packet);
+		engine_associate(e,(handle*)c,on_packet);
 		packet *p = (packet*)wpacket_new(64);
 		wpacket_write_uint64((wpacket*)p,(uint64_t)c);
 		wpacket_write_string((wpacket*)p,"hello world\n");
@@ -46,7 +46,7 @@ int main(int argc,char **argv){
 			on_connected(fd,0,e);
 		else if(ret == -EINPROGRESS){
 			handle *contor = connector_new(fd,e,2000);
-			engine_add(e,contor,(generic_callback)on_connected);			
+			engine_associate(e,contor,on_connected);			
 		}else{
 			close(fd);
 			printf("connect to %s %d error\n",argv[1],atoi(argv[2]));
