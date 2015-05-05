@@ -21,6 +21,7 @@
 #include "comm.h"
 #include "packet/packet.h"
 #include "util/bytebuffer.h"
+#include "lua/lua_util.h"
 
 enum {
     DERR_TOOLARGE  = -1,
@@ -48,6 +49,8 @@ static inline void decoder_init(decoder *d,bytebuffer *buff,uint32_t pos){
     d->pos  = pos;
     d->size = 0;
 }
+
+void reg_luadecoder(lua_State *L);
 
 
 #endif    

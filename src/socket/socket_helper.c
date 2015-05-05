@@ -20,7 +20,7 @@ int32_t easy_connect(int32_t fd,sockaddr_ *server,sockaddr_ *local){
 
 
 
-int32_t lua_easy_connect(lua_State *L){
+static int32_t lua_easy_connect(lua_State *L){
 	int32_t fd;
 	const char *ip;
 	uint16_t port;
@@ -42,11 +42,11 @@ int32_t lua_easy_connect(lua_State *L){
 	if(0 != easy_sockaddr_ip4(&addr,ip,port))
 		return 	luaL_error(L,"invaild address or port");
 
-	lua_pushnumber(L,easy_connect(fd,&addr,NULL));
+	lua_pushinteger(L,easy_connect(fd,&addr,NULL));
 	return 1;				
 }
 
-int32_t lua_socket(lua_State *L){
+static int32_t lua_socket(lua_State *L){
 	int32_t family;
 	int32_t type;
 	int32_t protocol;
@@ -64,11 +64,11 @@ int32_t lua_socket(lua_State *L){
 	type   	 = lua_tonumber(L,2);
 	protocol = lua_tonumber(L,3);	
 
-	lua_pushnumber(L,socket(family,type,protocol));
+	lua_pushinteger(L,socket(family,type,protocol));
 	return 1;
 }
 
-int32_t lua_easy_listen(lua_State *L){
+static int32_t lua_easy_listen(lua_State *L){
 	int32_t fd;
 	const char *ip;
 	uint16_t port;
@@ -90,11 +90,11 @@ int32_t lua_easy_listen(lua_State *L){
 	if(0 != easy_sockaddr_ip4(&addr,ip,port))
 		return 	luaL_error(L,"invaild address or port");
 
-	lua_pushnumber(L,easy_listen(fd,&addr));
+	lua_pushinteger(L,easy_listen(fd,&addr));
 	return 1;
 }
 
-int32_t lua_easy_noblock(lua_State *L){
+static int32_t lua_easy_noblock(lua_State *L){
 	int32_t fd;
 	int32_t yes;
 	if(lua_type(L,1) != LUA_TNUMBER)
@@ -106,11 +106,11 @@ int32_t lua_easy_noblock(lua_State *L){
 	fd   = lua_tonumber(L,1);
 	yes = lua_tonumber(L,2);	
 
-	lua_pushnumber(L,easy_noblock(fd,yes));
+	lua_pushinteger(L,easy_noblock(fd,yes));
 	return 1;
 }
 
-int32_t lua_easy_addr_reuse(lua_State *L){
+static int32_t lua_easy_addr_reuse(lua_State *L){
 	int32_t fd;
 	int32_t yes;
 	if(lua_type(L,1) != LUA_TNUMBER)
@@ -122,8 +122,17 @@ int32_t lua_easy_addr_reuse(lua_State *L){
 	fd   = lua_tonumber(L,1);
 	yes = lua_tonumber(L,2);	
 
-	lua_pushnumber(L,easy_addr_reuse(fd,yes));
+	lua_pushinteger(L,easy_addr_reuse(fd,yes));
 	return 1;
+}
+
+static int32_t lua_close_socket(lua_State *L){
+	int32_t fd;
+	if(lua_type(L,1) != LUA_TNUMBER)
+		return luaL_error(L,"invaild arg1");
+	fd = lua_tonumber(L,1);
+	close(fd);		
+	return 0;
 }
 
 #define SET_CONST(L,N) do{\
@@ -149,5 +158,5 @@ void reg_luasocket_helper(lua_State *L){
 	SET_FUNCTION(L,"listen",lua_easy_listen);
 	SET_FUNCTION(L,"noblock",lua_easy_noblock);
 	SET_FUNCTION(L,"addr_reuse",lua_easy_addr_reuse);
-
+	SET_FUNCTION(L,"close",lua_close_socket);
 }

@@ -10,6 +10,7 @@ packet         *rpacket_makewrite(packet*);
 #define INIT_CONSTROUCTOR(p){\
 	((packet*)p)->construct_write = rpacket_makewrite;\
 	((packet*)p)->construct_read = rpacket_clone;\
+	((packet*)p)->clone = rpacket_clone;\
 }
 
 rpacket *rpacket_new(bytebuffer *b,uint32_t start_pos){

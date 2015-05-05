@@ -11,6 +11,7 @@ packet        *rpacket_makewrite(packet*);
 #define INIT_CONSTROUCTOR(p){\
 	((packet*)p)->construct_write = wpacket_clone;\
 	((packet*)p)->construct_read = wpacket_makeread;\
+	((packet*)p)->clone = wpacket_clone;\
 }
 
 

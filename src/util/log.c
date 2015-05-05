@@ -9,7 +9,7 @@ static mutex           *g_mtx_log_file_list = NULL;
 static list             g_log_file_list;
 static thread    	   *g_log_thd = NULL;
 static pid_t          	g_pid = -1;
-static uint32_t         flush_interval = 5;  //flush every 5 second
+static uint32_t         flush_interval = 1;  //flush every 1 second
 static volatile int32_t stop = 0;
 
 

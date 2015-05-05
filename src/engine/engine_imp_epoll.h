@@ -120,6 +120,7 @@ engine* engine_new(){
 
 static int32_t lua_engine_new(lua_State *L){
 	epoll_ *ep = (epoll_*)lua_newuserdata(L, sizeof(*ep));
+	memset(ep,0,sizeof(*ep));
 	if(0 != engine_init((engine*)ep)){
 		free(ep);
 		lua_pushnil(L);
@@ -142,7 +143,6 @@ void engine_del(engine *e){
 	free(ep->events);
 	free(ep);
 }
-
 
 int32_t engine_run(engine *e){
 	epoll_ *ep = (epoll_*)e;

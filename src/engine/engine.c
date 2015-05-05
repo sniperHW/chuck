@@ -1,4 +1,5 @@
 #include "engine/engine.h"
+#include "util/log.h"
 
 #define LUAENGINE_METATABLE "luaengine_metatable"
 
@@ -31,7 +32,7 @@ engine *lua_toengine(lua_State *L, int index){
 	return (engine*)luaL_testudata(L, index, LUAENGINE_METATABLE);
 }
 
-static int32_t lua_engine_del(lua_State *L){
+static int32_t lua_engine_gc(lua_State *L){
 	engine *e = lua_toengine(L,1);
 	engine_del(e);
 	return 0;
@@ -50,6 +51,52 @@ static int32_t lua_engine_stop(lua_State *L){
 	return 0;
 }
 
+static int32_t lua_timer_callback(uint32_t v,uint64_t _,void *ud){
+	luaRef *cb = (luaRef*)ud;
+	int32_t ret = -1;
+	const char *error; 
+	if(v == TEVENT_TIMEOUT){
+		if((error = LuaCallRefFunc(*cb,":i",&ret))){
+			SYS_LOG(LOG_ERROR,"error on lua_timer_callback:%s\n",error);	
+		}
+	}
+	if(ret == -1){
+		release_luaRef(cb);
+		free(cb);
+	}
+	return ret;
+}
+
+static int32_t lua_engine_reg_timer(lua_State *L){
+	engine  *e = lua_toengine(L,1);
+	luaRef  *cb;
+	timer   *t;
+	uint32_t timeout;
+	if(LUA_TNUMBER != lua_type(L,2))
+		return luaL_error(L,"arg2 should be number");
+	if(LUA_TFUNCTION != lua_type(L,3))
+		return luaL_error(L,"arg3 should be function");
+	timeout = lua_tonumber(L,2);
+	if(timeout > MAX_TIMEOUT) timeout = MAX_TIMEOUT;
+	cb = calloc(1,sizeof(*cb));
+	*cb = toluaRef(L,3);
+	t = engine_regtimer(e,timeout,lua_timer_callback,cb);
+	if(!t){
+		release_luaRef(cb);
+		free(cb);		
+		lua_pushnil(L);
+	}else{
+		lua_pushlightuserdata(L,t);
+	}
+	return 1;
+}
+
+static int32_t lua_remove_timer(lua_State *L){
+	timer *t = lua_touserdata(L,1);
+	unregister_timer(t);
+	return 0;
+}
+
 #define SET_FUNCTION(L,NAME,FUNC) do{\
 	lua_pushstring(L,NAME);\
 	lua_pushcfunction(L,FUNC);\
@@ -59,7 +106,7 @@ static int32_t lua_engine_stop(lua_State *L){
 
 void reg_luaengine(lua_State *L){
     luaL_Reg engine_mt[] = {
-        {"__gc", lua_engine_del},
+        {"__gc", lua_engine_gc},
         {NULL, NULL}
     };
 
@@ -77,5 +124,7 @@ void reg_luaengine(lua_State *L){
     lua_pop(L, 1);
 
    	SET_FUNCTION(L,"engine",lua_engine_new);
+   	SET_FUNCTION(L,"RegTimer",lua_engine_reg_timer);
+   	SET_FUNCTION(L,"RemTimer",lua_remove_timer);
 
 }

@@ -57,3 +57,22 @@ void decoder_del(decoder *d){
 	if(d->buff) bytebuffer_set(&d->buff,NULL);
 	free(d);
 }
+
+
+int32_t lua_rpacket_decoder_new(lua_State *L){
+	if(LUA_TNUMBER != lua_type(L,1))
+		return luaL_error(L,"arg1 should be number");
+	lua_pushlightuserdata(L,rpacket_decoder_new(lua_tonumber(L,1)));
+	return 1;
+}
+
+#define SET_FUNCTION(L,NAME,FUNC) do{\
+	lua_pushstring(L,NAME);\
+	lua_pushcfunction(L,FUNC);\
+	lua_settable(L, -3);\
+}while(0)
+
+void reg_luadecoder(lua_State *L){
+	lua_newtable(L);
+	SET_FUNCTION(L,"rpacket",lua_rpacket_decoder_new);
+}

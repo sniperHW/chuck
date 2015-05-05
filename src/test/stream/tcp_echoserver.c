@@ -1,7 +1,6 @@
 #include "chuck.h"
 #include "session.h"
 
-
 int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 	if(event == TEVENT_TIMEOUT){
 		printf("client_count:%d,totalbytes:%f MB/s\n",client_count,totalbytes/1024/1024);

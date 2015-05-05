@@ -1,7 +1,6 @@
 #include "chuck.h"
 #include "session.h"
 
-
 static void on_connected(int32_t fd,int32_t err,void *ud){
 	if(fd >= 0 && err == 0){
 		engine *e = (engine*)ud;

@@ -42,7 +42,7 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 	return ret;
 }
 
-static void process_connect(handle *h,int32_t events){
+static void _process_connect(handle *h){
 	connector *c = (connector*)h;
 	int32_t err = 0;
 	int32_t fd = -1;
@@ -62,17 +62,23 @@ static void process_connect(handle *h,int32_t events){
 		}
 		//success
 		fd = h->fd;
-	}while(0);    
+	}while(0);
+	event_remove(h);    
 	if(fd != -1){
-		event_remove(h);
 		((connector*)h)->callback(fd,0,((connector*)h)->ud);
 	}else{
 		close(h->fd);
-	}
-	if(!c->luacallback.L)		
-		free(h);
+	}		
 }
 
+static void process_connect(handle *h,int32_t events){
+	_process_connect(h);
+	free(h);
+}
+
+static void lua_process_connect(handle *h,int32_t events){
+	_process_connect(h);
+}
 
 handle *connector_new(int32_t fd,void *ud,uint32_t timeout){
 	connector *c = calloc(1,sizeof(*c));
@@ -92,11 +98,6 @@ static connector *lua_toconnector(lua_State *L, int index) {
     return (connector*)luaL_testudata(L, index, LUA_METATABLE);
 }
 
-static int32_t lua_connector_del(lua_State *L){
-	connector *c = lua_toconnector(L,1);
-	release_luaRef(&c->luacallback);
-	return 0;
-}
 
 static int32_t lua_connector_new(lua_State *L){
 	int32_t  fd;
@@ -112,8 +113,9 @@ static int32_t lua_connector_new(lua_State *L){
 	if(!lua_isnil(L,2)) timeout = lua_tonumber(L,2);
 
 	connector *c = (connector*)lua_newuserdata(L, sizeof(*c));
+	memset(c,0,sizeof(*c));
 	((handle*)c)->fd = fd;
-	((handle*)c)->on_events = process_connect;
+	((handle*)c)->on_events = lua_process_connect;
 	((handle*)c)->imp_engine_add = imp_engine_add;
 	c->timeout = timeout;
 	c->ud = c;
@@ -126,9 +128,11 @@ static int32_t lua_connector_new(lua_State *L){
 static void luacallback(int32_t fd,int32_t err,void *ud){
 	connector *c = (connector*)ud;
 	const char *error;
-	if((error = LuaCallRefFunc(c->luacallback,"ii",fd,err))){
+	luaRef cb = c->luacallback;
+	if((error = LuaCallRefFunc(cb,"ii",fd,err))){
 		SYS_LOG(LOG_ERROR,"error on connector callback:%s\n",error);	
 	}
+	release_luaRef(&cb);
 }
 
 static int32_t lua_engine_add(lua_State *L){
@@ -142,6 +146,7 @@ static int32_t lua_engine_add(lua_State *L){
 	return 0;
 }
 
+
 #define SET_FUNCTION(L,NAME,FUNC) do{\
 	lua_pushstring(L,NAME);\
 	lua_pushcfunction(L,FUNC);\
@@ -150,10 +155,6 @@ static int32_t lua_engine_add(lua_State *L){
 
 
 void    reg_luaconnector(lua_State *L){
-    luaL_Reg connector_mt[] = {
-        {"__gc", lua_connector_del},
-        {NULL, NULL}
-    };
 
     luaL_Reg connector_methods[] = {
         {"Add2Engine",lua_engine_add},
@@ -161,8 +162,6 @@ void    reg_luaconnector(lua_State *L){
     };
 
     luaL_newmetatable(L, LUA_METATABLE);
-    luaL_setfuncs(L, connector_mt, 0);
-
     luaL_newlib(L, connector_methods);
     lua_setfield(L, -2, "__index");
     lua_pop(L, 1);

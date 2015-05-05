@@ -7,6 +7,7 @@ static packet *rawpacket_clone(packet*);
 #define INIT_CONSTROUCTOR(p){\
 	((packet*)p)->construct_write = rawpacket_clone;\
 	((packet*)p)->construct_read = rawpacket_clone;\
+	((packet*)p)->clone 		 = rawpacket_clone;\
 }
 
 

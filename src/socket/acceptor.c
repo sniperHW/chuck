@@ -68,7 +68,7 @@ static acceptor *lua_toacceptor(lua_State *L, int index) {
     return (acceptor*)luaL_testudata(L, index, LUA_METATABLE);
 }
 
-static int32_t lua_acceptor_del(lua_State *L){
+static int32_t lua_acceptor_gc(lua_State *L){
 	acceptor *a = lua_toacceptor(L,1);
 	release_luaRef(&a->luacallback);
 	close(((handle*)a)->fd);
@@ -81,6 +81,7 @@ static int32_t lua_acceptor_new(lua_State *L){
 		return luaL_error(L,"arg1 should be number");
 	fd = lua_tonumber(L,1);
 	acceptor *a = (acceptor*)lua_newuserdata(L, sizeof(*a));
+	memset(a,0,sizeof(*a));
 	((handle*)a)->fd = fd;
 	((handle*)a)->on_events = process_accept;
 	((handle*)a)->imp_engine_add = imp_engine_add;
@@ -118,7 +119,7 @@ static int32_t lua_engine_add(lua_State *L){
 
 void    reg_luaacceptor(lua_State *L){
     luaL_Reg acceptor_mt[] = {
-        {"__gc", lua_acceptor_del},
+        {"__gc", lua_acceptor_gc},
         {NULL, NULL}
     };
 

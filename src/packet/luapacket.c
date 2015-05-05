@@ -12,13 +12,13 @@ luapacket *lua_topacket(lua_State *L, int index){
 
 void lua_pushpacket(lua_State *L,packet *pk){
 	luapacket *p = (luapacket*)lua_newuserdata(L, sizeof(*p));
+	p->_packet = pk;	
 	luaL_getmetatable(L, LUAPACKET_METATABLE);
 	lua_setmetatable(L, -2);
-	p->_packet = pk;
 }
 
 
-static int destroy_luapacket(lua_State *L) {
+static int luapacket_gc(lua_State *L) {
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet){ 
 		packet_del(p->_packet);
@@ -271,7 +271,7 @@ static int32_t lua_new_rawpacket(lua_State *L){
 		luapacket *p = (luapacket*)lua_newuserdata(L, sizeof(*p));
 		luaL_getmetatable(L, LUAPACKET_METATABLE);
 		lua_setmetatable(L, -2);
-		p->_packet = make_writepacket(other->_packet);
+		p->_packet = clone_packet(other->_packet);
 		return 1;							
 	}else
 		return luaL_error(L,"invaild opration for arg1");	
@@ -285,7 +285,7 @@ static int32_t lua_new_rawpacket(lua_State *L){
 
 void reg_luapacket(lua_State *L){
     luaL_Reg packet_mt[] = {
-        {"__gc", destroy_luapacket},
+        {"__gc", luapacket_gc},
         {NULL, NULL}
     };
 

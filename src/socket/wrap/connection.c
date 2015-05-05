@@ -363,10 +363,11 @@ static int32_t lua_connection_new(lua_State *L){
 
 	fd = (int32_t)lua_tonumber(L,1);
 	buffersize = (int32_t)lua_tonumber(L,2);
-	if(LUA_TUSERDATA == lua_type(L,3))
+	if(LUA_TLIGHTUSERDATA == lua_type(L,3))
 		d = (decoder*)lua_touserdata(L,3);
 
 	connection *c = (connection*)lua_newuserdata(L, sizeof(*c));
+	memset(c,0,sizeof(*c));
 	connection_init(c,fd,buffersize,d);
 	((socket_*)c)->dctor = lua_connection_dctor;
 	luaL_getmetatable(L, LUA_METATABLE);
@@ -399,11 +400,13 @@ static void PushPk(lua_State *L,luaPushFunctor *_){
 static void lua_on_packet(connection *c,packet *p,int32_t event)
 {
 	const char * error;
-	stPushConn st1;
+	stPushConn st1;	
+	if(c->lua_cb_packet.rindex == LUA_REFNIL)
+		return;
 	st1.c = c;
 	st1.base.Push = PushConn;
 	stPushPk st2;
-	st2.p = p;
+	st2.p = clone_packet(p);
 	st2.base.Push = PushPk;	
 	if((error = LuaCallRefFunc(c->lua_cb_packet,"ffs",
 							   &st1,&st2,
@@ -412,7 +415,6 @@ static void lua_on_packet(connection *c,packet *p,int32_t event)
 	}	
 }
 
-/*
 static void lua_on_disconnected(connection *c,int32_t err)
 {
 	const char * error;
@@ -422,7 +424,7 @@ static void lua_on_disconnected(connection *c,int32_t err)
 	if((error = LuaCallRefFunc(c->lua_cb_disconnected,"fi",&st,err))){
 		SYS_LOG(LOG_ERROR,"error on lua_cb_disconnected:%s\n",error);	
 	}
-}*/
+}
 
 
 static int32_t lua_engine_add(lua_State *L){
@@ -446,18 +448,30 @@ static int32_t lua_engine_remove(lua_State *L){
 
 
 static int32_t lua_conn_close(lua_State *L){
-
+	connection *c = lua_toconnection(L,1);
+	connection_close(c);
 	return 0;
 }
 
 static int32_t lua_conn_send(lua_State *L){
 	connection *c = lua_toconnection(L,1);
 	luapacket  *p = lua_topacket(L,2);
-	lua_pushnumber(L,connection_send(c,p->_packet,0));
+	int32_t     set_notify = lua_gettop(L) == 3;
+	lua_pushinteger(L,connection_send(c,p->_packet,set_notify));
+	p->_packet = NULL;
 	return 1;
 }
 
-static int32_t lua_connection_del(lua_State *L){
+static int32_t lua_set_disconn_callback(lua_State *L){
+	connection *c = lua_toconnection(L,1);
+	if(LUA_TFUNCTION != lua_type(L,2))
+		return luaL_error(L,"arg2 should be function");
+	c->lua_cb_disconnected = toluaRef(L,2);
+	connection_set_discnt_callback(c,lua_on_disconnected);
+	return 0;
+}
+
+static int32_t lua_connection_gc(lua_State *L){
 	connection *c = lua_toconnection(L,1);
 	connection_close(c);
 	return 0;
@@ -471,7 +485,7 @@ static int32_t lua_connection_del(lua_State *L){
 
 void    reg_luaconnection(lua_State *L){
     luaL_Reg conn_mt[] = {
-        {"__gc", lua_connection_del},
+        {"__gc", lua_connection_gc},
         {NULL, NULL}
     };
 
@@ -480,6 +494,7 @@ void    reg_luaconnection(lua_State *L){
         {"Close",   lua_conn_close},
         {"Add2Engine",lua_engine_add},
         {"RemoveEngine",lua_engine_remove},
+        {"SetDisConCb",lua_set_disconn_callback},
         {NULL,     NULL}
     };
 

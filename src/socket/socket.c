@@ -13,10 +13,11 @@ void close_socket(handle *h)
 				s->pending_dctor(req);
 		}		
 		if(!(s->status & SOCKET_INLOOP)){
+			close(h->fd);
 			if(s->dctor) 
 				s->dctor(s);
-			close(h->fd);
-			free(h);				
+			else
+				free(h);				
 		}
 	}		
 }

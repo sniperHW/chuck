@@ -1,6 +1,5 @@
 CFLAGS = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lrt -llua -lm 
-SHARED  = -fPIC -shared
 DEPDIR  = 
 INCLUDE = -I./ 
 DEFINE  =
@@ -63,12 +62,12 @@ test-source = test/testexception.c\
 			  test/stream/connection/conn_broad_server.c\
 			  test/stream/connection/conn_broad_client.c
 
-release:$(source)
-	$(CC) $(SHARED) -O2 $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
+libchuck-release:$(source)
+	$(CC) -fPIC -O2 $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
 
-debug:$(source)
-	$(CC) $(SHARED) $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
+libchuck-debug:$(source)
+	$(CC) -fPIC $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
 	ar -rc $(LIBNAME) *.o
 
 testcase:$(test-source)
@@ -90,11 +89,15 @@ testcase:$(test-source)
 	$(CC) $(CFLAGS) -o dgram_rpk_client dgram_rpk_client.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
 
 
-chucklua:$(source)
-	rm *.o
-	$(CC) $(SHARED) $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
-	$(CC) $(CFLAGS) $(SHARED) -o chuck.so *.o $(LDFLAGS)
+chuck.so-debug:$(source)
+	$(CC) -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
+	$(CC) $(CFLAGS) -shared -o chuck.so *.o -lpthread -lrt -lm
+
+chuck.so-release:$(source)
+	$(CC) -O2 -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
+	$(CC) -O2 $(CFLAGS) -shared -o chuck.so *.o -lpthread -lrt -lm	
 
 clean:
 	rm *.o
-	rm *.a	
+	rm *.a
+	rm *.so	
