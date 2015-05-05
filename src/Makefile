@@ -48,54 +48,36 @@ source =  util/exception.c\
 
 test-source = test/testexception.c\
 			  test/testthread.c\
-			  test/stream/tcp_echoserver.c\
-			  test/stream/tcp_echoclient.c\
-			  test/datagram/udp_echoserver.c\
-			  test/datagram/udp_echoclient.c\
-			  test/datagram/datagram/dgram_raw_server.c\
-			  test/datagram/datagram/dgram_raw_client.c\
-			  test/datagram/datagram/dgram_rpk_server.c\
-			  test/datagram/datagram/dgram_rpk_client.c\
 			  test/testpacket.c\
-			  test/testdecoder.c\
-			  test/stream/connection/conn_echo_server.c\
-			  test/stream/connection/conn_broad_server.c\
-			  test/stream/connection/conn_broad_client.c
+			  test/testdecoder.c
 
 libchuck-release:$(source)
 	$(CC) -fPIC -O2 $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
+	rm *.o
 
 libchuck-debug:$(source)
 	$(CC) -fPIC $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
 	ar -rc $(LIBNAME) *.o
+	rm *.o
 
 testcase:$(test-source)
 	$(CC) $(CFLAGS) -c $(test-source) $(INCLUDE) $(DEFINE)
 	$(CC) $(CFLAGS) -o testexception testexception.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o testthread testthread.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o tcp_echoserver tcp_echoserver.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o tcp_echoclient tcp_echoclient.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o udp_echoserver udp_echoserver.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o udp_echoclient udp_echoclient.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o testpacket testpacket.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o testdecoder testdecoder.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o conn_echo_server conn_echo_server.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o conn_broad_server conn_broad_server.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o conn_broad_client conn_broad_client.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o dgram_raw_server dgram_raw_server.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o dgram_raw_client dgram_raw_client.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o dgram_rpk_server dgram_rpk_server.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o dgram_rpk_client dgram_rpk_client.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-
+	rm *.o
 
 chuck.so-debug:$(source)
 	$(CC) -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
 	$(CC) $(CFLAGS) -shared -o chuck.so *.o -lpthread -lrt -lm
+	rm *.o
 
 chuck.so-release:$(source)
 	$(CC) -O2 -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
-	$(CC) -O2 $(CFLAGS) -shared -o chuck.so *.o -lpthread -lrt -lm	
+	$(CC) -O2 $(CFLAGS) -shared -o chuck.so *.o -lpthread -lrt -lm
+	rm *.o	
 
 clean:
 	rm *.o

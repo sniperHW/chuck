@@ -7,9 +7,6 @@
 #include "socket/wrap/decoder.h"
 #include "util/time.h"
 
-
-uint32_t bytebuffer_count = 0;
-
 #define SET_CONST(L,N) do{\
 		lua_pushstring(L, #N);\
 		lua_pushinteger(L, N);\

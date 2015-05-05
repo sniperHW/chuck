@@ -180,6 +180,7 @@ void _write_log(logfile *l,const char *content)
 	item->_logfile = l;
 	strncpy(item->content,content,content_len);	
 	logqueue_push(item);
+	printf("%s",content);
 }
 			           
 static void log_once_routine(){

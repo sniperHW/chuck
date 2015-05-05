@@ -30,7 +30,7 @@ typedef struct bytebuffer{
 }bytebuffer;
 
 
-extern uint32_t bytebuffer_count;
+static  uint32_t bytebuffer_count = 0;
 
 
 static inline void bytebuffer_dctor(void *_)
