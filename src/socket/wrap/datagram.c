@@ -3,7 +3,7 @@
 #include "packet/rawpacket.h"
 
 enum{
-	RECVING   = 1 << 5,
+	RECVING   = SOCKET_END << 1,
 };
 
 static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;

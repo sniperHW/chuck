@@ -35,6 +35,8 @@ static void on_disconnected(connection *c,int32_t err){
 	for(;i < client_count; ++i)
 		if(clients[i]) clients[i] = NULL;	
 	--client_count;
+	if(err != EACTCLOSE)
+		connection_close(c);
 }
 
 static void on_connection(int32_t fd,sockaddr_ *_,void *ud){

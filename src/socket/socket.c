@@ -1,25 +1,31 @@
 #include "socket/socket.h"
+#include "engine/engine.h"
+
+void release_socket(socket_ *s){
+	close(((handle*)s)->fd);
+	iorequest *req;
+	if(s->pending_dctor){
+		while((req = (iorequest*)list_pop(&s->pending_send))!=NULL)
+			s->pending_dctor(req);
+		while((req = (iorequest*)list_pop(&s->pending_recv))!=NULL)
+			s->pending_dctor(req);
+	}	
+	if(s->dctor) 
+		s->dctor(s);
+	else
+		free(s);
+}
 
 void close_socket(handle *h)
 {
 	socket_ *s = (socket_*)h;
-	if(!(s->status & SOCKET_CLOSE)){
-		s->status |= SOCKET_CLOSE;
-		iorequest *req;
-		if(s->pending_dctor){
-			while((req = (iorequest*)list_pop(&s->pending_send))!=NULL)
-				s->pending_dctor(req);
-			while((req = (iorequest*)list_pop(&s->pending_recv))!=NULL)
-				s->pending_dctor(req);
-		}		
-		if(!(s->status & SOCKET_INLOOP)){
-			close(h->fd);
-			if(s->dctor) 
-				s->dctor(s);
-			else
-				free(h);				
-		}
-	}		
+	if(s->status & SOCKET_RELEASE)
+		return;
+	s->status |= (SOCKET_CLOSE | SOCKET_RELEASE);
+	engine_remove(h);			
+	if(!(s->status & SOCKET_INLOOP)){
+		release_socket(s);
+	}
 }
 
 int32_t is_read_enable(handle*h){

@@ -163,6 +163,8 @@ void lua_regerrcode(lua_State *L){
 	SET_CONST(L,EINVISOKTYPE);
 	SET_CONST(L,EASSENG);
 	SET_CONST(L,EINVIPK);
+	SET_CONST(L,EACTCLOSE);
+	
 }
 
 int32_t lua_get_bytebuffer_count(lua_State *L){

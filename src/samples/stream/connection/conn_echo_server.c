@@ -23,6 +23,8 @@ static void on_packet(connection *c,packet *p,int32_t event){
 }
 
 static void on_disconnected(connection *c,int32_t err){
+	if(err != EACTCLOSE)
+		connection_close(c);
 	--client_count;
 }
 

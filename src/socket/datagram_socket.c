@@ -6,6 +6,7 @@
 
 extern int32_t is_read_enable(handle*h);
 extern int32_t is_write_enable(handle*h);
+extern void release_socket(socket_ *s);
 
 static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
 	assert(e && h && callback);
@@ -59,33 +60,6 @@ static void process_read(socket_ *s){
 	}
 }
 
-/*
-static void process_write(socket_ *s){
-	iorequest *req = NULL;
-	int32_t bytes_transfer = 0;
-	struct msghdr _msghdr;
-	while((req = (iorequest*)list_pop(&s->pending_send))!=NULL){
-		errno = 0;
-		_msghdr = (struct msghdr){
-			.msg_name = &req->addr,
-			.msg_namelen = sizeof(req->addr),
-			.msg_iov = req->iovec,
-			.msg_iovlen = req->iovec_count,
-			.msg_flags = 0,
-			.msg_control = NULL,
-			.msg_controllen = 0
-		};
-		bytes_transfer = TEMP_FAILURE_RETRY(sendmsg(((handle*)s)->fd,&_msghdr,0));	
-		s->datagram_callback((handle*)s,req,bytes_transfer,errno,0);
-		if(s->status & SOCKET_CLOSE)
-			return;			
-	}	
-	if(!list_size(&s->pending_send)){
-		disable_write((handle*)s);
-	}			
-}*/
-
-
 static void on_events(handle *h,int32_t events){
 	socket_ *s = (socket_*)h;
 	if(s->status & SOCKET_CLOSE)
@@ -96,17 +70,11 @@ static void on_events(handle *h,int32_t events){
 			process_read(s);	
 			if(s->status & SOCKET_CLOSE) 
 				break;								
-		}		
-		//if(events & EVENT_WRITE)
-		//	process_write(s);			
+		}				
 		s->status ^= SOCKET_INLOOP;
 	}while(0);
-	if(s->status & SOCKET_CLOSE){
-		close(h->fd);		
-		if(s->dctor) 
-			s->dctor(s);
-		else		
-			free(h);		
+	if(s->status & SOCKET_RELEASE){
+		release_socket(s);		
 	}
 }
 

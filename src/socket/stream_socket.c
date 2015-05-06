@@ -5,6 +5,7 @@
 
 extern int32_t is_read_enable(handle*h);
 extern int32_t is_write_enable(handle*h);
+extern void release_socket(socket_ *s);
 
 static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
 	assert(e && h && callback);
@@ -90,12 +91,8 @@ static void on_events(handle *h,int32_t events){
 			process_write(s);			
 		s->status ^= SOCKET_INLOOP;
 	}while(0);
-	if(s->status & SOCKET_CLOSE){
-		close(h->fd);
-		if(s->dctor) 
-			s->dctor(s);
-		else		
-			free(h);		
+	if(s->status & SOCKET_RELEASE){
+		release_socket(s);		
 	}
 }
 

@@ -9,7 +9,8 @@ function on_packet(conn,p,event)
 	if event == "RECV" then
 		conn:Send(packet.clone(p),"notify")
 	elseif event == "SEND" then
-		conn:Close()
+		print("send finish")
+		--conn:Close()
 	end
 end
 

@@ -7,8 +7,8 @@
 static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
 
 enum{
-	RECVING   = 1 << 5,
-	SENDING   = 1 << 6,
+	RECVING   = SOCKET_END << 1,
+	SENDING   = SOCKET_END << 2,
 };
 
 static inline void prepare_recv(connection *c){
@@ -82,12 +82,13 @@ static inline void update_next_recv_pos(connection *c,int32_t _bytestransfer)
 	}while(bytestransfer);
 }
 
-
 static inline void _close(connection *c,int32_t err){
-	if(((socket_*)c)->status & SOCKET_CLOSE)
-		return;
-	if(c->on_disconnected) c->on_disconnected(c,err);
-	close_socket((handle*)c);
+	((socket_*)c)->status |= SOCKET_CLOSE;
+	engine_remove((handle*)c);
+	if(c->on_disconnected){
+		c->on_disconnected(c,err);
+		c->on_disconnected = NULL;
+	}
 }
 
 static void RecvFinish(connection *c,int32_t bytestransfer,int32_t err_code)
@@ -222,9 +223,6 @@ static void IoFinish(handle *sock,void *_,int32_t bytestransfer,int32_t err_code
 		SendFinish(c,bytestransfer);
 	else if(io == (iorequest*)&c->recv_overlap)
 		RecvFinish(c,bytestransfer,err_code);
-	else{
-		_close(c,0);	
-	}
 }	
 
 static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
@@ -264,8 +262,11 @@ int32_t connection_send(connection *c,packet *p,int32_t send_fsh_notify){
 
 void connection_dctor(void *_)
 {
+	printf("connection_dctor\n");
 	connection *c = (connection*)_;
 	packet *p;
+	if(c->on_disconnected)
+		c->on_disconnected(c,0);	
 	while((p = (packet*)list_pop(&c->send_list))!=NULL)
 		packet_del(p);
 	bytebuffer_set(&c->next_recv_buf,NULL);
@@ -298,7 +299,9 @@ connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
 }
 
 void connection_close(connection *c){
-	_close(c,0);	
+	if(((socket_*)c)->status & SOCKET_RELEASE)
+		return;
+	close_socket((handle*)c);
 }
 
 static packet *rawpk_unpack(decoder *d,int32_t *err){
@@ -333,6 +336,7 @@ decoder *conn_raw_decoder_new(){
 
 void lua_connection_dctor(void *_)
 {
+	printf("lua_connection_dctor\n");
 	connection *c = (connection*)_;
 	packet *p;
 	while((p = (packet*)list_pop(&c->send_list))!=NULL)

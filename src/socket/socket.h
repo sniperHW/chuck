@@ -8,6 +8,8 @@ enum{
 	SOCKET_DATAGRAM = 1 << 2,
 	SOCKET_CLOSE    = 1 << 3,
 	SOCKET_INLOOP   = 1 << 4,
+	SOCKET_RELEASE  = 1 << 5,
+	SOCKET_END      = SOCKET_RELEASE,
 };
 
 typedef struct socket_{
