@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include "db/redis/client.h"
 
-#define SIZE_TMP_BUFF 512
+#define SIZE_TMP_BUFF 512 //size must enough for status/error string
 
 typedef struct parse_tree{
 	redisReply         *reply;
@@ -32,77 +32,39 @@ typedef struct parse_tree{
 	size_t              want;
 	size_t 				pos;
 	char                type;
-	char                linebreak;
+	char                break_;
 	char   				tmp_buff[SIZE_TMP_BUFF]; 	 	
 }parse_tree;
 
 static int32_t 
-parse_status(parse_tree *current,char **str)
+parse_string(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;
-	char termi = current->linebreak ? '\n':'\r';
+	if(!reply->str)
+		reply->str = current->tmp_buff;	
 	do{
+		char termi = current->break_;
 		while(**str != termi) {
 			if(**str != '\0')
-	        	current->tmp_buff[current->pos++] = *(*str)++;
+	        	reply->str[current->pos++] = *(*str)++;
 	        else
 	        	return REDIS_RETRY;
 	    }
-	    if(termi == '\n'){
-	    	++(*str);
-	    	break;
-	    }
-	    else{
-	    	current->linebreak = 1;
-	    	termi = '\n';
-	    	++(*str);
-	    }
+	    ++(*str);
+	    if(termi == '\n') break;
+	    else current->break_ = '\n';
     }while(1);
-
-
-	current->tmp_buff[current->pos] = 0;
-	reply->str = current->tmp_buff;
+	reply->str[current->pos] = 0;
 	current->pos = 0;
 	return REDIS_OK;
 }
-
-
-static int32_t 
-parse_error(parse_tree *current,char **str)
-{
-	redisReply *reply = current->reply;
-	char termi = current->linebreak ? '\n':'\r';
-	do{
-		while(**str != termi) {
-			if(**str != '\0')
-	        	current->tmp_buff[current->pos++] = *(*str)++;
-	        else
-	        	return REDIS_RETRY;
-	    }
-	    if(termi == '\n'){
-	    	++(*str);
-	    	break;
-	    }
-	    else{
-	    	current->linebreak = 1;
-	    	termi = '\n';
-	    	++(*str);
-	    }
-    }while(1);
-
-	current->tmp_buff[current->pos] = 0;
-	reply->str = current->tmp_buff;
-	current->pos = 0;
-	return REDIS_OK;
-}
-
 
 static int32_t 
 parse_integer(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;	
-	char termi = current->linebreak ? '\n':'\r';
 	do{
+		char termi = current->break_;
 		while(**str != termi) {
 			if(**str == '-'){
 				current->want = -1;
@@ -114,15 +76,9 @@ parse_integer(parse_tree *current,char **str)
 	    	}
 	    	++(*str);
 	    }				
-	    if(termi == '\n'){
-	    	++(*str);
-	    	break;
-	    }
-	    else{
-	    	current->linebreak = 1;
-	    	termi = '\n';
-	    	++(*str);
-	    }
+	    ++(*str);
+	    if(termi == '\n') break;
+	    else current->break_ = '\n';
     }while(1);
 
 
@@ -138,8 +94,8 @@ parse_breply(parse_tree *current,char **str)
 	redisReply *reply = current->reply;
 	char termi;
 	if(!current->want){
-		termi = current->linebreak ? '\n':'\r';
 		do{
+			termi = current->break_;
 			while(**str != termi) {
 				if(**str == '-'){
 					reply->len = -1;
@@ -152,53 +108,25 @@ parse_breply(parse_tree *current,char **str)
 		        }
 		        (*str)++;	
 		    }
-		    if(termi == '\n'){
-		    	current->linebreak = 0;
-		    	++(*str);
-		    	break;
-		    }
-		    else{
-		    	current->linebreak = 1;
-		    	termi = '\n';
-		    	++(*str);
-		    }
+		    ++(*str);
+		    if(termi == '\n') break;
+		    else current->break_ = '\n';
 	    }while(1);
+		
+		if(reply->len == -1){
+			reply->type = REDIS_REPLY_NIL;
+			return REDIS_OK;
+		}	   
 	    current->want = reply->len;
+	    current->break_ = '\r';
 	}
 
-	if(reply->len == -1){
-		reply->type = REDIS_REPLY_NIL;
-		return REDIS_OK;
-	}
 	if(!reply->str){
-		if(reply->len + 1 <= SIZE_TMP_BUFF)
-			reply->str = current->tmp_buff;
-		else
+		if(reply->len + 1 > SIZE_TMP_BUFF)
 			reply->str = calloc(1,reply->len + 1);
 		current->pos = 0;
 	}
-
-	termi = current->linebreak ? '\n':'\r';
-	do{
-		while(**str != termi) {
-			if(**str != '\0')
-				reply->str[current->pos++] = **str;
-			else
-				return REDIS_RETRY;
-			++(*str);
-	    }
-	    if(termi == '\n'){
-	    	++(*str);
-	    	break;
-	    }
-	    else{
-	    	current->linebreak = 1;
-	    	termi = '\n';
-	    	++(*str);
-	    }
-    }while(1);
-	reply->str[reply->len] = 0;
-	return REDIS_OK;  
+	return parse_string(current,str);  
 }
 
 static parse_tree*
@@ -206,6 +134,7 @@ parse_tree_new()
 {
 	parse_tree *tree = calloc(1,sizeof(*tree));
 	tree->reply = calloc(1,sizeof(*tree->reply));
+	tree->break_ = '\r';
 	return tree;
 }
 
@@ -234,8 +163,8 @@ parse_mbreply(parse_tree *current,char **str)
 	size_t  i;
 	int32_t ret;
 	if(!current->want){
-		char termi = current->linebreak ? '\n':'\r';
 		do{
+			char termi = current->break_;
 			while(**str != termi) {
 				if(**str != '\0'){
 		        	reply->elements = (reply->elements*10)+(**str - '0');
@@ -243,15 +172,9 @@ parse_mbreply(parse_tree *current,char **str)
 		        	return REDIS_RETRY;
 		        (*str)++;	
 		    }
-		    if(termi == '\n'){
-		    	++(*str);
-		    	break;
-		    }
-		    else{
-		    	current->linebreak = 1;
-		    	termi = '\n';
-		    	++(*str);
-		    }
+		    ++(*str);
+		    if(termi == '\n') break;
+		    else current->break_ = '\n';
 	    }while(1);	    
 	    current->want = reply->elements;
 	}
@@ -300,12 +223,12 @@ parse(parse_tree *current,char **str)
 	switch(current->type){
 		case '+':{
 			reply->type = REDIS_REPLY_STATUS;
-			ret = parse_status(current,str);
+			ret = parse_string(current,str);
 			break;
 		}
 		case '-':{
 			reply->type = REDIS_REPLY_ERROR;
-			ret = parse_error(current,str);
+			ret = parse_string(current,str);
 			break;
 		}
 		case ':':{
@@ -388,15 +311,27 @@ build_request(const char *cmd)
 	size_t len   = strlen(cmd);
 	word  *w = NULL;
 	size_t i,j,space;
+	char   quote  = 0;
+	char   c;
 	i = j = space = 0;
 	for(; i < len; ++i){
-		if(cmd[i] != ' '){
+		c = cmd[i];
+		if(c == '\"' || c == '\''){
+			if(!quote){
+				quote = c;
+			}else if(c == quote){
+				quote = 0;
+			}
+		}
+		if(c != ' '){
 			if(!w){ 
 				w = calloc(1,sizeof(*w));
 				w->b = i;
 				w->buff = (char*)cmd;
 			}
-		}else{
+		}
+		else if(!quote)
+		{
 			if(w){
 				//word finish
 				w->e = i;
@@ -408,13 +343,13 @@ build_request(const char *cmd)
 			}
 		}
 	}
-	w->e = i;
-	space += (sprintf(tmp,"%u",(uint32_t)(w->e - w->b)) + 3);//plus head $,tail \r\n
-	space += (w->e - w->b) + 2;//plus tail \r\n
-	list_pushback(&l,(listnode*)w);
+	if(w){
+		w->e = i;
+		space += (sprintf(tmp,"%u",(uint32_t)(w->e - w->b)) + 3);//plus head $,tail \r\n
+		space += (w->e - w->b) + 2;//plus tail \r\n
+		list_pushback(&l,(listnode*)w);
+	}
 	return (packet*)convert(&l,space);
 }
-
-
 
 #endif

@@ -35,9 +35,6 @@ void cmd_callback(redis_conn *_,redisReply *reply,void *ud){
 	printf("%s\n",reply->element[1]->str);
 	printf("%d\n",count);*/
 	++count;
-	if(count == 870){
-		printf("here\n");
-	}
 	if(0 != redis_query(redis_client,"hmget chaid:484 chainfo skills",cmd_callback,NULL))
 		printf("redis_query error\n");
 	
