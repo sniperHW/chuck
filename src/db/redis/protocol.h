@@ -188,7 +188,6 @@ parse_breply(parse_tree *current,char **str)
 			++(*str);
 	    }
 	    if(termi == '\n'){
-	    	current->linebreak = 0;
 	    	++(*str);
 	    	break;
 	    }
@@ -249,6 +248,7 @@ parse_mbreply(parse_tree *current,char **str)
 		    	break;
 		    }
 		    else{
+		    	current->linebreak = 1;
 		    	termi = '\n';
 		    	++(*str);
 		    }

@@ -51,12 +51,11 @@ void cmd_callback(redis_conn *conn,redisReply *reply,void *ud){
 
 
 int main(int argc,char **argv){
-	test_parse_reply(":1");
-	test_parse_reply("0\r");
-	test_parse_reply("\n");
+	test_parse_reply("*2\r");
+	test_parse_reply("\n$53\r\nfasdfasdffasdfasdfasdfasdfasdfasfasdffasfsdffasdfadfs\r\n$36\r\nfasfsadfasdfsdafasdfasdfasdfsdafsadf\r\n");
 
-	test_parse_reply(":10");
-	test_parse_reply("\r");
+	test_parse_reply("$5\r");
+	test_parse_reply("\nhello\r");
 	test_parse_reply("\n");
 
 	test_parse_reply(":");
@@ -64,7 +63,7 @@ int main(int argc,char **argv){
 	test_parse_reply("\n");
 
 	test_parse_reply("");
-	test_parse_reply(":10\r");
+	test_parse_reply("+ok haha\r");
 	test_parse_reply("\n");				
 
 	char  input[65535];
