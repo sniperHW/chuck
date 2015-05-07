@@ -17,7 +17,9 @@ udp_request *new_request(){
 	return req;
 }
 
-static void datagram_callback(handle *h,void *_,int32_t bytes,int32_t err,int32_t recvflags){
+static void 
+datagram_callback(dgram_socket_ *h,void *_,int32_t bytes,
+				  int32_t err,int32_t recvflags){
 	udp_request *req = (udp_request*)_;
 	if(err == ESOCKCLOSE){
 		if(req) free(req);
@@ -37,7 +39,7 @@ int main(int argc,char **argv){
 		printf("invaild address:%s\n",argv[1]);
 	}
 	int32_t fd = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
-	handle *udpclient = new_datagram_socket(fd); 
+	dgram_socket_ *udpclient = new_datagram_socket(fd); 
 	engine_associate(e,udpclient,datagram_callback);
 	iorequest *req = (iorequest*)new_request();
 	memcpy(&req->addr,&server,sizeof(server));

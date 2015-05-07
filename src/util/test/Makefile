@@ -15,8 +15,9 @@ endif
 
 
 all:
-	$(CC) $(CFLAGS)  -o testbit testbit.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS)  -o testlist testlist.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS)  -o testdlist testdlist.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS)  -o testminheap testminheap.c ../minheap.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)		
-	$(CC) $(CFLAGS)  -o testtimewheel testtimewheel.c ../timewheel.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)
+#	$(CC) $(CFLAGS)  -o testbit testbit.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)
+#	$(CC) $(CFLAGS)  -o testlist testlist.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)
+#	$(CC) $(CFLAGS)  -o testdlist testdlist.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)
+#	$(CC) $(CFLAGS)  -o testminheap testminheap.c ../minheap.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)		
+#	$(CC) $(CFLAGS)  -o testtimewheel testtimewheel.c ../timewheel.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)
+	$(CC) $(CFLAGS)  -o parse_reply parse_reply.c $(LIB) $(INCLUDE) $(LDFLAGS) $(DEFINE)	

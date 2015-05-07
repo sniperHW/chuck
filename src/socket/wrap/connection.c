@@ -46,16 +46,16 @@ static inline void prepare_recv(connection *c){
 static inline void PostRecv(connection *c){
 	((socket_*)c)->status |= RECVING;
 	prepare_recv(c);
-	stream_socket_recv((handle*)c,&c->recv_overlap,IO_POST);		
+	stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST);		
 }
 
 static inline int32_t Recv(connection *c){
 	prepare_recv(c);
-	return stream_socket_recv((handle*)c,&c->recv_overlap,IO_NOW);		
+	return stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_NOW);		
 }
 
 static inline int32_t Send(connection *c,int32_t flag){
-	int32_t ret = stream_socket_send((handle*)c,&c->send_overlap,flag);		
+	int32_t ret = stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
 	if(ret < 0 && -ret == EAGAIN)
 		((socket_*)c)->status |= SENDING;
 	return ret; 
@@ -65,21 +65,21 @@ static inline int32_t Send(connection *c,int32_t flag){
 static inline void update_next_recv_pos(connection *c,int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
-	uint32_t bytestransfer = (uint32_t)_bytestransfer;
+	uint32_t bytes = (uint32_t)_bytestransfer;
 	uint32_t size;
-	decoder_update(c->decoder_,c->next_recv_buf,c->next_recv_pos,bytestransfer);
+	decoder_update(c->decoder_,c->next_recv_buf,c->next_recv_pos,bytes);
 	do{
 		size = c->next_recv_buf->cap - c->next_recv_pos;
-		size = size > bytestransfer ? bytestransfer:size;
+		size = size > bytes ? bytes:size;
 		c->next_recv_buf->size += size;
 		c->next_recv_pos += size;
-		bytestransfer -= size;
+		bytes -= size;
 		if(c->next_recv_pos >= c->next_recv_buf->cap)
 		{
 			bytebuffer_set(&c->next_recv_buf,c->next_recv_buf->next);
 			c->next_recv_pos = 0;
 		}
-	}while(bytestransfer);
+	}while(bytes);
 }
 
 static inline void _close(connection *c,int32_t err){
@@ -91,16 +91,16 @@ static inline void _close(connection *c,int32_t err){
 	}
 }
 
-static void RecvFinish(connection *c,int32_t bytestransfer,int32_t err_code)
+static void RecvFinish(connection *c,int32_t bytes,int32_t err_code)
 {
 	int32_t total_recv = 0;
 	packet *pk;	
 	do{	
-		if(bytestransfer == 0 || (bytestransfer < 0 && err_code != EAGAIN)){
+		if(bytes == 0 || (bytes < 0 && err_code != EAGAIN)){
 			_close(c,err_code);
 			return;	
-		}else if(bytestransfer > 0){
-			update_next_recv_pos(c,bytestransfer);
+		}else if(bytes > 0){
+			update_next_recv_pos(c,bytes);
 			int32_t unpack_err;
 			do{
 				pk = c->decoder_->unpack(c->decoder_,&unpack_err);
@@ -118,11 +118,11 @@ static void RecvFinish(connection *c,int32_t bytestransfer,int32_t err_code)
 				PostRecv(c);
 				return;
 			}else{
-				bytestransfer = Recv(c);
-				if(bytestransfer < 0 && (err_code = -bytestransfer) == EAGAIN) 
+				bytes = Recv(c);
+				if(bytes < 0 && (err_code = -bytes) == EAGAIN) 
 					return;
-				else if(bytestransfer > 0)
-					total_recv += bytestransfer;
+				else if(bytes > 0)
+					total_recv += bytes;
 			}
 		}
 	}while(1);
@@ -168,12 +168,12 @@ static inline void update_send_list(connection *c,int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
 	packet     *w;
-	uint32_t    bytestransfer = (uint32_t)_bytestransfer;
+	uint32_t    bytes = (uint32_t)_bytestransfer;
 	uint32_t    size;
 	do{
 		w = (packet*)list_begin(&c->send_list);
 		assert(w);
-		if((uint32_t)bytestransfer >= ((packet*)w)->len_packet)
+		if((uint32_t)bytes >= ((packet*)w)->len_packet)
 		{
 			if(w->mask){
 				c->on_packet(c,w,PKEV_SEND);
@@ -181,13 +181,13 @@ static inline void update_send_list(connection *c,int32_t _bytestransfer)
 					return;
 			}
 			list_pop(&c->send_list);
-			bytestransfer -= ((packet*)w)->len_packet;
+			bytes -= ((packet*)w)->len_packet;
 			packet_del(w);
 		}else{
 			do{
 				size = ((packet*)w)->head->size - ((packet*)w)->spos;
-				size = size > (uint32_t)bytestransfer ? (uint32_t)bytestransfer:size;
-				bytestransfer -= size;
+				size = size > (uint32_t)bytes ? (uint32_t)bytes:size;
+				bytes -= size;
 				((packet*)w)->spos += size;
 				((packet*)w)->len_packet -= size;
 				if(((packet*)w)->spos >= ((packet*)w)->head->size)
@@ -195,15 +195,15 @@ static inline void update_send_list(connection *c,int32_t _bytestransfer)
 					((packet*)w)->spos = 0;
 					((packet*)w)->head = ((packet*)w)->head->next;
 				}
-			}while(bytestransfer);
+			}while(bytes);
 		}
-	}while(bytestransfer);
+	}while(bytes);
 }
 
 
-static void SendFinish(connection *c,int32_t bytestransfer)
+static void SendFinish(connection *c,int32_t bytes)
 {
-	update_send_list(c,bytestransfer);
+	update_send_list(c,bytes);
 	if(((socket_*)c)->status & SOCKET_CLOSE)
 			return;
 	if(!prepare_send(c)) {
@@ -213,16 +213,16 @@ static void SendFinish(connection *c,int32_t bytestransfer)
 	Send(c,IO_POST);		
 }
 
-static void IoFinish(handle *sock,void *_,int32_t bytestransfer,int32_t err_code)
+static void IoFinish(handle *sock,void *_,int32_t bytes,int32_t err_code)
 {
 	iorequest  *io = ((iorequest*)_);
 	connection *c  = (connection*)sock;
 	if(((socket_*)c)->status & SOCKET_CLOSE)
 		return;
-	if(io == (iorequest*)&c->send_overlap && bytestransfer > 0)
-		SendFinish(c,bytestransfer);
+	if(io == (iorequest*)&c->send_overlap && bytes > 0)
+		SendFinish(c,bytes);
 	else if(io == (iorequest*)&c->recv_overlap)
-		RecvFinish(c,bytestransfer,err_code);
+		RecvFinish(c,bytes,err_code);
 }	
 
 static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
@@ -262,7 +262,6 @@ int32_t connection_send(connection *c,packet *p,int32_t send_fsh_notify){
 
 void connection_dctor(void *_)
 {
-	printf("connection_dctor\n");
 	connection *c = (connection*)_;
 	packet *p;
 	if(c->on_disconnected)
@@ -301,7 +300,7 @@ connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
 void connection_close(connection *c){
 	if(((socket_*)c)->status & SOCKET_RELEASE)
 		return;
-	close_socket((handle*)c);
+	close_socket((socket_*)c);
 }
 
 static packet *rawpk_unpack(decoder *d,int32_t *err){
@@ -336,7 +335,6 @@ decoder *conn_raw_decoder_new(){
 
 void lua_connection_dctor(void *_)
 {
-	printf("lua_connection_dctor\n");
 	connection *c = (connection*)_;
 	packet *p;
 	while((p = (packet*)list_pop(&c->send_list))!=NULL)

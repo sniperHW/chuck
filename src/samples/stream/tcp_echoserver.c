@@ -12,7 +12,7 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 static void on_connection(int32_t fd,sockaddr_ *_,void *ud){
 	printf("on_connection\n");
 	engine *e = (engine*)ud;
-	handle *h = new_stream_socket(fd);
+	stream_socket_ *h = new_stream_socket(fd);
 	engine_associate(e,h,transfer_finish);
 	struct session *s = session_new(h);
 	session_recv(s);

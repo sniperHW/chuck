@@ -29,20 +29,20 @@ enum{
 };
 
 typedef struct connection{
-    socket_      base;
-    struct       iovec wsendbuf[MAX_WBAF];
-    struct       iovec wrecvbuf[2];
-    iorequest    send_overlap;
-    iorequest    recv_overlap;
-    uint32_t     next_recv_pos;
-    bytebuffer  *next_recv_buf;        
-    list         send_list;//待发送的包
-    uint32_t     recv_bufsize;
-    void         (*on_packet)(struct connection*,packet*,int32_t event);
-    void         (*on_disconnected)(struct connection*,int32_t err);
-    decoder     *decoder_;
-    luaRef       lua_cb_packet;
-    luaRef       lua_cb_disconnected;
+    stream_socket_ base;
+    struct         iovec wsendbuf[MAX_WBAF];
+    struct         iovec wrecvbuf[2];
+    iorequest      send_overlap;
+    iorequest      recv_overlap;
+    uint32_t       next_recv_pos;
+    bytebuffer    *next_recv_buf;        
+    list           send_list;//待发送的包
+    uint32_t       recv_bufsize;
+    void           (*on_packet)(struct connection*,packet*,int32_t event);
+    void           (*on_disconnected)(struct connection*,int32_t err);
+    decoder       *decoder_;
+    luaRef         lua_cb_packet;
+    luaRef         lua_cb_disconnected;
 }connection;
 
 connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d);

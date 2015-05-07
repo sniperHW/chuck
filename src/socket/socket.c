@@ -5,10 +5,14 @@ void release_socket(socket_ *s){
 	close(((handle*)s)->fd);
 	iorequest *req;
 	if(s->pending_dctor){
-		while((req = (iorequest*)list_pop(&s->pending_send))!=NULL)
+		list *l = &s->pending_recv;
+		while((req = (iorequest*)list_pop(l))!=NULL)
 			s->pending_dctor(req);
-		while((req = (iorequest*)list_pop(&s->pending_recv))!=NULL)
-			s->pending_dctor(req);
+		if(s->type == STREAM){
+			l = &((stream_socket_*)s)->pending_send;
+			while((req = (iorequest*)list_pop(l))!=NULL)
+				s->pending_dctor(req);
+		}	
 	}	
 	if(s->dctor) 
 		s->dctor(s);
@@ -16,13 +20,12 @@ void release_socket(socket_ *s){
 		free(s);
 }
 
-void close_socket(handle *h)
+void close_socket(socket_ *s)
 {
-	socket_ *s = (socket_*)h;
 	if(s->status & SOCKET_RELEASE)
 		return;
 	s->status |= (SOCKET_CLOSE | SOCKET_RELEASE);
-	engine_remove(h);			
+	engine_remove((handle*)s);			
 	if(!(s->status & SOCKET_INLOOP)){
 		release_socket(s);
 	}

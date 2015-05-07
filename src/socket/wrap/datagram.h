@@ -24,15 +24,15 @@
 #include "lua/lua_util.h"      
 
 typedef struct datagram{
-    socket_      base;
-    struct       iovec wsendbuf[MAX_WBAF];
-    struct       iovec wrecvbuf[2];
-    iorequest    recv_overlap;
-    uint32_t     next_recv_pos;
-    bytebuffer  *next_recv_buf;        
-    uint32_t     recv_bufsize;
-    void         (*on_packet)(struct datagram*,packet*,sockaddr_*);
-    decoder     *decoder_;
+    dgram_socket_ base;
+    struct        iovec wsendbuf[MAX_WBAF];
+    struct        iovec wrecvbuf[2];
+    iorequest     recv_overlap;
+    uint32_t      next_recv_pos;
+    bytebuffer   *next_recv_buf;        
+    uint32_t      recv_bufsize;
+    void          (*on_packet)(struct datagram*,packet*,sockaddr_*);
+    decoder      *decoder_;
 }datagram;
 
 

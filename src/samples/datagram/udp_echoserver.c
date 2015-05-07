@@ -28,7 +28,9 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 	return 0;
 }
 
-static void datagram_callback(handle *h,void *_,int32_t bytes,int32_t err,int32_t recvflags){
+static void 
+datagram_callback(dgram_socket_ *h,void *_,int32_t bytes,
+				  int32_t err,int32_t recvflags){
 	udp_request *req = (udp_request*)_;
 	if(err == ESOCKCLOSE){
 		if(req) free(req);
@@ -51,7 +53,7 @@ int main(int argc,char **argv){
 	int32_t fd = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
 	easy_addr_reuse(fd,1);
 	if(0 == easy_bind(fd,&server)){
-		handle *udpserver = new_datagram_socket(fd); 
+		dgram_socket_ *udpserver = new_datagram_socket(fd); 
 		engine_associate(e,udpserver,datagram_callback);
 		datagram_socket_recv(udpserver,(iorequest*)new_request(),IO_POST,NULL);
 		engine_regtimer(e,1000,timer_callback,NULL);

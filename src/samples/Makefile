@@ -26,7 +26,8 @@ source =  stream/connection/conn_echo_server.c\
 		  datagram/datagram/dgram_raw_server.c\
 		  datagram/datagram/dgram_raw_client.c\
 		  datagram/datagram/dgram_rpk_server.c\
-		  datagram/datagram/dgram_rpk_client.c
+		  datagram/datagram/dgram_rpk_client.c\
+		  redis/redisclient.c
 
 all:
 	@if [ ! -d "bin" ]; then mkdir bin; fi	
@@ -42,4 +43,5 @@ all:
 	$(CC) $(CFLAGS) -o bin/tcp_echoclient tcp_echoclient.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/udp_echoserver udp_echoserver.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/udp_echoclient udp_echoclient.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
+	$(CC) $(CFLAGS) -o bin/redisclient redisclient.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)	
 	rm *.o		  

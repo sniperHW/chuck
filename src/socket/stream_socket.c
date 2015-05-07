@@ -5,7 +5,9 @@
 
 extern int32_t is_read_enable(handle*h);
 extern int32_t is_write_enable(handle*h);
-extern void release_socket(socket_ *s);
+extern void    release_socket(socket_ *s);
+
+typedef void(*stream_callback)(stream_socket_*,void*,int32_t,int32_t);
 
 static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
 	assert(e && h && callback);
@@ -26,47 +28,51 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
 #endif
 	if(ret == 0){
 		easy_noblock(h->fd,1);
-		((socket_*)h)->stream_callback = (void(*)(handle*,void*,int32_t,int32_t))callback;
+		((stream_socket_*)h)->callback = (stream_callback)callback;
 	}
 	return ret;
 }
 
-static void process_read(socket_ *s){
-	iorequest *req = 0;
-	int32_t bytes_transfer = 0;
-	while((req = (iorequest*)list_pop(&s->pending_recv))!=NULL){
+#define pending_recv(S) (((socket_*)S)->pending_recv)
+#define status(S)       (((socket_*)S)->status)
+#define type(S)         (((socket_*)S)->type)  
+
+static void process_read(stream_socket_ *s){
+	iorequest *req = NULL;
+	int32_t bytes = 0;
+	while((req = (iorequest*)list_pop(&pending_recv(s)))!=NULL){
 		errno = 0;
-		bytes_transfer = TEMP_FAILURE_RETRY(readv(((handle*)s)->fd,req->iovec,req->iovec_count));	
+		bytes = TEMP_FAILURE_RETRY(readv(((handle*)s)->fd,req->iovec,req->iovec_count));	
 		
-		if(bytes_transfer < 0 && errno == EAGAIN){
+		if(bytes < 0 && errno == EAGAIN){
 				//将请求重新放回到队列
-				list_pushback(&s->pending_recv,(listnode*)req);
+				list_pushback(&pending_recv(s),(listnode*)req);
 				break;
 		}else{
-			s->stream_callback((handle*)s,req,bytes_transfer,errno);
-			if(s->status & SOCKET_CLOSE)
+			s->callback(s,req,bytes,errno);
+			if(status(s) & SOCKET_CLOSE)
 				return;			
 		}
 	}	
-	if(!list_size(&s->pending_recv)){
+	if(!list_size(&pending_recv(s))){
 		//没有接收请求了,取消EPOLLIN
 		disable_read((handle*)s);
 	}	
 }
 
-static void process_write(socket_ *s){
+static void process_write(stream_socket_ *s){
 	iorequest *req = 0;
-	int32_t bytes_transfer = 0;
+	int32_t bytes = 0;
 	while((req = (iorequest*)list_pop(&s->pending_send))!=NULL){
 		errno = 0;	
-		bytes_transfer = TEMP_FAILURE_RETRY(writev(((handle*)s)->fd,req->iovec,req->iovec_count));
-		if(bytes_transfer < 0 && errno == EAGAIN){
+		bytes = TEMP_FAILURE_RETRY(writev(((handle*)s)->fd,req->iovec,req->iovec_count));
+		if(bytes < 0 && errno == EAGAIN){
 				//将请求重新放回到队列
 				list_pushback(&s->pending_send,(listnode*)req);
 				break;
 		}else{
-			s->stream_callback((handle*)s,req,bytes_transfer,errno);
-			if(s->status & SOCKET_CLOSE)
+			s->callback(s,req,bytes,errno);
+			if(status(s) & SOCKET_CLOSE)
 				return;
 		}
 	}
@@ -77,76 +83,73 @@ static void process_write(socket_ *s){
 }
 
 static void on_events(handle *h,int32_t events){
-	socket_ *s = (socket_*)h;
-	if(s->status & SOCKET_CLOSE)
+	stream_socket_ *s = (stream_socket_*)h;
+	if(status(s) & SOCKET_CLOSE)
 		return;
 	do{
-		s->status |= SOCKET_INLOOP;
+		status(s) |= SOCKET_INLOOP;
 		if(events & EVENT_READ){
 			process_read(s);	
-			if(s->status & SOCKET_CLOSE) 
+			if(status(s) & SOCKET_CLOSE) 
 				break;								
 		}		
 		if(events & EVENT_WRITE)
 			process_write(s);			
-		s->status ^= SOCKET_INLOOP;
+		status(s) ^= SOCKET_INLOOP;
 	}while(0);
-	if(s->status & SOCKET_RELEASE){
-		release_socket(s);		
+	if(status(s) & SOCKET_RELEASE){
+		release_socket((socket_*)s);		
 	}
 }
 
-void    construct_stream_socket(socket_ *s){
+
+void    construct_stream_socket(stream_socket_ *s){
 	((handle*)s)->on_events = on_events;
 	((handle*)s)->imp_engine_add = imp_engine_add;
-	s->status = SOCKET_STREAM;	
+	type(s) = STREAM;	
 }	
 
-handle *new_stream_socket(int32_t fd){
-	socket_ *s = calloc(1,sizeof(*s));
+stream_socket_ *new_stream_socket(int32_t fd){
+	stream_socket_ *s = calloc(1,sizeof(*s));
 	((handle*)s)->fd = fd;
 	((handle*)s)->on_events = on_events;
 	((handle*)s)->imp_engine_add = imp_engine_add;
-	s->status = SOCKET_STREAM;
+	type(s) = STREAM;
 	easy_close_on_exec(fd);
-	return (handle*)s;
+	return s;
 }
 
-int32_t stream_socket_recv(handle *h,iorequest *req,int32_t flag){
-	socket_ *s = (socket_*)h;
+int32_t stream_socket_recv(stream_socket_ *s,iorequest *req,int32_t flag){
+	handle *h = (handle*)s;
 	if(!h->e)
 		return -ENOASSENG;
-	else if(s->status & SOCKET_CLOSE)
+	else if(status(s) & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
-	else if(!(s->status & SOCKET_STREAM))
-		return -EINVISOKTYPE;
 	errno = 0;
-	if(flag == IO_NOW && list_size(&s->pending_recv)){
-		int32_t bytes_transfer = TEMP_FAILURE_RETRY(readv(h->fd,req->iovec,req->iovec_count));
-		if(bytes_transfer >= 0)
-			return bytes_transfer;
+	if(flag == IO_NOW && list_size(&pending_recv(s))){
+		int32_t bytes = TEMP_FAILURE_RETRY(readv(h->fd,req->iovec,req->iovec_count));
+		if(bytes >= 0)
+			return bytes;
 		else if(errno != EAGAIN)
 			return -errno;
 	}
-	list_pushback(&s->pending_recv,(listnode*)req);
+	list_pushback(&pending_recv(s),(listnode*)req);
 	if(!is_read_enable(h)) enable_read(h);
 	return -EAGAIN;	
 }
 
-int32_t stream_socket_send(handle *h,iorequest *req,int32_t flag){
-	socket_ *s = (socket_*)h;
+int32_t stream_socket_send(stream_socket_ *s,iorequest *req,int32_t flag){
+	handle *h = (handle*)s;
 	if(!h->e)
 		return -ENOASSENG;
-	else if(s->status & SOCKET_CLOSE)
+	else if(status(s) & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
-	else if(!(s->status & SOCKET_STREAM))
-		return -EINVISOKTYPE;
 
 	errno = 0;
 	if(flag == IO_NOW && list_size(&s->pending_send)){
-		int32_t bytes_transfer = TEMP_FAILURE_RETRY(writev(h->fd,req->iovec,req->iovec_count));
-		if(bytes_transfer >= 0)
-			return bytes_transfer;
+		int32_t bytes = TEMP_FAILURE_RETRY(writev(h->fd,req->iovec,req->iovec_count));
+		if(bytes >= 0)
+			return bytes;
 		else if(errno != EAGAIN)
 			return -errno;
 	}

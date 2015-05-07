@@ -4,7 +4,7 @@
 static void on_connected(int32_t fd,int32_t err,void *ud){
 	if(fd >= 0 && err == 0){
 		engine *e = (engine*)ud;
-		handle *h = new_stream_socket(fd);
+		stream_socket_ *h = new_stream_socket(fd);
 		engine_associate(e,h,transfer_finish);
 		struct session *s = session_new(h);
 		session_send(s,65535);

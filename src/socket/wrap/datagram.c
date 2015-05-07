@@ -46,7 +46,7 @@ int32_t datagram_send(datagram *d,packet *p,sockaddr_ *addr)
 		o.iovec_count = i;
 		o.iovec = d->wsendbuf;
 		o.addr = *addr;
-		ret = datagram_socket_send((handle*)d,&o);
+		ret = datagram_socket_send((dgram_socket_*)d,&o);
 	}while(0);
 	packet_del(p);
 	return ret;
@@ -87,35 +87,35 @@ static inline void prepare_recv(datagram *d){
 static inline void PostRecv(datagram *d){
 	((socket_*)d)->status |= RECVING;
 	prepare_recv(d);
-	datagram_socket_recv((handle*)d,&d->recv_overlap,IO_POST,NULL);		
+	datagram_socket_recv((dgram_socket_*)d,&d->recv_overlap,IO_POST,NULL);		
 }
 
 static inline void update_next_recv_pos(datagram *d,int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
-	uint32_t bytestransfer = (uint32_t)_bytestransfer;
+	uint32_t bytes = (uint32_t)_bytestransfer;
 	uint32_t size;
-	decoder_update(d->decoder_,d->next_recv_buf,d->next_recv_pos,bytestransfer);
+	decoder_update(d->decoder_,d->next_recv_buf,d->next_recv_pos,bytes);
 	do{
 		size = d->next_recv_buf->cap - d->next_recv_pos;
-		size = size > bytestransfer ? bytestransfer:size;
+		size = size > bytes ? bytes:size;
 		d->next_recv_buf->size += size;
 		d->next_recv_pos += size;
-		bytestransfer -= size;
+		bytes -= size;
 		if(d->next_recv_pos >= d->next_recv_buf->cap)
 		{
 			bytebuffer_set(&d->next_recv_buf,d->next_recv_buf->next);
 			d->next_recv_pos = 0;
 		}
-	}while(bytestransfer);
+	}while(bytes);
 }
 
-static void IoFinish(handle *sock,void *_,int32_t bytestransfer,int32_t err_code,int32_t recvflags)
+static void IoFinish(handle *sock,void *_,int32_t bytes,int32_t err_code,int32_t recvflags)
 {
 	int32_t unpack_err;
 	datagram *d = (datagram*)sock;	
-	if(bytestransfer > 0 && recvflags != MSG_TRUNC){
-		update_next_recv_pos(d,bytestransfer);
+	if(bytes > 0 && recvflags != MSG_TRUNC){
+		update_next_recv_pos(d,bytes);
 		packet *pk = d->decoder_->unpack(d->decoder_,&unpack_err);
 		if(pk){
 			d->on_packet(d,pk,&d->recv_overlap.addr);
