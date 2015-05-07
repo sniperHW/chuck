@@ -2,7 +2,8 @@
 
 allocator *g_rawpk_allocator = NULL;
 
-static packet *rawpacket_clone(packet*);
+static packet*
+rawpacket_clone(packet*);
 
 #define INIT_CONSTROUCTOR(p){\
 	((packet*)p)->construct_write = rawpacket_clone;\
@@ -11,7 +12,9 @@ static packet *rawpacket_clone(packet*);
 }
 
 
-rawpacket *rawpacket_new(uint32_t size){
+rawpacket*
+rawpacket_new(uint32_t size)
+{
 	size = size_of_pow2(size);
     if(size < MIN_BUFFER_SIZE) size = MIN_BUFFER_SIZE;
     bytebuffer *b = bytebuffer_new(size);
@@ -24,7 +27,9 @@ rawpacket *rawpacket_new(uint32_t size){
 }
 
 //will add reference count of b
-rawpacket *rawpacket_new_by_buffer(bytebuffer *b,uint32_t spos){
+rawpacket*
+rawpacket_new_by_buffer(bytebuffer *b,uint32_t spos)
+{
 	rawpacket *raw = (rawpacket*)CALLOC(g_rawpk_allocator,1,sizeof(*raw));
 	((packet*)raw)->type = RAWPACKET;
 	((packet*)raw)->head = b;
@@ -36,7 +41,9 @@ rawpacket *rawpacket_new_by_buffer(bytebuffer *b,uint32_t spos){
 	return raw;		
 }
 
-static packet *rawpacket_clone(packet *p){
+static packet*
+rawpacket_clone(packet *p)
+{
 	rawpacket *raw = (rawpacket*)CALLOC(g_rawpk_allocator,1,sizeof(*raw));
 	((packet*)raw)->type = RAWPACKET;
 	((packet*)raw)->head = p->head;

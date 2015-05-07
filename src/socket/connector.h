@@ -33,10 +33,12 @@ typedef struct{
     luaRef    luacallback; 
 }connector;
 
-handle *connector_new(int32_t fd,void *ud,uint32_t timeout);    
+handle*
+connector_new(int32_t fd,void *ud,uint32_t timeout);    
 
 //need not delete,engine will do for you
 
-void    reg_luaconnector(lua_State *L);
+void    
+reg_luaconnector(lua_State *L);
 
 #endif

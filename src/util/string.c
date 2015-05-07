@@ -14,14 +14,16 @@ typedef struct
 }holder;
 
 
-static void holder_dctor(void *arg)
+static void 
+holder_dctor(void *arg)
 {
 	holder *h = (holder*)arg;
 	free((void*)h->str);
 	free(h);
 }
 
-static inline holder *holder_new(const char *str,uint32_t len)
+static inline holder*
+holder_new(const char *str,uint32_t len)
 {
 	holder *h = calloc(1,sizeof(*h));
 	h->cap = size_of_pow2(len+1);
@@ -33,7 +35,11 @@ static inline holder *holder_new(const char *str,uint32_t len)
 	return h;
 }
 
-static inline void holder_append(holder *h,const char *str,uint32_t len){
+static inline void 
+holder_append(holder *h,
+			  const char *str,
+			  uint32_t len)
+{
 	uint32_t total_len = h->len + len +1;
 	if(h->cap < total_len){
 		h->cap = size_of_pow2(total_len);
@@ -50,12 +56,14 @@ static inline void holder_append(holder *h,const char *str,uint32_t len){
 }
 
 
-static inline void holder_release(holder *h)
+static inline void 
+holder_release(holder *h)
 {
 	if(h) refobj_dec(&h->ref);
 }
 
-static inline void holder_acquire(holder *h)
+static inline void 
+holder_acquire(holder *h)
 {
     if(h) refobj_inc(&h->ref);
 }
@@ -71,7 +79,8 @@ typedef struct string
 }string;
 
 
-string *string_new(const char *str)
+string*
+string_new(const char *str)
 {
 	if(!str) return NULL;
 	string *_str = calloc(1,sizeof(*_str));
@@ -85,7 +94,8 @@ string *string_new(const char *str)
 	return _str;
 }
 
-string* string_copy_new(string *oth)
+string* 
+string_copy_new(string *oth)
 {
 	string *str = calloc(1,sizeof(*str));
 	if(!oth->holder){
@@ -98,7 +108,8 @@ string* string_copy_new(string *oth)
 	return str;
 }
 
-void string_del(string *s)
+void 
+string_del(string *s)
 {
 	if(s->holder){
 		holder_release(s->holder);
@@ -106,14 +117,17 @@ void string_del(string *s)
 	free(s);
 }
 
-const char *string_cstr(string *s){
+const char*
+string_cstr(string *s)
+{
 	if(s->holder){
 		return s->holder->str;
 	}
 	return s->str;
 }
 
-int32_t  string_len(string *s)
+int32_t  
+string_len(string *s)
 {
 	if(s->holder){
 		return s->holder->len;
@@ -122,7 +136,8 @@ int32_t  string_len(string *s)
 }
 
 
-void string_append(string *s,const char *str)
+void 
+string_append(string *s,const char *str)
 {
 	if(!s || !str) return;
 	uint32_t len = strlen(str);

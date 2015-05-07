@@ -34,9 +34,12 @@ typedef struct{
 }rpacket;
 
 //will add reference count of b
-rpacket *rpacket_new(bytebuffer *b,uint32_t start_pos);
+rpacket*
+rpacket_new(bytebuffer *b,uint32_t start_pos);
 
-static inline uint16_t rpacket_read(rpacket *r,char *out,uint16_t size){
+static inline uint16_t 
+rpacket_read(rpacket *r,char *out,uint16_t size)
+{
     if(size > r->data_remain) return 0;
     uint16_t out_size = buffer_read(&r->reader,out,(uint16_t)size);
     assert(out_size == size);
@@ -44,7 +47,9 @@ static inline uint16_t rpacket_read(rpacket *r,char *out,uint16_t size){
     return out_size;
 }
 
-static inline uint16_t rpacket_peek(rpacket *r,char *out,uint16_t size){
+static inline uint16_t 
+rpacket_peek(rpacket *r,char *out,uint16_t size)
+{
     if(size > r->data_remain) return 0;
     bytebuffer *back1 = r->reader.cur;
     uint32_t    back2 = r->reader.pos;
@@ -56,8 +61,11 @@ static inline uint16_t rpacket_peek(rpacket *r,char *out,uint16_t size){
 }
 
 
-const char *rpacket_read_string(rpacket*);
-const void *rpacket_read_binary(rpacket*,uint16_t *len);
+const char*
+rpacket_read_string(rpacket*);
+
+const void*
+rpacket_read_binary(rpacket*,uint16_t *len);
 
 #define RPACKET_READ(R,TYPE)\
         ({TYPE __result;rpacket_read(R,(char*)&__result,sizeof(TYPE));__result;})
@@ -65,43 +73,63 @@ const void *rpacket_read_binary(rpacket*,uint16_t *len);
 #define RPACKET_PEEK(R,TYPE)\
         ({TYPE __result;rpacket_read(R,(char*)&__result,sizeof(TYPE));__result;})
 
-static inline uint8_t rpacket_read_uint8(rpacket *r){
+static inline uint8_t 
+rpacket_read_uint8(rpacket *r)
+{
     return RPACKET_READ(r,uint8_t);
 }
 
-static inline uint16_t rpacket_read_uint16(rpacket *r){
+static inline uint16_t 
+rpacket_read_uint16(rpacket *r)
+{
     return _ntoh16(RPACKET_READ(r,uint16_t));
 }
 
-static inline uint32_t rpacket_read_uint32(rpacket *r){
+static inline uint32_t 
+rpacket_read_uint32(rpacket *r)
+{
     return _ntoh32(RPACKET_READ(r,uint32_t));
 }
 
-static inline uint64_t rpacket_read_uint64(rpacket *r){
+static inline uint64_t 
+rpacket_read_uint64(rpacket *r)
+{
     return _ntoh64(RPACKET_READ(r,uint64_t));
 }
 
-static inline double rpacket_read_double(rpacket *r){
+static inline double 
+rpacket_read_double(rpacket *r)
+{
     return RPACKET_READ(r,double);
 }
 
-static inline uint8_t rpacket_peek_uint8(rpacket *r){
+static inline uint8_t 
+rpacket_peek_uint8(rpacket *r)
+{
     return RPACKET_PEEK(r,uint8_t);
 }
 
-static inline uint16_t rpacket_peek_uint16(rpacket *r){
+static inline uint16_t 
+rpacket_peek_uint16(rpacket *r)
+{
     return _ntoh16(RPACKET_PEEK(r,uint16_t));
 }
 
-static inline uint32_t rpacket_peek_uint32(rpacket *r){
+static inline uint32_t 
+rpacket_peek_uint32(rpacket *r)
+{
     return _ntoh32(RPACKET_PEEK(r,uint32_t));
 }
 
-static inline uint64_t rpacket_peek_uint64(rpacket *r){
+static inline uint64_t 
+rpacket_peek_uint64(rpacket *r)
+{
     return _ntoh64(RPACKET_PEEK(r,uint64_t));
 }
 
-static inline double rpacket_peek_double(rpacket *r){
+static inline double 
+rpacket_peek_double(rpacket *r)
+{
     return RPACKET_PEEK(r,double);
 }
 

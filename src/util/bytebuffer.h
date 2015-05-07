@@ -33,7 +33,8 @@ typedef struct bytebuffer{
 static  uint32_t bytebuffer_count = 0;
 
 
-static inline void bytebuffer_dctor(void *_)
+static inline void 
+bytebuffer_dctor(void *_)
 {
 	//printf("bytebuffer_dctor\n");
 	--bytebuffer_count;
@@ -43,7 +44,8 @@ static inline void bytebuffer_dctor(void *_)
     free(b);
 }
 
-static inline bytebuffer *bytebuffer_new(uint32_t capacity)
+static inline bytebuffer*
+bytebuffer_new(uint32_t capacity)
 {
 	//printf("bytebuffer_new\n");
 	++bytebuffer_count;
@@ -57,7 +59,8 @@ static inline bytebuffer *bytebuffer_new(uint32_t capacity)
 	return b;
 }
 
-static inline void bytebuffer_set(bytebuffer **b1,bytebuffer *b2)
+static inline void 
+bytebuffer_set(bytebuffer **b1,bytebuffer *b2)
 {
     if(*b1 == b2) return;
     if(b2)  refobj_inc((refobj*)b2);
@@ -77,22 +80,36 @@ typedef struct{
 }buffer_writer;
 
 
-static inline void buffer_reader_init(buffer_reader *reader,bytebuffer *buff,uint32_t pos){
+static inline void 
+buffer_reader_init(buffer_reader *reader,
+				   bytebuffer *buff,
+				   uint32_t pos)
+{
 	reader->cur = buff;
 	reader->pos = pos;
 }
 
-static inline void buffer_writer_init(buffer_writer *writer,bytebuffer *buff,uint32_t pos){
+static inline void 
+buffer_writer_init(buffer_writer *writer,
+				   bytebuffer *buff,
+				   uint32_t pos)
+{
 	writer->cur = buff;
 	writer->pos = pos;
 }
 
-static inline int32_t reader_check_size(buffer_reader *reader,uint32_t size){
+static inline int32_t 
+reader_check_size(buffer_reader *reader,
+				  uint32_t size)
+{
 	uint32_t tmp = reader->pos + size;
 	return reader->cur->size >= tmp && tmp > size;
 }
 
-static inline uint32_t buffer_read(buffer_reader *reader,void *_,uint32_t size){
+static inline uint32_t 
+buffer_read(buffer_reader *reader,
+			void *_,uint32_t size)
+{
 	uint32_t copy_size;
 	uint32_t out_size = 0;
 	char 	*out = (char*)_;
@@ -115,7 +132,10 @@ static inline uint32_t buffer_read(buffer_reader *reader,void *_,uint32_t size){
 	return out_size;
 }
 
-static inline uint32_t buffer_write(buffer_writer *writer,void *_,uint32_t size){
+static inline uint32_t 
+buffer_write(buffer_writer *writer,
+			 void *_,uint32_t size)
+{
     uint32_t copy_size;
     uint32_t in_size = 0;
     char 	*in = (char*)_;

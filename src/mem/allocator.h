@@ -40,8 +40,12 @@ typedef struct allocator{
 	   else  __result = ((allocator*)A)->calloc((allocator*)A,NUM,SIZE);\
 	  __result;})
 
-#define REALLOC(A,PTR,SIZE) do{if(!A) realloc(PTR,SIZE);else  ((allocator*)A)->realloc((allocator*)A,PTR,SIZE);}while(0)
+#define REALLOC(A,PTR,SIZE) do{if(!A) realloc(PTR,SIZE);\
+								else  ((allocator*)A)->realloc((allocator*)A,PTR,SIZE);\
+							}while(0)
 
-#define FREE(A,PTR) do{if(!A) free(PTR);else   ((allocator*)A)->free((allocator*)A,PTR);}while(0)
+#define FREE(A,PTR) do{if(!A) free(PTR);\
+					   else   ((allocator*)A)->free((allocator*)A,PTR);\
+					}while(0)
 
 #endif

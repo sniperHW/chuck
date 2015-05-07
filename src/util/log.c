@@ -40,7 +40,9 @@ struct{
 }logqueue;
 
 
-void logqueue_push(struct log_item *item){
+void 
+logqueue_push(struct log_item *item)
+{
 	mutex_lock(logqueue.mtx);
 	list_pushback(&logqueue.share_queue,(listnode*)item);
 	if(logqueue.wait && list_size(&logqueue.share_queue) == 1){
@@ -51,7 +53,9 @@ void logqueue_push(struct log_item *item){
 	mutex_unlock(logqueue.mtx);
 }
 
-struct log_item *logqueue_fetch(uint32_t ms){
+struct log_item*
+logqueue_fetch(uint32_t ms)
+{
 	if(list_size(&logqueue.private_queue) > 0)
 		return (struct log_item*)list_pop(&logqueue.private_queue);
 	mutex_lock(logqueue.mtx);
@@ -73,7 +77,8 @@ struct log_item *logqueue_fetch(uint32_t ms){
 DEF_LOG(sys_log,SYSLOG_NAME);
 IMP_LOG(sys_log);
 
-int32_t write_prefix(char *buf,uint8_t loglev)
+int32_t 
+write_prefix(char *buf,uint8_t loglev)
 {
 	struct timespec tv;
     clock_gettime (CLOCK_REALTIME, &tv);
@@ -91,7 +96,9 @@ int32_t write_prefix(char *buf,uint8_t loglev)
 				   (uint32_t)thread_id());
 }
 
-static void* log_routine(void *arg){
+static void* 
+log_routine(void *arg)
+{
 	g_pid = getpid();
 	time_t next_fulsh = time(NULL) + flush_interval;
 	struct log_item *item;
@@ -163,7 +170,8 @@ static void* log_routine(void *arg){
 	return NULL;
 }
 
-static void on_process_end()
+static void 
+on_process_end()
 {
 	if(g_pid == getpid()){
 		if(g_log_thd){
@@ -173,7 +181,8 @@ static void on_process_end()
 	}
 }
 
-void _write_log(logfile *l,const char *content)
+void 
+_write_log(logfile *l,const char *content)
 {
 	uint32_t content_len = strlen(content)+1;
 	struct log_item *item = calloc(1,sizeof(*item) + content_len);
@@ -183,7 +192,9 @@ void _write_log(logfile *l,const char *content)
 	printf("%s",content);
 }
 			           
-static void log_once_routine(){
+static void 
+log_once_routine()
+{
 	list_init(&g_log_file_list);
 	g_mtx_log_file_list = mutex_new();
 	list_init(&logqueue.private_queue);
@@ -194,7 +205,8 @@ static void log_once_routine(){
 	atexit(on_process_end);
 }
 
-logfile *create_logfile(const char *filename)
+logfile*
+create_logfile(const char *filename)
 {
 	pthread_once(&g_log_key_once,log_once_routine);
 	logfile *l = calloc(1,sizeof(*l));
@@ -206,10 +218,14 @@ logfile *create_logfile(const char *filename)
 }
 
 
-void write_log(logfile* l,const char *content){
+void 
+write_log(logfile* l,const char *content)
+{
 	_write_log(l,content);
 }
 
-void write_sys_log(const char *content){
+void 
+write_sys_log(const char *content)
+{
 	_write_log(GET_LOGFILE(sys_log),content);
 }

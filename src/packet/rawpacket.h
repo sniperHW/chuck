@@ -30,12 +30,15 @@ typedef struct
     buffer_writer   writer;
 }rawpacket;
 
-rawpacket *rawpacket_new(uint32_t size);
+rawpacket*
+rawpacket_new(uint32_t size);
 
 //will add reference count of b
-rawpacket *rawpacket_new_by_buffer(bytebuffer *b,uint32_t spos);
+rawpacket*
+rawpacket_new_by_buffer(bytebuffer *b,uint32_t spos);
 
-static inline void rawpacket_expand(rawpacket *raw,uint32_t newsize)
+static inline void 
+rawpacket_expand(rawpacket *raw,uint32_t newsize)
 {
 
 	newsize = size_of_pow2(newsize);
@@ -50,12 +53,14 @@ static inline void rawpacket_expand(rawpacket *raw,uint32_t newsize)
     buffer_writer_init(&raw->writer,newbuff,((packet*)raw)->len_packet);
 }
 
-static inline void rawpacket_copy_on_write(rawpacket *raw)
+static inline void 
+rawpacket_copy_on_write(rawpacket *raw)
 {
 	rawpacket_expand(raw,((packet*)raw)->len_packet);
 }
 
-static inline void rawpacket_append(rawpacket *raw,void *_,uint32_t size)
+static inline void 
+rawpacket_append(rawpacket *raw,void *_,uint32_t size)
 {
 	char *in = (char*)_;
     if(!raw->writer.cur)
@@ -73,7 +78,9 @@ static inline void rawpacket_append(rawpacket *raw,void *_,uint32_t size)
     }	
 }
 
-static inline void *rawpacket_data(rawpacket *raw,uint32_t *size){
+static inline void*
+rawpacket_data(rawpacket *raw,uint32_t *size)
+{
 	if(size) *size = ((packet*)raw)->len_packet;
 	return (void*)(((packet*)raw)->head->data + ((packet*)raw)->spos);
 }

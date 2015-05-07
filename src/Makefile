@@ -44,6 +44,7 @@ source =  util/exception.c\
 		  engine/engine.c\
 		  lua/lua_util.c\
 		  lua/lua_util_packet.c\
+		  db/redis/client.c\
 		  mem/obj_allocator.c	  
 
 test-source = test/testexception.c\

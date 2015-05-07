@@ -4,13 +4,21 @@
 #include "socket/socket_helper.h"
 
 
-extern int32_t is_read_enable(handle*h);
-extern int32_t is_write_enable(handle*h);
-extern void    release_socket(socket_ *s);
+extern int32_t 
+is_read_enable(handle*h);
+
+extern int32_t 
+is_write_enable(handle*h);
+
+extern void    
+release_socket(socket_ *s);
 
 typedef void(*dgram_callback)(dgram_socket_*,void*,int32_t,int32_t,int32_t);  
 
-static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
+static int32_t 
+imp_engine_add(engine *e,handle *h,
+	           generic_callback callback)
+{
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
 	int32_t ret;
@@ -34,7 +42,9 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
 #define status(S)       (((socket_*)S)->status)
 #define type(S)         (((socket_*)S)->type)
 
-static void process_read(dgram_socket_ *s){
+static void 
+process_read(dgram_socket_ *s)
+{
 	iorequest *req = NULL;
 	int32_t bytes = 0;
 	struct msghdr _msghdr;
@@ -66,7 +76,9 @@ static void process_read(dgram_socket_ *s){
 	}
 }
 
-static void on_events(handle *h,int32_t events){
+static void 
+on_events(handle *h,int32_t events)
+{
 	dgram_socket_ *s = (dgram_socket_*)h;
 	if(status(s) & SOCKET_CLOSE)
 		return;
@@ -84,13 +96,17 @@ static void on_events(handle *h,int32_t events){
 	}
 }
 
-void    construct_datagram_socket(dgram_socket_ *s){
+void    
+construct_datagram_socket(dgram_socket_ *s)
+{
 	((handle*)s)->on_events = on_events;
 	((handle*)s)->imp_engine_add = imp_engine_add;
 	status(s) = DATAGRAM;	
 }		
 
-dgram_socket_ *new_datagram_socket(int32_t fd){
+dgram_socket_*
+new_datagram_socket(int32_t fd)
+{
 	dgram_socket_ *s = calloc(1,sizeof(*s));
 	((handle*)s)->fd = fd;
 	((handle*)s)->on_events = on_events;
@@ -100,7 +116,10 @@ dgram_socket_ *new_datagram_socket(int32_t fd){
 	return s;
 }
 
-int32_t datagram_socket_recv(dgram_socket_ *s,iorequest *req,int32_t flag,int32_t *recvflags){
+int32_t 
+datagram_socket_recv(dgram_socket_ *s,iorequest *req,
+	 				 int32_t flag,int32_t *recvflags)
+{
 	handle *h = (handle*)s;
 	if(!h->e)
 		return -ENOASSENG;
@@ -131,7 +150,9 @@ int32_t datagram_socket_recv(dgram_socket_ *s,iorequest *req,int32_t flag,int32_
 	return -EAGAIN;	
 }
 
-int32_t datagram_socket_send(dgram_socket_ *s,iorequest *req){
+int32_t 
+datagram_socket_send(dgram_socket_ *s,iorequest *req)
+{
 	handle *h = (handle*)s;
 	if(!h->e)
 		return -ENOASSENG;

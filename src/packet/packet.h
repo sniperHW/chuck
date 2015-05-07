@@ -52,7 +52,8 @@ typedef struct packet
 #define make_readpacket(p)  ((packet*)(p))->construct_read((packet*)(p))
 #define clone_packet(p)     ((packet*)(p))->clone((packet*)(p))
 
-void packet_del(packet*);
+void 
+packet_del(packet*);
 
 
 #endif

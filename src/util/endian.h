@@ -28,15 +28,21 @@
 
 #ifdef _ENDIAN_CHANGE_
 
-static inline uint16_t _swap16(uint16_t num){
+static inline uint16_t 
+_swap16(uint16_t num)
+{
 	return ((num << 8) & 0xFF00) | ((num & 0xFF00) >> 8); 
 }
 
-static inline uint32_t _swap32(uint32_t num){
+static inline 
+uint32_t _swap32(uint32_t num)
+{
 	return  (_swap16(((uint16_t*)&num)[0]) << 16) | _swap16(((uint16_t*)&num)[1]); 
 }
 
-static inline uint64_t _swap64(uint64_t num){
+static inline 
+uint64_t _swap64(uint64_t num)
+{
 	return ((uint64_t)_swap32(((uint32_t*)&num)[0]) << 32) | _swap32(((uint32_t*)&num)[1]);
 }
 
@@ -45,7 +51,9 @@ static inline uint64_t _swap64(uint64_t num){
 #define _hton32(x) ((uint32_t)htonl(x))
 #define _ntoh32(x) ((uint32_t)ntohl(x))
 
-static inline uint64_t _hton64(uint64_t num){
+static inline uint64_t 
+_hton64(uint64_t num)
+{
 #if __BYTE_ORDER == __BIG_ENDIAN 
 	return num;
 #else
@@ -53,7 +61,9 @@ static inline uint64_t _hton64(uint64_t num){
 #endif
 }
 
-static inline uint64_t kn_ntoh64(uint64_t num){
+static inline uint64_t 
+kn_ntoh64(uint64_t num)
+{
 #if __BYTE_ORDER == __BIG_ENDIAN 
 	return num;
 #else
@@ -68,11 +78,15 @@ static inline uint64_t kn_ntoh64(uint64_t num){
 #define _hton32(x) (x)
 #define _ntoh32(x) (x)
 
-static inline uint64_t _hton64(uint64_t num){
+static inline uint64_t 
+_hton64(uint64_t num)
+{
 	return num;
 }
 
-static inline uint64_t _ntoh64(uint64_t num){
+static inline uint64_t 
+_ntoh64(uint64_t num)
+{
 	return num;
 }
 

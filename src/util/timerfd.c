@@ -4,7 +4,9 @@
 #include "engine/engine.h"
 
 
-static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
+static int32_t 
+imp_engine_add(engine *e,handle *h,
+			   generic_callback callback)
 {
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
@@ -15,13 +17,17 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 	return ret;
 }
 
-static void on_timeout(handle *h,int32_t events){
+static void 
+on_timeout(handle *h,int32_t events)
+{
 	int64_t _;
 	TEMP_FAILURE_RETRY(read(h->fd,&_,sizeof(_)));	
 	((timerfd*)h)->callback(((timerfd*)h)->ud);
 }
 
-handle *timerfd_new(uint32_t timeout,void *ud){
+handle*
+timerfd_new(uint32_t timeout,void *ud)
+{
 	timerfd *t = calloc(1,sizeof(*t));
 
 	((handle*)t)->fd = timerfd_create(CLOCK_MONOTONIC,TFD_CLOEXEC|TFD_NONBLOCK);
@@ -52,7 +58,9 @@ handle *timerfd_new(uint32_t timeout,void *ud){
 	return (handle*)t;
 }
 
-void timerfd_del(handle *h){
+void 
+timerfd_del(handle *h)
+{
 	close(h->fd);
 	free(h);
 }

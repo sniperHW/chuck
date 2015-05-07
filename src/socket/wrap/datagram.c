@@ -8,7 +8,8 @@ enum{
 
 static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
 
-int32_t datagram_send(datagram *d,packet *p,sockaddr_ *addr)
+int32_t 
+datagram_send(datagram *d,packet *p,sockaddr_ *addr)
 {
 	iorequest   o;
 	int32_t     ret,i;
@@ -52,7 +53,9 @@ int32_t datagram_send(datagram *d,packet *p,sockaddr_ *addr)
 	return ret;
 }
 
-static inline void prepare_recv(datagram *d){
+static inline void 
+prepare_recv(datagram *d)
+{
 	bytebuffer *buf;
 	int32_t     i = 0;
 	uint32_t    free_buffer_size,recv_size,pos;
@@ -84,13 +87,16 @@ static inline void prepare_recv(datagram *d){
 	d->recv_overlap.iovec = d->wrecvbuf;
 }
 
-static inline void PostRecv(datagram *d){
+static inline void
+PostRecv(datagram *d)
+{
 	((socket_*)d)->status |= RECVING;
 	prepare_recv(d);
 	datagram_socket_recv((dgram_socket_*)d,&d->recv_overlap,IO_POST,NULL);		
 }
 
-static inline void update_next_recv_pos(datagram *d,int32_t _bytestransfer)
+static inline void 
+update_next_recv_pos(datagram *d,int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
 	uint32_t bytes = (uint32_t)_bytestransfer;
@@ -110,7 +116,9 @@ static inline void update_next_recv_pos(datagram *d,int32_t _bytestransfer)
 	}while(bytes);
 }
 
-static void IoFinish(handle *sock,void *_,int32_t bytes,int32_t err_code,int32_t recvflags)
+static void 
+IoFinish(handle *sock,void *_,int32_t bytes,
+		 int32_t err_code,int32_t recvflags)
 {
 	int32_t unpack_err;
 	datagram *d = (datagram*)sock;	
@@ -128,7 +136,10 @@ static void IoFinish(handle *sock,void *_,int32_t bytes,int32_t err_code,int32_t
 }
 
 
-static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
+static int32_t 
+imp_engine_add(engine *e,handle *h,
+		       generic_callback callback)
+{
 	int32_t ret;
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
@@ -143,7 +154,8 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
 	return ret;
 }
 
-void datagram_dctor(void *_)
+void 
+datagram_dctor(void *_)
 {
 	datagram *d = (datagram*)_;
 	bytebuffer_set(&d->next_recv_buf,NULL);
@@ -151,7 +163,8 @@ void datagram_dctor(void *_)
 	free(d);	
 }
 
-datagram *datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
+datagram*
+datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
 {
 	buffersize = size_of_pow2(buffersize);
     if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
@@ -170,7 +183,9 @@ datagram *datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
 	return dgarm;
 }
 
-static packet *rawpk_unpack(decoder *d,int32_t *err){
+static packet*
+rawpk_unpack(decoder *d,int32_t *err)
+{
 	rawpacket    *raw;
 	uint32_t      size;
 	buffer_writer writer;
@@ -194,7 +209,9 @@ static packet *rawpk_unpack(decoder *d,int32_t *err){
 	return (packet*)raw;
 }
 
-decoder *dgram_raw_decoder_new(){
+decoder*
+dgram_raw_decoder_new()
+{
 	decoder *d = calloc(1,sizeof(*d));
 	d->unpack = rawpk_unpack;
 	return d;	

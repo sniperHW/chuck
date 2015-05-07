@@ -14,11 +14,11 @@ enum{
 	SENDING   = SOCKET_END << 2,
 };
 
-#define RECV_BUFFSIZE 1024*16
+#define RECV_BUFFSIZE 1024*1
 
 typedef struct{
 	listnode node;
-	void     (*cb)(redisReply*,void *ud);
+	void     (*cb)(redis_conn*,redisReply*,void *ud);
 	void    *ud;
 }reply_cb;
 
@@ -35,7 +35,8 @@ typedef struct redis_conn{
     void         	    (*on_disconnected)(struct redis_conn*,int32_t err);
 }redis_conn;
 
-void redis_dctor(void *_)
+void 
+redis_dctor(void *_)
 {
 	redis_conn *c = (redis_conn*)_;
 	packet *p;
@@ -49,31 +50,40 @@ void redis_dctor(void *_)
 }
 
 
-static inline void prepare_recv(redis_conn *c){
+static inline void 
+prepare_recv(redis_conn *c)
+{
 	c->wrecvbuf[0].iov_len = RECV_BUFFSIZE-1;
 	c->wrecvbuf[0].iov_base = c->recvbuf;	
 	c->recv_overlap.iovec_count = 1;
 	c->recv_overlap.iovec = c->wrecvbuf;
 }
 
-static inline int32_t Send(redis_conn *c,int32_t flag){
+static inline int32_t 
+Send(redis_conn *c,int32_t flag)
+{
 	int32_t ret = stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
 	if(ret < 0 && -ret == EAGAIN)
 		((socket_*)c)->status |= SENDING;
 	return ret; 
 }
 
-static inline void PostRecv(redis_conn *c){
+static inline void 
+PostRecv(redis_conn *c)
+{
 	prepare_recv(c);
 	stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST);		
 }
 
-static inline int32_t Recv(redis_conn *c){
+static inline int32_t 
+Recv(redis_conn *c)
+{
 	prepare_recv(c);
 	return stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_NOW);		
 }
 
-static inline iorequest *prepare_send(redis_conn *c)
+static inline iorequest*
+prepare_send(redis_conn *c)
 {
 	int32_t     i = 0;
 	packet     *w = (packet*)list_begin(&c->send_list);
@@ -109,7 +119,8 @@ static inline iorequest *prepare_send(redis_conn *c)
 	return O;
 }
 
-static inline void update_send_list(redis_conn *c,int32_t _bytestransfer)
+static inline void 
+update_send_list(redis_conn *c,int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
 	packet     *w;
@@ -141,7 +152,8 @@ static inline void update_send_list(redis_conn *c,int32_t _bytestransfer)
 }
 
 
-static void SendFinish(redis_conn *c,int32_t bytestransfer)
+static void 
+SendFinish(redis_conn *c,int32_t bytestransfer)
 {
 	update_send_list(c,bytestransfer);
 	if(((socket_*)c)->status & SOCKET_CLOSE)
@@ -153,7 +165,9 @@ static void SendFinish(redis_conn *c,int32_t bytestransfer)
 	Send(c,IO_POST);		
 }
 
-static inline void _close(redis_conn *c,int32_t err){
+static inline void 
+_close(redis_conn *c,int32_t err)
+{
 	((socket_*)c)->status |= SOCKET_CLOSE;
 	engine_remove((handle*)c);
 	if(c->on_disconnected){
@@ -162,33 +176,38 @@ static inline void _close(redis_conn *c,int32_t err){
 	}
 }
 
-static void RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
+static void 
+RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
 {
 	int32_t total_recv = 0;
 	int32_t parse_ret;
+	char   *ptr;
 	do{	
 		if(bytestransfer == 0 || (bytestransfer < 0 && err_code != EAGAIN)){
 			_close(c,err_code);
 			return;	
 		}else if(bytestransfer > 0){
 			c->recvbuf[bytestransfer] = 0;
-			if(!c->tree) c->tree = parse_tree_new();
-			parse_ret = parse(c->tree,c->recvbuf);
-			if(parse_ret == 0){
-				reply_cb *stcb = (reply_cb*)list_pop(&c->waitreplys);
-				if(stcb->cb)
-					stcb->cb(c->tree->reply,stcb->ud);
-				free(stcb);
-				parse_tree_del(c->tree);
-				c->tree = NULL;
-			}else if(parse_ret == -2){
-				//error
-				parse_tree_del(c->tree);
-				c->tree = NULL;
-				_close(c,ERDISPERROR);
-				return;
-			}
-
+			ptr = c->recvbuf;
+			do{
+				if(!c->tree) c->tree = parse_tree_new();
+				parse_ret = parse(c->tree,&ptr);
+				if(parse_ret == REDIS_OK){
+					reply_cb *stcb = (reply_cb*)list_pop(&c->waitreplys);
+					if(stcb->cb)
+						stcb->cb(c,c->tree->reply,stcb->ud);
+					free(stcb);
+					parse_tree_del(c->tree);
+					c->tree = NULL;
+				}else if(parse_ret == REDIS_ERR){
+					//error
+					parse_tree_del(c->tree);
+					c->tree = NULL;
+					_close(c,ERDISPERROR);
+					return;
+				}else
+					break;
+			}while(1);
 			if(total_recv >= RECV_BUFFSIZE){
 				PostRecv(c);
 				return;
@@ -203,7 +222,9 @@ static void RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
 	}while(1);
 }
 
-static void IoFinish(handle *sock,void *_,int32_t bytestransfer,int32_t err_code)
+static void 
+IoFinish(handle *sock,void *_,int32_t bytestransfer,
+	     int32_t err_code)
 {
 	iorequest  *io = ((iorequest*)_);
 	redis_conn *c  = (redis_conn*)sock;
@@ -216,9 +237,13 @@ static void IoFinish(handle *sock,void *_,int32_t bytestransfer,int32_t err_code
 }
 
 
-int32_t redis_query(redis_conn *conn,const char *str,void (*cb)(redisReply*,void *ud),void *ud){
+int32_t 
+redis_query(redis_conn *conn,const char *str,
+	        void (*cb)(redis_conn*,redisReply*,void *ud),
+	        void *ud)
+{
 	handle *h = (handle*)conn;
-	int32_t ret;
+	int32_t ret = 0;
 	if(((socket_*)h)->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
 	if(!h->e)
@@ -263,4 +288,61 @@ redis_conn *redis_connect(engine *e,sockaddr_ *addr,void (*on_disconnect)(redis_
 	engine_associate(e,conn,IoFinish); 	
 	PostRecv(conn);
 	return conn;
+}
+
+//just for test
+
+static parse_tree *test_tree = NULL;
+
+
+static void show_reply(redisReply *reply){
+	switch(reply->type){
+		case REDIS_REPLY_STATUS:
+		case REDIS_REPLY_ERROR:
+		case REDIS_REPLY_STRING:
+		{
+			printf("%s\n",reply->str);
+			break;
+		}
+		case REDIS_REPLY_INTEGER:
+		{
+			printf("%ld\n",reply->integer);
+			break;
+		}
+		case REDIS_REPLY_ARRAY:{
+			size_t i;
+			for(i=0; i < reply->elements;++i){
+				show_reply(reply->element[i]);
+			}
+			break;
+		}
+		case REDIS_REPLY_NIL:{
+			printf("nil\n");
+			break;
+		} 
+		default:{
+			break;
+		}
+	}
+}
+
+void 
+test_parse_reply(char *str){
+	int32_t parse_ret;
+	do{
+		if(!test_tree) test_tree = parse_tree_new();
+		parse_ret = parse(test_tree,&str);
+		if(parse_ret == REDIS_OK){
+			show_reply(test_tree->reply);
+			parse_tree_del(test_tree);
+			test_tree = NULL;
+		}else if(parse_ret == REDIS_ERR){
+			//error
+			parse_tree_del(test_tree);
+			test_tree = NULL;
+			printf("parse error\n");
+			return;
+		}else
+			break;
+	}while(1);
 }

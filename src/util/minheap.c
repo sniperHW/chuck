@@ -1,7 +1,9 @@
 #include "minheap.h"
 #include "comm.h"
 
-minheap *minheap_new(int32_t size,int32_t (*less)(minheap_element*,minheap_element*))
+minheap*
+minheap_new(int32_t size,
+			int32_t (*less)(minheap_element*,minheap_element*))
 {
 	size = size_of_pow2(size);
 	minheap *m = calloc(1,sizeof(*m));
@@ -12,12 +14,14 @@ minheap *minheap_new(int32_t size,int32_t (*less)(minheap_element*,minheap_eleme
 	return m;
 }
 
-void minheap_del(minheap *m)
+void 
+minheap_del(minheap *m)
 {
 	free(m);
 }
 
-void minheap_clear(minheap *m,void (*f)(minheap_element*))
+void 
+minheap_clear(minheap *m,void (*f)(minheap_element*))
 {
 	uint32_t i;
 	for(i = 1; i <= m->size; ++i){

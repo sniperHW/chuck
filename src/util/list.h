@@ -37,12 +37,15 @@ typedef struct
     listnode      *tail;
 }list;
 
-static inline void list_init(list *l){
+static inline void 
+list_init(list *l)
+{
 	l->head = l->tail = NULL;
 	l->size = 0;
 }
 
-static inline void list_pushback(list *l,listnode *n)
+static inline void 
+list_pushback(list *l,listnode *n)
 {
     if(n->next) 
     	return;
@@ -55,7 +58,8 @@ static inline void list_pushback(list *l,listnode *n)
 	++l->size;
 }
 
-static inline void list_pushfront(list *l,listnode *n)
+static inline void 
+list_pushfront(list *l,listnode *n)
 {
     if(n->next) 
     	return;
@@ -68,7 +72,8 @@ static inline void list_pushfront(list *l,listnode *n)
 	++l->size;
 }
 
-static inline listnode* list_pop(list *l)
+static inline listnode* 
+list_pop(list *l)
 {
 	listnode *head = l->head;
 	if(!head) return NULL;
@@ -80,24 +85,28 @@ static inline listnode* list_pop(list *l)
 	return head;
 }
 
-static inline int32_t list_size(list *l)
+static inline int32_t 
+list_size(list *l)
 {
 	return l->size;
 }
 
-static inline listnode* list_begin(list *l)
+static inline listnode* 
+list_begin(list *l)
 {
 	return l->head;
 }
 
-static inline listnode* list_end(list *l)
+static inline listnode* 
+list_end(list *l)
 {
 	return NULL;
 }
 
 
 //append all the elements of b to a
-static inline void list_pushlist(list *a,list *b)
+static inline void 
+list_pushlist(list *a,list *b)
 {
 	if(a == b) 
 		return;	

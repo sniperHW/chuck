@@ -11,7 +11,9 @@ enum{
 	SENDING   = SOCKET_END << 2,
 };
 
-static inline void prepare_recv(connection *c){
+static inline void 
+prepare_recv(connection *c)
+{
 	bytebuffer *buf;
 	int32_t     i = 0;
 	uint32_t    free_buffer_size,recv_size,pos;
@@ -43,18 +45,24 @@ static inline void prepare_recv(connection *c){
 	c->recv_overlap.iovec = c->wrecvbuf;
 }
 
-static inline void PostRecv(connection *c){
+static inline void 
+PostRecv(connection *c)
+{
 	((socket_*)c)->status |= RECVING;
 	prepare_recv(c);
 	stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST);		
 }
 
-static inline int32_t Recv(connection *c){
+static inline int32_t 
+Recv(connection *c)
+{
 	prepare_recv(c);
 	return stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_NOW);		
 }
 
-static inline int32_t Send(connection *c,int32_t flag){
+static inline int32_t 
+Send(connection *c,int32_t flag)
+{
 	int32_t ret = stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
 	if(ret < 0 && -ret == EAGAIN)
 		((socket_*)c)->status |= SENDING;
@@ -62,7 +70,9 @@ static inline int32_t Send(connection *c,int32_t flag){
 }
 
 
-static inline void update_next_recv_pos(connection *c,int32_t _bytestransfer)
+static inline void 
+update_next_recv_pos(connection *c,
+					 int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
 	uint32_t bytes = (uint32_t)_bytestransfer;
@@ -82,7 +92,9 @@ static inline void update_next_recv_pos(connection *c,int32_t _bytestransfer)
 	}while(bytes);
 }
 
-static inline void _close(connection *c,int32_t err){
+static inline void 
+_close(connection *c,int32_t err)
+{
 	((socket_*)c)->status |= SOCKET_CLOSE;
 	engine_remove((handle*)c);
 	if(c->on_disconnected){
@@ -91,7 +103,9 @@ static inline void _close(connection *c,int32_t err){
 	}
 }
 
-static void RecvFinish(connection *c,int32_t bytes,int32_t err_code)
+static void 
+RecvFinish(connection *c,int32_t bytes,
+		   int32_t err_code)
 {
 	int32_t total_recv = 0;
 	packet *pk;	
@@ -128,7 +142,8 @@ static void RecvFinish(connection *c,int32_t bytes,int32_t err_code)
 	}while(1);
 }
 
-static inline iorequest *prepare_send(connection *c)
+static inline iorequest*
+prepare_send(connection *c)
 {
 	int32_t     i = 0;
 	packet     *w = (packet*)list_begin(&c->send_list);
@@ -164,7 +179,9 @@ static inline iorequest *prepare_send(connection *c)
 	return O;
 
 }
-static inline void update_send_list(connection *c,int32_t _bytestransfer)
+static inline void 
+update_send_list(connection *c,
+				 int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
 	packet     *w;
@@ -201,7 +218,8 @@ static inline void update_send_list(connection *c,int32_t _bytestransfer)
 }
 
 
-static void SendFinish(connection *c,int32_t bytes)
+static void 
+SendFinish(connection *c,int32_t bytes)
 {
 	update_send_list(c,bytes);
 	if(((socket_*)c)->status & SOCKET_CLOSE)
@@ -213,7 +231,9 @@ static void SendFinish(connection *c,int32_t bytes)
 	Send(c,IO_POST);		
 }
 
-static void IoFinish(handle *sock,void *_,int32_t bytes,int32_t err_code)
+static void 
+IoFinish(handle *sock,void *_,
+		 int32_t bytes,int32_t err_code)
 {
 	iorequest  *io = ((iorequest*)_);
 	connection *c  = (connection*)sock;
@@ -225,7 +245,10 @@ static void IoFinish(handle *sock,void *_,int32_t bytes,int32_t err_code)
 		RecvFinish(c,bytes,err_code);
 }	
 
-static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
+static int32_t 
+imp_engine_add(engine *e,handle *h,
+			   generic_callback callback)
+{
 	int32_t ret;
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
@@ -240,7 +263,10 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
 	return ret;
 }
 
-int32_t connection_send(connection *c,packet *p,int32_t send_fsh_notify){
+int32_t 
+connection_send(connection *c,packet *p,
+				int32_t send_fsh_notify)
+{
 	int32_t ret;
 	if(p->type != WPACKET && p->type != RAWPACKET){
 		packet_del(p);
@@ -260,7 +286,8 @@ int32_t connection_send(connection *c,packet *p,int32_t send_fsh_notify){
 	return -EAGAIN;
 }
 
-void connection_dctor(void *_)
+void 
+connection_dctor(void *_)
 {
 	connection *c = (connection*)_;
 	packet *p;
@@ -273,7 +300,9 @@ void connection_dctor(void *_)
 	free(c);
 }
 
-static void connection_init(connection *c,int32_t fd,uint32_t buffersize,decoder *d)
+static void 
+connection_init(connection *c,int32_t fd,
+				uint32_t buffersize,decoder *d)
 {
 	((handle*)c)->fd = fd;
 	c->recv_bufsize  = buffersize;
@@ -287,7 +316,8 @@ static void connection_init(connection *c,int32_t fd,uint32_t buffersize,decoder
 	decoder_init(c->decoder_,c->next_recv_buf,0);
 }
 
-connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
+connection*
+connection_new(int32_t fd,uint32_t buffersize,decoder *d)
 {
 	buffersize = size_of_pow2(buffersize);
     if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
@@ -297,13 +327,17 @@ connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
 	return c;
 }
 
-void connection_close(connection *c){
+void 
+connection_close(connection *c)
+{
 	if(((socket_*)c)->status & SOCKET_RELEASE)
 		return;
 	close_socket((socket_*)c);
 }
 
-static packet *rawpk_unpack(decoder *d,int32_t *err){
+static packet*
+rawpk_unpack(decoder *d,int32_t *err)
+{
 	rawpacket  *raw;
 	uint32_t    size;
 	if(err) *err = 0;
@@ -321,7 +355,9 @@ static packet *rawpk_unpack(decoder *d,int32_t *err){
 	return (packet*)raw;
 }
 
-decoder *conn_raw_decoder_new(){
+decoder*
+conn_raw_decoder_new()
+{
 	decoder *d = calloc(1,sizeof(*d));
 	d->unpack = rawpk_unpack;
 	return d;	
@@ -333,7 +369,8 @@ decoder *conn_raw_decoder_new(){
 #define LUA_METATABLE "conn_mata"
 
 
-void lua_connection_dctor(void *_)
+void 
+lua_connection_dctor(void *_)
 {
 	connection *c = (connection*)_;
 	packet *p;
@@ -346,11 +383,15 @@ void lua_connection_dctor(void *_)
 	//should not invoke free
 }
 
-connection *lua_toconnection(lua_State *L, int index) {
+connection*
+lua_toconnection(lua_State *L, int index)
+{
     return (connection*)luaL_testudata(L, index, LUA_METATABLE);
 }
 
-static int32_t lua_connection_new(lua_State *L){
+static int32_t 
+lua_connection_new(lua_State *L)
+{
 	int32_t  fd;
 	int32_t  buffersize;
 	decoder *d = NULL;
@@ -384,19 +425,24 @@ typedef struct{
 	packet        *p;
 }stPushPk;
 
-static void PushConn(lua_State *L,luaPushFunctor *_){
+static void 
+PushConn(lua_State *L,luaPushFunctor *_)
+{
 	stPushConn *self = (stPushConn*)_;
 	lua_pushlightuserdata(L,self->c);
 	luaL_getmetatable(L, LUA_METATABLE);
 	lua_setmetatable(L, -2);		
 }
 
-static void PushPk(lua_State *L,luaPushFunctor *_){
+static void 
+PushPk(lua_State *L,luaPushFunctor *_)
+{
 	stPushPk *self = (stPushPk*)_;
 	lua_pushpacket(L,self->p);
 }
 
-static void lua_on_packet(connection *c,packet *p,int32_t event)
+static void 
+lua_on_packet(connection *c,packet *p,int32_t event)
 {
 	const char * error;
 	stPushConn st1;	
@@ -414,7 +460,8 @@ static void lua_on_packet(connection *c,packet *p,int32_t event)
 	}	
 }
 
-static void lua_on_disconnected(connection *c,int32_t err)
+static void 
+lua_on_disconnected(connection *c,int32_t err)
 {
 	const char * error;
 	stPushConn st;
@@ -426,7 +473,9 @@ static void lua_on_disconnected(connection *c,int32_t err)
 }
 
 
-static int32_t lua_engine_add(lua_State *L){
+static int32_t 
+lua_engine_add(lua_State *L)
+{
 	connection *c = lua_toconnection(L,1);
 	engine     *e = lua_toengine(L,2);
 	if(c && e){
@@ -437,7 +486,9 @@ static int32_t lua_engine_add(lua_State *L){
 	return 0;
 }
 
-static int32_t lua_engine_remove(lua_State *L){
+static int32_t 
+lua_engine_remove(lua_State *L)
+{
 	connection *c = lua_toconnection(L,1);
 	if(c){
 		engine_remove((handle*)c);
@@ -446,13 +497,17 @@ static int32_t lua_engine_remove(lua_State *L){
 }
 
 
-static int32_t lua_conn_close(lua_State *L){
+static int32_t 
+lua_conn_close(lua_State *L)
+{
 	connection *c = lua_toconnection(L,1);
 	connection_close(c);
 	return 0;
 }
 
-static int32_t lua_conn_send(lua_State *L){
+static int32_t 
+lua_conn_send(lua_State *L)
+{
 	connection *c = lua_toconnection(L,1);
 	luapacket  *p = lua_topacket(L,2);
 	int32_t     set_notify = lua_gettop(L) == 3;
@@ -461,7 +516,9 @@ static int32_t lua_conn_send(lua_State *L){
 	return 1;
 }
 
-static int32_t lua_set_disconn_callback(lua_State *L){
+static int32_t 
+lua_set_disconn_callback(lua_State *L)
+{
 	connection *c = lua_toconnection(L,1);
 	if(LUA_TFUNCTION != lua_type(L,2))
 		return luaL_error(L,"arg2 should be function");
@@ -470,7 +527,9 @@ static int32_t lua_set_disconn_callback(lua_State *L){
 	return 0;
 }
 
-static int32_t lua_connection_gc(lua_State *L){
+static int32_t 
+lua_connection_gc(lua_State *L)
+{
 	connection *c = lua_toconnection(L,1);
 	connection_close(c);
 	return 0;
@@ -482,7 +541,9 @@ static int32_t lua_connection_gc(lua_State *L){
 	lua_settable(L, -3);\
 }while(0)
 
-void    reg_luaconnection(lua_State *L){
+void    
+reg_luaconnection(lua_State *L)
+{
     luaL_Reg conn_mt[] = {
         {"__gc", lua_connection_gc},
         {NULL, NULL}

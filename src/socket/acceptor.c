@@ -4,7 +4,9 @@
 #include "socket/socket_helper.h"
 #include "util/log.h"
 
-static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
+static int32_t 
+imp_engine_add(engine *e,handle *h,
+			   generic_callback callback)
 {
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
@@ -17,7 +19,9 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 }
 
 
-static int _accept(handle *h,sockaddr_ *addr){
+static int 
+_accept(handle *h,sockaddr_ *addr)
+{
 	socklen_t len = 0;
 	int32_t fd; 
 	while((fd = accept(h->fd,(struct sockaddr*)addr,&len)) < 0){
@@ -33,7 +37,9 @@ static int _accept(handle *h,sockaddr_ *addr){
 	return fd;
 }
 
-static void process_accept(handle *h,int32_t events){
+static void 
+process_accept(handle *h,int32_t events)
+{
     int fd;
     sockaddr_ addr;
     for(;;){
@@ -46,7 +52,9 @@ static void process_accept(handle *h,int32_t events){
     }
 }
 
-handle *acceptor_new(int32_t fd,void *ud){
+handle*
+acceptor_new(int32_t fd,void *ud)
+{
 	acceptor *a = calloc(1,sizeof(*a));
 	a->ud = ud;
 	((handle*)a)->fd = fd;
@@ -64,18 +72,24 @@ void    acceptor_del(handle *h){
 
 #define LUA_METATABLE "acceptor_mata"
 
-static acceptor *lua_toacceptor(lua_State *L, int index) {
+static acceptor*
+lua_toacceptor(lua_State *L, int index) 
+{
     return (acceptor*)luaL_testudata(L, index, LUA_METATABLE);
 }
 
-static int32_t lua_acceptor_gc(lua_State *L){
+static int32_t 
+lua_acceptor_gc(lua_State *L)
+{
 	acceptor *a = lua_toacceptor(L,1);
 	release_luaRef(&a->luacallback);
 	close(((handle*)a)->fd);
 	return 0;
 }
 
-static int32_t lua_acceptor_new(lua_State *L){
+static int32_t 
+lua_acceptor_new(lua_State *L)
+{
 	int32_t  fd;
 	if(LUA_TNUMBER != lua_type(L,1))
 		return luaL_error(L,"arg1 should be number");
@@ -92,7 +106,9 @@ static int32_t lua_acceptor_new(lua_State *L){
 	return 1;
 }
 
-static void luacallback(int32_t fd,sockaddr_ *addr,void *ud){
+static void 
+luacallback(int32_t fd,sockaddr_ *addr,void *ud)
+{
 	acceptor *a = (acceptor*)ud;
 	const char *error;
 	if((error = LuaCallRefFunc(a->luacallback,"i",fd))){
@@ -100,7 +116,9 @@ static void luacallback(int32_t fd,sockaddr_ *addr,void *ud){
 	}
 }
 
-static int32_t lua_engine_add(lua_State *L){
+static int32_t 
+lua_engine_add(lua_State *L)
+{
 	acceptor   *a = lua_toacceptor(L,1);
 	engine     *e = lua_toengine(L,2);
 	if(a && e){
@@ -117,7 +135,9 @@ static int32_t lua_engine_add(lua_State *L){
 	lua_settable(L, -3);\
 }while(0)
 
-void    reg_luaacceptor(lua_State *L){
+void    
+reg_luaacceptor(lua_State *L)
+{
     luaL_Reg acceptor_mt[] = {
         {"__gc", lua_acceptor_gc},
         {NULL, NULL}

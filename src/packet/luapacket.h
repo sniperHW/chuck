@@ -10,10 +10,13 @@ typedef struct{
 	packet *_packet;
 }luapacket;
 
-luapacket *lua_topacket(lua_State *L, int index);
+luapacket*
+lua_topacket(lua_State *L, int index);
 
-void       lua_pushpacket(lua_State *L,packet*);
+void       
+lua_pushpacket(lua_State *L,packet*);
 
-void       reg_luapacket(lua_State *L);
+void       
+reg_luapacket(lua_State *L);
 
 #endif

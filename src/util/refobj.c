@@ -4,7 +4,8 @@
 
 volatile uint32_t g_ref_counter = 0;
 
-void refobj_init(refobj *r,void (*dctor)(void*))
+void 
+refobj_init(refobj *r,void (*dctor)(void*))
 {
 	r->dctor = dctor;
 	r->high32 = systick32();
@@ -12,7 +13,8 @@ void refobj_init(refobj *r,void (*dctor)(void*))
 	ATOMIC_INCREASE_FETCH(&r->refcount);
 }
 
-uint32_t refobj_dec(refobj *r)
+uint32_t 
+refobj_dec(refobj *r)
 {
     volatile uint32_t count;
     uint32_t c;
@@ -36,7 +38,8 @@ uint32_t refobj_dec(refobj *r)
     return count;
 }
 
-refobj *cast2refobj(refhandle h)
+refobj*
+cast2refobj(refhandle h)
 {
     refobj *ptr = NULL;
     if(unlikely(!h.ptr)) return NULL;

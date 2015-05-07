@@ -1,7 +1,9 @@
 #include "socket/wrap/decoder.h"
 #include "packet/rpacket.h"
 
-static packet *rpk_unpack(decoder *d,int32_t *err){
+static packet*
+rpk_unpack(decoder *d,int32_t *err)
+{
 	TYPE_HEAD     pk_len;
 	uint32_t      pk_total,size;
 	buffer_reader reader;
@@ -45,21 +47,27 @@ static packet *rpk_unpack(decoder *d,int32_t *err){
 }
 
 
-decoder *rpacket_decoder_new(uint32_t max_packet_size){
+decoder*
+rpacket_decoder_new(uint32_t max_packet_size)
+{
 	decoder *d = calloc(1,sizeof(*d));
 	d->unpack = rpk_unpack;
 	d->max_packet_size = max_packet_size;
 	return d;
 }
 
-void decoder_del(decoder *d){
+void 
+decoder_del(decoder *d)
+{
 	if(d->dctor) d->dctor(d);
 	if(d->buff) bytebuffer_set(&d->buff,NULL);
 	free(d);
 }
 
 
-int32_t lua_rpacket_decoder_new(lua_State *L){
+int32_t 
+lua_rpacket_decoder_new(lua_State *L)
+{
 	if(LUA_TNUMBER != lua_type(L,1))
 		return luaL_error(L,"arg1 should be number");
 	lua_pushlightuserdata(L,rpacket_decoder_new(lua_tonumber(L,1)));
@@ -72,7 +80,9 @@ int32_t lua_rpacket_decoder_new(lua_State *L){
 	lua_settable(L, -3);\
 }while(0)
 
-void reg_luadecoder(lua_State *L){
+void 
+reg_luadecoder(lua_State *L)
+{
 	lua_newtable(L);
 	SET_FUNCTION(L,"rpacket",lua_rpacket_decoder_new);
 }

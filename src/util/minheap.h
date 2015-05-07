@@ -37,13 +37,19 @@ typedef struct
 }minheap;
 
 
-minheap *minheap_new(int32_t size,int32_t (*)(minheap_element *l,minheap_element*r));
-void     minheap_del(minheap*);
+minheap*
+minheap_new(int32_t size,
+			int32_t (*)(minheap_element *l,minheap_element*r));
+
+void     
+minheap_del(minheap*);
 
 //use to clear all heap elements
-void     minheap_clear(minheap*,void (*)(minheap_element*));
+void     
+minheap_clear(minheap*,void (*)(minheap_element*));
 
-static inline void element_swap(minheap *m,int32_t i1,int32_t i2)
+static inline void 
+element_swap(minheap *m,int32_t i1,int32_t i2)
 {
 	minheap_element *ele = m->data[i1];
 	m->data[i1] = m->data[i2];
@@ -52,19 +58,27 @@ static inline void element_swap(minheap *m,int32_t i1,int32_t i2)
 	m->data[i2]->i = i2;
 }
 
-static inline int32_t element_parent(int32_t i){
+static inline int32_t 
+element_parent(int32_t i)
+{
 	return i/2;
 }
 
-static inline int32_t element_left(int32_t i){
+static inline int32_t 
+element_left(int32_t i)
+{
 	return i*2;
 }
 
-static inline int32_t element_right(int32_t i){
+static inline int32_t 
+element_right(int32_t i)
+{
 	return i*2+1;
 }
 
-static inline void element_up(minheap *m,int32_t i){
+static inline void 
+element_up(minheap *m,int32_t i)
+{
 	int32_t p = element_parent(i);
 	while(p)
 	{
@@ -81,7 +95,9 @@ static inline void element_up(minheap *m,int32_t i){
 	}
 }
 
-static inline void element_down(minheap *m,int32_t i){
+static inline void 
+element_down(minheap *m,int32_t i)
+{
 
 	int32_t l = element_left(i);
 	int32_t r = element_right(i);
@@ -111,7 +127,8 @@ static inline void element_down(minheap *m,int32_t i){
 	}		
 }
 
-static inline void minheap_change(minheap *m,minheap_element *e)
+static inline void 
+minheap_change(minheap *m,minheap_element *e)
 {
 	int i = e->i;
 	element_down(m,i);
@@ -119,7 +136,8 @@ static inline void minheap_change(minheap *m,minheap_element *e)
 		element_up(m,i);
 }
 
-static inline void minheap_insert(minheap *m,minheap_element *e)
+static inline void 
+minheap_insert(minheap *m,minheap_element *e)
 {
 	if(e->i)
 		return minheap_change(m,e);
@@ -141,7 +159,9 @@ static inline void minheap_insert(minheap *m,minheap_element *e)
 	element_up(m,e->i);	
 }
 
-static inline void minheap_remove(minheap *m,minheap_element *e){
+static inline void 
+minheap_remove(minheap *m,minheap_element *e)
+{
 	int32_t i = e->i;
 	if(i == 0) return;
 	if(m->size > 1){
@@ -157,7 +177,8 @@ static inline void minheap_remove(minheap *m,minheap_element *e){
 
 
 //return the min element
-static inline minheap_element* minheap_min(minheap *m)
+static inline minheap_element* 
+minheap_min(minheap *m)
 {
 	if(!m->size)
 		return NULL;
@@ -165,7 +186,8 @@ static inline minheap_element* minheap_min(minheap *m)
 }
 
 //return the min element and remove it
-static inline minheap_element* minheap_popmin(minheap *m)
+static inline minheap_element* 
+minheap_popmin(minheap *m)
 {
 	if(m->size)
 	{

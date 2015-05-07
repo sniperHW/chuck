@@ -49,7 +49,8 @@ static const char* exceptions[MAX_EXCEPTION] = {
     NULL,
 };
 
-static inline const char *exception_description(int expno)
+static inline const char*
+exception_description(int expno)
 {
     if(expno >= MAX_EXCEPTION) return "unknow exception";
     if(exceptions[expno] == NULL) return "unknow exception";
@@ -82,16 +83,19 @@ typedef struct
 	list  csf_pool;   
 }exception_perthd_st;
 
-exception_perthd_st *__get_perthread_exception_st();
+exception_perthd_st*
+__get_perthread_exception_st();
 
-static inline void clear_callstack(exception_frame *frame)
+static inline void 
+clear_callstack(exception_frame *frame)
 {
     exception_perthd_st *epst = __get_perthread_exception_st();
 	while(list_size(&frame->call_stack) != 0)
 		list_pushback(&epst->csf_pool,list_pop(&frame->call_stack));
 }
 
-static inline void print_call_stack(exception_frame *frame)
+static inline void 
+print_call_stack(exception_frame *frame)
 {
 
     if(!frame)return;
@@ -124,30 +128,37 @@ static inline void print_call_stack(exception_frame *frame)
 #define PRINT_CALL_STACK print_call_stack(&frame)
 
 
-static inline list *get_current_thd_exceptionstack()
+static inline list*
+get_current_thd_exceptionstack()
 {
 	return &__get_perthread_exception_st()->expstack;
 }
 
-static inline void expstack_push(exception_frame *frame)
+static inline void 
+expstack_push(exception_frame *frame)
 {
     list *expstack = get_current_thd_exceptionstack();
 	list_pushfront(expstack,&frame->node);
 }
 
-static inline exception_frame* expstack_pop()
+static inline exception_frame* 
+expstack_pop()
 {
     list *expstack = get_current_thd_exceptionstack();
     return (exception_frame*)list_pop(expstack);
 }
 
-static inline exception_frame* expstack_top()
+static inline exception_frame* 
+expstack_top()
 {
     list *expstack = get_current_thd_exceptionstack();
     return (exception_frame*)list_begin(expstack);
 }
 
-extern void exception_throw(int32_t code,const char *file,const char *func,int32_t line,siginfo_t* info);
+extern void 
+exception_throw(int32_t code,const char *file,
+                const char *func,int32_t line,
+                siginfo_t* info);
 
 #define TRY do{\
 	exception_frame  frame;\

@@ -22,12 +22,17 @@
 #include "socket/socket.h"  
 #include "lua/lua_util.h"
 
+#define REDIS_REPLY_STRING  1
+#define REDIS_REPLY_ARRAY   2
+#define REDIS_REPLY_INTEGER 3
+#define REDIS_REPLY_NIL     4
+#define REDIS_REPLY_STATUS  5
+#define REDIS_REPLY_ERROR   6
 
-#define REDIS_STATUS  '+'    //状态回复（status reply）
-#define REDIS_ERROR   '-'    //错误回复（error reply）
-#define REDIS_IREPLY  ':'    //整数回复（integer reply）
-#define REDIS_BREPLY  '$'    //批量回复（bulk reply）
-#define REDIS_MBREPLY '*'    //多条批量回复（multi bulk reply）
+
+#define REDIS_OK     0
+#define REDIS_RETRY -1
+#define REDIS_ERR   -2    
 
 typedef struct redisReply {
     int32_t type; /* REDIS_REPLY_* */
@@ -40,9 +45,20 @@ typedef struct redisReply {
 
 typedef struct redis_conn redis_conn;
 
-redis_conn *redis_connect(engine *e,sockaddr_ *addr,void (*on_disconnect)(redis_conn*,int32_t err));
-void        redis_close(redis_conn*);
-int32_t     redis_query(redis_conn*,const char *str,void (*)(redisReply*,void *ud),void *ud);
+redis_conn*
+redis_connect(engine *e,sockaddr_ *addr,
+              void (*on_disconnect)(redis_conn*,int32_t err));
+
+void        
+redis_close(redis_conn*);
+
+int32_t     
+redis_query(redis_conn*,const char *str,
+            void (*)(redis_conn*,redisReply*,void *ud),
+            void *ud);
+
+void 
+test_parse_reply(char *str);
 
 
 #endif    

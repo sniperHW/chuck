@@ -31,22 +31,26 @@ typedef struct
 }mutex;
 
 
-static inline int32_t mutex_lock(mutex *m)
+static inline 
+int32_t mutex_lock(mutex *m)
 {
 	return pthread_mutex_lock(&m->m_mutex);
 }
 
-static inline int32_t mutex_trylock(mutex *m)
+static inline int32_t 
+mutex_trylock(mutex *m)
 {
 	return pthread_mutex_trylock(&m->m_mutex);
 }
 
-static inline int32_t mutex_unlock(mutex *m)
+static inline int32_t 
+mutex_unlock(mutex *m)
 {
 	return pthread_mutex_unlock(&m->m_mutex);
 }
 
-static inline mutex *mutex_new()
+static inline mutex*
+mutex_new()
 {
 	mutex *m = malloc(sizeof(*m));
 	pthread_mutexattr_init(&m->m_attr);
@@ -59,7 +63,8 @@ static inline mutex *mutex_new()
 	return m;
 }
 
-static inline void mutex_del(mutex *m)
+static inline void 
+mutex_del(mutex *m)
 {
 	pthread_mutexattr_destroy(&m->m_attr);
 	pthread_mutex_destroy(&m->m_mutex);
@@ -74,12 +79,14 @@ typedef struct
 }condition;
 
 
-static inline int32_t condition_wait(condition *c)
+static inline int32_t 
+condition_wait(condition *c)
 {
 	return pthread_cond_wait(&c->cond,&c->mtx->m_mutex);
 }
 
-static inline int32_t condition_timedwait(condition *c,int32_t ms)
+static inline int32_t 
+condition_timedwait(condition *c,int32_t ms)
 {
 	struct timespec ts;
 	uint64_t msec;
@@ -94,17 +101,20 @@ static inline int32_t condition_timedwait(condition *c,int32_t ms)
     return pthread_cond_timedwait(&c->cond,&c->mtx->m_mutex,&ts);
 }
 
-static inline int32_t condition_signal(condition *c)
+static inline int32_t 
+condition_signal(condition *c)
 {
 	return pthread_cond_signal(&c->cond);
 }
 
-static inline int32_t condition_broadcast(condition *c)
+static inline int32_t 
+condition_broadcast(condition *c)
 {
 	return pthread_cond_broadcast(&c->cond);
 }
 
-static inline condition* condition_new(mutex *mtx)
+static inline condition* 
+condition_new(mutex *mtx)
 {
 	condition *c = malloc(sizeof(*c));
 	c->mtx = mtx;
@@ -112,7 +122,8 @@ static inline condition* condition_new(mutex *mtx)
 	return c;
 }
 
-static inline void condition_del(condition *c)
+static inline void 
+condition_del(condition *c)
 {
 	pthread_cond_destroy(&c->cond);
 	free(c);

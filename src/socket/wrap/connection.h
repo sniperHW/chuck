@@ -45,11 +45,19 @@ typedef struct connection{
     luaRef         lua_cb_disconnected;
 }connection;
 
-connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d);
-int32_t     connection_send(connection *c,packet *p,int32_t send_fsh_notify);
-void        connection_close(connection *c);
+connection*
+connection_new(int32_t fd,uint32_t buffersize,
+               decoder *d);
 
-decoder    *conn_raw_decoder_new();
+int32_t     
+connection_send(connection *c,packet *p,
+                int32_t send_fsh_notify);
+
+void        
+connection_close(connection *c);
+
+decoder*
+conn_raw_decoder_new();
 
 
 static inline void 
@@ -59,6 +67,7 @@ connection_set_discnt_callback(connection *c,
     c->on_disconnected = on_disconnected;
 }
 
-void        reg_luaconnection(lua_State *L);
+void        
+reg_luaconnection(lua_State *L);
 
 #endif    

@@ -32,7 +32,9 @@ struct _clock
 
 static __thread struct _clock *__t_clock = NULL;
 
-static inline void _clock_gettime_boot(struct timespec *ts){
+static inline void 
+_clock_gettime_boot(struct timespec *ts)
+{
         if(unlikely(!ts)) return;
 #ifdef _LINUX
         clock_gettime(CLOCK_BOOTTIME, ts);
@@ -45,7 +47,8 @@ static inline void _clock_gettime_boot(struct timespec *ts){
 
 #define NN_CLOCK_PRECISION 1000000
 
-static inline uint64_t _clock_rdtsc ()
+static inline uint64_t 
+_clock_rdtsc()
 {
 #if (defined _MSC_VER && (defined _M_IX86 || defined _M_X64))
     return __rdtsc ();
@@ -68,28 +71,33 @@ static inline uint64_t _clock_rdtsc ()
 #endif
 }
 
-static inline uint64_t _clock_time()
+static inline uint64_t 
+_clock_time()
 {
     struct timespec tv;
     _clock_gettime_boot(&tv);
     return tv.tv_sec * (uint64_t) 1000 + tv.tv_nsec / 1000000;
 }
 
-static void __clock_child_at_fork(){
+static void 
+__clock_child_at_fork()
+{
     if(__t_clock){        
         free(__t_clock);
         __t_clock = NULL;
     }
 }
 
-static inline void _clock_init()
+static inline void 
+_clock_init()
 {
     __t_clock->last_tsc = _clock_rdtsc();
     __t_clock->last_time = _clock_time();
     pthread_atfork(NULL,NULL,__clock_child_at_fork);
 }
 
-static inline struct _clock* get_thread_clock()
+static inline struct _clock* 
+get_thread_clock()
 {
     if(!__t_clock){
         __t_clock = calloc(1,sizeof(*__t_clock));
@@ -99,7 +107,8 @@ static inline struct _clock* get_thread_clock()
 }
 
   
-static inline uint64_t systick64()
+static inline uint64_t 
+systick64()
 {
     uint64_t tsc = _clock_rdtsc();
     if (!tsc)

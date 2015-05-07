@@ -16,7 +16,10 @@ typedef struct{
 	int32_t    notifyfds[2];//0 for read,1 for write
 }epoll_;
 
-int32_t event_add(engine *e,handle *h,int32_t events){
+int32_t 
+event_add(engine *e,handle *h,
+		  int32_t events)
+{
 	assert((events & EPOLLET) == 0);
 	struct epoll_event ev = {0};
 	epoll_ *ep = (epoll_*)e;
@@ -31,7 +34,9 @@ int32_t event_add(engine *e,handle *h,int32_t events){
 }
 
 
-int32_t event_remove(handle *h){
+int32_t 
+event_remove(handle *h)
+{
 	epoll_ *ep = (epoll_*)h->e;
 	struct epoll_event ev = {0};
 	errno = 0;
@@ -42,7 +47,9 @@ int32_t event_remove(handle *h){
 	return 0;	
 }
 
-int32_t event_mod(handle *h,int32_t events){
+int32_t 
+event_mod(handle *h,int32_t events)
+{
 	assert((events & EPOLLET) == 0);	
 	struct epoll_event ev = {0};
 	epoll_ *ep = (epoll_*)h->e;
@@ -56,21 +63,30 @@ int32_t event_mod(handle *h,int32_t events){
 }
 
 
-int32_t event_enable(handle *h,int32_t events){
+int32_t 
+event_enable(handle *h,int32_t events)
+{
 	return event_mod(h,h->events | events);
 }
 
-int32_t event_disable(handle *h,int32_t events){
+int32_t 
+event_disable(handle *h,int32_t events)
+{
 	return event_mod(h,h->events & (~events));
 }
 
-void timerfd_callback(void *ud){
+void 
+timerfd_callback(void *ud)
+{
 	wheelmgr *mgr = (wheelmgr*)ud;
 	wheelmgr_tick(mgr,systick64());
 }
 
-timer *engine_regtimer(engine *e,uint32_t timeout,
-					   int32_t(*cb)(uint32_t,uint64_t,void*),void *ud){
+timer*
+engine_regtimer(engine *e,uint32_t timeout,
+			    int32_t(*cb)(uint32_t,uint64_t,void*),
+			    void *ud)
+{
 	epoll_ *ep = (epoll_*)e;
 	if(!ep->tfd){
 		ep->timermgr = wheelmgr_new();
@@ -81,7 +97,9 @@ timer *engine_regtimer(engine *e,uint32_t timeout,
 }
 
 
-static int32_t engine_init(engine *e){
+static int32_t 
+engine_init(engine *e)
+{
 	epoll_ *ep = (epoll_*)e;
 	int32_t epfd = epoll_create1(EPOLL_CLOEXEC);
 	if(epfd < 0) return -1;
@@ -109,7 +127,9 @@ static int32_t engine_init(engine *e){
 	return 0;
 } 
 
-engine* engine_new(){
+engine* 
+engine_new()
+{
 	epoll_ *ep = calloc(1,sizeof(*ep));
 	if(0 != engine_init((engine*)ep)){
 		free(ep);
@@ -118,7 +138,9 @@ engine* engine_new(){
 	return (engine*)ep;
 }
 
-static int32_t lua_engine_new(lua_State *L){
+static int32_t 
+lua_engine_new(lua_State *L)
+{
 	epoll_ *ep = (epoll_*)lua_newuserdata(L, sizeof(*ep));
 	memset(ep,0,sizeof(*ep));
 	if(0 != engine_init((engine*)ep)){
@@ -131,7 +153,9 @@ static int32_t lua_engine_new(lua_State *L){
 	return 1;
 }
 
-void engine_del(engine *e){
+void 
+engine_del(engine *e)
+{
 	epoll_ *ep = (epoll_*)e;
 	if(ep->tfd){
 		engine_remove(ep->tfd);
@@ -144,7 +168,40 @@ void engine_del(engine *e){
 	free(ep);
 }
 
-int32_t engine_run(engine *e){
+int32_t
+engine_runonce(engine *e,uint32_t timeout)
+{
+	epoll_ *ep = (epoll_*)e;
+	errno = 0;
+	int32_t i;
+	handle *h;
+	int32_t nfds = TEMP_FAILURE_RETRY(epoll_wait(ep->epfd,ep->events,ep->maxevents,timeout));
+	if(nfds > 0){
+		for(i=0; i < nfds ; ++i)
+		{
+			if(ep->events[i].data.fd == ep->notifyfds[0]){
+				int32_t _;
+				while(TEMP_FAILURE_RETRY(read(ep->notifyfds[0],&_,sizeof(_))) > 0);
+				return 0;	
+			}else{
+				h = (handle*)ep->events[i].data.ptr;
+				h->on_events(h,ep->events[i].events);;
+			}
+		}
+		if(nfds == ep->maxevents){
+			free(ep->events);
+			ep->maxevents <<= 2;
+			ep->events = calloc(1,sizeof(*ep->events)*ep->maxevents);
+		}				
+	}else if(nfds < 0){
+		return -errno;
+	}
+	return 0;	
+}
+
+int32_t 
+engine_run(engine *e)
+{
 	epoll_ *ep = (epoll_*)e;
 	for(;;){
 		errno = 0;
@@ -176,7 +233,9 @@ int32_t engine_run(engine *e){
 }
 
 
-void engine_stop(engine *e){
+void 
+engine_stop(engine *e)
+{
 	epoll_ *ep = (epoll_*)e;
 	int32_t _;
 	TEMP_FAILURE_RETRY(write(ep->notifyfds[1],&_,sizeof(_)));

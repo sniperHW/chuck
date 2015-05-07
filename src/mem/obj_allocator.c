@@ -40,7 +40,9 @@ typedef struct {
 #define CHUNK_OBJSIZE (CHUNK_SIZE-1)
 #define MAX_CHUNK 0x3FFFFF
 
-static chunk *new_chunk(uint32_t idx,size_t objsize){
+static chunk*
+new_chunk(uint32_t idx,size_t objsize)
+{
 	chunk* newchunk = calloc(1,sizeof(*newchunk) + CHUNK_SIZE*objsize);
 	uint32_t i = 1;
 	char *ptr = newchunk->data + objsize;
@@ -58,13 +60,17 @@ static chunk *new_chunk(uint32_t idx,size_t objsize){
 	return newchunk;
 }
 
-static void* _alloc(allocator *_,size_t size){
+static void* 
+_alloc(allocator *_,size_t size)
+{
 	obj_allocator *a = (obj_allocator*)_;	
 	if(unlikely(a->usesystem)) return malloc(size);
 	return _->calloc(_,1,1);
 }
 
-static void* _calloc(allocator *_,size_t num,size_t size){
+static void* 
+_calloc(allocator *_,size_t num,size_t size)
+{
 	obj_allocator *a = (obj_allocator*)_;
 	if(unlikely(a->usesystem)) return calloc(num,size);
 	chunk *freechunk = (chunk*)list_begin(&a->freechunk);
@@ -99,7 +105,9 @@ static void* _calloc(allocator *_,size_t num,size_t size){
 }
 
 
-static void   _free(allocator *_,void *ptr){
+static void   
+_free(allocator *_,void *ptr)
+{
 	obj_allocator *a = (obj_allocator*)_;	
 	if(unlikely(a->usesystem)) return free(ptr);
 	obj *_obj = (obj*)((char*)ptr - sizeof(obj));
@@ -115,7 +123,9 @@ static void   _free(allocator *_,void *ptr){
 	_chunk->head = index;	
 }
 
-allocator *objpool_new(size_t objsize,uint32_t initnum){
+allocator*
+objpool_new(size_t objsize,uint32_t initnum)
+{
 	uint32_t chunkcount;
 	if(initnum%CHUNK_OBJSIZE == 0)
 		chunkcount = initnum/CHUNK_OBJSIZE;
@@ -144,7 +154,9 @@ allocator *objpool_new(size_t objsize,uint32_t initnum){
 	return (allocator*)pool;
 }
 
-void objpool_destroy(allocator *_){
+void 
+objpool_destroy(allocator *_)
+{
 	obj_allocator *a = (obj_allocator*)_;		
 	uint32_t i = 0;
 	for(; i < a->chunkcount; ++i){

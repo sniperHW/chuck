@@ -8,11 +8,15 @@
 #define LUAWPACKET_METATABLE   "luawpacket_metatable"
 #define LUARAWPACKET_METATABLE "luarawpacket_metatable"
 
-luapacket *lua_topacket(lua_State *L, int index){
+luapacket *
+lua_topacket(lua_State *L, int index)
+{
     return (luapacket*)lua_touserdata(L, index);
 }
 
-void lua_pushpacket(lua_State *L,packet *pk){
+void 
+lua_pushpacket(lua_State *L,packet *pk)
+{
 	luapacket *p = (luapacket*)lua_newuserdata(L, sizeof(*p));
 	p->_packet = pk;
 	if(pk->type == RPACKET)	
@@ -25,7 +29,9 @@ void lua_pushpacket(lua_State *L,packet *pk){
 }
 
 
-static int luapacket_gc(lua_State *L) {
+static int32_t 
+luapacket_gc(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet){ 
 		packet_del(p->_packet);
@@ -34,7 +40,9 @@ static int luapacket_gc(lua_State *L) {
     return 0;
 }
 
-static int _write_uint8(lua_State *L){
+static int32_t 
+_write_uint8(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet->type != WPACKET)
 		return luaL_error(L,"invaild opration");
@@ -46,7 +54,9 @@ static int _write_uint8(lua_State *L){
 	return 0;	
 }
 
-static int _write_uint16(lua_State *L){
+static int32_t 
+_write_uint16(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != WPACKET)
 		return luaL_error(L,"invaild opration");
@@ -58,7 +68,9 @@ static int _write_uint16(lua_State *L){
 	return 0;	
 }
 
-static int _write_uint32(lua_State *L){
+static int32_t 
+_write_uint32(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != WPACKET)
 		return luaL_error(L,"invaild opration");
@@ -70,7 +82,9 @@ static int _write_uint32(lua_State *L){
 	return 0;	
 }
 
-static int _write_double(lua_State *L){
+static int32_t 
+_write_double(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != WPACKET)
 		return luaL_error(L,"invaild opration");
@@ -82,7 +96,9 @@ static int _write_double(lua_State *L){
 	return 0;	
 }
 
-static int _write_string(lua_State *L){
+static int32_t 
+_write_string(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != WPACKET)
 		return luaL_error(L,"invaild opration");
@@ -96,7 +112,9 @@ static int _write_string(lua_State *L){
 }
 
 
-int _write_table(lua_State *L){
+int32_t 
+_write_table(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != WPACKET)
 		return luaL_error(L,"invaild opration");	
@@ -108,7 +126,9 @@ int _write_table(lua_State *L){
 }
 
 
-static int _read_uint8(lua_State *L){
+static int32_t 
+_read_uint8(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet->type != RPACKET)
 		return luaL_error(L,"invaild opration");
@@ -117,7 +137,9 @@ static int _read_uint8(lua_State *L){
 	return 1;	
 }
 
-static int _read_uint16(lua_State *L){
+static int32_t 
+_read_uint16(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet->type != RPACKET)
 		return luaL_error(L,"invaild opration");
@@ -126,7 +148,9 @@ static int _read_uint16(lua_State *L){
 	return 1;	
 }
 
-static int _read_uint32(lua_State *L){
+static int32_t 
+_read_uint32(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet->type != RPACKET)
 		return luaL_error(L,"invaild opration");
@@ -135,7 +159,9 @@ static int _read_uint32(lua_State *L){
 	return 1;	
 }
 
-static int _read_int8(lua_State *L){
+static int32_t
+_read_int8(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet->type != RPACKET)
 		return luaL_error(L,"invaild opration");
@@ -144,7 +170,9 @@ static int _read_int8(lua_State *L){
 	return 1;	
 }
 
-static int _read_int16(lua_State *L){
+static int32_t 
+_read_int16(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet->type != RPACKET)
 		return luaL_error(L,"invaild opration");
@@ -153,7 +181,9 @@ static int _read_int16(lua_State *L){
 	return 1;	
 }
 
-static int _read_int32(lua_State *L){
+static int32_t 
+_read_int32(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet->type != RPACKET)
 		return luaL_error(L,"invaild opration");
@@ -163,7 +193,9 @@ static int _read_int32(lua_State *L){
 }
 
 
-static int _read_double(lua_State *L){
+static int32_t 
+_read_double(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet->type != RPACKET)
 		return luaL_error(L,"invaild opration");
@@ -172,7 +204,9 @@ static int _read_double(lua_State *L){
 	return 1;	
 }
 
-static int _read_string(lua_State *L){
+static int32_t 
+_read_string(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet->type != RPACKET)
 		return luaL_error(L,"invaild opration");
@@ -187,7 +221,9 @@ static int _read_string(lua_State *L){
 }
 
 
-static int _read_table(lua_State *L){
+static int32_t 
+_read_table(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != RPACKET)
 		return luaL_error(L,"invaild opration");
@@ -201,7 +237,9 @@ static int _read_table(lua_State *L){
 	return 1;
 }
 
-static int _read_rawbin(lua_State *L){
+static int32_t 
+_read_rawbin(lua_State *L)
+{
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != RAWPACKET)
 		return luaL_error(L,"invaild opration");
@@ -213,7 +251,9 @@ static int _read_rawbin(lua_State *L){
 	return 1;						
 }
 
-static int32_t lua_new_wpacket(lua_State *L){
+static int32_t 
+lua_new_wpacket(lua_State *L)
+{
 	int32_t argtype = lua_type(L,1); 
 	if(argtype == LUA_TNUMBER || argtype == LUA_TNIL || argtype == LUA_TNONE){
 		//参数为数字,构造一个初始大小为len的wpacket
@@ -240,7 +280,9 @@ static int32_t lua_new_wpacket(lua_State *L){
 		return luaL_error(L,"invaild opration for arg1");		
 }
 
-static int32_t lua_new_rpacket(lua_State *L){
+static int32_t 
+lua_new_rpacket(lua_State *L)
+{
 	int32_t argtype = lua_type(L,1); 
 	if(argtype ==  LUA_TUSERDATA){
 		luapacket *other = lua_topacket(L,1);
@@ -257,7 +299,9 @@ static int32_t lua_new_rpacket(lua_State *L){
 		return luaL_error(L,"invaild opration for arg1");	
 }
 
-static int32_t lua_new_rawpacket(lua_State *L){
+static int32_t 
+lua_new_rawpacket(lua_State *L)
+{
 	int32_t argtype = lua_type(L,1); 
 	if(argtype == LUA_TSTRING){
 		//参数为string,构造一个函数数据data的rawpacket
@@ -284,7 +328,9 @@ static int32_t lua_new_rawpacket(lua_State *L){
 		return luaL_error(L,"invaild opration for arg1");	
 }
 
-static int32_t lua_clone_packet(lua_State *L){
+static int32_t 
+lua_clone_packet(lua_State *L)
+{
 	luapacket *p,*other;
 	if(lua_type(L,1) !=  LUA_TUSERDATA)
 		return luaL_error(L,"arg1 should be a packet");
@@ -312,7 +358,9 @@ static int32_t lua_clone_packet(lua_State *L){
 	lua_settable(L, -3);\
 }while(0)
 
-void reg_luapacket(lua_State *L){
+void 
+reg_luapacket(lua_State *L)
+{
     luaL_Reg rpacket_mt[] = {
         {"__gc", luapacket_gc},
         {NULL, NULL}

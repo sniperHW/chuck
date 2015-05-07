@@ -20,8 +20,10 @@
 
 #include "allocator.h"
 
-allocator *objpool_new(size_t objsize,uint32_t initnum);
+allocator *
+objpool_new(size_t objsize,uint32_t initnum);
 
-void       objpool_del(allocator*);
+void       
+objpool_del(allocator*);
 
 #endif

@@ -8,15 +8,22 @@
 #include "exception.h"
 #include "log.h"
 
-int32_t setup_sigsegv();
+int32_t 
+setup_sigsegv();
 
 static __thread exception_perthd_st *__perthread_exception_st = NULL;
 
-static void signal_segv(int32_t signum,siginfo_t* info, void*ptr){
+static void 
+signal_segv(int32_t signum,
+			siginfo_t* info, 
+			void*ptr)
+{
 	exception_throw(except_segv_fault,__FILE__,__FUNCTION__,__LINE__,info);
 }
 
-int32_t setup_sigsegv(){
+int32_t 
+setup_sigsegv()
+{
 	struct sigaction action;
 	memset(&action, 0, sizeof(action));
 	action.sa_sigaction = signal_segv;
@@ -28,11 +35,17 @@ int32_t setup_sigsegv(){
 	return 1;
 }
 
-static void signal_sigbus(int32_t signum,siginfo_t* info, void*ptr){
+static void 
+signal_sigbus(int32_t signum,
+			  siginfo_t* info,
+			  void*ptr)
+{
 	THROW(except_sigbus);
 }
 
-int32_t setup_sigbus(){
+int32_t 
+setup_sigbus()
+{
 	struct sigaction action;
 	memset(&action, 0, sizeof(action));
 	action.sa_sigaction = signal_sigbus;
@@ -44,11 +57,17 @@ int32_t setup_sigbus(){
 	return 1;
 }
 
-static void signal_sigfpe(int signum,siginfo_t* info, void*ptr){
+static void 
+signal_sigfpe(int signum,
+			  siginfo_t* info, 
+			  void*ptr)
+{
 	THROW(except_arith);
 }
 
-int32_t setup_sigfpe(){
+int32_t 
+setup_sigfpe()
+{
 	struct sigaction action;
 	memset(&action, 0, sizeof(action));
 	action.sa_sigaction = signal_sigfpe;
@@ -60,7 +79,8 @@ int32_t setup_sigfpe(){
 	return 1;
 }
 
-static void reset_perthread_exception_st()
+static void 
+reset_perthread_exception_st()
 {
 	if(__perthread_exception_st){
 		while(list_size(&__perthread_exception_st->csf_pool))
@@ -71,7 +91,9 @@ static void reset_perthread_exception_st()
 }
 
 
-exception_perthd_st *__get_perthread_exception_st(){
+exception_perthd_st*
+__get_perthread_exception_st()
+{
 	int32_t i;
     if(!__perthread_exception_st){
         __perthread_exception_st = calloc(1,sizeof(*__perthread_exception_st));
@@ -89,7 +111,8 @@ exception_perthd_st *__get_perthread_exception_st(){
 }
 
 
-static inline callstack_frame *get_csf(list *pool)
+static inline callstack_frame*
+get_csf(list *pool)
 {
 	int32_t i;
 	callstack_frame *call_frame;
@@ -103,7 +126,10 @@ static inline callstack_frame *get_csf(list *pool)
 	return  (callstack_frame*)list_pop(pool);
 }
 
-static int32_t addr2line(const char *addr,char *output,int32_t size){		
+static int32_t 
+addr2line(const char *addr,
+		  char *output,int32_t size)
+{		
 	char path[256]={0};
 	if(0 >= readlink("/proc/self/exe", path, 256)){
 		return -1;
@@ -122,7 +148,10 @@ static int32_t addr2line(const char *addr,char *output,int32_t size){
 	return 0;
 }
 
-void exception_throw(int32_t code,const char *file,const char *func,int32_t line,siginfo_t* info)
+void 
+exception_throw(int32_t code,const char *file,
+				const char *func,int32_t line,
+				siginfo_t* info)
 {
 	void*                   bt[64];
 	char**                  strings;

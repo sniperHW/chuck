@@ -9,7 +9,10 @@ extern void    release_socket(socket_ *s);
 
 typedef void(*stream_callback)(stream_socket_*,void*,int32_t,int32_t);
 
-static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
+static int32_t 
+imp_engine_add(engine *e,handle *h,
+			   generic_callback callback)
+{
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
 	int32_t ret;
@@ -37,7 +40,9 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback){
 #define status(S)       (((socket_*)S)->status)
 #define type(S)         (((socket_*)S)->type)  
 
-static void process_read(stream_socket_ *s){
+static void 
+process_read(stream_socket_ *s)
+{
 	iorequest *req = NULL;
 	int32_t bytes = 0;
 	while((req = (iorequest*)list_pop(&pending_recv(s)))!=NULL){
@@ -60,7 +65,9 @@ static void process_read(stream_socket_ *s){
 	}	
 }
 
-static void process_write(stream_socket_ *s){
+static void 
+process_write(stream_socket_ *s)
+{
 	iorequest *req = 0;
 	int32_t bytes = 0;
 	while((req = (iorequest*)list_pop(&s->pending_send))!=NULL){
@@ -82,7 +89,9 @@ static void process_write(stream_socket_ *s){
 	}		
 }
 
-static void on_events(handle *h,int32_t events){
+static void 
+on_events(handle *h,int32_t events)
+{
 	stream_socket_ *s = (stream_socket_*)h;
 	if(status(s) & SOCKET_CLOSE)
 		return;
@@ -103,13 +112,17 @@ static void on_events(handle *h,int32_t events){
 }
 
 
-void    construct_stream_socket(stream_socket_ *s){
+void    
+construct_stream_socket(stream_socket_ *s)
+{
 	((handle*)s)->on_events = on_events;
 	((handle*)s)->imp_engine_add = imp_engine_add;
 	type(s) = STREAM;	
 }	
 
-stream_socket_ *new_stream_socket(int32_t fd){
+stream_socket_*
+new_stream_socket(int32_t fd)
+{
 	stream_socket_ *s = calloc(1,sizeof(*s));
 	((handle*)s)->fd = fd;
 	((handle*)s)->on_events = on_events;
@@ -119,7 +132,10 @@ stream_socket_ *new_stream_socket(int32_t fd){
 	return s;
 }
 
-int32_t stream_socket_recv(stream_socket_ *s,iorequest *req,int32_t flag){
+int32_t 
+stream_socket_recv(stream_socket_ *s,
+				   iorequest *req,int32_t flag)
+{
 	handle *h = (handle*)s;
 	if(!h->e)
 		return -ENOASSENG;
@@ -138,7 +154,10 @@ int32_t stream_socket_recv(stream_socket_ *s,iorequest *req,int32_t flag){
 	return -EAGAIN;	
 }
 
-int32_t stream_socket_send(stream_socket_ *s,iorequest *req,int32_t flag){
+int32_t 
+stream_socket_send(stream_socket_ *s,
+				   iorequest *req,int32_t flag)
+{
 	handle *h = (handle*)s;
 	if(!h->e)
 		return -ENOASSENG;

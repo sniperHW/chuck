@@ -34,10 +34,12 @@ typedef struct
 }wpacket;
 
 
-wpacket *wpacket_new(uint16_t size);
+wpacket*
+wpacket_new(uint16_t size);
 
 
-static inline void wpacket_data_copy(wpacket *w,bytebuffer *buf)
+static inline void 
+wpacket_data_copy(wpacket *w,bytebuffer *buf)
 {
     char *ptr = buf->data;
     bytebuffer *from = ((packet*)w)->head;
@@ -55,7 +57,8 @@ static inline void wpacket_data_copy(wpacket *w,bytebuffer *buf)
     buf->size = ((packet*)w)->len_packet;
 }
 
-static inline void wpacket_copy_on_write(wpacket *w)
+static inline void 
+wpacket_copy_on_write(wpacket *w)
 {
     uint32_t size = size_of_pow2(((packet*)w)->len_packet);
     if(size < MIN_BUFFER_SIZE) size = MIN_BUFFER_SIZE;
@@ -69,7 +72,8 @@ static inline void wpacket_copy_on_write(wpacket *w)
 }
 
 
-static inline void wpacket_expand(wpacket *w,uint16_t size)
+static inline void 
+wpacket_expand(wpacket *w,uint16_t size)
 {
     size = size_of_pow2(size);
     if(size < MIN_BUFFER_SIZE) size = MIN_BUFFER_SIZE;
@@ -77,7 +81,8 @@ static inline void wpacket_expand(wpacket *w,uint16_t size)
     buffer_writer_init(&w->writer,w->writer.cur->next,0);
 }
 
-static inline void wpacket_write(wpacket *w,char *in,uint16_t size)
+static inline void 
+wpacket_write(wpacket *w,char *in,uint16_t size)
 {
     uint16_t packet_len = ((packet*)w)->len_packet;
     uint16_t new_size = packet_len + size;
@@ -100,42 +105,49 @@ static inline void wpacket_write(wpacket *w,char *in,uint16_t size)
     *w->len = _hton16(new_size - sizeof(*w->len)); 
 }
 
-static inline void wpacket_write_uint8(wpacket *w,uint8_t value)
+static inline void 
+wpacket_write_uint8(wpacket *w,uint8_t value)
 {  
     wpacket_write(w,(char*)&value,sizeof(value));
 }
 
-static inline void wpacket_write_uint16(wpacket *w,uint16_t value)
+static inline void 
+wpacket_write_uint16(wpacket *w,uint16_t value)
 {
     value = _hton16(value);
     wpacket_write(w,(char*)&value,sizeof(value));        
 }
 
-static inline void wpacket_write_uint32(wpacket *w,uint32_t value)
+static inline void 
+wpacket_write_uint32(wpacket *w,uint32_t value)
 {   
     value = _hton32(value);
     wpacket_write(w,(char*)&value,sizeof(value));
 }
 
-static inline void wpacket_write_uint64(wpacket *w,uint64_t value)
+static inline void 
+wpacket_write_uint64(wpacket *w,uint64_t value)
 {   
     value = _hton64(value);
     wpacket_write(w,(char*)&value,sizeof(value));
 }
 
-static inline void wpacket_write_double(wpacket *w,uint64_t value)
+static inline void 
+wpacket_write_double(wpacket *w,uint64_t value)
 {   
     wpacket_write(w,(char*)&value,sizeof(value));
 }
 
-static inline void wpacket_write_binary(wpacket *w,const void *value,uint16_t size)
+static inline void 
+wpacket_write_binary(wpacket *w,const void *value,uint16_t size)
 {
     assert(value);
     wpacket_write_uint16(w,size);
     wpacket_write(w,(char*)value,size);
 }
 
-static inline void wpacket_write_string(wpacket *w ,const char *value)
+static inline void 
+wpacket_write_string(wpacket *w ,const char *value)
 {
     wpacket_write_binary(w,value,strlen(value)+1);
 }
@@ -147,7 +159,8 @@ typedef struct wpacket_book{
 }wpacket_book;
 
 
-static inline void _write_book_uint8(wpacket_book *_book,...)
+static inline void 
+_write_book_uint8(wpacket_book *_book,...)
 {  
     va_list vl;
     va_start(vl,_book);
@@ -155,7 +168,8 @@ static inline void _write_book_uint8(wpacket_book *_book,...)
     buffer_write(&_book->writer,(char*)&value,sizeof(value));
 }
 
-static inline void _write_book_uint16(wpacket_book *_book,...)
+static inline void 
+_write_book_uint16(wpacket_book *_book,...)
 {
     va_list vl;
     va_start(vl,_book);
@@ -163,7 +177,8 @@ static inline void _write_book_uint16(wpacket_book *_book,...)
     buffer_write(&_book->writer,(char*)&value,sizeof(value));       
 }
 
-static inline void _write_book_uint32(wpacket_book *_book,...)
+static inline void 
+_write_book_uint32(wpacket_book *_book,...)
 {   
     va_list vl;
     va_start(vl,_book);
@@ -171,7 +186,8 @@ static inline void _write_book_uint32(wpacket_book *_book,...)
     buffer_write(&_book->writer,(char*)&value,sizeof(value));
 }
 
-static inline void _write_book_uint64(wpacket_book *_book,...)
+static inline void 
+_write_book_uint64(wpacket_book *_book,...)
 {   
     va_list vl;
     va_start(vl,_book);
@@ -179,7 +195,8 @@ static inline void _write_book_uint64(wpacket_book *_book,...)
     buffer_write(&_book->writer,(char*)&value,sizeof(value));
 }
 
-static inline void _write_book_double(wpacket_book *_book,...)
+static inline void 
+_write_book_double(wpacket_book *_book,...)
 {   
     va_list vl;
     va_start(vl,_book);
@@ -190,7 +207,8 @@ static inline void _write_book_double(wpacket_book *_book,...)
 
 //book space and fill with 0
 
-static inline wpacket_book wpacket_book_uint8(wpacket *w)
+static inline wpacket_book 
+wpacket_book_uint8(wpacket *w)
 {  
     uint8_t value = 0;
     wpacket_book book = {.writer = w->writer,.write = _write_book_uint8};
@@ -198,7 +216,8 @@ static inline wpacket_book wpacket_book_uint8(wpacket *w)
     return book;
 }
 
-static inline wpacket_book wpacket_book_uint16(wpacket *w)
+static inline wpacket_book 
+wpacket_book_uint16(wpacket *w)
 {
     uint16_t value = 0;
     wpacket_book book = {.writer = w->writer,.write = _write_book_uint16};    
@@ -206,7 +225,8 @@ static inline wpacket_book wpacket_book_uint16(wpacket *w)
     return book;        
 }
 
-static inline wpacket_book wpacket_book_uint32(wpacket *w)
+static inline wpacket_book 
+wpacket_book_uint32(wpacket *w)
 {   
     uint32_t value = 0;
     wpacket_book book = {.writer = w->writer,.write = _write_book_uint32};
@@ -214,7 +234,8 @@ static inline wpacket_book wpacket_book_uint32(wpacket *w)
     return book;
 }
 
-static inline wpacket_book wpacket_book_uint64(wpacket *w)
+static inline wpacket_book 
+wpacket_book_uint64(wpacket *w)
 {   
     uint64_t value = 0;
     wpacket_book book = {.writer = w->writer,.write = _write_book_uint64};    
@@ -222,7 +243,8 @@ static inline wpacket_book wpacket_book_uint64(wpacket *w)
     return book;
 }
 
-static inline wpacket_book wpacket_book_double(wpacket *w)
+static inline wpacket_book 
+wpacket_book_double(wpacket *w)
 {   
     double value = 0;
     wpacket_book book = {.writer = w->writer,.write = _write_book_double};    

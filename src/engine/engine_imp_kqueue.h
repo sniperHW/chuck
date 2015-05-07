@@ -15,7 +15,10 @@ typedef struct{
    	//struct kevent change;	
 }kqueue_;
 
-int32_t event_add(engine *e,handle *h,int32_t events){	
+int32_t 
+event_add(engine *e,handle *h,
+		  int32_t events)
+{	
 	struct kevent ke;
 	kqueue_ *kq = (kqueue_*)e;
 	EV_SET(&ke, h->fd, events, EV_ADD, 0, 0, h);
@@ -31,7 +34,9 @@ int32_t event_add(engine *e,handle *h,int32_t events){
 	return 0;	
 }
 
-int32_t event_remove(handle *h){
+int32_t 
+event_remove(handle *h)
+{
 	struct kevent ke;
 	kqueue_ *kq = (kqueue_*)h->e;
 	EV_SET(&ke, h->fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
@@ -43,7 +48,9 @@ int32_t event_remove(handle *h){
 	return 0;	
 }
 
-int32_t event_enable(handle *h,int32_t events){
+int32_t 
+event_enable(handle *h,int32_t events)
+{
 	struct kevent ke;
 	kqueue_ *kq = (kqueue_*)h->e;
 	EV_SET(&ke, h->fd, events,EV_ENABLE, 0, 0, h);
@@ -57,7 +64,9 @@ int32_t event_enable(handle *h,int32_t events){
 	return 0;
 }
 
-int32_t event_disable(handle *h,int32_t events){
+int32_t 
+event_disable(handle *h,int32_t events)
+{
 	struct kevent ke;
 	kqueue_ *kq = (kqueue_*)h->e;
 	EV_SET(&ke, h->fd, events,EV_DISABLE, 0, 0, h);
@@ -74,7 +83,9 @@ int32_t event_disable(handle *h,int32_t events){
 }
 
 
-engine *engine_new(){
+engine *
+engine_new()
+{
 	int32_t kfd = kqueue();
 	if(kfd < 0) return NULL;
 	fcntl (kfd, F_SETFD, FD_CLOEXEC);
@@ -103,7 +114,9 @@ engine *engine_new(){
 	return (engine*)kq;
 }
 
-void engine_del(engine *e){
+void 
+engine_del(engine *e)
+{
 	kqueue_ *kq = (kqueue_*)e;
 	//if(kq->timerfd)
 	//	kn_timerfd_destroy(kq->timerfd);	
@@ -115,13 +128,16 @@ void engine_del(engine *e){
 }
 
 
-int32_t engine_run(engine *e){
+int32_t 
+engine_run(engine *e)
+{
 	kqueue_ *kq = (kqueue_*)e;
 	for(;;){
 		errno = 0;
 		int32_t i;
 		handle *h;
-		int32_t nfds = TEMP_FAILURE_RETRY(kevent(kq->kfd, &kq->change, /*kq->timerfd? 1 : */0, kq->events,kq->maxevents, NULL));	
+		int32_t nfds = TEMP_FAILURE_RETRY(kevent(kq->kfd, &kq->change, /*kq->timerfd? 1 : */0, 
+										  kq->events,kq->maxevents, NULL));	
 		if(nfds > 0){
 			for(i=0; i < nfds ; ++i)
 			{
@@ -146,7 +162,9 @@ int32_t engine_run(engine *e){
 	return 0;
 }
 
-void engine_stop(engine *e){
+void 
+engine_stop(engine *e)
+{
 	kqueue_ *kq = (kqueue*_)e;
 	int32_t _;
 	TEMP_FAILURE_RETRY(write(kq->notifyfds[1],&_,sizeof(_)));

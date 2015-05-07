@@ -20,7 +20,9 @@ typedef struct {
 #define wheel_size(T) (T==wheel_sec?1000:T==wheel_hour?3600:T==wheel_day?24:0)
 #define precision(T) (T==wheel_sec?1:T==wheel_hour?1000:T==wheel_day?3600:0)
 
-static wheel* wheel_new(uint8_t type){
+static wheel* 
+wheel_new(uint8_t type)
+{
 	if(type >  wheel_day)
 		return NULL;
 	wheel *w = calloc(1,sizeof(*w)*wheel_size(type)*sizeof(dlist));	
@@ -47,7 +49,10 @@ typedef struct wheelmgr{
 }wheelmgr;
 
 
-static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain){
+static inline void 
+add2wheel(wheelmgr *m,wheel *w,
+		  timer *t,uint64_t remain)
+{
 	uint64_t slots = wheel_size(w->type) - w->cur;
 	if(w->type == wheel_day || slots > remain){
 		uint16_t i = (w->cur + remain)%(wheel_size(w->type));
@@ -59,14 +64,20 @@ static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain){
 	}
 }
 
-static inline void _reg(wheelmgr *m,timer *t,uint64_t tick,wheel *w){
+static inline void 
+_reg(wheelmgr *m,timer *t,
+	 uint64_t tick,wheel *w)
+{
 	assert(t->expire > tick);
 	if(t->expire > tick)
 		add2wheel(m,w?w:m->wheels[wheel_sec],t,t->expire - tick);
 }
 
 //将本级超时的定时器推到下级时间轮中
-static inline void down(wheelmgr *m,timer *t,uint64_t tick,wheel *w){
+static inline void 
+down(wheelmgr *m,timer *t,
+	 uint64_t tick,wheel *w)
+{
 	assert(w->cur == 0);
 	assert(t->expire >= tick);
 	if(t->expire >= tick){
@@ -77,7 +88,9 @@ static inline void down(wheelmgr *m,timer *t,uint64_t tick,wheel *w){
 }
 
 //处理上一级时间轮
-static inline void tickup(wheelmgr *m,wheel *w,uint64_t tick){
+static inline void 
+tickup(wheelmgr *m,wheel *w,uint64_t tick)
+{
 	timer *t;
 	dlist *items = &w->items[w->cur];
 	while((t = (timer*)dlist_pop(items)))
@@ -87,7 +100,9 @@ static inline void tickup(wheelmgr *m,wheel *w,uint64_t tick){
 		tickup(m,m->wheels[w->type+1],tick);
 }
 
-static void fire(wheelmgr *m,uint64_t tick){
+static void 
+fire(wheelmgr *m,uint64_t tick)
+{
 	timer *t;
 	wheel *w = m->wheels[wheel_sec];			
 	if((w->cur = (w->cur+1)%wheel_size(wheel_sec)) == 0)
@@ -108,14 +123,17 @@ static void fire(wheelmgr *m,uint64_t tick){
 	}
 }
 
-void wheelmgr_tick(wheelmgr *m,uint64_t now){
+void 
+wheelmgr_tick(wheelmgr *m,uint64_t now)
+{
 	while(m->lasttime != now)
 		fire(m,++m->lasttime);
 } 
 
-timer *wheelmgr_register(wheelmgr *m,uint32_t timeout,
-					     int32_t(*callback)(uint32_t,uint64_t,void*),
-					     void*ud,uint64_t now/*just for test*/){
+timer*
+wheelmgr_register(wheelmgr *m,uint32_t timeout,
+				  int32_t(*callback)(uint32_t,uint64_t,void*),
+				  void*ud,uint64_t now/*just for test*/){
 	if(timeout == 0 || timeout > MAX_TIMEOUT || !callback)
 		return NULL;
 	now = now == 0 ? systick64():now;
@@ -129,7 +147,9 @@ timer *wheelmgr_register(wheelmgr *m,uint32_t timeout,
 	return t;
 }
 
-wheelmgr *wheelmgr_new(){
+wheelmgr*
+wheelmgr_new()
+{
 	wheelmgr *t = calloc(1,sizeof(*t));
 	int i = 0;
 	for(; i < wheel_day+1; ++i)
@@ -137,13 +157,17 @@ wheelmgr *wheelmgr_new(){
 	return t;
 }
 
-void unregister_timer(timer *t){
+void 
+unregister_timer(timer *t)
+{
 	dlist_remove((dlistnode*)t);
 	t->callback(TEVENT_DESTROY,t->expire,t->ud);
 	free(t);
 }
 
-void wheelmgr_del(wheelmgr *m){
+void 
+wheelmgr_del(wheelmgr *m)
+{
 	int i = 0;
 	for(; i < wheel_day+1; ++i){
 		uint16_t j = 0;

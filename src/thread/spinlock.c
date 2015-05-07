@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include "spinlock.h"
 
-spinlock *spin_create()
+spinlock*
+spin_create()
 {
 	spinlock *sp = malloc(sizeof(*sp));
 	sp->lock_count = 0;
@@ -16,7 +17,8 @@ spinlock *spin_create()
 	return sp;
 }
 
-void spin_destroy(spinlock *sp)
+void 
+spin_destroy(spinlock *sp)
 {
 	free(sp);
 }

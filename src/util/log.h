@@ -34,16 +34,20 @@ enum{
 
 typedef struct logfile logfile;
 
-logfile *create_logfile(const char *filename);
+logfile*
+create_logfile(const char *filename);
 
-void write_log(logfile*,const char *context);
+void 
+write_log(logfile*,const char *context);
 
 #define SYSLOG_NAME "syslog"
 
 //写入系统日志,默认文件名由SYSLOG_NAME定义
-void write_sys_log(const char *content);
+void 
+write_sys_log(const char *content);
 
-int32_t write_prefix(char *buf,uint8_t loglev);
+int32_t 
+write_prefix(char *buf,uint8_t loglev);
 
 #define  MAX_LOG_SIZE 65535
 

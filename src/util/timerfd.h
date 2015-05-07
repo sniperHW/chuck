@@ -26,7 +26,10 @@ typedef struct{
     void    (*callback)(void *ud);
 }timerfd;
 
-handle *timerfd_new(uint32_t timeout,void *ud);
-void    timerfd_del(handle*);
+handle*
+timerfd_new(uint32_t timeout,void *ud);
+
+void    
+timerfd_del(handle*);
 
 #endif

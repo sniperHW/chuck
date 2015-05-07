@@ -30,10 +30,21 @@ enum{
 	TEVENT_DESTROY,
 };
 
-wheelmgr *wheelmgr_new();
-void      wheelmgr_del(wheelmgr*);
-timer    *wheelmgr_register(wheelmgr*,uint32_t timeout,int32_t(*)(uint32_t,uint64_t,void*),void*,uint64_t now);
-void      unregister_timer(timer*);
-void      wheelmgr_tick(wheelmgr*,uint64_t now); 
+wheelmgr*
+wheelmgr_new();
+
+void      
+wheelmgr_del(wheelmgr*);
+
+timer*
+wheelmgr_register(wheelmgr*,uint32_t timeout,
+                  int32_t(*)(uint32_t,uint64_t,void*),
+                  void*,uint64_t now);
+
+void      
+unregister_timer(timer*);
+
+void      
+wheelmgr_tick(wheelmgr*,uint64_t now); 
 
 #endif

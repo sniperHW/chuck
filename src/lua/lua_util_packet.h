@@ -7,8 +7,10 @@
 
 //read/write lua table to rpacket/wpacket
 
-const char *lua_pack_table(wpacket *wpk,lua_State *L,int index);
+const char*
+lua_pack_table(wpacket *wpk,lua_State *L,int index);
 
-int lua_unpack_table(rpacket *rpk,lua_State *L);
+int 
+lua_unpack_table(rpacket *rpk,lua_State *L);
 
 #endif

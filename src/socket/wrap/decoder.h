@@ -39,25 +39,33 @@ typedef struct decoder{
 }decoder;
 
 
-decoder *rpacket_decoder_new(uint32_t max_packet_size);
+decoder*
+rpacket_decoder_new(uint32_t max_packet_size);
 
-void decoder_del(decoder*);
+void 
+decoder_del(decoder*);
 
-static inline void decoder_init(decoder *d,bytebuffer *buff,uint32_t pos){
+static inline void 
+decoder_init(decoder *d,bytebuffer *buff,uint32_t pos)
+{
     d->buff = buff;
     refobj_inc((refobj*)buff);
     d->pos  = pos;
     d->size = 0;
 }
 
-static inline void decoder_update(decoder *d,bytebuffer *buff,uint32_t pos,uint32_t size){
+static inline void 
+decoder_update(decoder *d,bytebuffer *buff,
+               uint32_t pos,uint32_t size)
+{
     if(!d->buff){
         decoder_init(d,buff,pos);
     }else
         d->size += size;
 }
 
-void reg_luadecoder(lua_State *L);
+void 
+reg_luadecoder(lua_State *L);
 
 
 #endif    

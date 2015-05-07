@@ -10,7 +10,9 @@
 __thread pid_t tid = 0;
 
 
-static void child(){
+static void 
+child()
+{
 	tid = 0;
 }
 
@@ -23,7 +25,9 @@ struct start_arg{
 };
 
 
-static void *start_routine(void *_){
+static void*
+start_routine(void *_)
+{
 	struct start_arg *starg = (struct start_arg*)_;
 	void *arg = starg->arg;
 	void*(*routine)(void*) = starg->routine;
@@ -37,7 +41,11 @@ static void *start_routine(void *_){
 }
 
 
-thread *thread_new(int32_t flag,void *(*routine)(void*),void *ud){
+thread*
+thread_new(int32_t flag,
+		   void *(*routine)(void*),
+		   void *ud)
+{
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 	if(flag | JOINABLE)
@@ -71,14 +79,16 @@ thread *thread_new(int32_t flag,void *(*routine)(void*),void *ud){
 	return t;
 }
 
-void* thread_join(thread *t)
+void* 
+thread_join(thread *t)
 {
 	void *result = NULL;
 	pthread_join(t->threadid,&result);
 	return result;
 }
 
-void* thread_del(thread *t)
+void* 
+thread_del(thread *t)
 {
 	void *result = NULL;
 	pthread_join(t->threadid,&result);
@@ -86,7 +96,9 @@ void* thread_del(thread *t)
 	return result;	
 }
 
-pid_t   thread_id(){
+pid_t   
+thread_id()
+{
 	if(!tid){
 		tid = gettidv1();
 		pthread_atfork(NULL,NULL,child);
