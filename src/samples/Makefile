@@ -1,5 +1,5 @@
-CFLAGS = -g -Wall -fno-strict-aliasing 
-LDFLAGS = -lpthread -lrt -llua -lm 
+CFLAGS =  -g -Wall -fno-strict-aliasing 
+LDFLAGS = -lpthread -lrt -llua -lm -ljemalloc
 DEPDIR  = 
 INCLUDE = -I./../ 
 DEFINE  =
