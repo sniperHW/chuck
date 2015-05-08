@@ -32,7 +32,7 @@ static void on_connection(int32_t fd,sockaddr_ *_,void *ud){
 	printf("on_connection\n");
 	engine *e = (engine*)ud;
 	connection *c = connection_new(fd,64,NULL);
-	connection_set_discnt_callback(c,on_disconnected);
+	connection_set_discntcb(c,on_disconnected);
 	engine_associate(e,c,on_packet);
 	++client_count;
 }

@@ -14,9 +14,9 @@ static void on_disconnect(redis_conn *conn,int32_t err)
 
 void cmd_callback(redis_conn *conn,redisReply *reply,void *ud){
 	++count;
-	char buff[1024];
-	snprintf(buff,1024,"hmget chaid:%d chainfo skills",(int)ud);
-	redis_query(conn,buff,cmd_callback,ud);
+	//char buff[1024];
+	//snprintf(buff,1024,"hmget chaid:%d chainfo skills",(int)ud);
+	redis_query(conn,"hmget chaid:1 chainfo skills",cmd_callback,ud);
 }
 
 int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
@@ -51,13 +51,13 @@ int main(int argc,char **argv){
 	for(i = 0; i < 1000; ++i){		
 		char buff[1024];
 		if(!testset){
-			snprintf(buff,1024,"hmget chaid:%d chainfo skills",i + 1);
+			//snprintf(buff,1024,"hmget chaid:%d chainfo skills",i + 1);
 			int tmp = i + 1;
-			redis_query(redis_client,buff,cmd_callback,(void*)tmp);
+			redis_query(redis_client,"hmget chaid:1 chainfo skills",cmd_callback,(void*)tmp);
 		}else{
 			snprintf(buff,1024,"hmset chaid:%d chainfo %s skills %s",
-					 i + 1,"fasfsafasfsafasfasfasdfsadfasdfasdfasfdfasdfasfdasdfasdf",
-					 "fasdfasfasdfdsafdsafsadfsafasdfsadfsadfasdfsadfsdafsdafsadfsdf" 
+					 i + 1,"fasfsafasfsaf\rasfasfasdfsadfasdfasdfasfdfasdfasfdasdfasdf",
+					 "fasdfasfasdfdsafdsafs\nadfsafa\r\nsdfsadfsadfasdfsadfsdafsdafsadfsdf" 
 					);
 			redis_query(redis_client,buff,NULL,NULL);
 		}

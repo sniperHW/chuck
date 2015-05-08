@@ -523,7 +523,7 @@ lua_set_disconn_callback(lua_State *L)
 	if(LUA_TFUNCTION != lua_type(L,2))
 		return luaL_error(L,"arg2 should be function");
 	c->lua_cb_disconnected = toluaRef(L,2);
-	connection_set_discnt_callback(c,lua_on_disconnected);
+	connection_set_discntcb(c,lua_on_disconnected);
 	return 0;
 }
 

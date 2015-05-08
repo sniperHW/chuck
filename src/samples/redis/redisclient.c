@@ -79,6 +79,8 @@ int main(int argc,char **argv){
 		return 0;
 	}
 
+	redis_query(redis_client,"set kenny h\r\nha",cmd_callback,NULL);
+
 	do{
 	    ptr = input;	
 	    while((*ptr = getchar()) != '\n')

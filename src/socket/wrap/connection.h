@@ -61,8 +61,9 @@ conn_raw_decoder_new();
 
 
 static inline void 
-connection_set_discnt_callback(connection *c,
-                               void(*on_disconnected)(struct connection*,int32_t))
+connection_set_discntcb(connection *c,
+                        void(*on_disconnected)
+                        (connection*,int32_t))
 {
     c->on_disconnected = on_disconnected;
 }

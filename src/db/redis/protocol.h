@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include "db/redis/client.h"
 
+
 #define SIZE_TMP_BUFF 512 //size must enough for status/error string
 
 typedef struct parse_tree{
@@ -41,19 +42,28 @@ parse_string(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;
 	if(!reply->str)
-		reply->str = current->tmp_buff;	
-	do{
-		char termi = current->break_;
-		while(**str != termi) {
-			if(**str != '\0')
-	        	reply->str[current->pos++] = *(*str)++;
-	        else
-	        	return REDIS_RETRY;
-	    }
-	    ++(*str);
-	    if(termi == '\n') break;
-	    else current->break_ = '\n';
-    }while(1);
+		reply->str = current->tmp_buff;
+	if(!reply->len){
+		do{
+			char termi = current->break_;
+			while(**str != termi) {
+				if(**str != '\0')
+		        	reply->str[current->pos++] = *(*str)++;
+		        else
+		        	return REDIS_RETRY;
+		    }
+		    ++(*str);
+		    if(termi == '\n') break;
+		    else current->break_ = '\n';
+	    }while(1);
+	}else{
+		while(current->want && **str != '\0'){
+			reply->str[current->pos++] = *(*str)++;
+			--current->want;
+		}
+		if(**str == '\0')
+			return REDIS_RETRY;		
+	}
 	reply->str[current->pos] = 0;
 	current->pos = 0;
 	return REDIS_OK;
@@ -118,7 +128,6 @@ parse_breply(parse_tree *current,char **str)
 			return REDIS_OK;
 		}	   
 	    current->want = reply->len;
-	    current->break_ = '\r';
 	}
 
 	if(!reply->str){
@@ -129,9 +138,11 @@ parse_breply(parse_tree *current,char **str)
 	return parse_string(current,str);  
 }
 
+
 static parse_tree*
 parse_tree_new()
 {
+
 	parse_tree *tree = calloc(1,sizeof(*tree));
 	tree->reply = calloc(1,sizeof(*tree->reply));
 	tree->break_ = '\r';
@@ -261,44 +272,40 @@ typedef struct{
 	size_t   e;
 }word;
 
-
 //for request
-
-static rawpacket*
+static packet*
 convert(list *l,size_t space)
 {
-	char  tmp[32];
-	char  c;
+	char  tmp[32] = {0};
 	char *end = "\r\n";
+	char *ptr,*ptr1;
 	word *w;
-	buffer_writer writer;
-	bytebuffer *buffer;
-	rawpacket *p;	
+	rawpacket *p;		
 	space += sprintf(tmp,"%u",(uint32_t)list_size(l)) + 3;//plus head *,tail \r\n
-	buffer = bytebuffer_new(space);
-	buffer_writer_init(&writer,buffer,0);
-	//write the head;
-	c = '*';
-	buffer_write(&writer,&c,sizeof(c));
-	buffer_write(&writer,tmp,strlen(tmp));
-	buffer_write(&writer,end,2);
-
-	c = '$';
+	bytebuffer *buffer = bytebuffer_new(space);
+	ptr1 = buffer->data;
+	*ptr1++ = '*';
+	ptr = tmp;
+	while(*ptr)*ptr1++ = *ptr++;
+	ptr = end;
+	while(*ptr)*ptr1++ = *ptr++;	
 	while(NULL != (w = (word*)list_pop(l))){
 		sprintf(tmp,"%u",(uint32_t)(w->e - w->b));
-		buffer_write(&writer,&c,sizeof(c));	
-		buffer_write(&writer,tmp,strlen(tmp));
-		buffer_write(&writer,end,2);
-
-		buffer_write(&writer,w->buff+w->b,w->e - w->b);
-		buffer_write(&writer,end,2);
-
+		*ptr1++ = '$';
+		ptr = tmp;
+		while(*ptr)*ptr1++ = *ptr++;
+		ptr = end;
+		while(*ptr)*ptr1++ = *ptr++;	
+		size_t i = w->b;
+		for(; i < w->e; ++i) *ptr1++ = w->buff[i];
+		ptr = end;
+		while(*ptr)*ptr1++ = *ptr++;
 		free(w);
 	}
-	buffer_write(&writer,&c,sizeof(c));
+	buffer->size = space;
 	p = rawpacket_new_by_buffer(buffer,0);
 	refobj_dec((refobj*)buffer);
-	return p;
+	return (packet*)p;
 }
 
 
@@ -349,7 +356,7 @@ build_request(const char *cmd)
 		space += (w->e - w->b) + 2;//plus tail \r\n
 		list_pushback(&l,(listnode*)w);
 	}
-	return (packet*)convert(&l,space);
+	return convert(&l,space);
 }
 
 #endif
