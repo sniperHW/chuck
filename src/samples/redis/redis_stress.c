@@ -1,7 +1,7 @@
 #include "chuck.h"
 #include "db/redis/client.h"
 
-redis_conn *redis_client = NULL;
+//redis_conn *redis_client = NULL;
 uint32_t    count = 0;
 
 
@@ -12,36 +12,11 @@ static void on_disconnect(redis_conn *conn,int32_t err)
 	printf("redis client on_disconnect\n");
 }
 
-void cmd_callback(redis_conn *_,redisReply *reply,void *ud){
-	/*if(reply->elements != 2){
-		printf("reply->elements != 2\n");
-		exit(0);
-	}
-
-	if(strcmp(reply->element[0]->str,"[12,247,50,22,22,0,0,100,0,46549,50,10500,0,0,0,0,0,0,1,1,24,0,100]") != 0)
-	{
-		printf("element1\n");
-		printf("%s\n",reply->element[0]->str);
-		exit(0);
-	}
-	
-	if(strcmp(reply->element[1]->str,"[[13,1],[12,1],[11,1],[21,1]]") != 0)
-	{
-		printf("element2\n");
-		printf("%s\n",reply->element[1]->str);
-		exit(0);
-	}
-	printf("%s\n",reply->element[0]->str);
-	printf("%s\n",reply->element[1]->str);
-	printf("%d\n",count);*/
+void cmd_callback(redis_conn *conn,redisReply *reply,void *ud){
 	++count;
-	//if(0 != redis_query(redis_client,"hmget chaid: chainfo skills",cmd_callback,NULL))
-	//	printf("redis_query error\n");
 	char buff[1024];
 	snprintf(buff,1024,"hmget chaid:%d chainfo skills",(int)ud);
-	redis_query(redis_client,buff,cmd_callback,ud);
-
-	
+	redis_query(conn,buff,cmd_callback,ud);
 }
 
 int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
@@ -64,10 +39,10 @@ int main(int argc,char **argv){
 	signal(SIGPIPE,SIG_IGN);
 	engine *e = engine_new();
 	sockaddr_ server;
-	easy_sockaddr_ip4(&server,"127.0.0.1",6379);//argv[1],atoi(argv[2]));
-	redis_client = redis_connect(e,&server,on_disconnect);
+	easy_sockaddr_ip4(&server,"127.0.0.1",6379);
+	redis_conn *redis_client = redis_connect(e,&server,on_disconnect);
 	if(!redis_client){
-		printf("connect to redis server %s:%u error\n","127.0.0.1",6379);//argv[1],atoi(argv[2]));
+		printf("connect to redis server %s:%u error\n","127.0.0.1",6379);
 		return 0;
 	}
 

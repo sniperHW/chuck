@@ -14,12 +14,21 @@ enum{
 	SENDING   = SOCKET_END << 2,
 };
 
-#define RECV_BUFFSIZE 1024*1
+#define RECV_BUFFSIZE 1024*16
+
+enum{
+	CB_C,
+	CB_LUA,
+};
 
 typedef struct{
 	listnode node;
 	void     (*cb)(redis_conn*,redisReply*,void *ud);
-	void    *ud;
+	union{
+		void    *ud;
+		luaRef   luacb;//for lua callback
+	};
+	char     type;
 }reply_cb;
 
 typedef struct redis_conn{
@@ -32,21 +41,49 @@ typedef struct redis_conn{
     list         		send_list;
     list         		waitreplys;
     parse_tree         *tree;
+    void                (*clear)(void*ud);
     void         	    (*on_disconnected)(struct redis_conn*,int32_t err);
+    luaRef              lua_disconn_cb;
 }redis_conn;
 
 void 
 redis_dctor(void *_)
 {
 	redis_conn *c = (redis_conn*)_;
-	packet *p;
+	packet   *p;
+	reply_cb *stcb;
 	if(c->on_disconnected)
 		c->on_disconnected(c,0);	
 	while((p = (packet*)list_pop(&c->send_list))!=NULL)
 		packet_del(p);
+	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
+		if(c->clear && stcb->ud) c->clear(stcb->ud);
+		free(stcb);
+	}
 	if(c->tree)
 		parse_tree_del(c->tree);
 	free(c);
+}
+
+void 
+redis_lua_dctor(void *_)
+{
+	redis_conn *c = (redis_conn*)_;
+	packet   *p;
+	reply_cb *stcb;
+	if(c->on_disconnected)
+		c->on_disconnected(c,0);	
+	while((p = (packet*)list_pop(&c->send_list))!=NULL)
+		packet_del(p);
+	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
+		if(stcb->luacb.L)
+			release_luaRef(&stcb->luacb);
+		free(stcb);
+	}
+	if(c->tree)
+		parse_tree_del(c->tree);
+	if(c->lua_disconn_cb.L)
+		release_luaRef(&c->lua_disconn_cb);
 }
 
 
@@ -176,6 +213,11 @@ _close(redis_conn *c,int32_t err)
 	}
 }
 
+
+void 
+query_callback(redis_conn *c,reply_cb *stcb);
+
+
 static void 
 RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
 {
@@ -194,11 +236,12 @@ RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
 				parse_ret = parse(c->tree,&ptr);
 				if(parse_ret == REDIS_OK){
 					reply_cb *stcb = (reply_cb*)list_pop(&c->waitreplys);
-					if(stcb->cb)
-						stcb->cb(c,c->tree->reply,stcb->ud);
+					query_callback(c,stcb);
 					free(stcb);
 					parse_tree_del(c->tree);
 					c->tree = NULL;
+					if(((socket_*)c)->status & SOCKET_CLOSE)
+						return;
 				}else if(parse_ret == REDIS_ERR){
 					//error
 					parse_tree_del(c->tree);
@@ -238,9 +281,7 @@ IoFinish(handle *sock,void *_,int32_t bytestransfer,
 
 
 int32_t 
-redis_query(redis_conn *conn,const char *str,
-	        void (*cb)(redis_conn*,redisReply*,void *ud),
-	        void *ud)
+_redis_query(redis_conn *conn,const char *str)
 {
 	handle *h = (handle*)conn;
 	int32_t ret = 0;
@@ -249,12 +290,6 @@ redis_query(redis_conn *conn,const char *str,
 	if(!h->e)
 		return -ENOASSENG;
 	packet *p = build_request(str);
-	reply_cb *repobj = calloc(1,sizeof(*repobj));
-	if(cb){
-		repobj->cb = cb;
-		repobj->ud = ud;
-	}
-	list_pushback(&conn->waitreplys,(listnode*)repobj);
 	list_pushback(&conn->send_list,(listnode*)p);
 	if(!(((socket_*)conn)->status & SENDING)){
 		prepare_send(conn);
@@ -264,7 +299,25 @@ redis_query(redis_conn *conn,const char *str,
 	}
 	if(ret == -EAGAIN || ret > 0)
 		return 0;
-	return ret;
+	return ret;	
+}
+
+int32_t 
+redis_query(redis_conn *conn,const char *str,
+	        void (*cb)(redis_conn*,redisReply*,void *ud),
+	        void *ud)
+{
+
+	int32_t ret = _redis_query(conn,str);
+	if(ret != 0) return ret;
+	reply_cb *repobj = calloc(1,sizeof(*repobj));
+	repobj->type = CB_C;
+	if(cb){
+		repobj->cb = cb;
+		repobj->ud = ud;
+	}
+	list_pushback(&conn->waitreplys,(listnode*)repobj);
+	return 0;
 }
 
 void redis_close(redis_conn *c){
@@ -288,6 +341,202 @@ redis_conn *redis_connect(engine *e,sockaddr_ *addr,void (*on_disconnect)(redis_
 	engine_associate(e,conn,IoFinish); 	
 	PostRecv(conn);
 	return conn;
+}
+
+#define LUAREDIS_METATABLE "luaredis_metatable"
+
+#define SET_FUNCTION(L,NAME,FUNC) do{\
+	lua_pushstring(L,NAME);\
+	lua_pushcfunction(L,FUNC);\
+	lua_settable(L, -3);\
+}while(0)
+
+
+typedef struct{
+	luaPushFunctor base;
+	redis_conn    *c;
+}stPushConn;
+
+static void 
+PushConn(lua_State *L,luaPushFunctor *_)
+{
+	stPushConn *self = (stPushConn*)_;
+	lua_pushlightuserdata(L,self->c);
+	luaL_getmetatable(L, LUAREDIS_METATABLE);
+	lua_setmetatable(L, -2);		
+}
+
+static void 
+build_resultset(redisReply* reply,lua_State *L){
+	if(reply->type == REDIS_REPLY_INTEGER){
+		lua_pushinteger(L,reply->integer);
+	}else if(reply->type == REDIS_REPLY_STRING){
+		lua_pushstring(L,reply->str);
+	}else if(reply->type == REDIS_REPLY_ARRAY){
+		lua_newtable(L);
+		int i = 0;
+		for(; i < reply->elements; ++i){
+			build_resultset(reply->element[i],L);
+			lua_rawseti(L,-2,i+1);
+		}
+	}else{
+		lua_pushnil(L);
+	}
+}
+
+typedef struct{
+	luaPushFunctor base;
+	redisReply    *reply;
+}stPushResultSet;
+
+static void PushResultSet(lua_State *L,luaPushFunctor *_){
+	stPushResultSet *self = (stPushResultSet*)_;
+	build_resultset(self->reply,L);
+}
+
+void 
+query_callback(redis_conn *c,reply_cb *stcb)
+{
+	if(stcb->type == CB_C && stcb->cb)
+		stcb->cb(c,c->tree->reply,stcb->ud);
+	else if(stcb->type == CB_LUA && stcb->luacb.L){
+		//process lua callback
+		const char *error;
+		stPushConn st1;	
+		st1.c = c;
+		st1.base.Push = PushConn;
+		redisReply *reply = c->tree->reply;
+		if(reply->type == REDIS_REPLY_ERROR  || 
+           reply->type == REDIS_REPLY_STATUS ||
+           reply->type == REDIS_REPLY_STRING){
+			if((error = LuaCallRefFunc(stcb->luacb,"fs",&st1,reply->str))){
+				SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
+			}					
+		}else if(reply->type == REDIS_REPLY_NIL){
+			if((error = LuaCallRefFunc(stcb->luacb,"fp",&st1,NULL))){
+				SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
+			}			
+		}else if(reply->type == REDIS_REPLY_INTEGER){
+			if((error = LuaCallRefFunc(stcb->luacb,"fi",&st1,reply->integer))){
+				SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
+			}			
+		}else{
+			stPushResultSet st2;
+			st2.base.Push = PushResultSet;
+			st2.reply = reply;
+			if((error = LuaCallRefFunc(stcb->luacb,"ff",&st1,&st2))){
+				SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
+			}				
+		}
+		release_luaRef(&stcb->luacb);
+	}
+}
+
+redis_conn *lua_toreadisconn(lua_State *L, int index){
+	return (redis_conn*)luaL_testudata(L, index, LUAREDIS_METATABLE);
+}
+
+void         	    
+lua_on_disconnected(redis_conn *c,int32_t err)
+{
+	const char * error;
+	stPushConn st;
+	st.c = c;
+	st.base.Push = PushConn;
+	if((error = LuaCallRefFunc(c->lua_disconn_cb,"fi",&st,err))){
+		SYS_LOG(LOG_ERROR,"error on redis lua_disconn_cb:%s\n",error);	
+	}
+}
+
+int32_t
+lua_redis_connect(lua_State *L)
+{
+
+	engine     *e  = lua_toengine(L,1);
+	const char *ip = lua_tostring(L,2);
+	uint16_t    port = lua_tointeger(L,3);
+	sockaddr_   addr;
+	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+	if(fd < 0){
+		lua_pushstring(L,"open socket error\n");
+		return 1;
+	}
+	easy_sockaddr_ip4(&addr,ip,port);
+	if(0 != easy_connect(fd,&addr,NULL)){
+		close(fd);
+		lua_pushstring(L,"connect error\n");
+		return 1;
+	}
+	redis_conn *conn = calloc(1,sizeof(*conn));
+	((handle*)conn)->fd = fd;
+	construct_stream_socket(&conn->base);
+	((socket_*)conn)->dctor = redis_lua_dctor;
+
+	if(LUA_TFUNCTION == lua_type(L,4)){
+		conn->lua_disconn_cb  = toluaRef(L,4);
+		conn->on_disconnected = lua_on_disconnected;
+	}
+	engine_associate(e,conn,IoFinish); 	
+	PostRecv(conn);	
+	lua_pushnil(L);
+	lua_pushlightuserdata(L,conn);
+	luaL_getmetatable(L, LUAREDIS_METATABLE);
+	lua_setmetatable(L, -2);
+	return 2;
+}
+
+int32_t 
+lua_redis_close(lua_State *L)
+{
+	redis_conn *c = lua_toreadisconn(L,1);
+	redis_close(c);
+	return 0;
+}
+
+int32_t
+lua_redis_query(lua_State *L)
+{
+	redis_conn *c = lua_toreadisconn(L,1);
+	const char *str = lua_tostring(L,2);
+	int32_t ret = _redis_query(c,str);
+	if(ret != 0){
+		lua_pushstring(L,"query error");
+		return 1;
+	}
+	reply_cb *repobj = calloc(1,sizeof(*repobj));
+	repobj->type = CB_LUA;
+	if(LUA_TFUNCTION == lua_type(L,3))
+		repobj->luacb = toluaRef(L,3);
+	list_pushback(&c->waitreplys,(listnode*)repobj);
+	lua_pushstring(L,"ok");
+	return 1;
+}
+
+
+void
+reg_luaredis(lua_State *L)
+{
+	luaL_Reg redis_mt[] = {
+        {"__gc", lua_redis_close},
+        {NULL, NULL}
+    };
+
+    luaL_Reg redis_methods[] = {
+        {"Query",  lua_redis_query},
+        {"Close",  lua_redis_close},
+        {NULL,     NULL}
+    };
+
+    luaL_newmetatable(L, LUAREDIS_METATABLE);
+    luaL_setfuncs(L, redis_mt, 0);
+
+    luaL_newlib(L, redis_methods);
+    lua_setfield(L, -2, "__index");
+    lua_pop(L, 1);
+
+    lua_newtable(L);
+   	SET_FUNCTION(L,"Connect",lua_redis_connect);
+   	//SET_FUNCTION(L,"AsynConnect",lua_redis_asynconnect);
 }
 
 //just for test
