@@ -253,8 +253,8 @@ redis_query(redis_conn *conn,const char *str,
 	if(cb){
 		repobj->cb = cb;
 		repobj->ud = ud;
-		list_pushback(&conn->waitreplys,(listnode*)repobj);
 	}
+	list_pushback(&conn->waitreplys,(listnode*)repobj);
 	list_pushback(&conn->send_list,(listnode*)p);
 	if(!(((socket_*)conn)->status & SENDING)){
 		prepare_send(conn);
