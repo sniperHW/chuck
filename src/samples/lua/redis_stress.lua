@@ -17,7 +17,7 @@ if client then
 		client:Query(cmd,gen_callback(query_cb,id))		
 	end
 
-	for i = 1,10 do
+	for i = 1,1000 do
 		local cmd = string.format("hmget chaid:%d chainfo skills",i)
 		client:Query(cmd,gen_callback(query_cb,i))
 	end

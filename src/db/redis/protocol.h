@@ -251,38 +251,48 @@ parse(parse_tree *current,char **str)
 typedef struct{
 	listnode node;
 	char    *buff;
-	size_t   b;
-	size_t   e;
+	size_t   size;
 }word;
+
+static inline size_t digitcount(uint32_t num){
+	size_t i = 0;
+	do{
+		++i;
+	}while(num/=10);
+	return i;
+}
+
+static inline void u2s(uint32_t num,char **ptr){
+	char *tmp = *ptr + digitcount(num);
+	do{
+		*--tmp = '0'+(char)(num%10);
+		(*ptr)++;
+	}while(num/=10);	
+}
+
 
 //for request
 static packet*
 convert(list *l,size_t space)
 {
-	char  tmp[32] = {0};
-	char *end = "\r\n";
+	static char *end = "\r\n";
 	char *ptr,*ptr1;
 	word *w;
-	rawpacket *p;		
-	space += sprintf(tmp,"%u",(uint32_t)list_size(l)) + 3;//plus head *,tail \r\n
+	rawpacket *p;
+	uint32_t headsize = (uint32_t)digitcount((uint32_t)list_size(l)); 		
+	space += (headsize + 3);//plus head *,tail \r\n
 	bytebuffer *buffer = bytebuffer_new(space);
 	ptr1 = buffer->data;
 	*ptr1++ = '*';
-	ptr = tmp;
-	while(*ptr)*ptr1++ = *ptr++;
-	ptr = end;
-	while(*ptr)*ptr1++ = *ptr++;	
+	u2s((uint32_t)list_size(l),&ptr1);
+	for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
 	while(NULL != (w = (word*)list_pop(l))){
-		sprintf(tmp,"%u",(uint32_t)(w->e - w->b));
 		*ptr1++ = '$';
-		ptr = tmp;
-		while(*ptr)*ptr1++ = *ptr++;
-		ptr = end;
-		while(*ptr)*ptr1++ = *ptr++;	
-		size_t i = w->b;
-		for(; i < w->e; ++i) *ptr1++ = w->buff[i];
-		ptr = end;
-		while(*ptr)*ptr1++ = *ptr++;
+		u2s((uint32_t)(w->size),&ptr1);
+		for(ptr=end;*ptr;)*ptr1++ = *ptr++;		
+		size_t i = 0;
+		for(; i < w->size;) *ptr1++ = w->buff[i++];
+		for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
 		free(w);
 	}
 	buffer->size = space;
@@ -297,7 +307,6 @@ build_request(const char *cmd)
 {
 	list l;
 	list_init(&l);
-	char  tmp[32];
 	size_t len   = strlen(cmd);
 	word  *w = NULL;
 	size_t i,j,space;
@@ -316,17 +325,16 @@ build_request(const char *cmd)
 		if(c != ' '){
 			if(!w){ 
 				w = calloc(1,sizeof(*w));
-				w->b = i;
-				w->buff = (char*)cmd;
+				w->buff = (char*)&cmd[i];
 			}
 		}
 		else if(!quote)
 		{
 			if(w){
 				//word finish
-				w->e = i;
-				space += (sprintf(tmp,"%u",(uint32_t)(w->e - w->b)) + 3);//plus head $,tail \r\n
-				space += (w->e - w->b) + 2;//plus tail \r\n
+				w->size = &cmd[i] - w->buff;
+				space += digitcount((uint32_t)w->size) + 3;//plus head $,tail \r\n
+				space += w->size + 2;//plus tail \r\n
 				list_pushback(&l,(listnode*)w);	
 				w = NULL;
 				--i;
@@ -334,9 +342,9 @@ build_request(const char *cmd)
 		}
 	}
 	if(w){
-		w->e = i;
-		space += (sprintf(tmp,"%u",(uint32_t)(w->e - w->b)) + 3);//plus head $,tail \r\n
-		space += (w->e - w->b) + 2;//plus tail \r\n
+		w->size = &cmd[i] - w->buff;
+		space += digitcount((uint32_t)w->size) + 3;//plus head $,tail \r\n
+		space += w->size + 2;//plus tail \r\n
 		list_pushback(&l,(listnode*)w);
 	}
 	return convert(&l,space);

@@ -51,7 +51,7 @@ int main(int argc,char **argv){
 
 	if(argc >= 2 && strcmp(argv[1],"set") == 0)
 		testset = 1;
-	for(i = 0; i < 2500; ++i){		
+	for(i = 0; i < 1000; ++i){		
 		char buff[1024];
 		if(!testset){
 			//snprintf(buff,1024,"hmget chaid:%d chainfo skills",i + 1);
