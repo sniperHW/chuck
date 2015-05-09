@@ -3,6 +3,7 @@
 
 //redis_conn *redis_client = NULL;
 uint32_t    count = 0;
+uint64_t    last;
 
 
 static void on_disconnect(redis_conn *conn,int32_t err)
@@ -21,7 +22,9 @@ void cmd_callback(redis_conn *conn,redisReply *reply,void *ud){
 
 int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 	if(event == TEVENT_TIMEOUT){
-		printf("count:%u/s\n",count);
+		uint64_t now = systick64();
+		printf("count:%u/s\n",count*1000/(now-last));
+		last = now;
 		count = 0;
 	}
 	return 0;
@@ -48,7 +51,7 @@ int main(int argc,char **argv){
 
 	if(argc >= 2 && strcmp(argv[1],"set") == 0)
 		testset = 1;
-	for(i = 0; i < 1000; ++i){		
+	for(i = 0; i < 2500; ++i){		
 		char buff[1024];
 		if(!testset){
 			//snprintf(buff,1024,"hmget chaid:%d chainfo skills",i + 1);
@@ -63,6 +66,7 @@ int main(int argc,char **argv){
 		}
 	}
 	engine_regtimer(e,1000,timer_callback,NULL);
+	last = systick64();
 	engine_run(e);
 
 	return 0;

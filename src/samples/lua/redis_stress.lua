@@ -1,5 +1,4 @@
 local chuck = require("chuck")
-local inspect = require("inspect")
 local engine = chuck.engine()
 local err,client = chuck.redis.Connect(engine,"127.0.0.1",6379)
 
@@ -18,15 +17,17 @@ if client then
 		client:Query(cmd,gen_callback(query_cb,id))		
 	end
 
-	for i = 1,1000 do
+	for i = 1,10 do
 		local cmd = string.format("hmget chaid:%d chainfo skills",i)
 		client:Query(cmd,gen_callback(query_cb,i))
 	end
-
+	local last = chuck.systick()
 	chuck.RegTimer(engine,1000,
 				   function() 
 				   		collectgarbage("collect") 
-				   		print(count)
+				   		local now = chuck.systick()
+				   		print(count*1000/(now-last))
+				   		last = now
 				   		count = 0 
 				   end)
 	engine:Run()

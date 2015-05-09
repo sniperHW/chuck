@@ -41,31 +41,30 @@ static int32_t
 parse_string(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;
+	char c;
 	if(!reply->str)
 		reply->str = current->tmp_buff;
 	if(!reply->len){
 		do{
 			char termi = current->break_;
-			while(**str != termi) {
-				if(**str != '\0')
-		        	reply->str[current->pos++] = *(*str)++;
+			while((c = *(*str)++) != termi) {
+				if(c != '\0')
+		        	reply->str[current->pos++] = c;
 		        else
 		        	return REDIS_RETRY;
 		    }
-		    ++(*str);
 		    if(termi == '\n') break;
 		    else current->break_ = '\n';
 	    }while(1);
 	}else{
-		while(current->want && **str != '\0'){
-			reply->str[current->pos++] = *(*str)++;
+		while(current->want && (c = *(*str)++) != '\0'){
+			reply->str[current->pos++] = c;
 			--current->want;
 		}
-		if(**str == '\0')
+		if(c == '\0')
 			return REDIS_RETRY;		
 	}
 	reply->str[current->pos] = 0;
-	current->pos = 0;
 	return REDIS_OK;
 }
 
@@ -74,26 +73,22 @@ parse_integer(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;	
 	do{
-		char termi = current->break_;
-		while(**str != termi) {
-			if(**str == '-'){
+		char c,termi = current->break_;
+		while((c = *(*str)++) != termi) {
+			if(c == '-'){
 				current->want = -1;
 			}else{
-				if(**str != '\0')
-		        	reply->integer = (reply->integer*10)+(**str - '0');
+				if(c != '\0')
+		        	reply->integer = (reply->integer*10)+(c - '0');
 		        else
 		        	return REDIS_RETRY;
 	    	}
-	    	++(*str);
 	    }				
-	    ++(*str);
 	    if(termi == '\n') break;
 	    else current->break_ = '\n';
     }while(1);
 
-
-    if(current->want == -1)
-    	reply->integer *= -1;    
+    reply->integer *= current->want;    
     return REDIS_OK;
 }
 
@@ -102,38 +97,29 @@ static int32_t
 parse_breply(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;
-	char termi;
 	if(!current->want){
 		do{
-			termi = current->break_;
-			while(**str != termi) {
-				if(**str == '-'){
-					reply->len = -1;
+			char c,termi = current->break_;
+			while((c = *(*str)++) != termi) {
+				if(c == '-'){
+					reply->type = REDIS_REPLY_NIL;
+					return REDIS_OK;
 				}else{	
-					if(**str != '\0'){
-			        	if(reply->len != -1)
-			        		reply->len = (reply->len*10)+(**str - '0');
+					if(c != '\0'){
+			        	reply->len = (reply->len*10)+(c - '0');
 					}else
 			        	return REDIS_RETRY;
-		        }
-		        (*str)++;	
+		        }	
 		    }
-		    ++(*str);
 		    if(termi == '\n') break;
 		    else current->break_ = '\n';
-	    }while(1);
-		
-		if(reply->len == -1){
-			reply->type = REDIS_REPLY_NIL;
-			return REDIS_OK;
-		}	   
+	    }while(1);   
 	    current->want = reply->len;
 	}
 
 	if(!reply->str){
 		if(reply->len + 1 > SIZE_TMP_BUFF)
 			reply->str = calloc(1,reply->len + 1);
-		current->pos = 0;
 	}
 	return parse_string(current,str);  
 }
@@ -175,15 +161,13 @@ parse_mbreply(parse_tree *current,char **str)
 	int32_t ret;
 	if(!current->want){
 		do{
-			char termi = current->break_;
-			while(**str != termi) {
-				if(**str != '\0'){
-		        	reply->elements = (reply->elements*10)+(**str - '0');
+			char c,termi = current->break_;
+			while((c = *(*str)++) != termi){
+				if(c != '\0'){
+		        	reply->elements = (reply->elements*10)+(c - '0');
 				}else
-		        	return REDIS_RETRY;
-		        (*str)++;	
+		        	return REDIS_RETRY;	
 		    }
-		    ++(*str);
 		    if(termi == '\n') break;
 		    else current->break_ = '\n';
 	    }while(1);	    
@@ -197,7 +181,6 @@ parse_mbreply(parse_tree *current,char **str)
 			current->childs[i] = parse_tree_new();
 			reply->element[i] = current->childs[i]->reply;
 		}
-		current->pos = 0;
 	}
 
 	for(;current->pos < current->want; ++current->pos){
@@ -218,17 +201,16 @@ parse(parse_tree *current,char **str)
 	redisReply *reply = current->reply;		
 	if(!current->type){
 		do{
-			if(**str == '+'  || **str == '-'  ||
-			   **str == ':'  || **str == '$'  ||
-			   **str == '*')
+			char c = *(*str)++;
+			if(c == '+'  || c == '-'  ||
+			   c == ':'  || c == '$'  ||
+			   c == '*')
 			{
-				current->type = **str;
-				++(*str);
+				current->type = c;
 				break;
 			}
-			else if(**str == '\0')
+			else if(c == '\0')
 				return REDIS_RETRY;
-			++(*str);
 		}while(1);
 	}
 	switch(current->type){
@@ -244,6 +226,7 @@ parse(parse_tree *current,char **str)
 		}
 		case ':':{
 			reply->type = REDIS_REPLY_INTEGER;
+			current->want = 1;
 			ret = parse_integer(current,str);
 			break;
 		}
