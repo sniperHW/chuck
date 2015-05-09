@@ -47,23 +47,23 @@ imp_engine_add(engine *e,handle *h,
 }
 
 static void 
-_process_connect(handle *h)
+_process_connect(connector *c)
 {
-	connector *c = (connector*)h;
 	int32_t err = 0;
 	int32_t fd = -1;
 	socklen_t len = sizeof(err);
+	handle *h = (handle*)c;
 	if(c->t){
 		unregister_timer(c->t);
 	}
 	do{
 		if(getsockopt(h->fd, SOL_SOCKET, SO_ERROR, &err, &len) == -1){
-			((connector*)h)->callback(-1,err,((connector*)h)->ud);
+			c->callback(-1,err,c->ud);
 		    break;
 		}
 		if(err){
 		    errno = err;
-		    ((connector*)h)->callback(-1,err,((connector*)h)->ud);    
+		    c->callback(-1,err,c->ud);    
 		    break;
 		}
 		//success
@@ -71,7 +71,7 @@ _process_connect(handle *h)
 	}while(0);
 	event_remove(h);    
 	if(fd != -1){
-		((connector*)h)->callback(fd,0,((connector*)h)->ud);
+		c->callback(fd,0,c->ud);
 	}else{
 		close(h->fd);
 	}		
@@ -80,17 +80,17 @@ _process_connect(handle *h)
 static void 
 process_connect(handle *h,int32_t events)
 {
-	_process_connect(h);
+	_process_connect((connector*)h);
 	free(h);
 }
 
 static void 
 lua_process_connect(handle *h,int32_t events)
 {
-	_process_connect(h);
+	_process_connect((connector*)h);
 }
 
-handle*
+connector*
 connector_new(int32_t fd,void *ud,uint32_t timeout)
 {
 	connector *c = calloc(1,sizeof(*c));
@@ -100,7 +100,7 @@ connector_new(int32_t fd,void *ud,uint32_t timeout)
 	c->timeout = timeout;
 	c->ud = ud;
 	easy_close_on_exec(fd);
-	return (handle*)c;
+	return c;
 }
 
 

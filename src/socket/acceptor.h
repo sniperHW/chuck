@@ -30,11 +30,11 @@ typedef struct{
     luaRef  luacallback;
 }acceptor;    
 
-handle*
+acceptor*
 acceptor_new(int32_t fd,void *ud);
 
 void    
-acceptor_del(handle*); 
+acceptor_del(acceptor*); 
 
 void    
 reg_luaacceptor(lua_State *L);   

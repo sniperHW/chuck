@@ -48,8 +48,8 @@ int main(int argc,char **argv){
 	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 	easy_addr_reuse(fd,1);
 	if(0 == easy_listen(fd,&server)){
-		handle *accptor = acceptor_new(fd,e);
-		engine_associate(e,accptor,on_connection);
+		acceptor *a = acceptor_new(fd,e);
+		engine_associate(e,a,on_connection);
 		engine_regtimer(e,1000,timer_callback,NULL);
 		engine_run(e);
 	}else{

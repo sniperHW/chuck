@@ -52,7 +52,7 @@ process_accept(handle *h,int32_t events)
     }
 }
 
-handle*
+acceptor*
 acceptor_new(int32_t fd,void *ud)
 {
 	acceptor *a = calloc(1,sizeof(*a));
@@ -61,12 +61,12 @@ acceptor_new(int32_t fd,void *ud)
 	((handle*)a)->on_events = process_accept;
 	((handle*)a)->imp_engine_add = imp_engine_add;
 	easy_close_on_exec(fd);
-	return (handle*)a;
+	return a;
 }
 
-void    acceptor_del(handle *h){
-	close(h->fd);
-	free(h);
+void    acceptor_del(acceptor *a){
+	close(((handle*)a)->fd);
+	free(a);
 }
 
 

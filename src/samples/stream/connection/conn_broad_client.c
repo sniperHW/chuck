@@ -45,8 +45,8 @@ int main(int argc,char **argv){
 		if(0 == (ret = easy_connect(fd,&server,NULL)))
 			on_connected(fd,0,e);
 		else if(ret == -EINPROGRESS){
-			handle *contor = connector_new(fd,e,2000);
-			engine_associate(e,contor,on_connected);			
+			connector *c = connector_new(fd,e,2000);
+			engine_associate(e,c,on_connected);			
 		}else{
 			close(fd);
 			printf("connect to %s %d error\n",argv[1],atoi(argv[2]));

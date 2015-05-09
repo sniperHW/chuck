@@ -6,6 +6,7 @@
 #include "util/bytebuffer.h"
 #include "packet/rawpacket.h"
 #include "socket/socket_helper.h"
+#include "socket/connector.h"
 #include "db/redis/protocol.h"
 #include "socket/wrap/wrap_comm.h"
 #include "engine/engine.h"
@@ -320,13 +321,17 @@ redis_query(redis_conn *conn,const char *str,
 	return 0;
 }
 
-void redis_close(redis_conn *c){
+void 
+redis_close(redis_conn *c)
+{
 	if(((socket_*)c)->status & SOCKET_RELEASE)
 		return;
 	close_socket((socket_*)c);
 }
 
-redis_conn *redis_connect(engine *e,sockaddr_ *addr,void (*on_disconnect)(redis_conn*,int32_t err))
+redis_conn*
+redis_connect(engine *e,sockaddr_ *addr,
+			  void (*on_disconnect)(redis_conn*,int32_t err))
 {
 	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 	if(fd < 0) return NULL;
@@ -337,11 +342,77 @@ redis_conn *redis_connect(engine *e,sockaddr_ *addr,void (*on_disconnect)(redis_
 	redis_conn *conn = calloc(1,sizeof(*conn));
 	((handle*)conn)->fd = fd;
 	construct_stream_socket(&conn->base);
-	((socket_*)conn)->dctor = redis_dctor;	
+	((socket_*)conn)->dctor = redis_dctor;
+	conn->on_disconnected = on_disconnect;	
 	engine_associate(e,conn,IoFinish); 	
 	PostRecv(conn);
 	return conn;
 }
+
+typedef struct{
+	engine *e;
+    void (*connect_cb)(redis_conn*,int32_t,void*);
+    void *ud;
+    void (*on_disconnect)(redis_conn*,int32_t);
+}stConnet;
+
+
+static void on_connected(int32_t fd,int32_t err,void *ud){
+	stConnet *st = (stConnet*)ud;
+	if(fd >= 0 && err == 0){
+		redis_conn *conn = calloc(1,sizeof(*conn));
+		((handle*)conn)->fd = fd;
+		construct_stream_socket(&conn->base);
+		((socket_*)conn)->dctor = redis_dctor;	
+		engine_associate(st->e,conn,IoFinish); 	
+		PostRecv(conn);
+		conn->on_disconnected = st->on_disconnect;
+		st->connect_cb(conn,err,st->ud);
+	}else if(err == ETIMEDOUT){
+		st->connect_cb(NULL,err,st->ud);
+	}
+	free(st);
+}
+
+redis_conn*
+redis_asyn_connect(engine *e,sockaddr_ *addr,
+                   void (*connect_cb)(redis_conn*,int32_t,void*),
+                   void *ud,
+                   void (*on_disconnect)(redis_conn*,int32_t),
+                   int32_t *err)
+{
+	if(err) *err = 0;
+	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+	if(fd < 0){
+		if(err) *err = errno; 
+		return NULL;
+	}
+	easy_noblock(fd,1);
+	int32_t ret;
+	if(0 == (ret = easy_connect(fd,addr,NULL))){
+		redis_conn *conn = calloc(1,sizeof(*conn));
+		((handle*)conn)->fd = fd;
+		construct_stream_socket(&conn->base);
+		((socket_*)conn)->dctor = redis_dctor;	
+		engine_associate(e,conn,IoFinish); 	
+		PostRecv(conn);
+		return conn;
+	}
+	else if(ret == -EINPROGRESS){
+		stConnet *st = calloc(1,sizeof(*st));
+		st->e = e;
+		st->ud = ud;
+		st->on_disconnect = on_disconnect;
+		st->connect_cb = connect_cb;
+		connector *contor = connector_new(fd,st,5000);
+		engine_associate(e,contor,on_connected);			
+	}else{
+		if(err) *err = -ret;
+		close(fd);
+	}
+	return NULL;		
+}
+
 
 #define LUAREDIS_METATABLE "luaredis_metatable"
 
@@ -432,7 +503,8 @@ query_callback(redis_conn *c,reply_cb *stcb)
 	}
 }
 
-redis_conn *lua_toreadisconn(lua_State *L, int index){
+redis_conn*
+lua_toreadisconn(lua_State *L, int index){
 	return (redis_conn*)luaL_testudata(L, index, LUAREDIS_METATABLE);
 }
 

@@ -49,10 +49,12 @@ redis_conn*
 redis_connect(engine *e,sockaddr_ *addr,
               void (*)(redis_conn*,int32_t err));
 
-int32_t
+redis_conn*
 redis_asyn_connect(engine *e,sockaddr_ *addr,
-                   void (*)(redis_conn*,int32_t err,void*),
-                   void*);
+                   void (*)(redis_conn*,int32_t,void*),
+                   void*,
+                   void (*)(redis_conn*,int32_t),
+                   int32_t *err);
 
 void        
 redis_close(redis_conn*);
