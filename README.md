@@ -2,7 +2,7 @@
 
 * first, Chuck is my son's name.
 
-* second, Chuck is a high perference and easily use C/lua network library under Linux/Freebsd.
+* second, Chuck is a high perference,asynchronous and easily use C/Lua network library under Linux/Freebsd.
 
 #build
 
@@ -23,11 +23,17 @@ c example:
 
 #examples
 
-start a echo server:
+echo server:
 
 	lua src/samples/lua/echoserver.lua
 
-and then,telnet to 127.0.0.1 8010.
+now try telnet to 127.0.0.1 8010.
+
+asynchronous redis client:
+
+start redis server on 127.0.0.1 6379
+
+	lua src/samples/lua/redis_stress.lua 	
 
 
 

@@ -17,6 +17,14 @@ if client then
 		client:Query(cmd,gen_callback(query_cb,id))		
 	end
 
+
+	for i = 1,1000 do
+		local cmd = string.format("hmset chaid:%d chainfo %s skills %s",i,
+								  "fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
+								  "fasfasdfasdfasfasdfasdfasdfcvavasdfasdf")
+		client:Query(cmd)
+	end
+
 	for i = 1,1000 do
 		local cmd = string.format("hmget chaid:%d chainfo skills",i)
 		client:Query(cmd,gen_callback(query_cb,i))
@@ -26,7 +34,7 @@ if client then
 				   function() 
 				   		collectgarbage("collect") 
 				   		local now = chuck.systick()
-				   		print(count*1000/(now-last))
+				   		print("hmget:" .. count*1000/(now-last) .. "/s")
 				   		last = now
 				   		count = 0 
 				   end)

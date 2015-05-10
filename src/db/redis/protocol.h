@@ -255,11 +255,16 @@ typedef struct{
 }word;
 
 static inline size_t digitcount(uint32_t num){
-	size_t i = 0;
-	do{
-		++i;
-	}while(num/=10);
-	return i;
+	if(num < 10) return 1;
+	else if(num < 100) return 2;
+	else if(num < 1000) return 3;
+	else if(num < 10000) return 4;
+	else if(num < 100000) return 5;
+	else if(num < 1000000) return 6;
+	else if(num < 10000000) return 7;
+	else if(num < 100000000) return 8;
+	else if(num < 1000000000) return 9;
+	else return 10;
 }
 
 static inline void u2s(uint32_t num,char **ptr){
@@ -279,18 +284,19 @@ convert(list *l,size_t space)
 	char *ptr,*ptr1;
 	word *w;
 	rawpacket *p;
-	size_t i;		
-	space += (digitcount(list_size(l)) + 3);//plus head *,tail \r\n
+	uint32_t headsize = (uint32_t)digitcount((uint32_t)list_size(l)); 		
+	space += (headsize + 3);//plus head *,tail \r\n
 	bytebuffer *buffer = bytebuffer_new(space);
 	ptr1 = buffer->data;
 	*ptr1++ = '*';
-	u2s(list_size(l),&ptr1);
+	u2s((uint32_t)list_size(l),&ptr1);
 	for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
 	while(NULL != (w = (word*)list_pop(l))){
 		*ptr1++ = '$';
-		u2s((uint32_t)w->size,&ptr1);
+		u2s((uint32_t)(w->size),&ptr1);
 		for(ptr=end;*ptr;)*ptr1++ = *ptr++;		
-		for(i = 0; i < w->size;) *ptr1++ = w->buff[i++];
+		size_t i = 0;
+		for(; i < w->size;) *ptr1++ = w->buff[i++];
 		for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
 		free(w);
 	}
