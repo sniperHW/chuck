@@ -21,7 +21,7 @@ if client then
 	local function query_cb(conn,reply,id)
 		count = count + 1
 		local cmd = string.format("hmget chaid:%d chainfo skill",id)
-		client:Query(cmd,gen_callback(query_cb,id))		
+		client:Execute(cmd,gen_callback(query_cb,id))		
 	end
 
 
@@ -29,12 +29,12 @@ if client then
 		local cmd = string.format("hmset chaid:%d chainfo %s skills %s",i,
 								  "fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
 								  "fasfasdfasdfasfasdfasdfasdfcvavasdfasdf")
-		client:Query(cmd)
+		client:Execute(cmd)
 	end
 
 	for i = 1,1000 do
 		local cmd = string.format("hmget chaid:%d chainfo skills",i)
-		client:Query(cmd,gen_callback(query_cb,i))
+		client:Execute(cmd,gen_callback(query_cb,i))
 	end
 	local last = chuck.systick()
 	chuck.RegTimer(engine,1000,

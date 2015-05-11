@@ -216,7 +216,7 @@ _close(redis_conn *c,int32_t err)
 
 
 void 
-query_callback(redis_conn *c,reply_cb *stcb);
+execute_callback(redis_conn *c,reply_cb *stcb);
 
 
 static void 
@@ -237,7 +237,7 @@ RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
 				parse_ret = parse(c->tree,&ptr);
 				if(parse_ret == REDIS_OK){
 					reply_cb *stcb = (reply_cb*)list_pop(&c->waitreplys);
-					query_callback(c,stcb);
+					execute_callback(c,stcb);
 					free(stcb);
 					parse_tree_del(c->tree);
 					c->tree = NULL;
@@ -282,7 +282,7 @@ IoFinish(handle *sock,void *_,int32_t bytestransfer,
 
 
 int32_t 
-_redis_query(redis_conn *conn,const char *str)
+_redis_execute(redis_conn *conn,const char *str)
 {
 	handle *h = (handle*)conn;
 	int32_t ret = 0;
@@ -304,12 +304,12 @@ _redis_query(redis_conn *conn,const char *str)
 }
 
 int32_t 
-redis_query(redis_conn *conn,const char *str,
+redis_execute(redis_conn *conn,const char *str,
 	        void (*cb)(redis_conn*,redisReply*,void *ud),
 	        void *ud)
 {
 
-	int32_t ret = _redis_query(conn,str);
+	int32_t ret = _redis_execute(conn,str);
 	if(ret != 0) return ret;
 	reply_cb *repobj = calloc(1,sizeof(*repobj));
 	repobj->type = CB_C;
@@ -466,7 +466,7 @@ static void PushResultSet(lua_State *L,luaPushFunctor *_){
 }
 
 void 
-query_callback(redis_conn *c,reply_cb *stcb)
+execute_callback(redis_conn *c,reply_cb *stcb)
 {
 	if(stcb->type == CB_C && stcb->cb)
 		stcb->cb(c,c->tree->reply,stcb->ud);
@@ -566,11 +566,11 @@ lua_redis_close(lua_State *L)
 }
 
 int32_t
-lua_redis_query(lua_State *L)
+lua_redis_execute(lua_State *L)
 {
 	redis_conn *c = lua_toreadisconn(L,1);
 	const char *str = lua_tostring(L,2);
-	int32_t ret = _redis_query(c,str);
+	int32_t ret = _redis_execute(c,str);
 	if(ret != 0){
 		lua_pushstring(L,"query error");
 		return 1;
@@ -594,7 +594,7 @@ reg_luaredis(lua_State *L)
     };
 
     luaL_Reg redis_methods[] = {
-        {"Query",  lua_redis_query},
+        {"Execute",  lua_redis_execute},
         {"Close",  lua_redis_close},
         {NULL,     NULL}
     };
@@ -648,7 +648,7 @@ static void show_reply(redisReply *reply){
 }
 
 void 
-test_parse_reply(char *str){
+test_parse(char *str){
 	int32_t parse_ret;
 	do{
 		if(!test_tree) test_tree = parse_tree_new();

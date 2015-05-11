@@ -60,7 +60,7 @@ void
 redis_close(redis_conn*);
 
 int32_t     
-redis_query(redis_conn*,const char *str,
+redis_execute(redis_conn*,const char *str,
             void (*)(redis_conn*,redisReply*,void *ud),
             void *ud);
 
@@ -75,7 +75,7 @@ reg_luaredis(lua_State *L);
 
 //for test
 void 
-test_parse_reply(char *str);
+test_parse(char *str);
 
 
 

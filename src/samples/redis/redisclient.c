@@ -51,20 +51,20 @@ void cmd_callback(redis_conn *conn,redisReply *reply,void *ud){
 
 
 int main(int argc,char **argv){
-	test_parse_reply("*2\r");
-	test_parse_reply("\n$53\r\nfasdfasdffasdfasdfasdfasdfasdfasfasdffasfsdffasdfadfs\r\n$36\r\nfasfsadfasdfsdafasdfasdfasdfsdafsadf\r\n");
+	test_parse("*2\r");
+	test_parse("\n$53\r\nfasdfasdffasdfasdfasdfasdfasdfasfasdffasfsdffasdfadfs\r\n$36\r\nfasfsadfasdfsdafasdfasdfasdfsdafsadf\r\n");
 
-	test_parse_reply("$5\r");
-	test_parse_reply("\nhello\r");
-	test_parse_reply("\n");
+	test_parse("$5\r");
+	test_parse("\nhello\r");
+	test_parse("\n");
 
-	test_parse_reply(":");
-	test_parse_reply("10\r");
-	test_parse_reply("\n");
+	test_parse(":");
+	test_parse("10\r");
+	test_parse("\n");
 
-	test_parse_reply("");
-	test_parse_reply("+ok haha\r");
-	test_parse_reply("\n");				
+	test_parse("");
+	test_parse("+ok haha\r");
+	test_parse("\n");				
 
 	char  input[65535];
 	char *ptr;
@@ -79,7 +79,7 @@ int main(int argc,char **argv){
 		return 0;
 	}
 
-	redis_query(redis_client,"set kenny h\r\nha",cmd_callback,NULL);
+	redis_execute(redis_client,"set kenny h\r\nha",cmd_callback,NULL);
 
 	do{
 	    ptr = input;	
@@ -87,7 +87,7 @@ int main(int argc,char **argv){
 	    	++ptr;
 	    *ptr = 0;
 	    flag = 1;
-	    redis_query(redis_client,input,cmd_callback,NULL);
+	    redis_execute(redis_client,input,cmd_callback,NULL);
 	    while(flag && redis_client){
 	    	engine_runonce(e,10);
 	    };
