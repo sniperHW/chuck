@@ -5,6 +5,13 @@ local packet = chuck.packet
 
 local engine
 
+local function sigint_handler()
+	print("recv sigint")
+	engine:Stop()
+end
+
+local signaler = signal.signaler(signal.SIGINT)
+
 function on_packet(conn,p,event)
 	if event == "RECV" then
 		conn:Send(packet.clone(p),"notify")
@@ -39,5 +46,6 @@ if 0 == socket_helper.listen(fd,ip,port) then
 	engine = chuck.engine()
 	server:Add2Engine(engine,on_new_client)
 	chuck.RegTimer(engine,1000,function() collectgarbage("collect") print("timeout") end)
+	signaler:Register(engine,sigint_handler)
 	engine:Run()
 end

@@ -25,6 +25,7 @@ source =  util/exception.c\
 		  util/string.c\
 		  util/refobj.c\
 		  util/timerfd.c\
+		  util/signaler.c\
 		  packet/wpacket.c\
 		  packet/rpacket.c\
 		  packet/packet.c\

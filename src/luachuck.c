@@ -7,6 +7,7 @@
 #include "socket/wrap/decoder.h"
 #include "util/time.h"
 #include "db/redis/client.h"
+#include "util/signaler.h"
 
 #define SET_CONST(L,N) do{\
 		lua_pushstring(L, #N);\
@@ -219,6 +220,10 @@ luaopen_chuck(lua_State *L)
 	lua_pushstring(L,"redis");
 	reg_luaredis(L);
 	lua_settable(L,-3);			
+
+	lua_pushstring(L,"signal");
+	reg_luasignaler(L);
+	lua_settable(L,-3);
 		
 	return 1;
 }

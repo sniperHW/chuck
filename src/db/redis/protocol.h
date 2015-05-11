@@ -284,19 +284,18 @@ convert(list *l,size_t space)
 	char *ptr,*ptr1;
 	word *w;
 	rawpacket *p;
-	uint32_t headsize = (uint32_t)digitcount((uint32_t)list_size(l)); 		
-	space += (headsize + 3);//plus head *,tail \r\n
+	size_t i;		
+	space += (digitcount(list_size(l)) + 3);//plus head *,tail \r\n
 	bytebuffer *buffer = bytebuffer_new(space);
 	ptr1 = buffer->data;
 	*ptr1++ = '*';
-	u2s((uint32_t)list_size(l),&ptr1);
+	u2s(list_size(l),&ptr1);
 	for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
 	while(NULL != (w = (word*)list_pop(l))){
 		*ptr1++ = '$';
-		u2s((uint32_t)(w->size),&ptr1);
+		u2s((uint32_t)w->size,&ptr1);
 		for(ptr=end;*ptr;)*ptr1++ = *ptr++;		
-		size_t i = 0;
-		for(; i < w->size;) *ptr1++ = w->buff[i++];
+		for(i = 0; i < w->size;) *ptr1++ = w->buff[i++];
 		for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
 		free(w);
 	}

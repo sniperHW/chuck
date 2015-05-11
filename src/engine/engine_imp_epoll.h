@@ -11,7 +11,7 @@ typedef struct{
 	int32_t    epfd;
 	struct     epoll_event* events;
 	int32_t    maxevents;
-	handle    *tfd;
+	timerfd   *tfd;
 	wheelmgr  *timermgr;
 	int32_t    notifyfds[2];//0 for read,1 for write
 }epoll_;
@@ -91,7 +91,7 @@ engine_regtimer(engine *e,uint32_t timeout,
 	if(!ep->tfd){
 		ep->timermgr = wheelmgr_new();
 		ep->tfd      = timerfd_new(1,ep->timermgr);
-		engine_add(e,ep->tfd,(generic_callback)timerfd_callback);
+		engine_associate(e,ep->tfd,timerfd_callback);
 	}
 	return wheelmgr_register(ep->timermgr,timeout,cb,ud,systick64());
 }
@@ -153,19 +153,30 @@ lua_engine_new(lua_State *L)
 	return 1;
 }
 
-void 
-engine_del(engine *e)
+static inline void
+_engine_del(engine *e)
 {
 	epoll_ *ep = (epoll_*)e;
 	if(ep->tfd){
-		engine_remove(ep->tfd);
+		engine_remove((handle*)ep->tfd);
 		wheelmgr_del(ep->timermgr);
 	}
 	close(ep->epfd);
 	close(ep->notifyfds[0]);
 	close(ep->notifyfds[1]);
 	free(ep->events);
-	free(ep);
+}
+void 
+engine_del(engine *e)
+{
+	_engine_del(e);
+	free(e);
+}
+
+void
+engine_del_lua(engine *e)
+{
+	_engine_del(e);
 }
 
 int32_t

@@ -5,6 +5,13 @@ local packet = chuck.packet
 local decoder = chuck.decoder
 local err = chuck.error
 
+local function sigint_handler()
+	print("recv sigint")
+	engine:Stop()
+end
+
+local signaler = signal.signaler(signal.SIGINT)
+
 function on_packet(conn,p,event)
 	if event == "RECV" then
 		conn:Send(packet.wpacket(p))
@@ -58,4 +65,5 @@ chuck.RegTimer(engine,1000,function()
 	collectgarbage("collect")
 end)
 
+signaler:Register(engine,sigint_handler)
 engine:Run()

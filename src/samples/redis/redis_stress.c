@@ -23,7 +23,7 @@ void cmd_callback(redis_conn *conn,redisReply *reply,void *ud){
 int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 	if(event == TEVENT_TIMEOUT){
 		uint64_t now = systick64();
-		printf("count:%u/s\n",count*1000/(now-last));
+		printf("count:%lld/s\n",count*1000/(now-last));
 		last = now;
 		count = 0;
 	}

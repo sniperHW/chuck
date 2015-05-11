@@ -4,6 +4,7 @@ local acceptor = chuck.acceptor
 local connection = chuck.connection
 local packet = chuck.packet
 local decoder = chuck.decoder
+local signal  = chuck.signal
 
 local fd =  socket_helper.socket(socket_helper.AF_INET,
 								 socket_helper.SOCK_STREAM,
@@ -41,6 +42,13 @@ end
 local ip = "127.0.0.1"
 local port = 8010
 
+local function sigint_handler()
+	print("recv sigint")
+	engine:Stop()
+end
+
+local signaler = signal.signaler(signal.SIGINT)
+
 if 0 == socket_helper.listen(fd,ip,port) then
 	print("server start",ip,port)
 	print("server start")
@@ -52,5 +60,6 @@ if 0 == socket_helper.listen(fd,ip,port) then
 		print(packetcout,chuck.get_bytebuffer_count())
 		packetcout = 0		
 	end)
+	signaler:Register(engine,sigint_handler)
 	engine:Run()
 end

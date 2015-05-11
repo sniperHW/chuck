@@ -34,7 +34,7 @@ engine *lua_toengine(lua_State *L, int index){
 
 static int32_t lua_engine_gc(lua_State *L){
 	engine *e = lua_toengine(L,1);
-	engine_del(e);
+	engine_del_lua(e);
 	return 0;
 }
 

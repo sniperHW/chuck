@@ -25,7 +25,7 @@ on_timeout(handle *h,int32_t events)
 	((timerfd*)h)->callback(((timerfd*)h)->ud);
 }
 
-handle*
+timerfd*
 timerfd_new(uint32_t timeout,void *ud)
 {
 	timerfd *t = calloc(1,sizeof(*t));
@@ -55,12 +55,12 @@ timerfd_new(uint32_t timeout,void *ud)
 	((handle*)t)->on_events = on_timeout;
 	((handle*)t)->imp_engine_add = imp_engine_add;
 	t->ud = ud;
-	return (handle*)t;
+	return t;
 }
 
 void 
-timerfd_del(handle *h)
+timerfd_del(timerfd *t)
 {
-	close(h->fd);
-	free(h);
+	close(((handle*)t)->fd);
+	free(t);
 }

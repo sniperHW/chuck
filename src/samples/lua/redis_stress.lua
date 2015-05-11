@@ -2,6 +2,13 @@ local chuck = require("chuck")
 local engine = chuck.engine()
 local err,client = chuck.redis.Connect(engine,"127.0.0.1",6379)
 
+local function sigint_handler()
+	print("recv sigint")
+	engine:Stop()
+end
+
+local signaler = signal.signaler(signal.SIGINT)
+
 if client then
 	local count = 0
 
@@ -38,6 +45,7 @@ if client then
 				   		last = now
 				   		count = 0 
 				   end)
+	signaler:Register(engine,sigint_handler)
 	engine:Run()
 
 else

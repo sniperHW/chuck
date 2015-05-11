@@ -14,22 +14,29 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef _CHUCK_H
-#define _CHUCK_H
+
+#ifndef __SIGNALER__H
+#define __SIGNALER__H
 
 #include "comm.h"
-#include "engine/engine.h"
-#include "socket/socket_helper.h"
-#include "socket/acceptor.h"
-#include "socket/connector.h"    
-#include "socket/wrap/connection.h"
-#include "socket/wrap/datagram.h"    
 #include "lua/lua_util.h"
-#include "mem/allocator.h"
-#include "util/log.h"
-#include "util/time.h"
-#include "util/exception.h"
-#include "util/signaler.h"   
+//void (*)(struct signaler *,int32_t,void *ud)    
 
+typedef struct signaler{
+    handle  base;
+    int32_t signum;  
+    void   *ud;
+    void    (*callback)(struct signaler *,int32_t,void *ud);
+    luaRef  luacallback;
+}signaler;
+
+signaler*
+signaler_new(int32_t signum,void *ud);
+
+void    
+signaler_del(signaler*);
+
+void    
+reg_luasignaler(lua_State *L); 
 
 #endif
