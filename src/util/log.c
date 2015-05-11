@@ -201,7 +201,7 @@ log_once_routine()
 	list_init(&logqueue.share_queue);
 	logqueue.mtx = mutex_new();
 	logqueue.cond = condition_new(logqueue.mtx);
-	g_log_thd = thread_new(JOINABLE|WAITRUN,log_routine,NULL);	
+	g_log_thd = thread_new(JOINABLE,log_routine,NULL);	
 	atexit(on_process_end);
 }
 

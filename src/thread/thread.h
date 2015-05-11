@@ -31,7 +31,6 @@ enum
 {
 	DETACH   = 1,
 	JOINABLE = 1 << 2,
-    WAITRUN  = 1 << 3,
 };
 
 thread*

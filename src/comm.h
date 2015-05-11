@@ -306,6 +306,11 @@ enum{
     EINVIPK,                    /*invaild packet type*/
     EACTCLOSE,                  /*active close*/
     ERDISPERROR,                /*redis reply error*/
+    EALSETMBOX,                 /*already setup mailbox*/
+    EMAXTHD,                    /*reach max thread*/
+    EPIPECRERR,                 /*notifier create error*/
+    EENASSERR,                  /*event add error*/
+    ETMCLOSE,                   /*target mailbox close*/
 };
     
 #endif

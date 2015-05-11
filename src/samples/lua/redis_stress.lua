@@ -1,6 +1,7 @@
 local chuck = require("chuck")
 local engine = chuck.engine()
 local err,client = chuck.redis.Connect(engine,"127.0.0.1",6379)
+local signal = chuck.signal
 
 local function sigint_handler()
 	print("recv sigint")

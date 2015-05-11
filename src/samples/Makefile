@@ -29,7 +29,8 @@ source =  stream/connection/conn_echo_server.c\
 		  datagram/datagram/dgram_rpk_client.c\
 		  redis/redisclient.c\
 		  redis/redis_stress.c\
-		  signal.c
+		  signal.c\
+		  testmailbox.c
 
 all:
 	@if [ ! -d "bin" ]; then mkdir bin; fi	
@@ -47,5 +48,6 @@ all:
 	$(CC) $(CFLAGS) -o bin/udp_echoclient udp_echoclient.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/redisclient redisclient.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/redis_stress redis_stress.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o bin/signal signal.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)	
+	$(CC) $(CFLAGS) -o bin/signal signal.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
+	$(CC) $(CFLAGS) -o bin/testmailbox testmailbox.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)	
 	rm *.o		  

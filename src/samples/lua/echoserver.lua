@@ -2,6 +2,7 @@ local chuck = require("chuck")
 local socket_helper = chuck.socket_helper
 local connection = chuck.connection
 local packet = chuck.packet
+local signal = chuck.signal
 
 local engine
 

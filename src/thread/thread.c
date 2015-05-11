@@ -9,6 +9,8 @@
 
 __thread pid_t tid = 0;
 
+extern void clear_thdmailbox();
+
 
 static void 
 child()
@@ -37,7 +39,9 @@ start_routine(void *_)
 		mutex_unlock(starg->mtx);
 		condition_signal(starg->cond);
 	}
-	return routine(arg);
+	void *ret = routine(arg);
+	clear_thdmailbox();
+	return ret;
 }
 
 
@@ -52,29 +56,24 @@ thread_new(int32_t flag,
 		pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_JOINABLE);
 	else
 		pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED);	
+	
 	thread *t = calloc(1,sizeof(*t));
-	if(flag | WAITRUN){
-		struct start_arg starg;
+	struct start_arg starg;
+	starg.routine = routine;
+	starg.arg = ud;
+	starg.running = 0;
+	starg.mtx = mutex_new();
+	starg.cond = condition_new(starg.mtx);
+	pthread_create(&t->threadid,&attr,start_routine,&starg);
 
-		starg.routine = routine;
-		starg.arg = ud;
-		starg.running = 0;
-		starg.mtx = mutex_new();
-		starg.cond = condition_new(starg.mtx);
-		pthread_create(&t->threadid,&attr,start_routine,&starg);
-
-
-		mutex_lock(starg.mtx);
-		while(!starg.running){
-			condition_wait(starg.cond);
-		}
-		mutex_unlock(starg.mtx);
-		condition_del(starg.cond);		
-		mutex_del(starg.mtx);		
-		
-	}else{
-		pthread_create(&t->threadid,&attr,routine,ud);
+	mutex_lock(starg.mtx);
+	while(!starg.running){
+		condition_wait(starg.cond);
 	}
+	mutex_unlock(starg.mtx);
+	condition_del(starg.cond);		
+	mutex_del(starg.mtx);		
+		
 	pthread_attr_destroy(&attr);
 	return t;
 }

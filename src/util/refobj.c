@@ -50,7 +50,7 @@ cast2refobj(refhandle h)
         while(h.identity == o->identity){
             if(COMPARE_AND_SWAP(&o->flag,0,1)){
                 if(h.identity == o->identity){
-                    if(ATOMIC_FETCH_DECREASE(&o->refcount) > 0)
+                    if(ATOMIC_FETCH_INCREASE(&o->refcount) > 0)
                         ptr = o;
                     else
                         o->refcount = 0;

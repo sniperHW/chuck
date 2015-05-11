@@ -33,6 +33,7 @@ source =  util/exception.c\
 		  packet/luapacket.c\
 		  thread/thread.c\
 		  thread/spinlock.c\
+		  thread/thdmailbox.c\
 		  socket/socket.c\
 		  socket/acceptor.c\
 		  socket/connector.c\

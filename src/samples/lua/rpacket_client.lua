@@ -4,6 +4,7 @@ local connection = chuck.connection
 local packet = chuck.packet
 local decoder = chuck.decoder
 local err = chuck.error
+local signal = chuck.signal
 
 local function sigint_handler()
 	print("recv sigint")
