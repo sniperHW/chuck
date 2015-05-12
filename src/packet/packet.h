@@ -37,8 +37,8 @@ typedef struct packet
     struct packet*  (*clone)(struct packet*);
     uint32_t    len_packet;                                  //total size of packet in bytes        
     uint32_t    spos:16;                                     //start pos in head 
-    uint32_t    type:8;
-    uint32_t    mask:8;      
+    uint32_t    type:16;
+    uint64_t    sendtime;      
 }packet;
 
 #define TYPE_HEAD uint16_t

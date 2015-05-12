@@ -3,6 +3,7 @@
 #include "packet/rawpacket.h"
 #include "util/log.h"
 #include "packet/luapacket.h"
+#include "util/time.h"
 
 static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
 
@@ -10,6 +11,12 @@ enum{
 	RECVING   = SOCKET_END << 1,
 	SENDING   = SOCKET_END << 2,
 };
+
+typedef struct{
+	listnode *node;
+	packet   *p;
+	void    (*cb)(connection *c,packet*);
+}stSendFshCb;
 
 static inline void 
 prepare_recv(connection *c)
@@ -103,12 +110,13 @@ RecvFinish(connection *c,int32_t bytes,
 			c->on_packet(c,NULL,err_code);
 			return;	
 		}else if(bytes > 0){
+			c->lastrecv = systick64();
 			update_next_recv_pos(c,bytes);
 			int32_t unpack_err;
 			do{
 				pk = c->decoder_->unpack(c->decoder_,&unpack_err);
 				if(pk){
-					c->on_packet(c,pk,PKEV_RECV);
+					c->on_packet(c,pk,0);
 					packet_del(pk);
 					if(((socket_*)c)->status & SOCKET_CLOSE)
 						return;
@@ -181,14 +189,18 @@ update_send_list(connection *c,
 		assert(w);
 		if((uint32_t)bytes >= ((packet*)w)->len_packet)
 		{
-			if(w->mask){
-				c->on_packet(c,w,PKEV_SEND);
-				if(((socket_*)c)->status & SOCKET_CLOSE)
-					return;
+			
+			stSendFshCb *stcb = (stSendFshCb*)list_begin(&c->send_finish_cb);
+			if(stcb && stcb->p == (packet*)w){
+				list_pop(&c->send_finish_cb);
+				stcb->cb(c,stcb->p);
+				free(stcb);
 			}
 			list_pop(&c->send_list);
 			bytes -= ((packet*)w)->len_packet;
 			packet_del(w);
+			if(((socket_*)c)->status & SOCKET_CLOSE)
+				return;
 		}else{
 			do{
 				size = ((packet*)w)->head->size - ((packet*)w)->spos;
@@ -232,6 +244,31 @@ IoFinish(handle *sock,void *_,
 		SendFinish(c,bytes);
 	else if(io == (iorequest*)&c->recv_overlap)
 		RecvFinish(c,bytes,err_code);
+}
+
+static int32_t 
+timer_callback(uint32_t event,uint64_t tick,void *ud){
+	if(event == TEVENT_TIMEOUT){
+		//printf("-------------%ld\n",systick64() - tick);
+		connection *c = (connection*)ud;
+		if(c->recvtimeout &&
+		   c->recvtimeout + tick > c->lastrecv)
+		{
+		   c->on_packet(c,NULL,ERVTIMEOUT);
+			if(((socket_*)c)->status & SOCKET_CLOSE)
+			return 0;		
+		}
+		if(c->sendtimeout){
+			packet *p = (packet*)list_begin(&c->send_list);
+			if(p){
+				if(p->sendtime + c->sendtimeout > tick)
+					c->on_packet(c,NULL,ESNTIMEOUT);
+				if(((socket_*)c)->status & SOCKET_CLOSE)
+					return 0;
+			}	
+		}
+	}
+	return 0;
 }	
 
 static int32_t 
@@ -239,30 +276,42 @@ imp_engine_add(engine *e,handle *h,
 			   generic_callback callback)
 {
 	int32_t ret;
+	connection *c = (connection*)h;
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
 	//call the base_engine_add first
 	ret = base_engine_add(e,h,(generic_callback)IoFinish);
 	if(ret == 0){
-		((connection*)h)->on_packet = (void(*)(connection*,packet*,int32_t))callback;
+		c->on_packet = (void(*)(connection*,packet*,int32_t))callback;
 		//post the first recv request
 		if(!(((socket_*)h)->status & RECVING))
-			PostRecv((connection*)h);
+			PostRecv(c);
+
+		if((c->recvtimeout || c->sendtimeout) && !c->timer_)
+			c->timer_ = engine_regtimer(h->e,1000,timer_callback,c);
+		c->lastrecv = systick64();
 	}
 	return ret;
 }
 
 int32_t 
 connection_send(connection *c,packet *p,
-				int32_t send_fsh_notify)
+				void (*fnish_cb)(connection*,packet*))
 {
 	int32_t ret;
 	if(p->type != WPACKET && p->type != RAWPACKET){
 		packet_del(p);
 		return -EINVIPK;
-	}	
-	if(send_fsh_notify) p->mask = 1;	
+	}
+	if(c->sendtimeout)
+		p->sendtime = systick64();		
 	list_pushback(&c->send_list,(listnode*)p);
+	if(fnish_cb){
+		stSendFshCb *stcb = calloc(1,sizeof(*stcb));
+		stcb->cb = fnish_cb;
+		stcb->p = p;
+		list_pushback(&c->send_finish_cb,(listnode*)stcb);
+	}
 	if(!(((socket_*)c)->status & SENDING)){
 		prepare_send(c);
 		ret = Send(c,IO_NOW);
@@ -275,15 +324,27 @@ connection_send(connection *c,packet *p,
 	return -EAGAIN;
 }
 
+
+void 
+_connection_dctor(connection *c)
+{
+	packet *p;
+	stSendFshCb *stcb;
+	while((p = (packet*)list_pop(&c->send_list))!=NULL)
+		packet_del(p);
+	while((stcb = (stSendFshCb*)list_pop(&c->send_finish_cb))!=NULL)
+		free(stcb);	
+	bytebuffer_set(&c->next_recv_buf,NULL);
+	decoder_del(c->decoder_);
+	if(c->timer_)
+		unregister_timer(c->timer_);
+}
+
 void 
 connection_dctor(void *_)
 {
 	connection *c = (connection*)_;
-	packet *p;
-	while((p = (packet*)list_pop(&c->send_list))!=NULL)
-		packet_del(p);
-	bytebuffer_set(&c->next_recv_buf,NULL);
-	decoder_del(c->decoder_);
+	_connection_dctor(c);
 	free(c);
 }
 
@@ -314,12 +375,13 @@ connection_new(int32_t fd,uint32_t buffersize,decoder *d)
 	return c;
 }
 
-void 
+int32_t 
 connection_close(connection *c)
 {
-	if(((socket_*)c)->status & SOCKET_RELEASE)
-		return;
+	if(((socket_*)c)->status & SOCKET_CLOSE)
+		return -ESOCKCLOSE;
 	close_socket((socket_*)c);
+	return 0;
 }
 
 static packet*
@@ -353,6 +415,40 @@ conn_raw_decoder_new()
 }
 
 
+void
+connection_set_recvtimeout(connection *c,uint32_t timeout)
+{
+	handle *h = (handle*)c;
+	c->recvtimeout = timeout;
+	if(h->e && c->recvtimeout && !c->timer_)
+		c->timer_ = engine_regtimer(h->e,1000,timer_callback,c);
+	else if(!c->recvtimeout && 
+			!c->sendtimeout &&
+			c->timer_)
+	{
+		unregister_timer(c->timer_);
+		c->timer_ = NULL;
+	}
+}
+
+
+void
+connection_set_sendtimeout(connection *c,uint32_t timeout)
+{
+	handle *h = (handle*)c;
+	c->sendtimeout = timeout;
+	if(h->e && c->sendtimeout && !c->timer_)
+		c->timer_ = engine_regtimer(h->e,1000,timer_callback,c);
+	else if(!c->recvtimeout && 
+			!c->sendtimeout &&
+			c->timer_)
+	{
+		unregister_timer(c->timer_);
+		c->timer_ = NULL;
+	}
+}
+
+
 //for lua
 
 #define LUA_METATABLE "conn_mata"
@@ -362,11 +458,7 @@ void
 lua_connection_dctor(void *_)
 {
 	connection *c = (connection*)_;
-	packet *p;
-	while((p = (packet*)list_pop(&c->send_list))!=NULL)
-		packet_del(p);
-	bytebuffer_set(&c->next_recv_buf,NULL);
-	decoder_del(c->decoder_);
+	_connection_dctor(c);
 	release_luaRef(&c->lua_cb_packet);
 	//should not invoke free
 }
@@ -433,7 +525,7 @@ PushPk(lua_State *L,luaPushFunctor *_)
 }
 
 static void 
-lua_on_packet(connection *c,packet *p,int32_t event)
+lua_on_packet(connection *c,packet *p,int32_t err)
 {
 	const char * error;
 	stPushConn st1;	
@@ -445,16 +537,8 @@ lua_on_packet(connection *c,packet *p,int32_t event)
 	st2.p = p ? clone_packet(p):NULL;
 	st2.base.Push = PushPk;	
 
-	if(p){
-		error = LuaCallRefFunc(c->lua_cb_packet,"ffs",
-							   &st1,&st2,
-							   event == PKEV_RECV ? "RECV":"SEND");		
-	}else{
-		error = LuaCallRefFunc(c->lua_cb_packet,"ffi",
-							   &st1,&st2,event);		
-	}
-
-	if(error){
+	if((error = LuaCallRefFunc(c->lua_cb_packet,"ffi",&st1,&st2,err)))
+	{
 		SYS_LOG(LOG_ERROR,"error on lua_cb_packet:%s\n",error);
 	}
 
@@ -497,8 +581,8 @@ lua_conn_send(lua_State *L)
 {
 	connection *c = lua_toconnection(L,1);
 	luapacket  *p = lua_topacket(L,2);
-	int32_t     set_notify = lua_gettop(L) == 3;
-	lua_pushinteger(L,connection_send(c,p->_packet,set_notify));
+	//int32_t     set_notify = lua_gettop(L) == 3;
+	lua_pushinteger(L,connection_send(c,p->_packet,NULL));
 	p->_packet = NULL;
 	return 1;
 }

@@ -85,15 +85,19 @@ outbound_packet(connection *c,packet *p,int32_t event)
 {
 	session *sess = (session*)c->ud_ptr;
 	if(p){
-		if(event == PKEV_RECV){
-			if(sess->status == ESTABLISH &&
-			   sess->inbound){	
-				connection_send(sess->inbound,make_writepacket(p),0);
-				return;
-			}
+		if(sess->status == ESTABLISH &&
+		   sess->inbound){	
+			connection_send(sess->inbound,make_writepacket(p),0);
+			return;
 		}
 	}
 	close_peer(sess,c);		
+}
+
+static void snd_fnish_cb(connection *c,packet *_)
+{
+	session *sess = (session*)c->ud_ptr;
+	close_peer(sess,c);	
 }
 
 static void 
@@ -117,7 +121,7 @@ on_connected(int32_t fd,int32_t err,void *ud)
 			rawpacket *pk = rawpacket_new(64);
 			rawpacket_append(pk,&res,sizeof(res));
 			//notify on send finish
-			connection_send(sess->inbound,(packet*)pk,1);
+			connection_send(sess->inbound,(packet*)pk,snd_fnish_cb);
 		}else{
 			close_peer(sess,NULL);
 		}	
@@ -167,30 +171,28 @@ inbound_packet(connection *c,packet *p,int32_t event)
 {
 	session *sess = (session*)c->ud_ptr;
 	if(p){
-		if(event == PKEV_RECV){
-			if(sess->outbound && 
-			   sess->status == ESTABLISH)
-			{	
-				connection_send(sess->outbound,make_writepacket(p),0);
-				return;
-			}
-			else if(sess->status == NONE){
-				//connect
-				uint32_t cap = sizeof(sess->req) - sess->size;
-				uint32_t size;
-				void *ptr = rawpacket_data((rawpacket*)p,&size);
-				if(size <= cap){
-					memcpy((char*)(&sess->req) + sess->size,ptr,size);
-					sess->size += size;
-					if(sess->size > 8){
-						uint32_t i;
-						for(i = 8; i < sess->size; ++i){
-							if(*((char*)&sess->req + i) == 0){
-								//a request finish
-								if(0 == process_request(sess))
-									return;
-								break;	
-							}
+		if(sess->outbound && 
+		   sess->status == ESTABLISH)
+		{	
+			connection_send(sess->outbound,make_writepacket(p),0);
+			return;
+		}
+		else if(sess->status == NONE){
+			//connect
+			uint32_t cap = sizeof(sess->req) - sess->size;
+			uint32_t size;
+			void *ptr = rawpacket_data((rawpacket*)p,&size);
+			if(size <= cap){
+				memcpy((char*)(&sess->req) + sess->size,ptr,size);
+				sess->size += size;
+				if(sess->size > 8){
+					uint32_t i;
+					for(i = 8; i < sess->size; ++i){
+						if(*((char*)&sess->req + i) == 0){
+							//a request finish
+							if(0 == process_request(sess))
+								return;
+							break;	
 						}
 					}
 				}

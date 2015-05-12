@@ -16,16 +16,14 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 	return 0;
 }
 
-static void on_packet(connection *c,packet *p,int32_t event){
+static void on_packet(connection *c,packet *p,int32_t error){
 	if(p){
-		if(event == PKEV_RECV){
-			int i = 0;
-			for(;i < client_count; ++i){
-				connection *conn = clients[i];
-				if(conn){
-					packet_count++;
-					connection_send(conn,make_writepacket(p),0);
-				}
+		int i = 0;
+		for(;i < client_count; ++i){
+			connection *conn = clients[i];
+			if(conn){
+				packet_count++;
+				connection_send(conn,make_writepacket(p),NULL);
 			}
 		}
 	}else{

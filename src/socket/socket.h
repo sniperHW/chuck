@@ -7,8 +7,7 @@
 enum{
 	SOCKET_CLOSE    = 1 << 1,
 	SOCKET_INLOOP   = 1 << 2,
-	SOCKET_RELEASE  = 1 << 3,
-	SOCKET_END      = SOCKET_RELEASE,
+	SOCKET_END      = SOCKET_INLOOP,
 };
 
 //type

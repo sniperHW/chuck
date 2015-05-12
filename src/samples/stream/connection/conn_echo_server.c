@@ -12,13 +12,18 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 	return 0;
 }
 
-static void on_packet(connection *c,packet *p,int32_t event){
+static void snd_fnish_cb(connection *c,packet *_)
+{
+	connection_close(c);
+	--client_count;	
+}
+
+static void on_packet(connection *c,packet *p,int32_t error){
 	if(p){
-		if(event == PKEV_RECV){
-			printf("on_packet\n");
-			connection_send(c,make_writepacket(p),1);
-		}
+		printf("on_packet\n");
+		connection_send(c,make_writepacket(p),snd_fnish_cb);
 	}else{
+		printf("here,%d\n",error);
 		connection_close(c);
 		--client_count;
 	}
@@ -28,6 +33,8 @@ static void on_connection(int32_t fd,sockaddr_ *_,void *ud){
 	printf("on_connection\n");
 	engine *e = (engine*)ud;
 	connection *c = connection_new(fd,64,NULL);
+	//SLEEPMS(2000);
+	connection_set_recvtimeout(c,2000);
 	engine_associate(e,c,on_packet);
 	++client_count;
 }

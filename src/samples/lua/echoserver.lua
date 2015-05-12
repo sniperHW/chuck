@@ -17,11 +17,9 @@ local signaler = signal.signaler(signal.SIGINT)
 function on_new_client(fd)
 	print("on new client\n")
 	local conn = connection(fd,4096)
-	conn:Add2Engine(engine,function (_,p,event)
+	conn:Add2Engine(engine,function (_,p,err)
 		if p then
-			if event == "RECV" then
-				conn:Send(packet.clone(p),"notify")
-			end
+			conn:Send(packet.clone(p),"notify")
 		else
 			conn:Close()
 		end

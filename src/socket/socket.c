@@ -25,9 +25,9 @@ release_socket(socket_ *s)
 void 
 close_socket(socket_ *s)
 {
-	if(s->status & SOCKET_RELEASE)
+	if(s->status & SOCKET_CLOSE)
 		return;
-	s->status |= (SOCKET_CLOSE | SOCKET_RELEASE);
+	s->status |= SOCKET_CLOSE;
 	engine_remove((handle*)s);			
 	if(!(s->status & SOCKET_INLOOP)){
 		release_socket(s);

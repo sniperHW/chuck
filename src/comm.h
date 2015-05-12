@@ -310,7 +310,9 @@ enum{
     EPIPECRERR,                 /*notifier create error*/
     EENASSERR,                  /*event add error*/
     ETMCLOSE,                   /*target mailbox close*/
-    EPKTOOLARGE                 /*packet too large*/
+    EPKTOOLARGE,                /*packet too large*/
+    ERVTIMEOUT,                 /*recv timeout*/
+    ESNTIMEOUT,                 /*send timeout*/
 };
     
 #endif

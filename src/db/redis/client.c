@@ -311,7 +311,7 @@ redis_execute(redis_conn *conn,const char *str,
 void 
 redis_close(redis_conn *c)
 {
-	if(((socket_*)c)->status & SOCKET_RELEASE)
+	if(((socket_*)c)->status & SOCKET_CLOSE)
 		return;
 	close_socket((socket_*)c);
 }

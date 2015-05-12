@@ -106,7 +106,7 @@ on_events(handle *h,int32_t events)
 			process_write(s);			
 		status(s) ^= SOCKET_INLOOP;
 	}while(0);
-	if(status(s) & SOCKET_RELEASE){
+	if(status(s) & SOCKET_CLOSE){
 		release_socket((socket_*)s);		
 	}
 }

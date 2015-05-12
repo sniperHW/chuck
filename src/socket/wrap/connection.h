@@ -21,12 +21,9 @@
 #include "socket/wrap/decoder.h"
 #include "socket/socket.h"  
 #include "socket/wrap/wrap_comm.h"
-#include "lua/lua_util.h" 
+#include "lua/lua_util.h"
+#include "util/timewheel.h" 
 
-enum{
-    PKEV_RECV = 1,            //recv a packet
-    PKEV_SEND = 2,            //send a packet finish
-};
 
 typedef struct connection{
     stream_socket_ base;
@@ -37,12 +34,15 @@ typedef struct connection{
     uint32_t       next_recv_pos;
     bytebuffer    *next_recv_buf;        
     list           send_list;//待发送的包
+    list           send_finish_cb;
     uint32_t       recv_bufsize;
-    void           (*on_packet)(struct connection*,packet*,int32_t event);
-    //void           (*on_disconnected)(struct connection*,int32_t err);
+    void           (*on_packet)(struct connection*,packet*,int32_t error);
     decoder       *decoder_;
     luaRef         lua_cb_packet;
-//    luaRef         lua_cb_disconnected;
+    uint64_t       lastrecv;
+    uint32_t       recvtimeout;
+    uint32_t       sendtimeout;
+    timer         *timer_;  
     union{
         void      *ud_ptr;
         int32_t    ud_i32;
@@ -56,22 +56,20 @@ connection_new(int32_t fd,uint32_t buffersize,
 
 int32_t     
 connection_send(connection *c,packet *p,
-                int32_t send_fsh_notify);
+                void (*fnish_cb)(connection*,packet*));
 
-void        
+int32_t        
 connection_close(connection *c);
+
+void
+connection_set_recvtimeout(connection *c,uint32_t timeout);
+
+void
+connection_set_sendtimeout(connection *c,uint32_t timeout);
 
 decoder*
 conn_raw_decoder_new();
 
-
-/*static inline void 
-connection_set_discntcb(connection *c,
-                        void(*on_disconnected)
-                        (connection*,int32_t))
-{
-    c->on_disconnected = on_disconnected;
-}*/
 
 void        
 reg_luaconnection(lua_State *L);

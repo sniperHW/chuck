@@ -14,12 +14,10 @@ socket_helper.addr_reuse(fd,1)
 local engine
 local packetcout = 0
 
-function on_packet(conn,p,event)
+function on_packet(conn,p,err)
 	if p then
-		if event == "RECV" then
-			packetcout = packetcout + 1
-			conn:Send(packet.wpacket(p))
-		end
+		packetcout = packetcout + 1
+		conn:Send(packet.wpacket(p))
 	else
 	  	for k,v in pairs(clients) do
 	  		if v == conn then

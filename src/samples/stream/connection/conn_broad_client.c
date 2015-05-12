@@ -3,19 +3,14 @@
 #include "packet/rpacket.h"
 
 
-static void on_packet(connection *c,packet *p,int32_t event){
+static void on_packet(connection *c,packet *p,int32_t error){
 	if(p){
-		if(event == PKEV_RECV){
-			rpacket *rpk = (rpacket*)p;
-			uint64_t id = rpacket_peek_uint64(rpk);
-			if(id == (uint64_t)c){
-				connection_send(c,make_writepacket(p),0);
-			}
-		}else if(event == PKEV_SEND){
-			printf("packet send fnish\n");
+		rpacket *rpk = (rpacket*)p;
+		uint64_t id = rpacket_peek_uint64(rpk);
+		if(id == (uint64_t)c){
+			connection_send(c,make_writepacket(p),NULL);
 		}
-	}
-	else{
+	}else{
 		//error or peer close
 		connection_close(c);
 	}
@@ -30,7 +25,7 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 		packet *p = (packet*)wpacket_new(64);
 		wpacket_write_uint64((wpacket*)p,(uint64_t)c);
 		wpacket_write_string((wpacket*)p,"hello world\n");
-		connection_send(c,p,1);		
+		connection_send(c,p,NULL);		
 	}else{
 		printf("connect error\n");
 	}

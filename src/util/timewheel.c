@@ -35,10 +35,16 @@ wheel_new(uint8_t type)
 	return w;	
 }
 
+enum{
+	INCB = 1,
+	RELEASING = 1 << 1,
+};
+
 typedef struct timer{
 	dlistnode     node;
 	uint32_t      timeout;
 	uint64_t      expire;
+	int32_t       status;
 	int32_t       (*callback)(uint32_t,uint64_t,void*); 
 	void         *ud;
 }timer;
@@ -109,8 +115,10 @@ fire(wheelmgr *m,uint64_t tick)
 		tickup(m,m->wheels[wheel_hour],tick);
 	dlist *items = &w->items[w->cur];		
 	while((t = (timer*)dlist_pop(items))){
+		t->status |= INCB;
 		int32_t ret = t->callback(TEVENT_TIMEOUT,t->expire,t->ud);
-		if(ret >= 0 && ret <= MAX_TIMEOUT){
+		t->status ^= INCB;
+		if(!(t->status & RELEASING) && ret >= 0){
 			if(ret > 0) t->timeout = ret;
 			t->expire = tick + t->timeout;
 			_reg(m,t,tick,NULL);
@@ -126,24 +134,27 @@ fire(wheelmgr *m,uint64_t tick)
 void 
 wheelmgr_tick(wheelmgr *m,uint64_t now)
 {
-	while(m->lasttime != now)
+	while(m->lasttime != now){
 		fire(m,++m->lasttime);
+	}
 } 
 
 timer*
 wheelmgr_register(wheelmgr *m,uint32_t timeout,
 				  int32_t(*callback)(uint32_t,uint64_t,void*),
 				  void*ud,uint64_t now/*just for test*/){
-	if(timeout == 0 || timeout > MAX_TIMEOUT || !callback)
+	if(timeout == 0 || !callback)
 		return NULL;
 	now = now == 0 ? systick64():now;
 	timer *t = calloc(1,sizeof(*t));
-	t->timeout = timeout;
-	t->expire = now + timeout;
+	t->timeout = timeout > MAX_TIMEOUT ? MAX_TIMEOUT : timeout;
 	t->callback = callback;
 	t->ud = ud;
-	if(!m->lasttime) m->lasttime = now;
-	_reg(m,t,now,NULL);
+	if(!m->lasttime){
+		m->lasttime = now;
+	}
+	t->expire = now + t->timeout;
+	_reg(m,t,m->lasttime,NULL);
 	return t;
 }
 
@@ -160,9 +171,12 @@ wheelmgr_new()
 void 
 unregister_timer(timer *t)
 {
-	dlist_remove((dlistnode*)t);
-	t->callback(TEVENT_DESTROY,t->expire,t->ud);
-	free(t);
+	t->status |= RELEASING;
+	if(!(t->status | INCB)){
+		dlist_remove((dlistnode*)t);
+		t->callback(TEVENT_DESTROY,t->expire,t->ud);
+		free(t);
+	}
 }
 
 void 

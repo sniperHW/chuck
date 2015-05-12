@@ -23,11 +23,9 @@ function connect_callback(fd,errnum)
 		print("connect success")
 		local conn = connection(fd,4096,decoder.rpacket(4096))
 		
-		conn:Add2Engine(engine,function (_,p,event)
+		conn:Add2Engine(engine,function (_,p,err)
 			if(p) then
-				if event == "RECV" then
-					conn:Send(packet.wpacket(p))
-				end
+				conn:Send(packet.wpacket(p))
 			else
 				conn:Close()
 			end
