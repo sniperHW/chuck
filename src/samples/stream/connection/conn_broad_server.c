@@ -17,33 +17,31 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 }
 
 static void on_packet(connection *c,packet *p,int32_t event){
-	if(event == PKEV_RECV){
-		int i = 0;
-		for(;i < client_count; ++i){
-			connection *conn = clients[i];
-			if(conn){
-				packet_count++;
-				connection_send(conn,make_writepacket(p),0);
+	if(p){
+		if(event == PKEV_RECV){
+			int i = 0;
+			for(;i < client_count; ++i){
+				connection *conn = clients[i];
+				if(conn){
+					packet_count++;
+					connection_send(conn,make_writepacket(p),0);
+				}
 			}
 		}
+	}else{
+		//error or peer close
+		int32_t i = 0;
+		for(;i < client_count; ++i)
+			if(clients[i]) clients[i] = NULL;	
+		--client_count;
+		connection_close(c);		
 	}
-}
-
-static void on_disconnected(connection *c,int32_t err){
-	printf("on_disconnected %d\n",err);
-	int i = 0;
-	for(;i < client_count; ++i)
-		if(clients[i]) clients[i] = NULL;	
-	--client_count;
-	if(err != EACTCLOSE)
-		connection_close(c);
 }
 
 static void on_connection(int32_t fd,sockaddr_ *_,void *ud){
 	printf("on_connection\n");
 	engine *e = (engine*)ud;
 	connection *c = connection_new(fd,65535,rpacket_decoder_new(1024));
-	connection_set_discntcb(c,on_disconnected);
 	engine_associate(e,c,on_packet);
 
 	int i = 0;

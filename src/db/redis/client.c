@@ -43,8 +43,8 @@ typedef struct redis_conn{
     list         		waitreplys;
     parse_tree         *tree;
     void                (*clear)(void*ud);
-    void         	    (*on_disconnected)(struct redis_conn*,int32_t err);
-    luaRef              lua_disconn_cb;
+    void         	    (*on_error)(struct redis_conn*,int32_t err);
+    luaRef              lua_err_cb;
 }redis_conn;
 
 void 
@@ -52,9 +52,7 @@ redis_dctor(void *_)
 {
 	redis_conn *c = (redis_conn*)_;
 	packet   *p;
-	reply_cb *stcb;
-	if(c->on_disconnected)
-		c->on_disconnected(c,0);	
+	reply_cb *stcb;	
 	while((p = (packet*)list_pop(&c->send_list))!=NULL)
 		packet_del(p);
 	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
@@ -71,9 +69,7 @@ redis_lua_dctor(void *_)
 {
 	redis_conn *c = (redis_conn*)_;
 	packet   *p;
-	reply_cb *stcb;
-	if(c->on_disconnected)
-		c->on_disconnected(c,0);	
+	reply_cb *stcb;	
 	while((p = (packet*)list_pop(&c->send_list))!=NULL)
 		packet_del(p);
 	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
@@ -83,8 +79,8 @@ redis_lua_dctor(void *_)
 	}
 	if(c->tree)
 		parse_tree_del(c->tree);
-	if(c->lua_disconn_cb.L)
-		release_luaRef(&c->lua_disconn_cb);
+	if(c->lua_err_cb.L)
+		release_luaRef(&c->lua_err_cb);
 }
 
 
@@ -203,17 +199,6 @@ SendFinish(redis_conn *c,int32_t bytestransfer)
 	Send(c,IO_POST);		
 }
 
-static inline void 
-_close(redis_conn *c,int32_t err)
-{
-	((socket_*)c)->status |= SOCKET_CLOSE;
-	engine_remove((handle*)c);
-	if(c->on_disconnected){
-		c->on_disconnected(c,err);
-		c->on_disconnected = NULL;
-	}
-}
-
 
 void 
 execute_callback(redis_conn *c,reply_cb *stcb);
@@ -227,7 +212,8 @@ RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
 	char   *ptr;
 	do{	
 		if(bytestransfer == 0 || (bytestransfer < 0 && err_code != EAGAIN)){
-			_close(c,err_code);
+			if(c->on_error) 
+				c->on_error(c,err_code);
 			return;	
 		}else if(bytestransfer > 0){
 			c->recvbuf[bytestransfer] = 0;
@@ -247,7 +233,8 @@ RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
 					//error
 					parse_tree_del(c->tree);
 					c->tree = NULL;
-					_close(c,ERDISPERROR);
+					if(c->on_error) 
+						c->on_error(c,ERDISPERROR);
 					return;
 				}else
 					break;
@@ -331,7 +318,7 @@ redis_close(redis_conn *c)
 
 redis_conn*
 redis_connect(engine *e,sockaddr_ *addr,
-			  void (*on_disconnect)(redis_conn*,int32_t err))
+			  void (*on_error)(redis_conn*,int32_t err))
 {
 	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 	if(fd < 0) return NULL;
@@ -343,7 +330,7 @@ redis_connect(engine *e,sockaddr_ *addr,
 	((handle*)conn)->fd = fd;
 	construct_stream_socket(&conn->base);
 	((socket_*)conn)->dctor = redis_dctor;
-	conn->on_disconnected = on_disconnect;	
+	conn->on_error = on_error;	
 	engine_associate(e,conn,IoFinish); 	
 	PostRecv(conn);
 	return conn;
@@ -353,7 +340,7 @@ typedef struct{
 	engine *e;
     void (*connect_cb)(redis_conn*,int32_t,void*);
     void *ud;
-    void (*on_disconnect)(redis_conn*,int32_t);
+    void (*on_error)(redis_conn*,int32_t);
 }stConnet;
 
 
@@ -366,7 +353,7 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 		((socket_*)conn)->dctor = redis_dctor;	
 		engine_associate(st->e,conn,IoFinish); 	
 		PostRecv(conn);
-		conn->on_disconnected = st->on_disconnect;
+		conn->on_error = st->on_error;
 		st->connect_cb(conn,err,st->ud);
 	}else if(err == ETIMEDOUT){
 		st->connect_cb(NULL,err,st->ud);
@@ -378,7 +365,7 @@ redis_conn*
 redis_asyn_connect(engine *e,sockaddr_ *addr,
                    void (*connect_cb)(redis_conn*,int32_t,void*),
                    void *ud,
-                   void (*on_disconnect)(redis_conn*,int32_t),
+                   void (*on_error)(redis_conn*,int32_t),
                    int32_t *err)
 {
 	if(err) *err = 0;
@@ -402,7 +389,7 @@ redis_asyn_connect(engine *e,sockaddr_ *addr,
 		stConnet *st = calloc(1,sizeof(*st));
 		st->e = e;
 		st->ud = ud;
-		st->on_disconnect = on_disconnect;
+		st->on_error = on_error;
 		st->connect_cb = connect_cb;
 		connector *contor = connector_new(fd,st,5000);
 		engine_associate(e,contor,on_connected);			
@@ -509,14 +496,14 @@ lua_toreadisconn(lua_State *L, int index){
 }
 
 void         	    
-lua_on_disconnected(redis_conn *c,int32_t err)
+lua_on_error(redis_conn *c,int32_t err)
 {
 	const char * error;
 	stPushConn st;
 	st.c = c;
 	st.base.Push = PushConn;
-	if((error = LuaCallRefFunc(c->lua_disconn_cb,"fi",&st,err))){
-		SYS_LOG(LOG_ERROR,"error on redis lua_disconn_cb:%s\n",error);	
+	if((error = LuaCallRefFunc(c->lua_err_cb,"fi",&st,err))){
+		SYS_LOG(LOG_ERROR,"error on redis lua_err_cb:%s\n",error);	
 	}
 }
 
@@ -545,8 +532,8 @@ lua_redis_connect(lua_State *L)
 	((socket_*)conn)->dctor = redis_lua_dctor;
 
 	if(LUA_TFUNCTION == lua_type(L,4)){
-		conn->lua_disconn_cb  = toluaRef(L,4);
-		conn->on_disconnected = lua_on_disconnected;
+		conn->lua_err_cb  = toluaRef(L,4);
+		conn->on_error = lua_on_error;
 	}
 	engine_associate(e,conn,IoFinish); 	
 	PostRecv(conn);	

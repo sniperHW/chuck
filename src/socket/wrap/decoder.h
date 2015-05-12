@@ -23,10 +23,10 @@
 #include "util/bytebuffer.h"
 #include "lua/lua_util.h"
 
-enum {
+/*enum {
     DERR_TOOLARGE  = -1,
     DERR_UNKNOW    = -2,
-};
+};*/
 
 //解包器接口
 typedef struct decoder{
@@ -58,10 +58,9 @@ static inline void
 decoder_update(decoder *d,bytebuffer *buff,
                uint32_t pos,uint32_t size)
 {
-    if(!d->buff){
+    if(!d->buff)
         decoder_init(d,buff,pos);
-    }else
-        d->size += size;
+    d->size += size;
 }
 
 void 

@@ -1,4 +1,4 @@
-CFLAGS = -O2 -g -Wall -fno-strict-aliasing 
+CFLAGS = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lrt -llua -lm -ljemalloc
 DEPDIR  = 
 INCLUDE = -I./../ 
@@ -29,6 +29,7 @@ source =  stream/connection/conn_echo_server.c\
 		  datagram/datagram/dgram_rpk_client.c\
 		  redis/redisclient.c\
 		  redis/redis_stress.c\
+		  sock4/proxyserver.c\
 		  signal.c\
 		  testmailbox.c
 
@@ -49,5 +50,6 @@ all:
 	$(CC) $(CFLAGS) -o bin/redisclient redisclient.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/redis_stress redis_stress.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/signal signal.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o bin/testmailbox testmailbox.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)	
+	$(CC) $(CFLAGS) -o bin/testmailbox testmailbox.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
+	$(CC) $(CFLAGS) -o bin/proxyserver proxyserver.o ../libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)	
 	rm *.o		  

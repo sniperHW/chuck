@@ -48,7 +48,9 @@ refobj_init(refobj *r,void (*dctor)(void*));
 static inline uint32_t 
 refobj_inc(refobj *r)
 {
-    return ATOMIC_INCREASE_FETCH(&r->refcount);
+    uint32_t ret = ATOMIC_INCREASE_FETCH(&r->refcount);
+    assert(ret < 100);
+    return ret;
 }
 
 uint32_t 

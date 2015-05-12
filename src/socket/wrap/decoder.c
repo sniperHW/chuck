@@ -19,7 +19,7 @@ rpk_unpack(decoder *d,int32_t *err)
 	pk_len = _ntoh16(pk_len);
 	pk_total = pk_len + SIZE_HEAD;
 	if(pk_total > d->max_packet_size){
-		if(err) *err = DERR_TOOLARGE;
+		if(err) *err = EPKTOOLARGE;
 		return NULL;
 	}
 	if(pk_total > d->size)

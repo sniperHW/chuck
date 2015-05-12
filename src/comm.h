@@ -49,7 +49,7 @@
 #include    <sys/epoll.h>
 
 enum{
-    EVENT_READ  =  EPOLLIN, //| EPOLLERR | EPOLLHUP | EPOLLRDHUP),
+    EVENT_READ  =  EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP,
     EVENT_WRITE =  EPOLLOUT,    
 };
 
@@ -304,13 +304,13 @@ enum{
     EINVISOKTYPE,               /*invaild socket type*/
     EASSENG,                    /*already associate*/
     EINVIPK,                    /*invaild packet type*/
-    EACTCLOSE,                  /*active close*/
     ERDISPERROR,                /*redis reply error*/
     EALSETMBOX,                 /*already setup mailbox*/
     EMAXTHD,                    /*reach max thread*/
     EPIPECRERR,                 /*notifier create error*/
     EENASSERR,                  /*event add error*/
     ETMCLOSE,                   /*target mailbox close*/
+    EPKTOOLARGE                 /*packet too large*/
 };
     
 #endif

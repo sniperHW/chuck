@@ -13,23 +13,20 @@ end
 
 local signaler = signal.signaler(signal.SIGINT)
 
-function on_packet(conn,p,event)
-	if event == "RECV" then
-		conn:Send(packet.clone(p),"notify")
-	elseif event == "SEND" then
-		print("send finish")
-		--conn:Close()
-	end
-end
 
 function on_new_client(fd)
 	print("on new client\n")
 	local conn = connection(fd,4096)
-	conn:Add2Engine(engine,on_packet)
-	conn:SetDisConCb(function () 
-					  print("conn disconnect")
-					  conn = nil
-					 end)
+	conn:Add2Engine(engine,function (_,p,event)
+		if p then
+			if event == "RECV" then
+				conn:Send(packet.clone(p),"notify")
+			end
+		else
+			conn:Close()
+		end
+		conn = nil
+	end)
 end
 
 local fd =  socket_helper.socket(socket_helper.AF_INET,

@@ -24,8 +24,8 @@
 #include "lua/lua_util.h" 
 
 enum{
-    PKEV_RECV,            //recv a packet
-    PKEV_SEND,            //send a packet finish
+    PKEV_RECV = 1,            //recv a packet
+    PKEV_SEND = 2,            //send a packet finish
 };
 
 typedef struct connection{
@@ -39,10 +39,15 @@ typedef struct connection{
     list           send_list;//待发送的包
     uint32_t       recv_bufsize;
     void           (*on_packet)(struct connection*,packet*,int32_t event);
-    void           (*on_disconnected)(struct connection*,int32_t err);
+    //void           (*on_disconnected)(struct connection*,int32_t err);
     decoder       *decoder_;
     luaRef         lua_cb_packet;
-    luaRef         lua_cb_disconnected;
+//    luaRef         lua_cb_disconnected;
+    union{
+        void      *ud_ptr;
+        int32_t    ud_i32;
+        int64_t    ud_i64;
+    };
 }connection;
 
 connection*
@@ -60,13 +65,13 @@ decoder*
 conn_raw_decoder_new();
 
 
-static inline void 
+/*static inline void 
 connection_set_discntcb(connection *c,
                         void(*on_disconnected)
                         (connection*,int32_t))
 {
     c->on_disconnected = on_disconnected;
-}
+}*/
 
 void        
 reg_luaconnection(lua_State *L);

@@ -15,9 +15,19 @@ local engine
 local packetcout = 0
 
 function on_packet(conn,p,event)
-	if event == "RECV" then
-		packetcout = packetcout + 1
-		conn:Send(packet.wpacket(p))
+	if p then
+		if event == "RECV" then
+			packetcout = packetcout + 1
+			conn:Send(packet.wpacket(p))
+		end
+	else
+	  	for k,v in pairs(clients) do
+	  		if v == conn then
+	  			table.remove(clients,k)
+	  			break
+	  		end
+	  	end		
+		conn:Close()
 	end
 end
 
@@ -27,15 +37,6 @@ function on_new_client(fd)
 	print("on_new_client")
 	local conn = connection(fd,4096,decoder.rpacket(4096))
 	conn:Add2Engine(engine,on_packet)
-	conn:SetDisConCb(function () 
-					  print("conn disconnect")
-					  for k,v in pairs(clients) do
-					  	if v == conn then
-					  		table.remove(clients,k)
-					  		return
-					  	end
-					  end
-					 end)
 	table.insert(clients,conn)--hold the conn to prevent lua gc
 end
 

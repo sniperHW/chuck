@@ -4,11 +4,10 @@
 redis_conn *redis_client = NULL;
 int32_t     flag = 0;
 
-static void on_disconnect(redis_conn *conn,int32_t err)
+static void on_error(redis_conn *conn,int32_t err)
 {
 	redis_client = NULL;
-	if(err != EACTCLOSE)
-		redis_close(conn);
+	redis_close(conn);
 	printf("redis client on_disconnect\n");
 }
 
@@ -73,7 +72,7 @@ int main(int argc,char **argv){
 	engine *e = engine_new();
 	sockaddr_ server;
 	easy_sockaddr_ip4(&server,"127.0.0.1",6379);
-	redis_client = redis_connect(e,&server,on_disconnect);
+	redis_client = redis_connect(e,&server,on_error);
 	if(!redis_client){
 		printf("connect to redis server %s:%u error\n",argv[1],atoi(argv[2]));
 		return 0;

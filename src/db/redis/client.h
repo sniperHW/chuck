@@ -47,13 +47,13 @@ typedef struct redis_conn redis_conn;
 
 redis_conn*
 redis_connect(engine *e,sockaddr_ *addr,
-              void (*)(redis_conn*,int32_t err));
+              void (*on_error)(redis_conn*,int32_t err));
 
 redis_conn*
 redis_asyn_connect(engine *e,sockaddr_ *addr,
-                   void (*)(redis_conn*,int32_t,void*),
+                   void (*on_connect)(redis_conn*,int32_t,void*),
                    void*,
-                   void (*)(redis_conn*,int32_t),
+                   void (*on_error)(redis_conn*,int32_t),
                    int32_t *err);
 
 void        

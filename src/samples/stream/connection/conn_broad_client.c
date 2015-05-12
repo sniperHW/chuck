@@ -4,14 +4,20 @@
 
 
 static void on_packet(connection *c,packet *p,int32_t event){
-	if(event == PKEV_RECV){
-		rpacket *rpk = (rpacket*)p;
-		uint64_t id = rpacket_peek_uint64(rpk);
-		if(id == (uint64_t)c){
-			connection_send(c,make_writepacket(p),0);
+	if(p){
+		if(event == PKEV_RECV){
+			rpacket *rpk = (rpacket*)p;
+			uint64_t id = rpacket_peek_uint64(rpk);
+			if(id == (uint64_t)c){
+				connection_send(c,make_writepacket(p),0);
+			}
+		}else if(event == PKEV_SEND){
+			printf("packet send fnish\n");
 		}
-	}else if(event == PKEV_SEND){
-		printf("packet send fnish\n");
+	}
+	else{
+		//error or peer close
+		connection_close(c);
 	}
 }
 

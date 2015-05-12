@@ -74,7 +74,7 @@ static inline void
 update_next_recv_pos(connection *c,
 					 int32_t _bytestransfer)
 {
-	assert(_bytestransfer >= 0);
+	assert(_bytestransfer > 0);
 	uint32_t bytes = (uint32_t)_bytestransfer;
 	uint32_t size;
 	decoder_update(c->decoder_,c->next_recv_buf,c->next_recv_pos,bytes);
@@ -92,17 +92,6 @@ update_next_recv_pos(connection *c,
 	}while(bytes);
 }
 
-static inline void 
-_close(connection *c,int32_t err)
-{
-	((socket_*)c)->status |= SOCKET_CLOSE;
-	engine_remove((handle*)c);
-	if(c->on_disconnected){
-		c->on_disconnected(c,err);
-		c->on_disconnected = NULL;
-	}
-}
-
 static void 
 RecvFinish(connection *c,int32_t bytes,
 		   int32_t err_code)
@@ -111,7 +100,7 @@ RecvFinish(connection *c,int32_t bytes,
 	packet *pk;	
 	do{	
 		if(bytes == 0 || (bytes < 0 && err_code != EAGAIN)){
-			_close(c,err_code);
+			c->on_packet(c,NULL,err_code);
 			return;	
 		}else if(bytes > 0){
 			update_next_recv_pos(c,bytes);
@@ -124,7 +113,7 @@ RecvFinish(connection *c,int32_t bytes,
 					if(((socket_*)c)->status & SOCKET_CLOSE)
 						return;
 				}else if(unpack_err != 0){
-					_close(c,err_code);
+					c->on_packet(c,NULL,unpack_err);
 					return;
 				}
 			}while(pk);
@@ -291,8 +280,6 @@ connection_dctor(void *_)
 {
 	connection *c = (connection*)_;
 	packet *p;
-	if(c->on_disconnected)
-		c->on_disconnected(c,0);	
 	while((p = (packet*)list_pop(&c->send_list))!=NULL)
 		packet_del(p);
 	bytebuffer_set(&c->next_recv_buf,NULL);
@@ -343,8 +330,10 @@ rawpk_unpack(decoder *d,int32_t *err)
 	if(err) *err = 0;
 	if(!d->size) return NULL;
 
+	assert(d->buff->size > d->pos);
 	raw = rawpacket_new_by_buffer(d->buff,d->pos);
 	size = d->buff->size - d->pos;
+	assert(d->size >= size);
 	d->pos  += size;
 	d->size -= size;
 	((packet*)raw)->len_packet = size;
@@ -379,7 +368,6 @@ lua_connection_dctor(void *_)
 	bytebuffer_set(&c->next_recv_buf,NULL);
 	decoder_del(c->decoder_);
 	release_luaRef(&c->lua_cb_packet);
-	release_luaRef(&c->lua_cb_disconnected);
 	//should not invoke free
 }
 
@@ -438,7 +426,10 @@ static void
 PushPk(lua_State *L,luaPushFunctor *_)
 {
 	stPushPk *self = (stPushPk*)_;
-	lua_pushpacket(L,self->p);
+	if(self->p)
+		lua_pushpacket(L,self->p);
+	else
+		lua_pushnil(L);
 }
 
 static void 
@@ -451,27 +442,23 @@ lua_on_packet(connection *c,packet *p,int32_t event)
 	st1.c = c;
 	st1.base.Push = PushConn;
 	stPushPk st2;
-	st2.p = clone_packet(p);
+	st2.p = p ? clone_packet(p):NULL;
 	st2.base.Push = PushPk;	
-	if((error = LuaCallRefFunc(c->lua_cb_packet,"ffs",
+
+	if(p){
+		error = LuaCallRefFunc(c->lua_cb_packet,"ffs",
 							   &st1,&st2,
-							   event == PKEV_RECV ? "RECV":"SEND"))){
-		SYS_LOG(LOG_ERROR,"error on lua_cb_packet:%s\n",error);	
-	}	
-}
-
-static void 
-lua_on_disconnected(connection *c,int32_t err)
-{
-	const char * error;
-	stPushConn st;
-	st.c = c;
-	st.base.Push = PushConn;
-	if((error = LuaCallRefFunc(c->lua_cb_disconnected,"fi",&st,err))){
-		SYS_LOG(LOG_ERROR,"error on lua_cb_disconnected:%s\n",error);	
+							   event == PKEV_RECV ? "RECV":"SEND");		
+	}else{
+		error = LuaCallRefFunc(c->lua_cb_packet,"ffi",
+							   &st1,&st2,event);		
 	}
-}
 
+	if(error){
+		SYS_LOG(LOG_ERROR,"error on lua_cb_packet:%s\n",error);
+	}
+
+}
 
 static int32_t 
 lua_engine_add(lua_State *L)
@@ -516,16 +503,6 @@ lua_conn_send(lua_State *L)
 	return 1;
 }
 
-static int32_t 
-lua_set_disconn_callback(lua_State *L)
-{
-	connection *c = lua_toconnection(L,1);
-	if(LUA_TFUNCTION != lua_type(L,2))
-		return luaL_error(L,"arg2 should be function");
-	c->lua_cb_disconnected = toluaRef(L,2);
-	connection_set_discntcb(c,lua_on_disconnected);
-	return 0;
-}
 
 static int32_t 
 lua_connection_gc(lua_State *L)
@@ -554,7 +531,6 @@ reg_luaconnection(lua_State *L)
         {"Close",   lua_conn_close},
         {"Add2Engine",lua_engine_add},
         {"RemoveEngine",lua_engine_remove},
-        {"SetDisConCb",lua_set_disconn_callback},
         {NULL,     NULL}
     };
 

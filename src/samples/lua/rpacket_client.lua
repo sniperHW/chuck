@@ -13,12 +13,6 @@ end
 
 local signaler = signal.signaler(signal.SIGINT)
 
-function on_packet(conn,p,event)
-	if event == "RECV" then
-		conn:Send(packet.wpacket(p))
-	end
-end
-
 local engine = chuck.engine()
 
 
@@ -28,11 +22,18 @@ function connect_callback(fd,errnum)
 	else
 		print("connect success")
 		local conn = connection(fd,4096,decoder.rpacket(4096))
-		conn:Add2Engine(engine,on_packet)
-		conn:SetDisConCb(function () 
-					  		print("conn disconnect")
-					  		conn = nil
-					 	 end)
+		
+		conn:Add2Engine(engine,function (_,p,event)
+			if(p) then
+				if event == "RECV" then
+					conn:Send(packet.wpacket(p))
+				end
+			else
+				conn:Close()
+			end
+			conn = nil
+		end)
+
 		local wpk = packet.wpacket(512)
 		wpk:WriteTab({i=1,j=2,k=3,l=4,z=5})
 		conn:Send(wpk)		

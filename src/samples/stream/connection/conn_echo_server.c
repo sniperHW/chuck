@@ -13,26 +13,21 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 }
 
 static void on_packet(connection *c,packet *p,int32_t event){
-	if(event == PKEV_RECV){
-		printf("on_packet\n");
-		connection_send(c,make_writepacket(p),1);
+	if(p){
+		if(event == PKEV_RECV){
+			printf("on_packet\n");
+			connection_send(c,make_writepacket(p),1);
+		}
 	}else{
-		printf("packet send finish\n");
 		connection_close(c);
+		--client_count;
 	}
-}
-
-static void on_disconnected(connection *c,int32_t err){
-	if(err != EACTCLOSE)
-		connection_close(c);
-	--client_count;
 }
 
 static void on_connection(int32_t fd,sockaddr_ *_,void *ud){
 	printf("on_connection\n");
 	engine *e = (engine*)ud;
 	connection *c = connection_new(fd,64,NULL);
-	connection_set_discntcb(c,on_disconnected);
 	engine_associate(e,c,on_packet);
 	++client_count;
 }
