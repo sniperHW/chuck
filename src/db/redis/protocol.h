@@ -37,6 +37,18 @@ typedef struct parse_tree{
 	char   				tmp_buff[SIZE_TMP_BUFF]; 	 	
 }parse_tree;
 
+#define IS_NUM(CC) (CC >= '0' && CC <= '9')
+
+#define PARSE_NUM(FIELD)									\
+do{         												\
+	if(IS_NUM(c))											\
+		reply->FIELD = (reply->FIELD*10)+(c - '0');			\
+	else if(c == '\0')										\
+		return REDIS_RETRY;									\
+	else    												\
+		return REDIS_ERR;									\
+}while(0)
+
 static int32_t 
 parse_string(parse_tree *current,char **str)
 {
@@ -77,12 +89,8 @@ parse_integer(parse_tree *current,char **str)
 		while((c = *(*str)++) != termi) {
 			if(c == '-'){
 				current->want = -1;
-			}else{
-				if(c != '\0')
-		        	reply->integer = (reply->integer*10)+(c - '0');
-		        else
-		        	return REDIS_RETRY;
-	    	}
+			}else
+				PARSE_NUM(integer);
 	    }				
 	    if(termi == '\n') break;
 	    else current->break_ = '\n';
@@ -91,6 +99,7 @@ parse_integer(parse_tree *current,char **str)
     reply->integer *= current->want;    
     return REDIS_OK;
 }
+
 
 
 static int32_t 
@@ -104,12 +113,8 @@ parse_breply(parse_tree *current,char **str)
 				if(c == '-'){
 					reply->type = REDIS_REPLY_NIL;
 					return REDIS_OK;
-				}else{	
-					if(c != '\0'){
-			        	reply->len = (reply->len*10)+(c - '0');
-					}else
-			        	return REDIS_RETRY;
-		        }	
+				}else
+					PARSE_NUM(len);	
 		    }
 		    if(termi == '\n') break;
 		    else current->break_ = '\n';
@@ -162,12 +167,8 @@ parse_mbreply(parse_tree *current,char **str)
 	if(!current->want){
 		do{
 			char c,termi = current->break_;
-			while((c = *(*str)++) != termi){
-				if(c != '\0'){
-		        	reply->elements = (reply->elements*10)+(c - '0');
-				}else
-		        	return REDIS_RETRY;	
-		    }
+			while((c = *(*str)++) != termi)
+				PARSE_NUM(elements);					
 		    if(termi == '\n') break;
 		    else current->break_ = '\n';
 	    }while(1);	    
@@ -193,26 +194,30 @@ parse_mbreply(parse_tree *current,char **str)
 	return REDIS_OK;	
 }
 
+#define IS_OP_CODE(CC)\
+ (CC == '+'  || CC == '-'  || CC == ':'  || CC == '$'  || CC == '*')
+
+#define IS_LR_CR(CC) (CC == '\n' || CC == '\r') 
+
 
 static int32_t  
 parse(parse_tree *current,char **str)
 {
 	int32_t ret = REDIS_RETRY;
 	redisReply *reply = current->reply;		
-	if(!current->type){
-		do{
-			char c = *(*str)++;
-			if(c == '+'  || c == '-'  ||
-			   c == ':'  || c == '$'  ||
-			   c == '*')
-			{
-				current->type = c;
-				break;
-			}
-			else if(c == '\0')
-				return REDIS_RETRY;
-		}while(1);
+	while(!current->type)
+	{
+		char c = *(*str)++;
+		if(IS_OP_CODE(c)){
+			current->type = c;
+			break;
+		}
+		else if(c == '\0')
+			return REDIS_RETRY;
+		else if(!IS_LR_CR(c))
+			return REDIS_ERR;
 	}
+
 	switch(current->type){
 		case '+':{
 			reply->type = REDIS_REPLY_STATUS;
@@ -240,10 +245,8 @@ parse(parse_tree *current,char **str)
 			ret = parse_mbreply(current,str);
 			break;
 		}							
-		default:{
-			ret = REDIS_ERR;
-			break;
-		}
+		default:
+			return REDIS_ERR;
 	}		
 	return ret;
 }
@@ -320,29 +323,25 @@ build_request(const char *cmd)
 	for(; i < len; ++i){
 		c = cmd[i];
 		if(c == '\"' || c == '\''){
-			if(!quote){
+			if(!quote)
 				quote = c;
-			}else if(c == quote){
+			else if(c == quote)
 				quote = 0;
-			}
 		}
+
 		if(c != ' '){
 			if(!w){ 
 				w = calloc(1,sizeof(*w));
 				w->buff = (char*)&cmd[i];
 			}
-		}
-		else if(!quote)
-		{
-			if(w){
-				//word finish
-				w->size = &cmd[i] - w->buff;
-				space += digitcount((uint32_t)w->size) + 3;//plus head $,tail \r\n
-				space += w->size + 2;//plus tail \r\n
-				list_pushback(&l,(listnode*)w);	
-				w = NULL;
-				--i;
-			}
+		}else if(!quote && w){
+			//word finish
+			w->size = &cmd[i] - w->buff;
+			space += digitcount((uint32_t)w->size) + 3;//plus head $,tail \r\n
+			space += w->size + 2;//plus tail \r\n
+			list_pushback(&l,(listnode*)w);	
+			w = NULL;
+			--i;
 		}
 	}
 	if(w){

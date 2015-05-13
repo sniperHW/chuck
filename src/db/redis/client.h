@@ -51,9 +51,9 @@ redis_connect(engine *e,sockaddr_ *addr,
 
 redis_conn*
 redis_asyn_connect(engine *e,sockaddr_ *addr,
-                   void (*on_connect)(redis_conn*,int32_t,void*),
-                   void*,
-                   void (*on_error)(redis_conn*,int32_t),
+                   void (*on_connect)(redis_conn*,int32_t,void*),//callback on connected
+                   void *ud,                                     //ud pass to on_connect
+                   void (*on_error)(redis_conn*,int32_t),        //callback on error
                    int32_t *err);
 
 void        

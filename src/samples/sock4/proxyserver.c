@@ -106,14 +106,20 @@ on_connected(int32_t fd,int32_t err,void *ud)
 	session *sess = (session*)ud;
 	response res;
 	if(0 == err){
-		sess->outbound = connection_new(fd,4096,NULL);
-		sess->outbound->ud_ptr = sess;
-		sess->status = ESTABLISH;
-		engine_associate(e,sess->outbound,outbound_packet);
-		response_init(&res,90,0,0);
-		rawpacket *pk = rawpacket_new(64);
-		rawpacket_append(pk,&res,sizeof(res));
-		connection_send(sess->inbound,(packet*)pk,0);					
+		if(sess->inbound){
+			sess->outbound = connection_new(fd,4096,NULL);
+			sess->outbound->ud_ptr = sess;
+			sess->status = ESTABLISH;
+			engine_associate(e,sess->outbound,outbound_packet);
+			response_init(&res,90,0,0);
+			rawpacket *pk = rawpacket_new(64);
+			rawpacket_append(pk,&res,sizeof(res));
+			connection_send(sess->inbound,(packet*)pk,0);
+		}else{
+			sess->status = FAILED;
+			close(fd);
+			close_peer(sess,NULL);					
+		}
 	}else{
 		sess->status = FAILED;
 		if(sess->inbound){
