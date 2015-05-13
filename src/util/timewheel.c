@@ -172,7 +172,7 @@ void
 unregister_timer(timer *t)
 {
 	t->status |= RELEASING;
-	if(!(t->status | INCB)){
+	if(!(t->status & INCB)){
 		dlist_remove((dlistnode*)t);
 		t->callback(TEVENT_DESTROY,t->expire,t->ud);
 		free(t);

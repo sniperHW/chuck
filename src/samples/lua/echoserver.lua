@@ -19,11 +19,17 @@ function on_new_client(fd)
 	local conn = connection(fd,4096)
 	conn:Add2Engine(engine,function (_,p,err)
 		if p then
-			conn:Send(packet.clone(p),"notify")
+			p = packet.clone(p)
+			print(p)
+			conn:Send(p,function (_,pk)
+					  	print("packet send finish",pk)
+					  	conn:Close()
+						conn = nil
+					  end)
 		else
 			conn:Close()
+			conn = nil
 		end
-		conn = nil
 	end)
 end
 
@@ -41,7 +47,7 @@ if 0 == socket_helper.listen(fd,ip,port) then
 	local server = chuck.acceptor(fd)
 	engine = chuck.engine()
 	server:Add2Engine(engine,on_new_client)
-	chuck.RegTimer(engine,1000,function() collectgarbage("collect") print("timeout") end)
+	chuck.RegTimer(engine,1000,function() collectgarbage("collect") end)
 	signaler:Register(engine,sigint_handler)
 	engine:Run()
 end

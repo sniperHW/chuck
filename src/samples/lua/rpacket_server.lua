@@ -14,6 +14,8 @@ socket_helper.addr_reuse(fd,1)
 local engine
 local packetcout = 0
 
+local clients = {}
+
 function on_packet(conn,p,err)
 	if p then
 		packetcout = packetcout + 1
@@ -28,8 +30,6 @@ function on_packet(conn,p,err)
 		conn:Close()
 	end
 end
-
-local clients = {}
 
 function on_new_client(fd)
 	print("on_new_client")
@@ -56,7 +56,7 @@ if 0 == socket_helper.listen(fd,ip,port) then
 	server:Add2Engine(engine,on_new_client)
 	chuck.RegTimer(engine,1000,function() 
 		collectgarbage("collect")
-		print(packetcout,chuck.get_bytebuffer_count())
+		print(packetcout)--chuck.get_bytebuffer_count())
 		packetcout = 0		
 	end)
 	signaler:Register(engine,sigint_handler)

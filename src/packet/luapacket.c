@@ -28,6 +28,19 @@ lua_pushpacket(lua_State *L,packet *pk)
 	lua_setmetatable(L, -2);
 }
 
+void
+lua_pushluapacket(lua_State *L,luapacket *pk)
+{
+	lua_pushlightuserdata(L,pk);
+	if(pk->_packet->type == RPACKET)	
+		luaL_getmetatable(L, LUARPACKET_METATABLE);
+	else if(pk->_packet->type == WPACKET)
+		luaL_getmetatable(L, LUAWPACKET_METATABLE);
+	else
+		luaL_getmetatable(L, LUARAWPACKET_METATABLE);
+	lua_setmetatable(L, -2);	
+}
+
 
 static int32_t 
 luapacket_gc(lua_State *L)

@@ -81,7 +81,7 @@ close_peer(session *s,connection *c)
 }
 
 static void 
-outbound_packet(connection *c,packet *p,int32_t event)
+outbound_packet(connection *c,packet *p,int32_t error)
 {
 	session *sess = (session*)c->ud_ptr;
 	if(p){
@@ -167,7 +167,7 @@ process_request(session *sess)
 
 
 static void 
-inbound_packet(connection *c,packet *p,int32_t event)
+inbound_packet(connection *c,packet *p,int32_t error)
 {
 	session *sess = (session*)c->ud_ptr;
 	if(p){

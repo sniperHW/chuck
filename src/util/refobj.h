@@ -49,7 +49,7 @@ static inline uint32_t
 refobj_inc(refobj *r)
 {
     uint32_t ret = ATOMIC_INCREASE_FETCH(&r->refcount);
-    assert(ret < 100);
+    //assert(ret < 100);
     return ret;
 }
 

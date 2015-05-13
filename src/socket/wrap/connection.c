@@ -12,11 +12,74 @@ enum{
 	SENDING   = SOCKET_END << 2,
 };
 
+enum{
+	LUA_CB,
+	C_CB,
+};
+
 typedef struct{
 	listnode *node;
-	packet   *p;
-	void    (*cb)(connection *c,packet*);
+	union{
+		packet    *p;
+		struct{
+			luapacket *lp;
+			packet    *oripk;
+			luaRef     pkref;//ref to luapacket,prevent lua gc
+		};
+	};
+	union{
+		void    (*cb)(connection *c,packet*);
+		luaRef  luacb;
+	};
+	uint8_t   type;
 }stSendFshCb;
+
+typedef struct{
+	luaPushFunctor base;
+	connection    *c;
+}stPushConn;
+
+typedef struct{
+	luaPushFunctor base;
+	packet        *p;
+}stPushPk;
+
+typedef struct{
+	luaPushFunctor base;
+	luapacket     *p;
+}stPushLuaPk;
+
+
+#define LUA_METATABLE "conn_mata"
+
+static void 
+PushConn(lua_State *L,luaPushFunctor *_)
+{
+	stPushConn *self = (stPushConn*)_;
+	lua_pushlightuserdata(L,self->c);
+	luaL_getmetatable(L, LUA_METATABLE);
+	lua_setmetatable(L, -2);		
+}
+
+static void 
+PushPk(lua_State *L,luaPushFunctor *_)
+{
+	stPushPk *self = (stPushPk*)_;
+	if(self->p)
+		lua_pushpacket(L,self->p);
+	else
+		lua_pushnil(L);
+}
+
+static void 
+PushLuaPk(lua_State *L,luaPushFunctor *_)
+{
+	stPushLuaPk *self = (stPushLuaPk*)_;
+	if(self->p)
+		lua_pushluapacket(L,self->p);
+	else
+		lua_pushnil(L);
+}
 
 static inline void 
 prepare_recv(connection *c)
@@ -75,6 +138,7 @@ Send(connection *c,int32_t flag)
 		((socket_*)c)->status |= SENDING;
 	return ret; 
 }
+
 
 
 static inline void 
@@ -174,8 +238,41 @@ prepare_send(connection *c)
 		O = (iorequest*)&c->send_overlap;
 	}
 	return O;
-
 }
+
+
+static inline void 
+do_sndfnsh_cb(connection *c,packet *p){
+
+	stSendFshCb *stcb = (stSendFshCb*)list_begin(&c->send_finish_cb);
+	if(!stcb) return;
+
+	if(stcb->type == C_CB && stcb->p == p){
+		stcb->cb(c,stcb->p);
+	}else if(stcb->oripk == p){
+		const char * error;
+		stPushConn st1;	
+		if(c->lua_cb_packet.rindex == LUA_REFNIL)
+			return;
+		st1.c = c;
+		st1.base.Push = PushConn;
+		stPushLuaPk st2;
+		st2.p = stcb->lp;
+		st2.base.Push = PushLuaPk;	
+
+		if((error = LuaCallRefFunc(stcb->luacb,"ff",&st1,&st2)))
+		{
+			SYS_LOG(LOG_ERROR,"error on do_sndfnsh_cb:%s\n",error);
+		}
+		release_luaRef(&stcb->luacb);
+		release_luaRef(&stcb->pkref);
+	}else
+		return;
+	list_pop(&c->send_finish_cb);	
+	free(stcb);
+}
+
+
 static inline void 
 update_send_list(connection *c,
 				 int32_t _bytestransfer)
@@ -189,13 +286,7 @@ update_send_list(connection *c,
 		assert(w);
 		if((uint32_t)bytes >= ((packet*)w)->len_packet)
 		{
-			
-			stSendFshCb *stcb = (stSendFshCb*)list_begin(&c->send_finish_cb);
-			if(stcb && stcb->p == (packet*)w){
-				list_pop(&c->send_finish_cb);
-				stcb->cb(c,stcb->p);
-				free(stcb);
-			}
+			do_sndfnsh_cb(c,w);
 			list_pop(&c->send_list);
 			bytes -= ((packet*)w)->len_packet;
 			packet_del(w);
@@ -294,9 +385,9 @@ imp_engine_add(engine *e,handle *h,
 	return ret;
 }
 
-int32_t 
-connection_send(connection *c,packet *p,
-				void (*fnish_cb)(connection*,packet*))
+
+static int32_t
+_connection_send(connection *c,packet *p,stSendFshCb *stcb)
 {
 	int32_t ret;
 	if(p->type != WPACKET && p->type != RAWPACKET){
@@ -306,12 +397,8 @@ connection_send(connection *c,packet *p,
 	if(c->sendtimeout)
 		p->sendtime = systick64();		
 	list_pushback(&c->send_list,(listnode*)p);
-	if(fnish_cb){
-		stSendFshCb *stcb = calloc(1,sizeof(*stcb));
-		stcb->cb = fnish_cb;
-		stcb->p = p;
+	if(stcb)
 		list_pushback(&c->send_finish_cb,(listnode*)stcb);
-	}
 	if(!(((socket_*)c)->status & SENDING)){
 		prepare_send(c);
 		ret = Send(c,IO_NOW);
@@ -321,7 +408,21 @@ connection_send(connection *c,packet *p,
 			update_send_list(c,ret);
 		return ret;
 	}
-	return -EAGAIN;
+	return -EAGAIN;	
+}
+
+int32_t 
+connection_send(connection *c,packet *p,
+				void (*fnish_cb)(connection*,packet*))
+{
+	stSendFshCb *stcb = NULL;
+	if(fnish_cb){
+		stcb = calloc(1,sizeof(*stcb));
+		stcb->cb = fnish_cb;
+		stcb->p = p;
+		stcb->type = C_CB;
+	}
+	return _connection_send(c,p,stcb);
 }
 
 
@@ -333,7 +434,13 @@ _connection_dctor(connection *c)
 	while((p = (packet*)list_pop(&c->send_list))!=NULL)
 		packet_del(p);
 	while((stcb = (stSendFshCb*)list_pop(&c->send_finish_cb))!=NULL)
+	{
+		if(stcb->type == LUA_CB){
+			release_luaRef(&stcb->luacb);
+			release_luaRef(&stcb->pkref);
+		}
 		free(stcb);	
+	}
 	bytebuffer_set(&c->next_recv_buf,NULL);
 	decoder_del(c->decoder_);
 	if(c->timer_)
@@ -451,9 +558,6 @@ connection_set_sendtimeout(connection *c,uint32_t timeout)
 
 //for lua
 
-#define LUA_METATABLE "conn_mata"
-
-
 void 
 lua_connection_dctor(void *_)
 {
@@ -495,34 +599,6 @@ lua_connection_new(lua_State *L)
 	return 1;
 }
 
-typedef struct{
-	luaPushFunctor base;
-	connection    *c;
-}stPushConn;
-
-typedef struct{
-	luaPushFunctor base;
-	packet        *p;
-}stPushPk;
-
-static void 
-PushConn(lua_State *L,luaPushFunctor *_)
-{
-	stPushConn *self = (stPushConn*)_;
-	lua_pushlightuserdata(L,self->c);
-	luaL_getmetatable(L, LUA_METATABLE);
-	lua_setmetatable(L, -2);		
-}
-
-static void 
-PushPk(lua_State *L,luaPushFunctor *_)
-{
-	stPushPk *self = (stPushPk*)_;
-	if(self->p)
-		lua_pushpacket(L,self->p);
-	else
-		lua_pushnil(L);
-}
 
 static void 
 lua_on_packet(connection *c,packet *p,int32_t err)
@@ -534,6 +610,10 @@ lua_on_packet(connection *c,packet *p,int32_t err)
 	st1.c = c;
 	st1.base.Push = PushConn;
 	stPushPk st2;
+	/*
+	* p will be delete after lua_on_packet
+	* so,we must clone p here
+	*/
 	st2.p = p ? clone_packet(p):NULL;
 	st2.base.Push = PushPk;	
 
@@ -576,15 +656,46 @@ lua_conn_close(lua_State *L)
 	return 0;
 }
 
+
 static int32_t 
 lua_conn_send(lua_State *L)
 {
-	connection *c = lua_toconnection(L,1);
-	luapacket  *p = lua_topacket(L,2);
-	//int32_t     set_notify = lua_gettop(L) == 3;
-	lua_pushinteger(L,connection_send(c,p->_packet,NULL));
-	p->_packet = NULL;
+	connection  *c = lua_toconnection(L,1);
+	luapacket   *p = lua_topacket(L,2);
+	stSendFshCb *stcb = NULL;
+	/*
+	* send may del pk,so we use a clone here
+	*/	
+	packet      *pk = clone_packet(p->_packet);
+	if(lua_type(L,3) == LUA_TFUNCTION)
+	{
+		stcb = calloc(1,sizeof(*stcb));
+		stcb->luacb = toluaRef(L,3);
+		stcb->lp = p;
+		stcb->oripk = pk;
+		stcb->pkref = toluaRef(L,2);
+		stcb->type = LUA_CB;	
+	}
+	lua_pushinteger(L,_connection_send(c,pk,stcb));
 	return 1;
+}
+
+static int32_t
+lua_set_recvtimeout(lua_State *L)
+{
+	connection  *c = lua_toconnection(L,1);
+	uint32_t     timeout = lua_tointeger(L,2);
+	connection_set_recvtimeout(c,timeout);
+	return 0; 
+}
+
+static int32_t
+lua_set_sendtimeout(lua_State *L)
+{
+	connection  *c = lua_toconnection(L,1);
+	uint32_t     timeout = lua_tointeger(L,2);
+	connection_set_sendtimeout(c,timeout);
+	return 0; 
 }
 
 
@@ -615,6 +726,8 @@ reg_luaconnection(lua_State *L)
         {"Close",   lua_conn_close},
         {"Add2Engine",lua_engine_add},
         {"RemoveEngine",lua_engine_remove},
+        {"SetRecvTimeout",lua_set_recvtimeout},
+        {"SetSendTimeout",lua_set_sendtimeout},
         {NULL,     NULL}
     };
 

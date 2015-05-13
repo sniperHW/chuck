@@ -6,6 +6,10 @@ local decoder = chuck.decoder
 local err = chuck.error
 local signal = chuck.signal
 
+
+local engine = chuck.engine()
+
+
 local function sigint_handler()
 	print("recv sigint")
 	engine:Stop()
@@ -13,28 +17,29 @@ end
 
 local signaler = signal.signaler(signal.SIGINT)
 
-local engine = chuck.engine()
-
 
 function connect_callback(fd,errnum)
 	if errnum ~= 0 then
 		socket_helper.close(fd)
 	else
-		print("connect success")
+		print("connect success2")
 		local conn = connection(fd,4096,decoder.rpacket(4096))
-		
-		conn:Add2Engine(engine,function (_,p,err)
-			if(p) then
-				conn:Send(packet.wpacket(p))
-			else
-				conn:Close()
-			end
-			conn = nil
-		end)
+		if conn then
+			conn:Add2Engine(engine,function (_,p,err)
+				if(p) then
+					conn:Send(packet.wpacket(p))
+				else
+					conn:Close()
+					conn = nil
+				end
+			end)
 
-		local wpk = packet.wpacket(512)
-		wpk:WriteTab({i=1,j=2,k=3,l=4,z=5})
-		conn:Send(wpk)		
+			local wpk = packet.wpacket(512)
+			wpk:WriteTab({i=1,j=2,k=3,l=4,z=5})
+			conn:Send(wpk)
+		else
+			print("create connection error")
+		end		
 	end	
 end
 
@@ -52,9 +57,9 @@ for i = 1,100 do
 	elseif ret == -err.EINPROGRESS then
 		local connector = chuck.connector(fd,5000)
 		connector:Add2Engine(engine,function(fd,errnum)
-										connector = nil 
 										--use closure to hold the reference of connector
 										connect_callback(fd,errnum)
+										connector = nil 
 									end)
 	else
 		print("connect to 127.0.0.1 8010 error")
