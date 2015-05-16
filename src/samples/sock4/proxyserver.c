@@ -15,7 +15,7 @@ typedef struct{
 	uint32_t CD:8;
 	uint32_t DSTPORT:16;
 	uint32_t DSTIP;
-	char     USERID[8];
+	char     NIL;
 }request;
 #pragma pack ()
 
@@ -94,7 +94,7 @@ outbound_packet(connection *c,packet *p,int32_t error)
 	close_peer(sess,c);		
 }
 
-static void snd_fnish_cb(connection *c,packet *_)
+static void snd_fnish_cb(connection *c)
 {
 	session *sess = (session*)c->ud_ptr;
 	close_peer(sess,c);	
@@ -185,23 +185,15 @@ inbound_packet(connection *c,packet *p,int32_t error)
 		}
 		else if(sess->status == NONE){
 			//connect
-			uint32_t cap = sizeof(sess->req) - sess->size;
+			uint32_t space = sizeof(sess->req) - sess->size;
 			uint32_t size;
 			void *ptr = rawpacket_data((rawpacket*)p,&size);
-			if(size <= cap){
+			if(size <= space){
 				memcpy((char*)(&sess->req) + sess->size,ptr,size);
 				sess->size += size;
-				if(sess->size > 8){
-					uint32_t i;
-					for(i = 8; i < sess->size; ++i){
-						if(*((char*)&sess->req + i) == 0){
-							//a request finish
-							if(0 == process_request(sess))
-								return;
-							break;	
-						}
-					}
-				}
+				if(sess->size == 9 && sess->req.NIL == 0)
+					if(0 == process_request(sess))
+						return;
 			}
 		}
 	}

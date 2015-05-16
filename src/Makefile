@@ -22,7 +22,6 @@ source =  util/exception.c\
 		  util/minheap.c\
 		  util/timewheel.c\
 		  util/log.c\
-		  util/string.c\
 		  util/refobj.c\
 		  util/timerfd.c\
 		  util/signaler.c\

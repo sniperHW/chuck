@@ -12,7 +12,7 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 	return 0;
 }
 
-static void snd_fnish_cb(connection *c,packet *_)
+static void snd_fnish_cb(connection *c)
 {
 	connection_close(c);
 	--client_count;	

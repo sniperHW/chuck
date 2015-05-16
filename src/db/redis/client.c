@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "util/string.h"
 #include "util/list.h"
 #include "util/bytebuffer.h"
 #include "packet/rawpacket.h"

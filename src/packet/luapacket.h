@@ -16,8 +16,6 @@ lua_topacket(lua_State *L, int index);
 void       
 lua_pushpacket(lua_State *L,packet*);
 
-void
-lua_pushluapacket(lua_State *L,luapacket*);
 
 void       
 reg_luapacket(lua_State *L);

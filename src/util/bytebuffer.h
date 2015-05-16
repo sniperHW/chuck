@@ -30,14 +30,9 @@ typedef struct bytebuffer{
 }bytebuffer;
 
 
-//extern uint32_t bytebuffer_count;
-
-
 static inline void 
 bytebuffer_dctor(void *_)
 {
-	//printf("bytebuffer_dctor\n");
-	//--bytebuffer_count;
 	bytebuffer *b = (bytebuffer*)_;
 	if(b->next)
 		refobj_dec((refobj*)b->next);
@@ -47,12 +42,10 @@ bytebuffer_dctor(void *_)
 static inline bytebuffer*
 bytebuffer_new(uint32_t capacity)
 {
-	//printf("bytebuffer_new\n");
-	//++bytebuffer_count;
 	uint32_t size = sizeof(bytebuffer) + capacity;
-    bytebuffer *b = (bytebuffer*)calloc(1,size);
+    bytebuffer *b = (bytebuffer*)malloc(size);
 	if(b){   
-		b->size = 0;
+		memset(b,0,sizeof(*b));
 		b->cap = capacity;
 		refobj_init((refobj*)b,bytebuffer_dctor);
 	}
@@ -113,12 +106,31 @@ buffer_read(buffer_reader *reader,
 	uint32_t copy_size;
 	uint32_t out_size = 0;
 	char 	*out = (char*)_;
+	char    *ptr;
 	bytebuffer *b = reader->cur;
 	while(b && size){
         copy_size = b->size - reader->pos;
 		if(copy_size > 0){
 			copy_size = copy_size > size ? size : copy_size;
-			memcpy(out,b->data + reader->pos,copy_size);
+			ptr = b->data + reader->pos;
+			switch(copy_size){
+				case 1:{
+					*out = *ptr;
+					break;
+				}case 2:{
+					*((uint16_t*)out) = *((uint16_t*)ptr);
+					break;
+				}case 4:{
+					*((uint32_t*)out) = *((uint32_t*)ptr);
+					break;
+				}case 8:{
+					*((uint64_t*)out) = *((uint64_t*)ptr);
+					break;
+				}default:{								
+					memcpy(out,ptr,copy_size);
+					break;
+				}
+			}
 			size -= copy_size;
 			reader->pos += copy_size;
 			out += copy_size;
@@ -139,12 +151,31 @@ buffer_write(buffer_writer *writer,
     uint32_t copy_size;
     uint32_t in_size = 0;
     char 	*in = (char*)_;
+    char    *ptr;
     bytebuffer *b = writer->cur;
     while(b && size){
         copy_size = b->cap - writer->pos;
         if(copy_size > 0){
-	        copy_size = copy_size > size ? size : copy_size;
-	        memcpy(b->data + writer->pos,in,copy_size);
+	        copy_size = copy_size > size ? size : copy_size;  
+	        ptr = b->data + writer->pos;
+			switch(copy_size){
+				case 1:{
+					*ptr = *in;
+					break;
+				}case 2:{
+					*((uint16_t*)ptr) = *((uint16_t*)in);
+					break;
+				}case 4:{
+					*((uint32_t*)ptr) = *((uint32_t*)in);
+					break;
+				}case 8:{
+					*((uint64_t*)ptr) = *((uint64_t*)in);
+					break;
+				}default:{								
+	        		memcpy(ptr,in,copy_size);
+					break;
+				}
+			}
 	        size -= copy_size;
 	        b->size += copy_size;
 	        writer->pos += copy_size;

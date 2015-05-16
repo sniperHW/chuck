@@ -19,16 +19,9 @@ enum{
 
 typedef struct{
 	listnode *node;
+	packet    *p;
 	union{
-		packet    *p;
-		struct{
-			luapacket *lp;
-			packet    *oripk;
-			luaRef     pkref;//ref to luapacket,prevent lua gc
-		};
-	};
-	union{
-		void    (*cb)(connection *c,packet*);
+		void    (*cb)(connection *c);
 		luaRef  luacb;
 	};
 	uint8_t   type;
@@ -43,11 +36,6 @@ typedef struct{
 	luaPushFunctor base;
 	packet        *p;
 }stPushPk;
-
-typedef struct{
-	luaPushFunctor base;
-	luapacket     *p;
-}stPushLuaPk;
 
 
 #define LUA_METATABLE "conn_mata"
@@ -71,15 +59,6 @@ PushPk(lua_State *L,luaPushFunctor *_)
 		lua_pushnil(L);
 }
 
-static void 
-PushLuaPk(lua_State *L,luaPushFunctor *_)
-{
-	stPushLuaPk *self = (stPushLuaPk*)_;
-	if(self->p)
-		lua_pushluapacket(L,self->p);
-	else
-		lua_pushnil(L);
-}
 
 static inline void 
 prepare_recv(connection *c)
@@ -245,29 +224,29 @@ static inline void
 do_sndfnsh_cb(connection *c,packet *p){
 
 	stSendFshCb *stcb = (stSendFshCb*)list_begin(&c->send_finish_cb);
-	if(!stcb) return;
+	if(!stcb) 
+		return;
+	if(stcb->p != p)
+		return;
 
-	if(stcb->type == C_CB && stcb->p == p){
-		stcb->cb(c,stcb->p);
-	}else if(stcb->oripk == p){
+
+	if(stcb->type == C_CB){
+		stcb->cb(c);
+	}else{
 		const char * error;
 		stPushConn st1;	
 		if(c->lua_cb_packet.rindex == LUA_REFNIL)
 			return;
 		st1.c = c;
 		st1.base.Push = PushConn;
-		stPushLuaPk st2;
-		st2.p = stcb->lp;
-		st2.base.Push = PushLuaPk;	
 
-		if((error = LuaCallRefFunc(stcb->luacb,"ff",&st1,&st2)))
+		if((error = LuaCallRefFunc(stcb->luacb,"f",&st1)))
 		{
 			SYS_LOG(LOG_ERROR,"error on do_sndfnsh_cb:%s\n",error);
 		}
 		release_luaRef(&stcb->luacb);
-		release_luaRef(&stcb->pkref);
-	}else
-		return;
+	}
+
 	list_pop(&c->send_finish_cb);	
 	free(stcb);
 }
@@ -413,7 +392,7 @@ _connection_send(connection *c,packet *p,stSendFshCb *stcb)
 
 int32_t 
 connection_send(connection *c,packet *p,
-				void (*fnish_cb)(connection*,packet*))
+				void (*fnish_cb)(connection*))
 {
 	stSendFshCb *stcb = NULL;
 	if(fnish_cb){
@@ -437,7 +416,6 @@ _connection_dctor(connection *c)
 	{
 		if(stcb->type == LUA_CB){
 			release_luaRef(&stcb->luacb);
-			release_luaRef(&stcb->pkref);
 		}
 		free(stcb);	
 	}
@@ -663,20 +641,15 @@ lua_conn_send(lua_State *L)
 	connection  *c = lua_toconnection(L,1);
 	luapacket   *p = lua_topacket(L,2);
 	stSendFshCb *stcb = NULL;
-	/*
-	* send may del pk,so we use a clone here
-	*/	
-	packet      *pk = clone_packet(p->_packet);
 	if(lua_type(L,3) == LUA_TFUNCTION)
 	{
 		stcb = calloc(1,sizeof(*stcb));
 		stcb->luacb = toluaRef(L,3);
-		stcb->lp = p;
-		stcb->oripk = pk;
-		stcb->pkref = toluaRef(L,2);
+		stcb->p = p->_packet;
 		stcb->type = LUA_CB;	
 	}
-	lua_pushinteger(L,_connection_send(c,pk,stcb));
+	lua_pushinteger(L,_connection_send(c,p->_packet,stcb));
+	p->_packet = NULL;
 	return 1;
 }
 

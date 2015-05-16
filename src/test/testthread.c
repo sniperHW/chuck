@@ -13,7 +13,7 @@ void *routine2(void *_){
 }
 
 int main(){
-	thread *t1 = thread_new(JOINABLE|WAITRUN,routine1,(void*)1);
+	thread *t1 = thread_new(JOINABLE,routine1,(void*)1);
 	printf("i'm second\n");
 	printf("return value:%d of t1\n",(int)thread_del(t1));
 

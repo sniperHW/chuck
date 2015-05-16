@@ -56,7 +56,7 @@ connection_new(int32_t fd,uint32_t buffersize,
 
 int32_t     
 connection_send(connection *c,packet *p,
-                void (*fnish_cb)(connection*,packet*));
+                void (*fnish_cb)(connection*));
 
 int32_t        
 connection_close(connection *c);
