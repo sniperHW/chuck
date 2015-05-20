@@ -37,27 +37,6 @@ spin_del(spinlock*);
 static inline int32_t 
 spin_lock(spinlock *l)
 {
-#ifdef _WIN
-	pthread_t tid = pthread_self();
-	if(tid.p == l->owner.p)
-	{
-		++l->lock_count;
-		return 0;
-	}
-	int32_t c,max;
-	while(1)
-	{
-		if(l->owner.p == 0)
-		{
-			if(COMPARE_AND_SWAP(&(l->owner.p),0,tid.p))
-				break;
-		}
-		for(c = 0; c < (max = rand()%4096); ++c)
-			__asm__("pause");
-	};
-	++l->lock_count;
-	return 0;
-#else
 	pthread_t tid = pthread_self();
 	if(tid == l->owner)
 	{
@@ -77,27 +56,17 @@ spin_lock(spinlock *l)
 	};
 	++l->lock_count;
 	return 0;
-#endif
 }
 
 static inline 
 int32_t spin_unlock(spinlock *l)
 {
-#ifdef _WIN
-	pthread_t tid = pthread_self();
-	if(tid.p == l->owner.p && --l->lock_count == 0){
-		l->owner.p = 0;
-		return 0;
-	}
-	return -1;
-#else
 	pthread_t tid = pthread_self();
 	if(tid == l->owner && --l->lock_count == 0){
 		l->owner = 0;
 		return 0;
 	}
 	return -1;
-#endif
 }
 
 #endif
