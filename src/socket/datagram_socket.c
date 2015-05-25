@@ -38,9 +38,6 @@ imp_engine_add(engine *e,handle *h,
 	return ret;
 }
 
-#define pending_recv(S) (((socket_*)S)->pending_recv)
-#define status(S)       (((socket_*)S)->status)
-#define type(S)         (((socket_*)S)->type)
 
 static void 
 process_read(dgram_socket_ *s)
@@ -48,7 +45,8 @@ process_read(dgram_socket_ *s)
 	iorequest *req = NULL;
 	int32_t bytes = 0;
 	struct msghdr _msghdr;
-	while((req = (iorequest*)list_pop(&pending_recv(s)))!=NULL){
+	s->status |= SOCKET_READABLE;
+	while((req = (iorequest*)list_pop(&s->pending_recv))!=NULL){
 		errno = 0;
 		_msghdr = (struct msghdr){
 			.msg_name = &req->addr,
@@ -61,16 +59,19 @@ process_read(dgram_socket_ *s)
 		};
 		bytes = TEMP_FAILURE_RETRY(recvmsg(s->fd,&_msghdr,0));	
 		if(bytes < 0 && errno == EAGAIN){
+			s->status ^= SOCKET_READABLE;
 			//将请求重新放回到队列
-			list_pushback(&pending_recv(s),(listnode*)req);
+			list_pushback(&s->pending_recv,(listnode*)req);
 			break;
 		}else{
 			s->callback(s,req,bytes,errno,_msghdr.msg_flags);
-			if(status(s) & SOCKET_CLOSE)
-				return;			
+			if(s->status & SOCKET_CLOSE)
+				return;
+			if(!(s->status & SOCKET_READABLE))
+				break;			
 		}
 	}	
-	if(!list_size(&pending_recv(s))){
+	if(!list_size(&s->pending_recv)){
 		//没有接收请求了,取消EPOLLIN
 		disable_read((handle*)s);
 	}
@@ -80,43 +81,41 @@ static void
 on_events(handle *h,int32_t events)
 {
 	dgram_socket_ *s = (dgram_socket_*)h;
-	if(status(s) & SOCKET_CLOSE)
+	if(s->status & SOCKET_CLOSE)
 		return;
 	if(events == EENGCLOSE){
 		s->callback(s,NULL,-1,EENGCLOSE,0);
 		return;
 	}	
 	do{
-		status(s) |= SOCKET_INLOOP;
+		s->status |= SOCKET_INLOOP;
 		if(events & EVENT_READ){
 			process_read(s);	
-			if(status(s) & SOCKET_CLOSE) 
+			if(s->status & SOCKET_CLOSE) 
 				break;								
 		}				
-		status(s) ^= SOCKET_INLOOP;
+		s->status ^= SOCKET_INLOOP;
 	}while(0);
-	if(status(s) & SOCKET_CLOSE){
+	if(s->status & SOCKET_CLOSE){
 		release_socket((socket_*)s);		
 	}
 }
 
 void    
-construct_datagram_socket(dgram_socket_ *s)
+datagram_socket_init(dgram_socket_ *s,int32_t fd)
 {
+	s->fd = fd;
 	s->on_events = on_events;
 	s->imp_engine_add = imp_engine_add;
-	status(s) = DATAGRAM;	
+	s->type = DATAGRAM;
+	easy_close_on_exec(fd);
 }		
 
 dgram_socket_*
 new_datagram_socket(int32_t fd)
 {
 	dgram_socket_ *s = calloc(1,sizeof(*s));
-	s->fd = fd;
-	s->on_events = on_events;
-	s->imp_engine_add = imp_engine_add;
-	type(s) = DATAGRAM;
-	easy_close_on_exec(fd);
+	datagram_socket_init(s,fd);
 	return s;
 }
 
@@ -127,11 +126,11 @@ datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 	handle *h = (handle*)s;
 	if(!h->e)
 		return -ENOASSENG;
-	else if(status(s) & SOCKET_CLOSE)
+	else if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
 	
 	errno = 0;
-	if(flag == IO_NOW && list_size(&pending_recv(s))){
+	if(s->status & SOCKET_READABLE && flag == IO_NOW && list_size(&s->pending_recv)){
 		struct msghdr _msghdr = {
 			.msg_name = &req->addr,
 			.msg_namelen = sizeof(req->addr),
@@ -149,7 +148,8 @@ datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 		else if(errno != EAGAIN)
 			return -errno;
 	}
-	list_pushback(&pending_recv(s),(listnode*)req);
+	s->status ^= SOCKET_READABLE;
+	list_pushback(&s->pending_recv,(listnode*)req);
 	if(!is_read_enable(h)) enable_read(h);
 	return -EAGAIN;	
 }
@@ -160,7 +160,7 @@ datagram_socket_send(dgram_socket_ *s,iorequest *req)
 	handle *h = (handle*)s;
 	if(!h->e)
 		return -ENOASSENG;
-	else if(status(s) & SOCKET_CLOSE)
+	else if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
 	
 	errno = 0;

@@ -5,9 +5,11 @@
 
 //status
 enum{
-	SOCKET_CLOSE    = 1 << 1,
-	SOCKET_INLOOP   = 1 << 2,
-	SOCKET_END      = SOCKET_INLOOP,
+	SOCKET_CLOSE     = 1 << 1,
+	SOCKET_INLOOP    = 1 << 2,
+	SOCKET_READABLE  = 1 << 3,
+	SOCKET_WRITEABLE = 1 << 4,
+	SOCKET_END       = SOCKET_WRITEABLE,
 };
 
 //type
@@ -92,9 +94,9 @@ datagram_socket_recv(dgram_socket_*,iorequest*,
 
 //use by subclass to construct base part
 void    
-construct_stream_socket(stream_socket_*);
+stream_socket_init(stream_socket_*,int32_t fd);
 
 void    
-construct_datagram_socket(dgram_socket_*);
+datagram_socket_init(dgram_socket_*,int32_t fd);
 
 #endif

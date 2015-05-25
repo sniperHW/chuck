@@ -325,8 +325,7 @@ redis_connect(engine *e,sockaddr_ *addr,
 		return NULL;
 	}
 	redis_conn *conn = calloc(1,sizeof(*conn));
-	conn->fd = fd;
-	construct_stream_socket((stream_socket_*)&conn);
+	stream_socket_init((stream_socket_*)conn,fd);
 	conn->dctor = redis_dctor;
 	conn->on_error = on_error;	
 	engine_associate(e,conn,IoFinish); 	
@@ -346,8 +345,7 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 	stConnet *st = (stConnet*)ud;
 	if(fd >= 0 && err == 0){
 		redis_conn *conn = calloc(1,sizeof(*conn));
-		conn->fd = fd;
-		construct_stream_socket((stream_socket_*)&conn);
+		stream_socket_init((stream_socket_*)conn,fd);
 		conn->dctor = redis_dctor;	
 		engine_associate(st->e,conn,IoFinish); 	
 		PostRecv(conn);
@@ -376,8 +374,7 @@ redis_asyn_connect(engine *e,sockaddr_ *addr,
 	int32_t ret;
 	if(0 == (ret = easy_connect(fd,addr,NULL))){
 		redis_conn *conn = calloc(1,sizeof(*conn));
-		conn->fd = fd;
-		construct_stream_socket((stream_socket_*)&conn);
+		stream_socket_init((stream_socket_*)conn,fd);
 		conn->dctor = redis_dctor;	
 		engine_associate(e,conn,IoFinish); 	
 		PostRecv(conn);
@@ -525,8 +522,7 @@ lua_redis_connect(lua_State *L)
 		return 1;
 	}
 	redis_conn *conn = calloc(1,sizeof(*conn));
-	conn->fd = fd;
-	construct_stream_socket((stream_socket_*)&conn);
+	stream_socket_init((stream_socket_*)conn,fd);
 	conn->dctor = redis_lua_dctor;
 
 	if(LUA_TFUNCTION == lua_type(L,4)){

@@ -39,6 +39,7 @@ bytebuffer_dctor(void *_)
     free(b);
 }
 
+
 static inline bytebuffer*
 bytebuffer_new(uint32_t capacity)
 {

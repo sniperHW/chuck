@@ -169,10 +169,9 @@ datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
 	buffersize = size_of_pow2(buffersize);
     if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
 	datagram *dgarm 	 = calloc(1,sizeof(*dgarm));
-	dgarm->fd = fd;
+	datagram_socket_init((dgram_socket_*)dgarm,fd);
 	dgarm->recv_bufsize  = buffersize;
 	dgarm->next_recv_buf = bytebuffer_new(buffersize);
-	construct_datagram_socket((dgram_socket_*)&dgarm);
 	//save socket_ imp_engine_add,and replace with self
 	if(!base_engine_add)
 		base_engine_add = ((handle*)dgarm)->imp_engine_add; 

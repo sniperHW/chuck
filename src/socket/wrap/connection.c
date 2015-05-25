@@ -354,7 +354,7 @@ imp_engine_add(engine *e,handle *h,
 	if(ret == 0){
 		c->on_packet = (void(*)(connection*,packet*,int32_t))callback;
 		//post the first recv request
-		if(!(((socket_*)h)->status & RECVING))
+		if(!(c->status & RECVING))
 			PostRecv(c);
 
 		if((c->recvtimeout || c->sendtimeout) && !c->timer_)
@@ -437,10 +437,9 @@ static void
 connection_init(connection *c,int32_t fd,
 				uint32_t buffersize,decoder *d)
 {
-	c->fd = fd;
+	stream_socket_init((stream_socket_*)c,fd);
 	c->recv_bufsize  = buffersize;
-	c->next_recv_buf = bytebuffer_new(buffersize);
-	construct_stream_socket((stream_socket_*)&c);
+	c->next_recv_buf = bytebuffer_new(buffersize);	
 	//save socket_ imp_engine_add,and replace with self
 	if(!base_engine_add)
 		base_engine_add = c->imp_engine_add; 
