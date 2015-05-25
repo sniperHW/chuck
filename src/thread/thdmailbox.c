@@ -80,6 +80,9 @@ static inline mail* getmail()
 
 static void 
 on_events(handle *h,int32_t events){
+	if(events == EENGCLOSE){
+		return;
+	}
 	mail   *mail_;
 	int32_t n = MAX_EVENTS;
 	while((mail_ = getmail()) != NULL){

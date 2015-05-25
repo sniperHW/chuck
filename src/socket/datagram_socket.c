@@ -82,6 +82,10 @@ on_events(handle *h,int32_t events)
 	dgram_socket_ *s = (dgram_socket_*)h;
 	if(status(s) & SOCKET_CLOSE)
 		return;
+	if(events == EENGCLOSE){
+		s->callback(s,NULL,-1,EENGCLOSE,0);
+		return;
+	}	
 	do{
 		status(s) |= SOCKET_INLOOP;
 		if(events & EVENT_READ){

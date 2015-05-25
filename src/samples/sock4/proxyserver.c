@@ -202,8 +202,12 @@ inbound_packet(connection *c,packet *p,int32_t error)
 
 
 static void 
-on_inbound_client(int32_t fd,sockaddr_ *_,void *ud)
+on_inbound_client(acceptor *a,int32_t fd,sockaddr_ *_,void *ud,int32_t err)
 {
+	if(err == EENGCLOSE){
+		acceptor_del(a);
+		return;
+	}	
 	connection *c = connection_new(fd,4096,NULL);
 	session *sess = calloc(1,sizeof(*sess));
 	session_count++;

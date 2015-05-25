@@ -9,7 +9,11 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 	return 0;
 }
 
-static void on_connection(int32_t fd,sockaddr_ *_,void *ud){
+static void on_connection(acceptor *a,int32_t fd,sockaddr_ *_,void *ud,int32_t err){
+	if(err == EENGCLOSE){
+		acceptor_del(a);
+		return;
+	}
 	printf("on_connection\n");
 	engine *e = (engine*)ud;
 	stream_socket_ *h = new_stream_socket(fd);

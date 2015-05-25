@@ -95,6 +95,10 @@ on_events(handle *h,int32_t events)
 	stream_socket_ *s = (stream_socket_*)h;
 	if(status(s) & SOCKET_CLOSE)
 		return;
+	if(events == EENGCLOSE){
+		s->callback(s,NULL,-1,EENGCLOSE);
+		return;
+	}
 	do{
 		status(s) |= SOCKET_INLOOP;
 		if(events & EVENT_READ){

@@ -13,7 +13,7 @@ imp_engine_add(engine *e,handle *h,
 	int32_t ret = event_add(e,h,EVENT_READ);
 	if(ret == 0){
 		easy_noblock(h->fd,1);
-		((acceptor*)h)->callback = (void (*)(int32_t fd,sockaddr_*,void*))callback;
+		((acceptor*)h)->callback = (void (*)(acceptor*,int32_t fd,sockaddr_*,void*,int32_t))callback;
 	}
 	return ret;
 }
@@ -40,6 +40,10 @@ _accept(handle *h,sockaddr_ *addr)
 static void 
 process_accept(handle *h,int32_t events)
 {
+	if(events == EENGCLOSE){
+		((acceptor*)h)->callback((acceptor*)h,-1,NULL,((acceptor*)h)->ud,EENGCLOSE);
+		return;
+	}
     int fd;
     sockaddr_ addr;
     for(;;){
@@ -47,7 +51,7 @@ process_accept(handle *h,int32_t events)
     	if(fd < 0)
     	   break;
     	else{
-		   ((acceptor*)h)->callback(fd,&addr,((acceptor*)h)->ud);
+		   ((acceptor*)h)->callback((acceptor*)h,fd,&addr,((acceptor*)h)->ud,0);
     	}      
     }
 }
@@ -99,7 +103,6 @@ lua_acceptor_new(lua_State *L)
 	((handle*)a)->fd = fd;
 	((handle*)a)->on_events = process_accept;
 	((handle*)a)->imp_engine_add = imp_engine_add;
-	a->ud = a;
 	easy_close_on_exec(fd);
 	luaL_getmetatable(L, LUA_METATABLE);
 	lua_setmetatable(L, -2);	
@@ -107,11 +110,10 @@ lua_acceptor_new(lua_State *L)
 }
 
 static void 
-luacallback(int32_t fd,sockaddr_ *addr,void *ud)
+luacallback(acceptor *a,int32_t fd,sockaddr_ *addr,void *ud,int32_t err)
 {
-	acceptor *a = (acceptor*)ud;
 	const char *error;
-	if((error = LuaCallRefFunc(a->luacallback,"i",fd))){
+	if((error = LuaCallRefFunc(a->luacallback,"ii",fd,err))){
 		SYS_LOG(LOG_ERROR,"error on acceptor callback:%s\n",error);	
 	}
 }

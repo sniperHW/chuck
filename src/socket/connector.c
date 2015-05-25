@@ -80,6 +80,10 @@ _process_connect(connector *c)
 static void 
 process_connect(handle *h,int32_t events)
 {
+	if(events == EENGCLOSE){
+		((connector*)h)->callback(-1,EENGCLOSE,((connector*)h)->ud);
+		return;
+	}
 	_process_connect((connector*)h);
 	free(h);
 }

@@ -42,6 +42,7 @@
 #include    <fcntl.h>
 #include    <stdint.h>
 #include    "util/list.h"
+#include    "util/dlist.h"
 
 
 #ifdef _LINUX
@@ -89,7 +90,8 @@ typedef void *(*generic_callback)(void*);
 typedef struct engine engine;
 
 typedef struct handle{
-    int32_t  fd;
+    dlistnode dnode;
+    int32_t   fd;
     union{
         int32_t     events;
         struct{
@@ -313,6 +315,7 @@ enum{
     EPKTOOLARGE,                /*packet too large*/
     ERVTIMEOUT,                 /*recv timeout*/
     ESNTIMEOUT,                 /*send timeout*/
+    EENGCLOSE,                  /*engile close*/
 };
     
 #endif

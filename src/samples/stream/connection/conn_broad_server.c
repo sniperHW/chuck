@@ -36,7 +36,11 @@ static void on_packet(connection *c,packet *p,int32_t error){
 	}
 }
 
-static void on_connection(int32_t fd,sockaddr_ *_,void *ud){
+static void on_connection(acceptor *a,int32_t fd,sockaddr_ *_,void *ud,int32_t err){
+	if(err == EENGCLOSE){
+		acceptor_del(a);
+		return;
+	}		
 	printf("on_connection\n");
 	engine *e = (engine*)ud;
 	connection *c = connection_new(fd,65535,rpacket_decoder_new(1024));

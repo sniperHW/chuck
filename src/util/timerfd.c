@@ -21,6 +21,8 @@ static void
 on_timeout(handle *h,int32_t events)
 {
 	int64_t _;
+	if(events == EENGCLOSE)
+		return;
 	TEMP_FAILURE_RETRY(read(h->fd,&_,sizeof(_)));	
 	((timerfd*)h)->callback(((timerfd*)h)->ud);
 }

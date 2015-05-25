@@ -40,8 +40,8 @@ static int32_t lua_engine_gc(lua_State *L){
 
 static int32_t lua_engine_run(lua_State *L){
 	engine *e = lua_toengine(L,1);
-	engine_run(e);
-	return 0;
+	lua_pushinteger(L,engine_run(e));
+	return 1;
 }
 
 
