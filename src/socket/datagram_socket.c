@@ -23,9 +23,9 @@ imp_engine_add(engine *e,handle *h,
 	if(h->e) return -EASSENG;
 	int32_t ret;
 #ifdef _LINUX
-	if(0 == (ret = event_add(e,h,EPOLLIN)))
-		disable_read(h);	
+	ret = event_add(e,h,EVENT_READ);
 #elif   _BSD
+	ret = event_add(e,h,EVENT_READ);
 	if(0 == (ret = event_add(e,h,EVFILT_READ)))
 		disable_read(h);
 #else

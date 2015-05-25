@@ -27,6 +27,7 @@ imp_engine_add(engine *e,handle *h,
 #ifdef _LINUX			
 	ret = event_add(e,h,EVENT_READ | EVENT_WRITE);
 #elif _BSD
+	ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
 	if(0 == (ret = event_add(e,h,EVENT_READ))){
 		ret = event_add(e,h,EVENT_WRITE);
 	}else{

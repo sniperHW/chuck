@@ -9,7 +9,6 @@ static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NUL
 
 enum{
 	RECVING   = SOCKET_END << 1,
-	SENDING   = SOCKET_END << 2,
 };
 
 enum{
@@ -112,10 +111,7 @@ Recv(connection *c)
 static inline int32_t 
 Send(connection *c,int32_t flag)
 {
-	int32_t ret = stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
-	if(ret < 0 && -ret == EAGAIN)
-		c->status |= SENDING;
-	return ret; 
+	return stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
 }
 
 
@@ -290,16 +286,19 @@ update_send_list(connection *c,
 
 
 static void 
-SendFinish(connection *c,int32_t bytes)
+SendFinish(connection *c,int32_t bytes,int32_t err_code)
 {
-	update_send_list(c,bytes);
-	if(c->status & SOCKET_CLOSE)
+	if(bytes >= 0){
+		update_send_list(c,bytes);
+		if(c->status & SOCKET_CLOSE)
 			return;
-	if(!prepare_send(c)) {
-		c->status ^= SENDING;
-		return;
+		if(!prepare_send(c)) {
+			return;
+		}
+		if((err_code = -Send(c,IO_POST)) == EAGAIN)
+			return;
 	}
-	Send(c,IO_POST);		
+	c->on_packet(c,NULL,err_code);		
 }
 
 static void 
@@ -310,8 +309,8 @@ IoFinish(handle *sock,void *_,
 	connection *c  = (connection*)sock;
 	if(c->status & SOCKET_CLOSE)
 		return;
-	if(io == (iorequest*)&c->send_overlap && bytes > 0)
-		SendFinish(c,bytes);
+	if(io == (iorequest*)&c->send_overlap)
+		SendFinish(c,bytes,err_code);
 	else if(io == (iorequest*)&c->recv_overlap)
 		RecvFinish(c,bytes,err_code);
 }
@@ -319,7 +318,6 @@ IoFinish(handle *sock,void *_,
 static int32_t 
 timer_callback(uint32_t event,uint64_t tick,void *ud){
 	if(event == TEVENT_TIMEOUT){
-		//printf("-------------%ld\n",systick64() - tick);
 		connection *c = (connection*)ud;
 		if(c->recvtimeout &&
 		   c->recvtimeout + tick > c->lastrecv)
@@ -356,7 +354,6 @@ imp_engine_add(engine *e,handle *h,
 		//post the first recv request
 		if(!(c->status & RECVING))
 			PostRecv(c);
-
 		if((c->recvtimeout || c->sendtimeout) && !c->timer_)
 			c->timer_ = engine_regtimer(h->e,1000,timer_callback,c);
 		c->lastrecv = systick64();
@@ -375,10 +372,9 @@ _connection_send(connection *c,packet *p,stSendFshCb *stcb)
 	}
 	if(c->sendtimeout)
 		p->sendtime = systick64();		
-	list_pushback(&c->send_list,(listnode*)p);
 	if(stcb)
 		list_pushback(&c->send_finish_cb,(listnode*)stcb);
-	if(!(c->status & SENDING)){
+	if(1 == list_pushback(&c->send_list,(listnode*)p)){
 		prepare_send(c);
 		ret = Send(c,IO_NOW);
 		if(ret < 0 && ret == -EAGAIN) 

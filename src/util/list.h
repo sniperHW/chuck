@@ -32,7 +32,7 @@ typedef struct listnode
 
 typedef struct
 {
-	int32_t        size;
+	size_t        size;
     listnode      *head;
     listnode      *tail;
 }list;
@@ -44,32 +44,34 @@ list_init(list *l)
 	l->size = 0;
 }
 
-static inline void 
+
+//if push success,return the new size,else return -1
+static inline size_t 
 list_pushback(list *l,listnode *n)
 {
     if(n->next) 
-    	return;
+    	return -1;
 	if(0 == l->size)
 		l->head = l->tail = n;
 	else{
 		l->tail->next = n;
 		l->tail = n;
 	}
-	++l->size;
+	return ++l->size;
 }
 
-static inline void 
+static inline size_t 
 list_pushfront(list *l,listnode *n)
 {
     if(n->next) 
-    	return;
+    	return -1;
 	if(0 == l->size)
 		l->head = l->tail = n;
 	else{
 		n->next = l->head;
 		l->head = n;
 	}
-	++l->size;
+	return ++l->size;
 }
 
 static inline listnode* 
@@ -85,7 +87,7 @@ list_pop(list *l)
 	return head;
 }
 
-static inline int32_t 
+static inline size_t 
 list_size(list *l)
 {
 	return l->size;

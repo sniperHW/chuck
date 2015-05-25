@@ -17,15 +17,9 @@ imp_engine_add(engine *e,handle *h,
 	if(h->e) return -EASSENG;
 	int32_t ret;
 #ifdef _LINUX
-	ret = event_add(e,h,EPOLLRDHUP);
+	ret = event_add(e,h,EVENT_READ|EVENT_WRITE);
 #elif   _BSD
-	if((ret = event_add(e,h,EVFILT_READ)) == 0 &&
-	   (ret = event_add(e,h,EVFILT_READ)) == 0){
-		disable_read(h);
-		disable_write(h)
-	}else if(h->e){
-		event_remove(h);
-	}
+	ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
 #else
 	return -EUNSPPLAT;
 #endif
