@@ -16,28 +16,43 @@ enum{
 	DATAGRAM = 2,
 };
 
+#define socket_head								\
+	handle_head;								\
+	int32_t status;								\
+	int32_t type;								\
+    list    pending_recv;						\
+	void   *ud;									\
+	void    (*dctor)(void*);					\
+	void    (*pending_dctor)(iorequest*)
+
 typedef struct socket_{
-	handle  base;
-	int32_t status;
-	int32_t type;
-    list    pending_recv;//尚未处理的读请求
-	void   *ud;
-	void    (*dctor)(void*);
-	void    (*pending_dctor)(iorequest*);//use to clear pending iorequest
+	socket_head;
 }socket_;
 
-typedef struct stream_socket_{
-	socket_ base;
-	list    pending_send;//尚未处理的发请求
-	void    (*callback)(struct stream_socket_*,void*,int32_t,int32_t);
-}stream_socket_;
+typedef struct stream_socket_ stream_socket_;
+typedef struct dgram_socket_  dgram_socket_; 
 
-typedef struct dgram_socket_{
-	socket_ base;
-	void   (*callback)(struct dgram_socket_*,
-					   void*,int32_t,int32_t,
-					   int32_t recvflags);
-}dgram_socket_;
+#define stream_socket_head						\
+		socket_head;							\
+		list    pending_send;					\
+		void    (*callback)						\
+				(stream_socket_*,				\
+					void*,int32_t,int32_t)
+
+#define dgram_socket_head						\
+		socket_head;							\
+		void   (*callback)						\
+			   (dgram_socket_*,					\
+			    void*,int32_t,int32_t,			\
+				int32_t recvflags);		
+
+struct stream_socket_{
+	stream_socket_head;
+};
+
+struct dgram_socket_{
+	dgram_socket_head;
+};
 
 
 stream_socket_*

@@ -97,7 +97,7 @@ prepare_recv(connection *c)
 static inline void 
 PostRecv(connection *c)
 {
-	((socket_*)c)->status |= RECVING;
+	c->status |= RECVING;
 	prepare_recv(c);
 	stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST);		
 }
@@ -114,7 +114,7 @@ Send(connection *c,int32_t flag)
 {
 	int32_t ret = stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
 	if(ret < 0 && -ret == EAGAIN)
-		((socket_*)c)->status |= SENDING;
+		c->status |= SENDING;
 	return ret; 
 }
 
@@ -293,10 +293,10 @@ static void
 SendFinish(connection *c,int32_t bytes)
 {
 	update_send_list(c,bytes);
-	if(((socket_*)c)->status & SOCKET_CLOSE)
+	if(c->status & SOCKET_CLOSE)
 			return;
 	if(!prepare_send(c)) {
-		((socket_*)c)->status ^= SENDING;
+		c->status ^= SENDING;
 		return;
 	}
 	Send(c,IO_POST);		
@@ -308,7 +308,7 @@ IoFinish(handle *sock,void *_,
 {
 	iorequest  *io = ((iorequest*)_);
 	connection *c  = (connection*)sock;
-	if(((socket_*)c)->status & SOCKET_CLOSE)
+	if(c->status & SOCKET_CLOSE)
 		return;
 	if(io == (iorequest*)&c->send_overlap && bytes > 0)
 		SendFinish(c,bytes);
@@ -325,7 +325,7 @@ timer_callback(uint32_t event,uint64_t tick,void *ud){
 		   c->recvtimeout + tick > c->lastrecv)
 		{
 		   c->on_packet(c,NULL,ERVTIMEOUT);
-			if(((socket_*)c)->status & SOCKET_CLOSE)
+			if(c->status & SOCKET_CLOSE)
 			return 0;		
 		}
 		if(c->sendtimeout){
@@ -333,7 +333,7 @@ timer_callback(uint32_t event,uint64_t tick,void *ud){
 			if(p){
 				if(p->sendtime + c->sendtimeout > tick)
 					c->on_packet(c,NULL,ESNTIMEOUT);
-				if(((socket_*)c)->status & SOCKET_CLOSE)
+				if(c->status & SOCKET_CLOSE)
 					return 0;
 			}	
 		}
@@ -378,7 +378,7 @@ _connection_send(connection *c,packet *p,stSendFshCb *stcb)
 	list_pushback(&c->send_list,(listnode*)p);
 	if(stcb)
 		list_pushback(&c->send_finish_cb,(listnode*)stcb);
-	if(!(((socket_*)c)->status & SENDING)){
+	if(!(c->status & SENDING)){
 		prepare_send(c);
 		ret = Send(c,IO_NOW);
 		if(ret < 0 && ret == -EAGAIN) 
@@ -437,14 +437,14 @@ static void
 connection_init(connection *c,int32_t fd,
 				uint32_t buffersize,decoder *d)
 {
-	((handle*)c)->fd = fd;
+	c->fd = fd;
 	c->recv_bufsize  = buffersize;
 	c->next_recv_buf = bytebuffer_new(buffersize);
-	construct_stream_socket(&c->base);
+	construct_stream_socket((stream_socket_*)&c);
 	//save socket_ imp_engine_add,and replace with self
 	if(!base_engine_add)
-		base_engine_add = ((handle*)c)->imp_engine_add; 
-	((handle*)c)->imp_engine_add = imp_engine_add;
+		base_engine_add = c->imp_engine_add; 
+	c->imp_engine_add = imp_engine_add;
 	c->decoder_ = d ? d:conn_raw_decoder_new();
 	decoder_init(c->decoder_,c->next_recv_buf,0);
 }
@@ -456,14 +456,14 @@ connection_new(int32_t fd,uint32_t buffersize,decoder *d)
     if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
 	connection *c 	 = calloc(1,sizeof(*c));
 	connection_init(c,fd,buffersize,d);
-	((socket_*)c)->dctor = connection_dctor;
+	c->dctor = connection_dctor;
 	return c;
 }
 
 int32_t 
 connection_close(connection *c)
 {
-	if(((socket_*)c)->status & SOCKET_CLOSE)
+	if(c->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
 	close_socket((socket_*)c);
 	return 0;
@@ -571,7 +571,7 @@ lua_connection_new(lua_State *L)
 	connection *c = (connection*)lua_newuserdata(L, sizeof(*c));
 	memset(c,0,sizeof(*c));
 	connection_init(c,fd,buffersize,d);
-	((socket_*)c)->dctor = lua_connection_dctor;
+	c->dctor = lua_connection_dctor;
 	luaL_getmetatable(L, LUA_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;

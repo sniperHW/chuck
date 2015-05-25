@@ -20,7 +20,16 @@
 #include <stdint.h>
 #include "comm.h"
 #include "util/timewheel.h"  
-#include "lua/lua_util.h"  
+#include "lua/lua_util.h"
+#include "util/timerfd.h"
+#include "util/dlist.h"    
+
+#define engine_head timerfd   *tfd;             \
+                    wheelmgr  *timermgr;        \
+                    int32_t    notifyfds[2];    \
+                    dlist      handles;         \
+                    int32_t    status;          \
+                    pid_t      threadid
 
 engine*
 engine_new();

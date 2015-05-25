@@ -59,7 +59,7 @@ process_read(dgram_socket_ *s)
 			.msg_control = NULL,
 			.msg_controllen = 0
 		};
-		bytes = TEMP_FAILURE_RETRY(recvmsg(((handle*)s)->fd,&_msghdr,0));	
+		bytes = TEMP_FAILURE_RETRY(recvmsg(s->fd,&_msghdr,0));	
 		if(bytes < 0 && errno == EAGAIN){
 			//将请求重新放回到队列
 			list_pushback(&pending_recv(s),(listnode*)req);
@@ -103,8 +103,8 @@ on_events(handle *h,int32_t events)
 void    
 construct_datagram_socket(dgram_socket_ *s)
 {
-	((handle*)s)->on_events = on_events;
-	((handle*)s)->imp_engine_add = imp_engine_add;
+	s->on_events = on_events;
+	s->imp_engine_add = imp_engine_add;
 	status(s) = DATAGRAM;	
 }		
 
@@ -112,9 +112,9 @@ dgram_socket_*
 new_datagram_socket(int32_t fd)
 {
 	dgram_socket_ *s = calloc(1,sizeof(*s));
-	((handle*)s)->fd = fd;
-	((handle*)s)->on_events = on_events;
-	((handle*)s)->imp_engine_add = imp_engine_add;
+	s->fd = fd;
+	s->on_events = on_events;
+	s->imp_engine_add = imp_engine_add;
 	type(s) = DATAGRAM;
 	easy_close_on_exec(fd);
 	return s;
@@ -142,7 +142,7 @@ datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 			.msg_controllen = 0
 		};
 		if(*recvflags) *recvflags = 0;		
-		int32_t bytes = TEMP_FAILURE_RETRY(recvmsg(((handle*)s)->fd,&_msghdr,0));					
+		int32_t bytes = TEMP_FAILURE_RETRY(recvmsg(s->fd,&_msghdr,0));					
 		if(*recvflags) *recvflags = _msghdr.msg_flags;	
 		if(bytes >= 0)
 			return bytes;
@@ -173,7 +173,7 @@ datagram_socket_send(dgram_socket_ *s,iorequest *req)
 		.msg_control = NULL,
 		.msg_controllen = 0
 	};		
-	int32_t bytes = TEMP_FAILURE_RETRY(sendmsg(((handle*)s)->fd,&_msghdr,0));		
+	int32_t bytes = TEMP_FAILURE_RETRY(sendmsg(s->fd,&_msghdr,0));		
 	if(bytes >= 0)
 		return bytes;
 	else

@@ -26,7 +26,7 @@
 
 
 typedef struct connection{
-    stream_socket_ base;
+    stream_socket_head;
     struct         iovec wsendbuf[MAX_WBAF];
     struct         iovec wrecvbuf[2];
     iorequest      send_overlap;

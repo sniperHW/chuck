@@ -89,19 +89,26 @@ typedef void *(*generic_callback)(void*);
 
 typedef struct engine engine;
 
+#define handle_head                         \
+    dlistnode dnode;                        \
+    int32_t   fd;                           \
+    union{                                  \
+        int32_t     events;                 \
+        struct{                             \
+            int16_t set_read;               \
+            int16_t set_write;              \
+        };                                  \
+    };                                      \
+    engine *e;                              \
+    int32_t (*imp_engine_add)               \
+            (engine*,struct handle*,        \
+                generic_callback);          \
+    void    (*on_events)                    \
+            (struct handle*,                \
+                int32_t events)
+
 typedef struct handle{
-    dlistnode dnode;
-    int32_t   fd;
-    union{
-        int32_t     events;
-        struct{
-            int16_t set_read;
-            int16_t set_write;
-        };
-    };
-    engine *e;
-    int32_t (*imp_engine_add)(engine*,struct handle*,generic_callback);          
-    void    (*on_events)(struct handle*,int32_t events);
+    handle_head;
 }handle;
 
 

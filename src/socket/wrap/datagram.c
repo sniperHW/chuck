@@ -90,7 +90,7 @@ prepare_recv(datagram *d)
 static inline void
 PostRecv(datagram *d)
 {
-	((socket_*)d)->status |= RECVING;
+	d->status |= RECVING;
 	prepare_recv(d);
 	datagram_socket_recv((dgram_socket_*)d,&d->recv_overlap,IO_POST,NULL);		
 }
@@ -169,15 +169,15 @@ datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
 	buffersize = size_of_pow2(buffersize);
     if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
 	datagram *dgarm 	 = calloc(1,sizeof(*dgarm));
-	((handle*)dgarm)->fd = fd;
+	dgarm->fd = fd;
 	dgarm->recv_bufsize  = buffersize;
 	dgarm->next_recv_buf = bytebuffer_new(buffersize);
-	construct_datagram_socket(&dgarm->base);
+	construct_datagram_socket((dgram_socket_*)&dgarm);
 	//save socket_ imp_engine_add,and replace with self
 	if(!base_engine_add)
 		base_engine_add = ((handle*)dgarm)->imp_engine_add; 
-	((handle*)dgarm)->imp_engine_add = imp_engine_add;
-	((socket_*)dgarm)->dctor = datagram_dctor;
+	dgarm->imp_engine_add = imp_engine_add;
+	dgarm->dctor = datagram_dctor;
 	dgarm->decoder_ = d ? d:dgram_raw_decoder_new();
 	decoder_init(dgarm->decoder_,dgarm->next_recv_buf,0);
 	return dgarm;

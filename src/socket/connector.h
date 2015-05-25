@@ -25,7 +25,7 @@
 //void (*connected_callback)(int32_t fd,int32_t err,void *ud);    
 
 typedef struct{
-    handle    base;  
+    handle_head; 
     void     *ud;
     void      (*callback)(int32_t fd,int32_t err,void *ud);
     uint32_t  timeout;

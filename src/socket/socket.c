@@ -4,7 +4,7 @@
 void 
 release_socket(socket_ *s)
 {
-	close(((handle*)s)->fd);
+	close(s->fd);
 	iorequest *req;
 	if(s->pending_dctor){
 		list *l = &s->pending_recv;

@@ -72,7 +72,7 @@ process_write(stream_socket_ *s)
 	int32_t bytes = 0;
 	while((req = (iorequest*)list_pop(&s->pending_send))!=NULL){
 		errno = 0;	
-		bytes = TEMP_FAILURE_RETRY(writev(((handle*)s)->fd,req->iovec,req->iovec_count));
+		bytes = TEMP_FAILURE_RETRY(writev(s->fd,req->iovec,req->iovec_count));
 		if(bytes < 0 && errno == EAGAIN){
 				//将请求重新放回到队列
 				list_pushback(&s->pending_send,(listnode*)req);
@@ -119,8 +119,8 @@ on_events(handle *h,int32_t events)
 void    
 construct_stream_socket(stream_socket_ *s)
 {
-	((handle*)s)->on_events = on_events;
-	((handle*)s)->imp_engine_add = imp_engine_add;
+	s->on_events = on_events;
+	s->imp_engine_add = imp_engine_add;
 	type(s) = STREAM;	
 }	
 
@@ -128,9 +128,9 @@ stream_socket_*
 new_stream_socket(int32_t fd)
 {
 	stream_socket_ *s = calloc(1,sizeof(*s));
-	((handle*)s)->fd = fd;
-	((handle*)s)->on_events = on_events;
-	((handle*)s)->imp_engine_add = imp_engine_add;
+	s->fd = fd;
+	s->on_events = on_events;
+	s->imp_engine_add = imp_engine_add;
 	type(s) = STREAM;
 	easy_close_on_exec(fd);
 	return s;

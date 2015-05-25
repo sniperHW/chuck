@@ -61,15 +61,15 @@ acceptor_new(int32_t fd,void *ud)
 {
 	acceptor *a = calloc(1,sizeof(*a));
 	a->ud = ud;
-	((handle*)a)->fd = fd;
-	((handle*)a)->on_events = process_accept;
-	((handle*)a)->imp_engine_add = imp_engine_add;
+	a->fd = fd;
+	a->on_events = process_accept;
+	a->imp_engine_add = imp_engine_add;
 	easy_close_on_exec(fd);
 	return a;
 }
 
 void    acceptor_del(acceptor *a){
-	close(((handle*)a)->fd);
+	close(a->fd);
 	free(a);
 }
 
@@ -87,7 +87,7 @@ lua_acceptor_gc(lua_State *L)
 {
 	acceptor *a = lua_toacceptor(L,1);
 	release_luaRef(&a->luacallback);
-	close(((handle*)a)->fd);
+	close(a->fd);
 	return 0;
 }
 
@@ -100,9 +100,9 @@ lua_acceptor_new(lua_State *L)
 	fd = lua_tonumber(L,1);
 	acceptor *a = (acceptor*)lua_newuserdata(L, sizeof(*a));
 	memset(a,0,sizeof(*a));
-	((handle*)a)->fd = fd;
-	((handle*)a)->on_events = process_accept;
-	((handle*)a)->imp_engine_add = imp_engine_add;
+	a->fd = fd;
+	a->on_events = process_accept;
+	a->imp_engine_add = imp_engine_add;
 	easy_close_on_exec(fd);
 	luaL_getmetatable(L, LUA_METATABLE);
 	lua_setmetatable(L, -2);	

@@ -24,7 +24,7 @@
 #include "lua/lua_util.h"      
 
 typedef struct datagram{
-    dgram_socket_ base;
+    dgram_socket_head;
     struct        iovec wsendbuf[MAX_WBAF];
     struct        iovec wrecvbuf[2];
     iorequest     recv_overlap;

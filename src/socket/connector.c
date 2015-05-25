@@ -10,7 +10,7 @@ connect_timeout(uint32_t event,uint64_t _,void *ud)
 	if(event == TEVENT_TIMEOUT){
 		connector *c = (connector*)ud;
 		c->callback(-1,ETIMEDOUT,c->ud);
-		close(((handle*)c)->fd);
+		close(c->fd);
 		free(c);
 	}
 	return -1;//one shot timer,return -1
@@ -52,12 +52,11 @@ _process_connect(connector *c)
 	int32_t err = 0;
 	int32_t fd = -1;
 	socklen_t len = sizeof(err);
-	handle *h = (handle*)c;
 	if(c->t){
 		unregister_timer(c->t);
 	}
 	do{
-		if(getsockopt(h->fd, SOL_SOCKET, SO_ERROR, &err, &len) == -1){
+		if(getsockopt(c->fd, SOL_SOCKET, SO_ERROR, &err, &len) == -1){
 			c->callback(-1,err,c->ud);
 		    break;
 		}
@@ -67,13 +66,13 @@ _process_connect(connector *c)
 		    break;
 		}
 		//success
-		fd = h->fd;
+		fd = c->fd;
 	}while(0);
-	event_remove(h);    
+	event_remove((handle*)c);    
 	if(fd != -1){
 		c->callback(fd,0,c->ud);
 	}else{
-		close(h->fd);
+		close(c->fd);
 	}		
 }
 
@@ -98,9 +97,9 @@ connector*
 connector_new(int32_t fd,void *ud,uint32_t timeout)
 {
 	connector *c = calloc(1,sizeof(*c));
-	((handle*)c)->fd = fd;
-	((handle*)c)->on_events = process_connect;
-	((handle*)c)->imp_engine_add = imp_engine_add;
+	c->fd = fd;
+	c->on_events = process_connect;
+	c->imp_engine_add = imp_engine_add;
 	c->timeout = timeout;
 	c->ud = ud;
 	easy_close_on_exec(fd);
@@ -134,9 +133,9 @@ lua_connector_new(lua_State *L)
 
 	connector *c = (connector*)lua_newuserdata(L, sizeof(*c));
 	memset(c,0,sizeof(*c));
-	((handle*)c)->fd = fd;
-	((handle*)c)->on_events = lua_process_connect;
-	((handle*)c)->imp_engine_add = imp_engine_add;
+	c->fd = fd;
+	c->on_events = lua_process_connect;
+	c->imp_engine_add = imp_engine_add;
 	c->timeout = timeout;
 	c->ud = c;
 	easy_close_on_exec(fd);

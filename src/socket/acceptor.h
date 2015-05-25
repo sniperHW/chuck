@@ -24,7 +24,7 @@
 //typedef void (*accepted_callback)(int32_t fd,sockaddr_*,void *ud);
 
 typedef struct acceptor{
-    handle  base;
+    handle_head;
     void   *ud;      
     void    (*callback)(struct acceptor*,int32_t fd,sockaddr_*,void *ud,int32_t err);
     luaRef  luacallback;

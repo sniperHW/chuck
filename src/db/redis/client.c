@@ -32,7 +32,7 @@ typedef struct{
 }reply_cb;
 
 typedef struct redis_conn{
-    stream_socket_      base;
+    stream_socket_head;
     struct       		iovec wrecvbuf[1];
     char         		recvbuf[RECV_BUFFSIZE]; 
     struct       		iovec wsendbuf[MAX_WBAF];
@@ -189,10 +189,10 @@ static void
 SendFinish(redis_conn *c,int32_t bytestransfer)
 {
 	update_send_list(c,bytestransfer);
-	if(((socket_*)c)->status & SOCKET_CLOSE)
+	if(c->status & SOCKET_CLOSE)
 			return;
 	if(!prepare_send(c)) {
-		((socket_*)c)->status ^= SENDING;
+		c->status ^= SENDING;
 		return;
 	}
 	Send(c,IO_POST);		
@@ -258,7 +258,7 @@ IoFinish(handle *sock,void *_,int32_t bytestransfer,
 {
 	iorequest  *io = ((iorequest*)_);
 	redis_conn *c  = (redis_conn*)sock;
-	if(((socket_*)c)->status & SOCKET_CLOSE)
+	if(c->status & SOCKET_CLOSE)
 		return;
 	if(io == (iorequest*)&c->send_overlap && bytestransfer > 0)
 		SendFinish(c,bytestransfer);
@@ -270,15 +270,14 @@ IoFinish(handle *sock,void *_,int32_t bytestransfer,
 int32_t 
 _redis_execute(redis_conn *conn,const char *str)
 {
-	handle *h = (handle*)conn;
 	int32_t ret = 0;
-	if(((socket_*)h)->status & SOCKET_CLOSE)
+	if(conn->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
-	if(!h->e)
+	if(!conn->e)
 		return -ENOASSENG;
 	packet *p = build_request(str);
 	list_pushback(&conn->send_list,(listnode*)p);
-	if(!(((socket_*)conn)->status & SENDING)){
+	if(!(conn->status & SENDING)){
 		prepare_send(conn);
 		ret = Send(conn,IO_NOW);
 		if(ret > 0)
@@ -310,7 +309,7 @@ redis_execute(redis_conn *conn,const char *str,
 void 
 redis_close(redis_conn *c)
 {
-	if(((socket_*)c)->status & SOCKET_CLOSE)
+	if(c->status & SOCKET_CLOSE)
 		return;
 	close_socket((socket_*)c);
 }
@@ -326,9 +325,9 @@ redis_connect(engine *e,sockaddr_ *addr,
 		return NULL;
 	}
 	redis_conn *conn = calloc(1,sizeof(*conn));
-	((handle*)conn)->fd = fd;
-	construct_stream_socket(&conn->base);
-	((socket_*)conn)->dctor = redis_dctor;
+	conn->fd = fd;
+	construct_stream_socket((stream_socket_*)&conn);
+	conn->dctor = redis_dctor;
 	conn->on_error = on_error;	
 	engine_associate(e,conn,IoFinish); 	
 	PostRecv(conn);
@@ -347,9 +346,9 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 	stConnet *st = (stConnet*)ud;
 	if(fd >= 0 && err == 0){
 		redis_conn *conn = calloc(1,sizeof(*conn));
-		((handle*)conn)->fd = fd;
-		construct_stream_socket(&conn->base);
-		((socket_*)conn)->dctor = redis_dctor;	
+		conn->fd = fd;
+		construct_stream_socket((stream_socket_*)&conn);
+		conn->dctor = redis_dctor;	
 		engine_associate(st->e,conn,IoFinish); 	
 		PostRecv(conn);
 		conn->on_error = st->on_error;
@@ -377,9 +376,9 @@ redis_asyn_connect(engine *e,sockaddr_ *addr,
 	int32_t ret;
 	if(0 == (ret = easy_connect(fd,addr,NULL))){
 		redis_conn *conn = calloc(1,sizeof(*conn));
-		((handle*)conn)->fd = fd;
-		construct_stream_socket(&conn->base);
-		((socket_*)conn)->dctor = redis_dctor;	
+		conn->fd = fd;
+		construct_stream_socket((stream_socket_*)&conn);
+		conn->dctor = redis_dctor;	
 		engine_associate(e,conn,IoFinish); 	
 		PostRecv(conn);
 		return conn;
@@ -526,9 +525,9 @@ lua_redis_connect(lua_State *L)
 		return 1;
 	}
 	redis_conn *conn = calloc(1,sizeof(*conn));
-	((handle*)conn)->fd = fd;
-	construct_stream_socket(&conn->base);
-	((socket_*)conn)->dctor = redis_lua_dctor;
+	conn->fd = fd;
+	construct_stream_socket((stream_socket_*)&conn);
+	conn->dctor = redis_lua_dctor;
 
 	if(LUA_TFUNCTION == lua_type(L,4)){
 		conn->lua_err_cb  = toluaRef(L,4);
