@@ -49,11 +49,11 @@ process_read(stream_socket_ *s)
 			s->callback(s,req,bytes,errno);
 			if(s->status & SOCKET_CLOSE)
 				return;
-			if(!(s->status & SOCKET_READABLE))
+			if(!s->e || !(s->status & SOCKET_READABLE))
 				break;			
 		}
 	}	
-	if(!list_size(&s->pending_recv)){
+	if(s->e && !list_size(&s->pending_recv)){
 		//没有接收请求了,取消EPOLLIN
 		disable_read((handle*)s);
 	}	
@@ -77,11 +77,11 @@ process_write(stream_socket_ *s)
 			s->callback(s,req,bytes,errno);
 			if(s->status & SOCKET_CLOSE)
 				return;
-			if(!(s->status & SOCKET_WRITEABLE))
+			if(!s->e || !(s->status & SOCKET_WRITEABLE))
 				break;				
 		}
 	}
-	if(!list_size(&s->pending_send)){
+	if(s->e && !list_size(&s->pending_send)){
 		//没有接收请求了,取消EPOLLOUT
 		disable_write((handle*)s);
 	}		
@@ -91,7 +91,7 @@ static void
 on_events(handle *h,int32_t events)
 {
 	stream_socket_ *s = (stream_socket_*)h;
-	if(s->status & SOCKET_CLOSE)
+	if(!s->e || s->status & SOCKET_CLOSE)
 		return;
 	if(events == EENGCLOSE){
 		s->callback(s,NULL,-1,EENGCLOSE);
@@ -104,7 +104,7 @@ on_events(handle *h,int32_t events)
 			if(s->status & SOCKET_CLOSE) 
 				break;								
 		}		
-		if(events & EVENT_WRITE)
+		if(s->e && (events & EVENT_WRITE))
 			process_write(s);			
 		s->status ^= SOCKET_INLOOP;
 	}while(0);
@@ -140,10 +140,10 @@ stream_socket_recv(stream_socket_ *s,
 				   iorequest *req,int32_t flag)
 {
 	handle *h = (handle*)s;
-	if(!h->e)
-		return -ENOASSENG;
-	else if(s->status & SOCKET_CLOSE)
+	if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
+	else if(!h->e)
+		return -ENOASSENG;
 	errno = 0;
 	if(s->status & SOCKET_READABLE && flag == IO_NOW && list_size(&s->pending_recv)){
 		int32_t bytes = TEMP_FAILURE_RETRY(readv(h->fd,req->iovec,req->iovec_count));
@@ -163,10 +163,10 @@ stream_socket_send(stream_socket_ *s,
 				   iorequest *req,int32_t flag)
 {
 	handle *h = (handle*)s;
-	if(!h->e)
-		return -ENOASSENG;
-	else if(s->status & SOCKET_CLOSE)
+	if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
+	else if(!h->e)
+		return -ENOASSENG;
 
 	errno = 0;
 	if(s->status & SOCKET_WRITEABLE && flag == IO_NOW && list_size(&s->pending_send)){

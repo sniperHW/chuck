@@ -67,11 +67,11 @@ process_read(dgram_socket_ *s)
 			s->callback(s,req,bytes,errno,_msghdr.msg_flags);
 			if(s->status & SOCKET_CLOSE)
 				return;
-			if(!(s->status & SOCKET_READABLE))
+			if(!s->e || !(s->status & SOCKET_READABLE))
 				break;			
 		}
 	}	
-	if(!list_size(&s->pending_recv)){
+	if(s->e && !list_size(&s->pending_recv)){
 		//没有接收请求了,取消EPOLLIN
 		disable_read((handle*)s);
 	}
@@ -81,7 +81,7 @@ static void
 on_events(handle *h,int32_t events)
 {
 	dgram_socket_ *s = (dgram_socket_*)h;
-	if(s->status & SOCKET_CLOSE)
+	if(!s->e || ((s->status & SOCKET_CLOSE)))
 		return;
 	if(events == EENGCLOSE){
 		s->callback(s,NULL,-1,EENGCLOSE,0);
@@ -124,11 +124,11 @@ datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 	 				 int32_t flag,int32_t *recvflags)
 {
 	handle *h = (handle*)s;
-	if(!h->e)
-		return -ENOASSENG;
-	else if(s->status & SOCKET_CLOSE)
+
+	if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
-	
+	else if(!h->e)
+		return -ENOASSENG;
 	errno = 0;
 	if(s->status & SOCKET_READABLE && flag == IO_NOW && list_size(&s->pending_recv)){
 		struct msghdr _msghdr = {
@@ -158,11 +158,11 @@ int32_t
 datagram_socket_send(dgram_socket_ *s,iorequest *req)
 {
 	handle *h = (handle*)s;
-	if(!h->e)
-		return -ENOASSENG;
-	else if(s->status & SOCKET_CLOSE)
+
+	if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
-	
+	else if(!h->e)
+		return -ENOASSENG;	
 	errno = 0;
 	struct msghdr _msghdr = {
 		.msg_name = &req->addr,

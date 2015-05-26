@@ -47,6 +47,8 @@ int main(int argc,char **argv){
 		printf("connect to redis server %s:%u error\n","127.0.0.1",6379);
 		return 0;
 	}
+	engine_remove((handle*)redis_client);//test remove and readd
+	engine_add(e,(handle*)redis_client,NULL);//didn't need callback
 
 	if(argc >= 2 && strcmp(argv[1],"set") == 0)
 		testset = 1;

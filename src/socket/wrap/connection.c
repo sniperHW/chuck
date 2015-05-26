@@ -8,7 +8,7 @@
 static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
 
 enum{
-	RECVING   = SOCKET_END << 1,
+	PENDING_RECV   = SOCKET_END << 1,
 };
 
 enum{
@@ -96,16 +96,22 @@ prepare_recv(connection *c)
 static inline void 
 PostRecv(connection *c)
 {
-	c->status |= RECVING;
 	prepare_recv(c);
-	stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST);		
+	if(0 == stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST))
+		c->status |= PENDING_RECV;
+	else
+		c->status ^= PENDING_RECV;		
 }
 
 static inline int32_t 
 Recv(connection *c)
 {
+	c->status ^= PENDING_RECV;
 	prepare_recv(c);
-	return stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_NOW);		
+	int32_t ret = stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_NOW);
+	if(ret < 0 && ret == -EAGAIN)
+		c->status |= PENDING_RECV;
+	return ret;
 }
 
 static inline int32_t 
@@ -113,7 +119,6 @@ Send(connection *c,int32_t flag)
 {
 	return stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
 }
-
 
 
 static inline void 
@@ -168,9 +173,11 @@ RecvFinish(connection *c,int32_t bytes,
 				PostRecv(c);
 				return;
 			}else{
-				bytes = Recv(c);
-				if(bytes < 0 && (err_code = -bytes) == EAGAIN) 
-					return;
+				if((bytes = Recv(c)) < 0){ 
+					err_code = -bytes;
+					if(err_code == EAGAIN || err_code == ENOASSENG)
+						return;
+				}
 				else if(bytes > 0)
 					total_recv += bytes;
 			}
@@ -294,22 +301,13 @@ SendFinish(connection *c,int32_t bytes,int32_t err_code)
 			return;
 		if(!prepare_send(c))
 			return;
-		bytes = Send(c,IO_NOW);
-		if(bytes < 0 && ((err_code = -bytes) == EAGAIN))
-			return;
-	}
-	c->on_packet(c,NULL,err_code);
-/*	if(bytes >= 0){
-		update_send_list(c,bytes);
-		if(c->status & SOCKET_CLOSE)
-			return;
-		if(!prepare_send(c)) {
-			return;
+		if((bytes = Send(c,IO_NOW)) < 0){ 
+			err_code = -bytes;
+			if(err_code == EAGAIN || err_code == ENOASSENG)
+				return;
 		}
-		if((err_code = -Send(c,IO_POST)) == EAGAIN)
-			return;
 	}
-	c->on_packet(c,NULL,err_code);*/		
+	c->on_packet(c,NULL,err_code);	
 }
 
 static void 
@@ -363,7 +361,7 @@ imp_engine_add(engine *e,handle *h,
 	if(ret == 0){
 		c->on_packet = (void(*)(connection*,packet*,int32_t))callback;
 		//post the first recv request
-		if(!(c->status & RECVING))
+		if(!(c->status & PENDING_RECV))
 			PostRecv(c);
 		if((c->recvtimeout || c->sendtimeout) && !c->timer_)
 			c->timer_ = engine_regtimer(h->e,1000,timer_callback,c);

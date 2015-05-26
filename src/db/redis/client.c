@@ -10,11 +10,11 @@
 #include "socket/wrap/wrap_comm.h"
 #include "engine/engine.h"
 
-enum{
-	SENDING   = SOCKET_END << 2,
-};
-
 #define RECV_BUFFSIZE 1024*16
+
+enum{
+	PENDING_RECV   = SOCKET_END << 1,
+};
 
 enum{
 	CB_C,
@@ -95,24 +95,29 @@ prepare_recv(redis_conn *c)
 static inline int32_t 
 Send(redis_conn *c,int32_t flag)
 {
-	int32_t ret = stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
-	if(ret < 0 && -ret == EAGAIN)
-		((socket_*)c)->status |= SENDING;
-	return ret; 
+	return stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);
 }
+
 
 static inline void 
 PostRecv(redis_conn *c)
 {
 	prepare_recv(c);
-	stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST);		
+	if(0 == stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST))
+		c->status |= PENDING_RECV;
+	else
+		c->status ^= PENDING_RECV;		
 }
 
 static inline int32_t 
 Recv(redis_conn *c)
 {
+	c->status ^= PENDING_RECV;
 	prepare_recv(c);
-	return stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_NOW);		
+	int32_t ret = stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_NOW);
+	if(ret < 0 && ret == -EAGAIN)
+		c->status |= PENDING_RECV;
+	return ret;
 }
 
 static inline iorequest*
@@ -186,16 +191,21 @@ update_send_list(redis_conn *c,int32_t _bytestransfer)
 
 
 static void 
-SendFinish(redis_conn *c,int32_t bytestransfer)
+SendFinish(redis_conn *c,int32_t bytes,int32_t err_code)
 {
-	update_send_list(c,bytestransfer);
-	if(c->status & SOCKET_CLOSE)
+	while(bytes >= 0){
+		update_send_list(c,bytes);
+		if(c->status & SOCKET_CLOSE)
 			return;
-	if(!prepare_send(c)) {
-		c->status ^= SENDING;
-		return;
+		if(!prepare_send(c))
+			return;
+		if((bytes = Send(c,IO_NOW)) < 0){ 
+			err_code = -bytes;
+			if(err_code == EAGAIN || err_code == ENOASSENG)
+				return;
+		}
 	}
-	Send(c,IO_POST);		
+	c->on_error(c,err_code);			
 }
 
 
@@ -204,18 +214,18 @@ execute_callback(redis_conn *c,reply_cb *stcb);
 
 
 static void 
-RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
+RecvFinish(redis_conn *c,int32_t bytes,int32_t err_code)
 {
 	int32_t total_recv = 0;
 	int32_t parse_ret;
 	char   *ptr;
 	do{	
-		if(bytestransfer == 0 || (bytestransfer < 0 && err_code != EAGAIN)){
+		if(bytes == 0 || (bytes < 0 && err_code != EAGAIN)){
 			if(c->on_error) 
 				c->on_error(c,err_code);
 			return;	
-		}else if(bytestransfer > 0){
-			c->recvbuf[bytestransfer] = 0;
+		}else if(bytes > 0){
+			c->recvbuf[bytes] = 0;
 			ptr = c->recvbuf;
 			do{
 				if(!c->tree) c->tree = parse_tree_new();
@@ -242,11 +252,13 @@ RecvFinish(redis_conn *c,int32_t bytestransfer,int32_t err_code)
 				PostRecv(c);
 				return;
 			}else{
-				bytestransfer = Recv(c);
-				if(bytestransfer < 0 && (err_code = -bytestransfer) == EAGAIN) 
-					return;
-				else if(bytestransfer > 0)
-					total_recv += bytestransfer;
+				if((bytes = Recv(c)) < 0){ 
+					err_code = -bytes;
+					if(err_code == EAGAIN || err_code == ENOASSENG)
+						return;
+				}				
+				else if(bytes > 0)
+					total_recv += bytes;
 			}
 		}
 	}while(1);
@@ -260,8 +272,8 @@ IoFinish(handle *sock,void *_,int32_t bytestransfer,
 	redis_conn *c  = (redis_conn*)sock;
 	if(c->status & SOCKET_CLOSE)
 		return;
-	if(io == (iorequest*)&c->send_overlap && bytestransfer > 0)
-		SendFinish(c,bytestransfer);
+	if(io == (iorequest*)&c->send_overlap)
+		SendFinish(c,bytestransfer,err_code);
 	else if(io == (iorequest*)&c->recv_overlap)
 		RecvFinish(c,bytestransfer,err_code);
 }
@@ -276,8 +288,7 @@ _redis_execute(redis_conn *conn,const char *str)
 	if(!conn->e)
 		return -ENOASSENG;
 	packet *p = build_request(str);
-	list_pushback(&conn->send_list,(listnode*)p);
-	if(!(conn->status & SENDING)){
+	if(1 == list_pushback(&conn->send_list,(listnode*)p)){
 		prepare_send(conn);
 		ret = Send(conn,IO_NOW);
 		if(ret > 0)
@@ -314,6 +325,21 @@ redis_close(redis_conn *c)
 	close_socket((socket_*)c);
 }
 
+static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
+
+static int32_t 
+imp_engine_add(engine *e,handle *h,
+			   generic_callback callback)
+{
+	redis_conn *c = (redis_conn*)h;
+	int32_t ret = base_engine_add(e,h,(generic_callback)IoFinish);
+	if(0 == ret){
+		if(!(c->status & PENDING_RECV))
+			PostRecv(c);
+	}
+	return ret;
+}
+
 redis_conn*
 redis_connect(engine *e,sockaddr_ *addr,
 			  void (*on_error)(redis_conn*,int32_t err))
@@ -326,6 +352,9 @@ redis_connect(engine *e,sockaddr_ *addr,
 	}
 	redis_conn *conn = calloc(1,sizeof(*conn));
 	stream_socket_init((stream_socket_*)conn,fd);
+	if(!base_engine_add)
+		base_engine_add = conn->imp_engine_add; 
+	conn->imp_engine_add = imp_engine_add;		
 	conn->dctor = redis_dctor;
 	conn->on_error = on_error;	
 	engine_associate(e,conn,IoFinish); 	
@@ -346,10 +375,13 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 	if(fd >= 0 && err == 0){
 		redis_conn *conn = calloc(1,sizeof(*conn));
 		stream_socket_init((stream_socket_*)conn,fd);
-		conn->dctor = redis_dctor;	
+		if(!base_engine_add)
+			base_engine_add = conn->imp_engine_add; 
+		conn->imp_engine_add = imp_engine_add;		
+		conn->dctor = redis_dctor;
+		conn->on_error = st->on_error;			
 		engine_associate(st->e,conn,IoFinish); 	
 		PostRecv(conn);
-		conn->on_error = st->on_error;
 		st->connect_cb(conn,err,st->ud);
 	}else if(err == ETIMEDOUT){
 		st->connect_cb(NULL,err,st->ud);
@@ -375,7 +407,12 @@ redis_asyn_connect(engine *e,sockaddr_ *addr,
 	if(0 == (ret = easy_connect(fd,addr,NULL))){
 		redis_conn *conn = calloc(1,sizeof(*conn));
 		stream_socket_init((stream_socket_*)conn,fd);
-		conn->dctor = redis_dctor;	
+		conn->dctor = redis_dctor;
+		if(!base_engine_add)
+			base_engine_add = conn->imp_engine_add; 
+		conn->imp_engine_add = imp_engine_add;		
+		conn->dctor = redis_dctor;
+		conn->on_error = on_error;			
 		engine_associate(e,conn,IoFinish); 	
 		PostRecv(conn);
 		return conn;
