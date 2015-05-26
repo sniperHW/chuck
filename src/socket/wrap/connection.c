@@ -288,7 +288,18 @@ update_send_list(connection *c,
 static void 
 SendFinish(connection *c,int32_t bytes,int32_t err_code)
 {
-	if(bytes >= 0){
+	while(bytes >= 0){
+		update_send_list(c,bytes);
+		if(c->status & SOCKET_CLOSE)
+			return;
+		if(!prepare_send(c))
+			return;
+		bytes = Send(c,IO_NOW);
+		if(bytes < 0 && ((err_code = -bytes) == EAGAIN))
+			return;
+	}
+	c->on_packet(c,NULL,err_code);
+/*	if(bytes >= 0){
 		update_send_list(c,bytes);
 		if(c->status & SOCKET_CLOSE)
 			return;
@@ -298,7 +309,7 @@ SendFinish(connection *c,int32_t bytes,int32_t err_code)
 		if((err_code = -Send(c,IO_POST)) == EAGAIN)
 			return;
 	}
-	c->on_packet(c,NULL,err_code);		
+	c->on_packet(c,NULL,err_code);*/		
 }
 
 static void 

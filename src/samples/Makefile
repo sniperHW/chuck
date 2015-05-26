@@ -1,4 +1,4 @@
-CFLAGS = -g -Wall -fno-strict-aliasing 
+CFLAGS = -g -O2 -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lrt -llua -lm -ljemalloc
 DEPDIR  = 
 INCLUDE = -I./../ 

@@ -1,29 +1,20 @@
-#include <fcntl.h>              /* Obtain O_* constant definitions */
-#include <unistd.h>
-#include <assert.h>
-
-extern int32_t pipe2(int pipefd[2], int flags);
-
-typedef struct{
+typedef struct engine{
+	engine_head;
 	int32_t kfd;
 	struct kevent* events;
 	int    maxevents;
-	//handle_t timerfd;	
-	int32_t notifyfds[2];//0 for read,1 for write
-
 	//for timer
-   	//struct kevent change;	
-}kqueue_;
+   	struct kevent change;	
+}engine;
 
 int32_t 
 event_add(engine *e,handle *h,
 		  int32_t events)
 {	
 	struct kevent ke;
-	kqueue_ *kq = (kqueue_*)e;
 	EV_SET(&ke, h->fd, events, EV_ADD, 0, 0, h);
 	errno = 0;
-	if(0 != kevent(kq->kfd, &ke, 1, NULL, 0, NULL))
+	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL))
 		return -errno;
 	
 	if(events == EVFILT_READ)
@@ -38,11 +29,10 @@ int32_t
 event_remove(handle *h)
 {
 	struct kevent ke;
-	kqueue_ *kq = (kqueue_*)h->e;
 	EV_SET(&ke, h->fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
-	kevent(kq->kfd, &ke, 1, NULL, 0, NULL);
+	kevent(e->kfd, &ke, 1, NULL, 0, NULL);
 	EV_SET(&ke, h->fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
-	kevent(kq->kfd, &ke, 1, NULL, 0, NULL);
+	kevent(e->kfd, &ke, 1, NULL, 0, NULL);
 	h->events = 0;
 	h->e = NULL;	
 	return 0;	
@@ -52,10 +42,9 @@ int32_t
 event_enable(handle *h,int32_t events)
 {
 	struct kevent ke;
-	kqueue_ *kq = (kqueue_*)h->e;
 	EV_SET(&ke, h->fd, events,EV_ENABLE, 0, 0, h);
 	errno = 0;
-	if(0 != kevent(kq->kfd, &ke, 1, NULL, 0, NULL))
+	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL))
 		return -errno;
 	if(events == EVFILT_READ)
 		h->set_read = 1;
@@ -68,10 +57,9 @@ int32_t
 event_disable(handle *h,int32_t events)
 {
 	struct kevent ke;
-	kqueue_ *kq = (kqueue_*)h->e;
 	EV_SET(&ke, h->fd, events,EV_DISABLE, 0, 0, h);
 	errno = 0;
-	if(0 != kevent(kq->kfd, &ke, 1, NULL, 0, NULL))
+	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL))
 		return -errno;
 
 	if(events == EVFILT_READ)
@@ -94,7 +82,7 @@ engine_new()
 		close(kfd);
 		return NULL;
 	}		
-	kqueue_ *kq = calloc(1,sizeof(*kq));
+	engine *kq = calloc(1,sizeof(*kq));
 	kq->kfd = kfd;
 	kq->maxevents = 64;
 	kq->events = calloc(1,(sizeof(*kq->events)*kq->maxevents));
@@ -114,71 +102,97 @@ engine_new()
 	return (engine*)kq;
 }
 
+
+static inline void
+_engine_del(engine *e)
+{
+	handle *h;
+	if(e->tfd){
+		engine_remove((handle*)e->tfd);
+		wheelmgr_del(e->timermgr);
+	}
+	while((h = (handle*)dlist_pop(&e->handles))){
+		event_remove(h);
+		h->on_events(h,EENGCLOSE);
+	}
+	close(e->kfd);
+	close(e->notifyfds[0]);
+	close(e->notifyfds[1]);
+	free(e->events);
+}
+
 void 
 engine_del(engine *e)
 {
-	kqueue_ *kq = (kqueue_*)e;
-	//if(kq->timerfd)
-	//	kn_timerfd_destroy(kq->timerfd);	
-	close(kq->kfd);
-	close(kq->notifyfds[0]);
-	close(kq->notifyfds[1]);
-	free(kq->events);
-	free(kq);
+	assert(e->threadid == thread_id());
+	if(e->status & INLOOP)
+		e->status |= CLOSING;
+	else{
+		_engine_del(e);
+		free(e);
+	}
 }
 
+/*void
+engine_del_lua(engine *e)
+{
+	assert(e->threadid == thread_id());
+	if(e->status & INLOOP)
+		e->status |= CLOSING;
+	else{	
+		_engine_del(e);
+	}
+}*/
 
 int32_t 
 engine_run(engine *e)
 {
-	kqueue_ *kq = (kqueue_*)e;
+	int32_t ret = 0;
 	for(;;){
 		errno = 0;
 		int32_t i;
 		handle *h;
-		int32_t nfds = TEMP_FAILURE_RETRY(kevent(kq->kfd, &kq->change, /*kq->timerfd? 1 : */0, 
-										  kq->events,kq->maxevents, NULL));	
+		int32_t nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->timerfd? 1 : 0, 
+										  e->events,e->maxevents, NULL));	
 		if(nfds > 0){
+			e->status |= INLOOP;
 			for(i=0; i < nfds ; ++i)
 			{
-				if(kq->events[i].udata == kq->notifyfds[0]){
+				if(e->events[i].udata == e->notifyfds[0]){
 					int32_t _;
-					while(TEMP_FAILURE_RETRY(read(kq->notifyfds[0],&_,sizeof(_))) > 0);
-					return 0;	
+					while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
+					break;	
 				}else{
-					h = (handle_t)kq->events[i].udata;
-					h->on_events(h,kq->events[i].filter);;
+					h = (handle_t)e->events[i].udata;
+					h->on_events(h,e->events[i].filter);;
 				}
 			}
-			if(nfds == kq->maxevents){
-				free(kq->events);
-				kq->maxevents <<= 2;
-				kq->events = calloc(1,sizeof(*kq->events)*kq->maxevents);
+			e->status ^= INLOOP;
+			if(e->status & CLOSING)
+				break;			
+			if(nfds == e->maxevents){
+				free(e->events);
+				e->maxevents <<= 2;
+				e->events = calloc(1,sizeof(*e->events)*e->maxevents);
 			}				
 		}else if(nfds < 0){
-			return -errno;
+			ret = -errno;
 		}	
 	}
-	return 0;
+	if(e->status & CLOSING){
+		ret = -EENGCLOSE;
+		//if(e->status & LUAOBj)
+		//	engine_del_lua(e);
+		//else
+		engine_del(e);
+	}	
+	return ret;
 }
 
 void 
 engine_stop(engine *e)
 {
-	kqueue_ *kq = (kqueue*_)e;
 	int32_t _;
-	TEMP_FAILURE_RETRY(write(kq->notifyfds[1],&_,sizeof(_)));
+	TEMP_FAILURE_RETRY(write(e->notifyfds[1],&_,sizeof(_)));
 }
 
-
-/*
-kn_timer_t kn_reg_timer(engine_t e,uint64_t timeout,kn_cb_timer cb,void *ud){
-	kn_kqueue *kq = (kn_kqueue*)e;
-	if(!kq->timerfd){
-		kq->timerfd = kn_new_timerfd(1);
-		((handle_t)kq->timerfd)->ud = kn_new_timermgr();
-		EV_SET(&kq->change, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE, 0, 1, kq->timerfd);		
-	}
-	return reg_timer_imp(((handle_t)kq->timerfd)->ud,timeout,cb,ud);
-}
-*/

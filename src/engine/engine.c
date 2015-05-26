@@ -1,8 +1,20 @@
+#include <fcntl.h>              /* Obtain O_* constant definitions */
+#include <unistd.h>
+#include <assert.h>
 #include "engine/engine.h"
 #include "util/log.h"
+#include "util/time.h"
+#include "thread/thread.h"
 
 #define LUAENGINE_METATABLE "luaengine_metatable"
 
+extern int32_t pipe2(int pipefd[2], int flags);
+
+enum{
+	INLOOP  =  1 << 1,
+	CLOSING =  1 << 2,
+	LUAOBj  =  1 << 3,
+};
 
 int32_t engine_add(engine *e,handle *h,generic_callback callback){
 	return h->imp_engine_add(e,h,callback);
@@ -12,6 +24,7 @@ int32_t engine_remove(handle *h){
 	if(!h->e) return -ENOASSENG;
 	return event_remove(h);
 }
+
 
 #ifdef _LINUX
 

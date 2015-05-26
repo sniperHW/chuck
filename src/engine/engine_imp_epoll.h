@@ -1,17 +1,3 @@
-#include <fcntl.h>              /* Obtain O_* constant definitions */
-#include <unistd.h>
-#include <assert.h>
-#include "util/time.h"
-#include "thread/thread.h"
-
-extern int32_t pipe2(int pipefd[2], int flags);
-
-enum{
-	INLOOP  =  1 << 1,
-	CLOSING =  1 << 2,
-	LUAOBj  =  1 << 3,
-};
-
 typedef struct engine{
 	engine_head;
 	int32_t    epfd;
