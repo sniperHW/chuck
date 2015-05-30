@@ -30,15 +30,21 @@ typedef struct{
     void      (*callback)(int32_t fd,int32_t err,void *ud);
     uint32_t  timeout;
     timer    *t;
-    luaRef    luacallback; 
+#ifdef _CHUCKLUA    
+    luaRef    luacallback;
+#endif     
 }connector;
 
 connector*
 connector_new(int32_t fd,void *ud,uint32_t timeout);    
 
-//need not delete,engine will do for you
+#ifdef _CHUCKLUA
 
+//need not delete,engine will do for you
 void    
 reg_luaconnector(lua_State *L);
+
+#endif
+
 
 #endif

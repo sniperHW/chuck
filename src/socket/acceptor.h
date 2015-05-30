@@ -27,8 +27,17 @@ typedef struct acceptor{
     handle_head;
     void   *ud;      
     void    (*callback)(struct acceptor*,int32_t fd,sockaddr_*,void *ud,int32_t err);
+#ifdef _CHUCKLUA    
     luaRef  luacallback;
+#endif
 }acceptor;    
+
+#ifdef _CHUCKLUA
+
+void    
+reg_luaacceptor(lua_State *L);   
+
+#else
 
 acceptor*
 acceptor_new(int32_t fd,void *ud);
@@ -36,8 +45,7 @@ acceptor_new(int32_t fd,void *ud);
 void    
 acceptor_del(acceptor*); 
 
-void    
-reg_luaacceptor(lua_State *L);   
+#endif
 
 
 #endif

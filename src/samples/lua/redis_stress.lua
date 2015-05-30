@@ -21,7 +21,7 @@ if client then
 
 	local function query_cb(conn,reply,id)
 		count = count + 1
-		local cmd = string.format("hmget chaid:%d chainfo skill",id)
+		local cmd = string.format("hmget chaid:%d chainfo skills",id)
 		client:Execute(cmd,gen_callback(query_cb,id))		
 	end
 

@@ -21,8 +21,8 @@ function on_new_client(fd)
 		if p then
 			p = packet.clone(p)
 			print(p)
-			conn:Send(p,function (_,pk)
-					  	print("packet send finish",pk)
+			conn:Send(p,function (_)
+					  	print("packet send finish")
 					  	conn:Close()
 						conn = nil
 					  end)

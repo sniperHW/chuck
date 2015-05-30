@@ -31,11 +31,25 @@
                     int32_t    status;          \
                     pid_t      threadid
 
+
+#ifdef _CHUCKLUA
+
+engine*
+lua_toengine(lua_State *L, int index);
+
+void
+reg_luaengine(lua_State *L);                    
+
+#else
+
 engine*
 engine_new();
 
 void    
 engine_del(engine*);
+
+
+#endif
 
 int32_t 
 engine_run(engine*);
@@ -57,11 +71,6 @@ engine_regtimer(engine*,uint32_t timeout,
                 int32_t(*)(uint32_t,uint64_t,void*),
                 void*);
 
-engine*
-lua_toengine(lua_State *L, int index);
-
-void
-reg_luaengine(lua_State *L);
 
 #define engine_associate(E,H,C)\
             engine_add((E),(handle*)(H),(generic_callback)(C))

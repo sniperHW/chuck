@@ -23,7 +23,7 @@ easy_connect(int32_t fd,sockaddr_ *server,
 	return ret == 0 ? ret : -errno;
 }
 
-
+#ifdef _CHUCKLUA
 
 static int32_t 
 lua_easy_connect(lua_State *L)
@@ -165,7 +165,7 @@ lua_close_socket(lua_State *L)
 }while(0)
 
 void 
-reg_luasocket_helper(lua_State *L)
+reg_CHUCKLUAcket_helper(lua_State *L)
 {
 	lua_newtable(L);
 	SET_CONST(L,AF_INET);
@@ -179,3 +179,5 @@ reg_luasocket_helper(lua_State *L)
 	SET_FUNCTION(L,"addr_reuse",lua_easy_addr_reuse);
 	SET_FUNCTION(L,"close",lua_close_socket);
 }
+
+#endif

@@ -112,13 +112,14 @@ parse_breply(parse_tree *current,char **str)
 			while((c = *(*str)++) != termi) {
 				if(c == '-'){
 					reply->type = REDIS_REPLY_NIL;
-					return REDIS_OK;
 				}else
 					PARSE_NUM(len);	
 		    }
 		    if(termi == '\n') break;
 		    else current->break_ = '\n';
 	    }while(1);   
+	    if(reply->type == REDIS_REPLY_NIL)
+	    	return REDIS_OK;	    
 	    current->want = reply->len;
 	}
 

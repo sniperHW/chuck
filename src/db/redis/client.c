@@ -16,19 +16,15 @@ enum{
 	PENDING_RECV   = SOCKET_END << 1,
 };
 
-enum{
-	CB_C,
-	CB_LUA,
-};
 
 typedef struct{
 	listnode node;
 	void     (*cb)(redis_conn*,redisReply*,void *ud);
-	union{
-		void    *ud;
-		luaRef   luacb;//for lua callback
-	};
-	char     type;
+#ifdef _CHUCKLUA
+	luaRef   luacb;//for lua callback
+#else
+	void    *ud;
+#endif
 }reply_cb;
 
 typedef struct redis_conn{
@@ -43,44 +39,12 @@ typedef struct redis_conn{
     parse_tree         *tree;
     void                (*clear)(void*ud);
     void         	    (*on_error)(struct redis_conn*,int32_t err);
+#ifdef _CHUCKLUA    
     luaRef              lua_err_cb;
+#endif
 }redis_conn;
 
-void 
-redis_dctor(void *_)
-{
-	redis_conn *c = (redis_conn*)_;
-	packet   *p;
-	reply_cb *stcb;	
-	while((p = (packet*)list_pop(&c->send_list))!=NULL)
-		packet_del(p);
-	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
-		if(c->clear && stcb->ud) c->clear(stcb->ud);
-		free(stcb);
-	}
-	if(c->tree)
-		parse_tree_del(c->tree);
-	free(c);
-}
 
-void 
-redis_lua_dctor(void *_)
-{
-	redis_conn *c = (redis_conn*)_;
-	packet   *p;
-	reply_cb *stcb;	
-	while((p = (packet*)list_pop(&c->send_list))!=NULL)
-		packet_del(p);
-	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
-		if(stcb->luacb.L)
-			release_luaRef(&stcb->luacb);
-		free(stcb);
-	}
-	if(c->tree)
-		parse_tree_del(c->tree);
-	if(c->lua_err_cb.L)
-		release_luaRef(&c->lua_err_cb);
-}
 
 
 static inline void 
@@ -209,9 +173,20 @@ SendFinish(redis_conn *c,int32_t bytes,int32_t err_code)
 }
 
 
+#ifdef _CHUCKLUA
+
 void 
 execute_callback(redis_conn *c,reply_cb *stcb);
 
+#else
+
+void 
+execute_callback(redis_conn *c,reply_cb *stcb)
+{
+	stcb->cb(c,c->tree->reply,stcb->ud);
+}
+
+#endif
 
 static void 
 RecvFinish(redis_conn *c,int32_t bytes,int32_t err_code)
@@ -239,6 +214,7 @@ RecvFinish(redis_conn *c,int32_t bytes,int32_t err_code)
 					if(((socket_*)c)->status & SOCKET_CLOSE)
 						return;
 				}else if(parse_ret == REDIS_ERR){
+					printf("REDIS_ERR\n");
 					//error
 					parse_tree_del(c->tree);
 					c->tree = NULL;
@@ -299,24 +275,6 @@ _redis_execute(redis_conn *conn,const char *str)
 	return ret;	
 }
 
-int32_t 
-redis_execute(redis_conn *conn,const char *str,
-	        void (*cb)(redis_conn*,redisReply*,void *ud),
-	        void *ud)
-{
-
-	int32_t ret = _redis_execute(conn,str);
-	if(ret != 0) return ret;
-	reply_cb *repobj = calloc(1,sizeof(*repobj));
-	repobj->type = CB_C;
-	if(cb){
-		repobj->cb = cb;
-		repobj->ud = ud;
-	}
-	list_pushback(&conn->waitreplys,(listnode*)repobj);
-	return 0;
-}
-
 void 
 redis_close(redis_conn *c)
 {
@@ -325,113 +283,8 @@ redis_close(redis_conn *c)
 	close_socket((socket_*)c);
 }
 
-static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
 
-static int32_t 
-imp_engine_add(engine *e,handle *h,
-			   generic_callback callback)
-{
-	redis_conn *c = (redis_conn*)h;
-	int32_t ret = base_engine_add(e,h,(generic_callback)IoFinish);
-	if(0 == ret){
-		if(!(c->status & PENDING_RECV))
-			PostRecv(c);
-	}
-	return ret;
-}
-
-redis_conn*
-redis_connect(engine *e,sockaddr_ *addr,
-			  void (*on_error)(redis_conn*,int32_t err))
-{
-	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-	if(fd < 0) return NULL;
-	if(0 != easy_connect(fd,addr,NULL)){
-		close(fd);
-		return NULL;
-	}
-	redis_conn *conn = calloc(1,sizeof(*conn));
-	stream_socket_init((stream_socket_*)conn,fd);
-	if(!base_engine_add)
-		base_engine_add = conn->imp_engine_add; 
-	conn->imp_engine_add = imp_engine_add;		
-	conn->dctor = redis_dctor;
-	conn->on_error = on_error;	
-	engine_associate(e,conn,IoFinish); 	
-	PostRecv(conn);
-	return conn;
-}
-
-typedef struct{
-	engine *e;
-    void (*connect_cb)(redis_conn*,int32_t,void*);
-    void *ud;
-    void (*on_error)(redis_conn*,int32_t);
-}stConnet;
-
-
-static void on_connected(int32_t fd,int32_t err,void *ud){
-	stConnet *st = (stConnet*)ud;
-	if(fd >= 0 && err == 0){
-		redis_conn *conn = calloc(1,sizeof(*conn));
-		stream_socket_init((stream_socket_*)conn,fd);
-		if(!base_engine_add)
-			base_engine_add = conn->imp_engine_add; 
-		conn->imp_engine_add = imp_engine_add;		
-		conn->dctor = redis_dctor;
-		conn->on_error = st->on_error;			
-		engine_associate(st->e,conn,IoFinish); 	
-		PostRecv(conn);
-		st->connect_cb(conn,err,st->ud);
-	}else if(err == ETIMEDOUT){
-		st->connect_cb(NULL,err,st->ud);
-	}
-	free(st);
-}
-
-redis_conn*
-redis_asyn_connect(engine *e,sockaddr_ *addr,
-                   void (*connect_cb)(redis_conn*,int32_t,void*),
-                   void *ud,
-                   void (*on_error)(redis_conn*,int32_t),
-                   int32_t *err)
-{
-	if(err) *err = 0;
-	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-	if(fd < 0){
-		if(err) *err = errno; 
-		return NULL;
-	}
-	easy_noblock(fd,1);
-	int32_t ret;
-	if(0 == (ret = easy_connect(fd,addr,NULL))){
-		redis_conn *conn = calloc(1,sizeof(*conn));
-		stream_socket_init((stream_socket_*)conn,fd);
-		conn->dctor = redis_dctor;
-		if(!base_engine_add)
-			base_engine_add = conn->imp_engine_add; 
-		conn->imp_engine_add = imp_engine_add;		
-		conn->dctor = redis_dctor;
-		conn->on_error = on_error;			
-		engine_associate(e,conn,IoFinish); 	
-		PostRecv(conn);
-		return conn;
-	}
-	else if(ret == -EINPROGRESS){
-		stConnet *st = calloc(1,sizeof(*st));
-		st->e = e;
-		st->ud = ud;
-		st->on_error = on_error;
-		st->connect_cb = connect_cb;
-		connector *contor = connector_new(fd,st,5000);
-		engine_associate(e,contor,on_connected);			
-	}else{
-		if(err) *err = -ret;
-		close(fd);
-	}
-	return NULL;		
-}
-
+#ifdef _CHUCKLUA
 
 #define LUAREDIS_METATABLE "luaredis_metatable"
 
@@ -487,39 +340,37 @@ static void PushResultSet(lua_State *L,luaPushFunctor *_){
 void 
 execute_callback(redis_conn *c,reply_cb *stcb)
 {
-	if(stcb->type == CB_C && stcb->cb)
-		stcb->cb(c,c->tree->reply,stcb->ud);
-	else if(stcb->type == CB_LUA && stcb->luacb.L){
-		//process lua callback
-		const char *error;
-		stPushConn st1;	
-		st1.c = c;
-		st1.base.Push = PushConn;
-		redisReply *reply = c->tree->reply;
-		if(reply->type == REDIS_REPLY_ERROR  || 
-           reply->type == REDIS_REPLY_STATUS ||
-           reply->type == REDIS_REPLY_STRING){
-			if((error = LuaCallRefFunc(stcb->luacb,"fs",&st1,reply->str))){
-				SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
-			}					
-		}else if(reply->type == REDIS_REPLY_NIL){
-			if((error = LuaCallRefFunc(stcb->luacb,"fp",&st1,NULL))){
-				SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
-			}			
-		}else if(reply->type == REDIS_REPLY_INTEGER){
-			if((error = LuaCallRefFunc(stcb->luacb,"fi",&st1,reply->integer))){
-				SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
-			}			
-		}else{
-			stPushResultSet st2;
-			st2.base.Push = PushResultSet;
-			st2.reply = reply;
-			if((error = LuaCallRefFunc(stcb->luacb,"ff",&st1,&st2))){
-				SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
-			}				
-		}
-		release_luaRef(&stcb->luacb);
+	//process lua callback
+	if(!stcb->luacb.L) return;
+
+	const char *error;
+	stPushConn st1;	
+	st1.c = c;
+	st1.base.Push = PushConn;
+	redisReply *reply = c->tree->reply;
+	if(reply->type == REDIS_REPLY_ERROR  || 
+       reply->type == REDIS_REPLY_STATUS ||
+       reply->type == REDIS_REPLY_STRING){
+		if((error = LuaCallRefFunc(stcb->luacb,"fs",&st1,reply->str))){
+			SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
+		}					
+	}else if(reply->type == REDIS_REPLY_NIL){
+		if((error = LuaCallRefFunc(stcb->luacb,"fp",&st1,NULL))){
+			SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
+		}			
+	}else if(reply->type == REDIS_REPLY_INTEGER){
+		if((error = LuaCallRefFunc(stcb->luacb,"fi",&st1,reply->integer))){
+			SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
+		}			
+	}else{
+		stPushResultSet st2;
+		st2.base.Push = PushResultSet;
+		st2.reply = reply;
+		if((error = LuaCallRefFunc(stcb->luacb,"ff",&st1,&st2))){
+			SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
+		}				
 	}
+	release_luaRef(&stcb->luacb);
 }
 
 redis_conn*
@@ -538,6 +389,26 @@ lua_on_error(redis_conn *c,int32_t err)
 		SYS_LOG(LOG_ERROR,"error on redis lua_err_cb:%s\n",error);	
 	}
 }
+
+void 
+redis_lua_dctor(void *_)
+{
+	redis_conn *c = (redis_conn*)_;
+	packet   *p;
+	reply_cb *stcb;	
+	while((p = (packet*)list_pop(&c->send_list))!=NULL)
+		packet_del(p);
+	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
+		if(stcb->luacb.L)
+			release_luaRef(&stcb->luacb);
+		free(stcb);
+	}
+	if(c->tree)
+		parse_tree_del(c->tree);
+	if(c->lua_err_cb.L)
+		release_luaRef(&c->lua_err_cb);
+}
+
 
 int32_t
 lua_redis_connect(lua_State *L)
@@ -559,7 +430,7 @@ lua_redis_connect(lua_State *L)
 		return 1;
 	}
 	redis_conn *conn = calloc(1,sizeof(*conn));
-	stream_socket_init((stream_socket_*)conn,fd);
+	stream_socket_init((stream_socket_*)conn,fd);	
 	conn->dctor = redis_lua_dctor;
 
 	if(LUA_TFUNCTION == lua_type(L,4)){
@@ -594,7 +465,6 @@ lua_redis_execute(lua_State *L)
 		return 1;
 	}
 	reply_cb *repobj = calloc(1,sizeof(*repobj));
-	repobj->type = CB_LUA;
 	if(LUA_TFUNCTION == lua_type(L,3))
 		repobj->luacb = toluaRef(L,3);
 	list_pushback(&c->waitreplys,(listnode*)repobj);
@@ -628,6 +498,152 @@ reg_luaredis(lua_State *L)
    	SET_FUNCTION(L,"Connect",lua_redis_connect);
    	//SET_FUNCTION(L,"AsynConnect",lua_redis_asynconnect);
 }
+
+#else
+
+static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
+
+static int32_t 
+imp_engine_add(engine *e,handle *h,
+			   generic_callback callback)
+{
+	redis_conn *c = (redis_conn*)h;
+	int32_t ret = base_engine_add(e,h,(generic_callback)IoFinish);
+	if(0 == ret){
+		if(!(c->status & PENDING_RECV))
+			PostRecv(c);
+	}
+	return ret;
+}
+
+int32_t 
+redis_execute(redis_conn *conn,const char *str,
+	        void (*cb)(redis_conn*,redisReply*,void *ud),
+	        void *ud)
+{
+
+	int32_t ret = _redis_execute(conn,str);
+	if(ret != 0) return ret;
+	reply_cb *repobj = calloc(1,sizeof(*repobj));
+	if(cb){
+		repobj->cb = cb;
+		repobj->ud = ud;
+	}
+	list_pushback(&conn->waitreplys,(listnode*)repobj);
+	return 0;
+}
+
+
+void 
+redis_dctor(void *_)
+{
+	redis_conn *c = (redis_conn*)_;
+	packet   *p;
+	reply_cb *stcb;	
+	while((p = (packet*)list_pop(&c->send_list))!=NULL)
+		packet_del(p);
+	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
+		if(c->clear && stcb->ud) c->clear(stcb->ud);
+		free(stcb);
+	}
+	if(c->tree)
+		parse_tree_del(c->tree);
+	free(c);
+}
+
+
+redis_conn*
+redis_connect(engine *e,sockaddr_ *addr,
+			  void (*on_error)(redis_conn*,int32_t err))
+{
+	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+	if(fd < 0) return NULL;
+	if(0 != easy_connect(fd,addr,NULL)){
+		close(fd);
+		return NULL;
+	}
+	redis_conn *conn = calloc(1,sizeof(*conn));
+	stream_socket_init((stream_socket_*)conn,fd);
+	if(!base_engine_add)
+		base_engine_add = conn->imp_engine_add; 
+	conn->imp_engine_add = imp_engine_add;	
+	conn->dctor = redis_dctor;
+	conn->on_error = on_error;	
+	engine_associate(e,conn,IoFinish); 	
+	PostRecv(conn);
+	return conn;
+}
+
+typedef struct{
+	engine *e;
+    void (*connect_cb)(redis_conn*,int32_t,void*);
+    void *ud;
+    void (*on_error)(redis_conn*,int32_t);
+}stConnet;
+
+
+static void on_connected(int32_t fd,int32_t err,void *ud){
+	stConnet *st = (stConnet*)ud;
+	if(fd >= 0 && err == 0){
+		redis_conn *conn = calloc(1,sizeof(*conn));
+		stream_socket_init((stream_socket_*)conn,fd);
+		if(!base_engine_add)
+			base_engine_add = conn->imp_engine_add; 
+		conn->imp_engine_add = imp_engine_add;		
+		conn->dctor = redis_dctor;	
+		engine_associate(st->e,conn,IoFinish); 	
+		PostRecv(conn);
+		conn->on_error = st->on_error;
+		st->connect_cb(conn,err,st->ud);
+	}else if(err == ETIMEDOUT){
+		st->connect_cb(NULL,err,st->ud);
+	}
+	free(st);
+}
+
+redis_conn*
+redis_asyn_connect(engine *e,sockaddr_ *addr,
+                   void (*connect_cb)(redis_conn*,int32_t,void*),
+                   void *ud,
+                   void (*on_error)(redis_conn*,int32_t),
+                   int32_t *err)
+{
+	if(err) *err = 0;
+	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+	if(fd < 0){
+		if(err) *err = errno; 
+		return NULL;
+	}
+	easy_noblock(fd,1);
+	int32_t ret;
+	if(0 == (ret = easy_connect(fd,addr,NULL))){
+		redis_conn *conn = calloc(1,sizeof(*conn));
+		stream_socket_init((stream_socket_*)conn,fd);
+		if(!base_engine_add)
+			base_engine_add = conn->imp_engine_add; 
+		conn->imp_engine_add = imp_engine_add;		
+		conn->dctor = redis_dctor;	
+		engine_associate(e,conn,IoFinish); 	
+		PostRecv(conn);
+		return conn;
+	}
+	else if(ret == -EINPROGRESS){
+		stConnet *st = calloc(1,sizeof(*st));
+		st->e = e;
+		st->ud = ud;
+		st->on_error = on_error;
+		st->connect_cb = connect_cb;
+		connector *contor = connector_new(fd,st,5000);
+		engine_associate(e,contor,on_connected);			
+	}else{
+		if(err) *err = -ret;
+		close(fd);
+	}
+	return NULL;		
+}
+
+#endif
+
 
 //just for test
 

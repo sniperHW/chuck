@@ -27,8 +27,17 @@ typedef struct signaler{
     int32_t signum;  
     void   *ud;
     void    (*callback)(struct signaler *,int32_t,void *ud);
+#ifdef _CHUCKLUA    
     luaRef  luacallback;
+#endif    
 }signaler;
+
+#ifdef _CHUCKLUA
+
+void    
+reg_luasignaler(lua_State *L); 
+
+#else
 
 signaler*
 signaler_new(int32_t signum,void *ud);
@@ -36,7 +45,7 @@ signaler_new(int32_t signum,void *ud);
 void    
 signaler_del(signaler*);
 
-void    
-reg_luasignaler(lua_State *L); 
+#endif
+
 
 #endif

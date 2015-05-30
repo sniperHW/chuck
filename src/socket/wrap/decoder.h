@@ -63,8 +63,11 @@ decoder_update(decoder *d,bytebuffer *buff,
     d->size += size;
 }
 
+#ifdef _CHUCKLUA
+
 void 
 reg_luadecoder(lua_State *L);
 
+#endif
 
 #endif    

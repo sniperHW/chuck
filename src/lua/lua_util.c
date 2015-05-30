@@ -54,11 +54,7 @@ luacall(lua_State *L,const char *fmt,...)
 						else lua_pushnil(L);
 						break;
 			}
-			case 'r':{
-				luaRef ref = va_arg(vl,luaRef);
-				lua_rawgeti(L,LUA_REGISTRYINDEX,ref.rindex);
-				break;
-			}
+			case 'r':{lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;}
 			case 'f':{
 				luaPushFunctor *functor = va_arg(vl,luaPushFunctor*);
 				functor->Push(L,functor);
@@ -110,12 +106,7 @@ arg_end:
 					break;
 				}
 				case 'r':{
-					lua_pushvalue(L,i);					
-					luaRef* ref = va_arg(vl,luaRef*);
-					ref->rindex = luaL_ref(L,LUA_REGISTRYINDEX);  
-					lua_rawgeti(L,  LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
-					ref->L = lua_tothread(L,-1);
-					lua_pop(L,1);
+					*va_arg(vl,luaRef*) = toluaRef(L,i);
 					break;
 				}
 				default:{
@@ -164,18 +155,10 @@ LuaRef_Get(luaRef tab,const char *fmt,...)
 		switch(fmt[k]){
 			case 'i':{lua_pushinteger(L,va_arg(vl,lua_Integer));break;}
 			case 's':{lua_pushstring(L,va_arg(vl,char*));break;}
-			case 'S':{
-				char *str = va_arg(vl,char*);
-				lua_pushlstring(L,str,va_arg(vl,size_t));
-				break;
-			}
+			case 'S':{lua_pushlstring(L,va_arg(vl,char*),va_arg(vl,size_t));break;}
 			case 'n':{lua_pushnumber(L,va_arg(vl,lua_Number));break;}
 			case 'p':{lua_pushlightuserdata(L,va_arg(vl,void*));break;}
-			case 'r':{
-				luaRef ref = va_arg(vl,luaRef);
-				lua_rawgeti(L,LUA_REGISTRYINDEX,ref.rindex);
-				break;
-			}
+			case 'r':{lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;}
 			default:{
 				snprintf(lua_errmsg,4096,"invaild operation(%c)",fmt[k]);
 				errmsg = lua_errmsg;
@@ -210,12 +193,7 @@ LuaRef_Get(luaRef tab,const char *fmt,...)
 				break;
 			}
 			case 'r':{
-				lua_pushvalue(L,-1);					
-				luaRef* ref = va_arg(vl,luaRef*);
-				ref->rindex = luaL_ref(L,LUA_REGISTRYINDEX);
-				lua_rawgeti(L,  LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
-				ref->L = lua_tothread(L,-1);
-				lua_pop(L,1);
+				*va_arg(vl,luaRef*) = toluaRef(L,-1);
 				break;
 			}
 			default:{
@@ -262,12 +240,9 @@ LuaRef_Set(luaRef tab,const char *fmt,...)
 		switch(fmt[k]){
 			case 'i':{lua_pushinteger(L,va_arg(vl,lua_Integer));break;}
 			case 's':{lua_pushstring(L,va_arg(vl,char*));break;}
-			case 'S':{
-				char *str = va_arg(vl,char*);
-				lua_pushlstring(L,str,va_arg(vl,size_t));
-				break;
-			}
+			case 'S':{lua_pushlstring(L,va_arg(vl,char*),va_arg(vl,size_t));break;}
 			case 'n':{lua_pushnumber(L,va_arg(vl,double));break;}
+			case 'r':{lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;}			
 			case 'p':{
 					void *lud = va_arg(vl,void*);
 					if(lud)
@@ -276,11 +251,6 @@ LuaRef_Set(luaRef tab,const char *fmt,...)
 						lua_pushnil(L);
 					break;
 				}
-			case 'r':{
-				luaRef ref = va_arg(vl,luaRef);
-				lua_rawgeti(L,LUA_REGISTRYINDEX,ref.rindex);
-				break;
-			}
 			default:{
 				snprintf(lua_errmsg,4096,"invaild operation(%c)",fmt[k]);
 				errmsg = lua_errmsg;
@@ -292,12 +262,9 @@ LuaRef_Set(luaRef tab,const char *fmt,...)
 		switch(fmt[v]){
 			case 'i':{lua_pushinteger(L,va_arg(vl,lua_Integer));break;}
 			case 's':{lua_pushstring(L,va_arg(vl,char*));break;}
-			case 'S':{
-				char *str = va_arg(vl,char*);
-				lua_pushlstring(L,str,va_arg(vl,size_t));
-				break;
-			}
+			case 'S':{lua_pushlstring(L,va_arg(vl,char*),va_arg(vl,size_t));break;}
 			case 'n':{lua_pushnumber(L,va_arg(vl,lua_Number));break;}
+			case 'r':{lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;}			
 			case 'p':{
 					void *lud = va_arg(vl,void*);
 					if(lud)
@@ -306,11 +273,6 @@ LuaRef_Set(luaRef tab,const char *fmt,...)
 						lua_pushnil(L);
 					break;
 				}
-			case 'r':{
-				luaRef ref = va_arg(vl,luaRef);
-				lua_rawgeti(L,LUA_REGISTRYINDEX,ref.rindex);
-				break;
-			}
 			default:{
 				snprintf(lua_errmsg,4096,"invaild operation(%c)",fmt[k]);
 				errmsg = lua_errmsg;

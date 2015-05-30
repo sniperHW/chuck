@@ -90,7 +90,12 @@ easy_sockaddr_un(sockaddr_ *addr,const char *path)
     return 0;
 }
 
+#ifdef _CHUCKLUA
+
 void 
-reg_luasocket_helper(lua_State *L);
+reg_CHUCKLUAcket_helper(lua_State *L);
+
+#endif
+
 
 #endif

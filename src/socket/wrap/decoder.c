@@ -64,6 +64,7 @@ decoder_del(decoder *d)
 	free(d);
 }
 
+#ifdef _CHUCKLUA
 
 int32_t 
 lua_rpacket_decoder_new(lua_State *L)
@@ -86,3 +87,5 @@ reg_luadecoder(lua_State *L)
 	lua_newtable(L);
 	SET_FUNCTION(L,"rpacket",lua_rpacket_decoder_new);
 }
+
+#endif

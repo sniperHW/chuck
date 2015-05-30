@@ -47,29 +47,7 @@ signaler_init(int32_t signum)
 }
 
 
-signaler*
-signaler_new(int32_t signum,void *ud)
-{
-    
-    int32_t fd = signaler_init(signum);
-    if(fd < 0) return NULL;
-    
-    signaler *s = calloc(1,sizeof(*s));
-    ((handle*)s)->fd = fd;
-    s->signum = signum;
-    s->ud = ud;
-    ((handle*)s)->on_events = on_signal;
-    ((handle*)s)->imp_engine_add = imp_engine_add;    
-    return s;
-}
-
-void 
-signaler_del(signaler *s)
-{
-    close(((handle*)s)->fd);
-    free(s);
-}
-
+#ifdef _CHUCKLUA
 
 #define LUA_METATABLE "signer_mata"
 
@@ -183,3 +161,30 @@ reg_luasignaler(lua_State *L)
     SET_CONST(L,SIGINT);
     SET_FUNCTION(L,"signaler",lua_signaler_new);
 }
+
+#else
+
+signaler*
+signaler_new(int32_t signum,void *ud)
+{
+    
+    int32_t fd = signaler_init(signum);
+    if(fd < 0) return NULL;
+    
+    signaler *s = calloc(1,sizeof(*s));
+    ((handle*)s)->fd = fd;
+    s->signum = signum;
+    s->ud = ud;
+    ((handle*)s)->on_events = on_signal;
+    ((handle*)s)->imp_engine_add = imp_engine_add;    
+    return s;
+}
+
+void 
+signaler_del(signaler *s)
+{
+    close(((handle*)s)->fd);
+    free(s);
+}
+
+#endif

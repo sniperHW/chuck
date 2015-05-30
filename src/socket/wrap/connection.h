@@ -38,7 +38,9 @@ typedef struct connection{
     uint32_t       recv_bufsize;
     void           (*on_packet)(struct connection*,packet*,int32_t error);
     decoder       *decoder_;
+#ifdef _CHUCKLUA    
     luaRef         lua_cb_packet;
+#endif
     uint64_t       lastrecv;
     uint32_t       recvtimeout;
     uint32_t       sendtimeout;
@@ -49,6 +51,24 @@ typedef struct connection{
         int64_t    ud_i64;
     };
 }connection;
+
+
+void
+connection_set_recvtimeout(connection *c,uint32_t timeout);
+
+void
+connection_set_sendtimeout(connection *c,uint32_t timeout);
+
+decoder*
+conn_raw_decoder_new();
+
+
+#if _CHUCKLUA
+
+void        
+reg_luaconnection(lua_State *L);
+
+#else
 
 connection*
 connection_new(int32_t fd,uint32_t buffersize,
@@ -61,17 +81,6 @@ connection_send(connection *c,packet *p,
 int32_t        
 connection_close(connection *c);
 
-void
-connection_set_recvtimeout(connection *c,uint32_t timeout);
-
-void
-connection_set_sendtimeout(connection *c,uint32_t timeout);
-
-decoder*
-conn_raw_decoder_new();
-
-
-void        
-reg_luaconnection(lua_State *L);
+#endif
 
 #endif    

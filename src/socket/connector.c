@@ -88,11 +88,6 @@ process_connect(handle *h,int32_t events)
 	free(h);
 }
 
-static void 
-lua_process_connect(handle *h,int32_t events)
-{
-	_process_connect((connector*)h);
-}
 
 connector*
 connector_new(int32_t fd,void *ud,uint32_t timeout)
@@ -108,12 +103,20 @@ connector_new(int32_t fd,void *ud,uint32_t timeout)
 }
 
 
+#ifdef _CHUCKLUA
+
 #define LUA_METATABLE "connector_mata"
 
 static connector*
 lua_toconnector(lua_State *L, int index) 
 {
     return (connector*)luaL_testudata(L, index, LUA_METATABLE);
+}
+
+static void 
+lua_process_connect(handle *h,int32_t events)
+{
+	_process_connect((connector*)h);
 }
 
 
@@ -194,3 +197,5 @@ reg_luaconnector(lua_State *L)
 
    	SET_FUNCTION(L,"connector",lua_connector_new);
 }
+
+#endif

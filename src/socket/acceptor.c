@@ -56,22 +56,8 @@ process_accept(handle *h,int32_t events)
     }
 }
 
-acceptor*
-acceptor_new(int32_t fd,void *ud)
-{
-	acceptor *a = calloc(1,sizeof(*a));
-	a->ud = ud;
-	a->fd = fd;
-	a->on_events = process_accept;
-	a->imp_engine_add = imp_engine_add;
-	easy_close_on_exec(fd);
-	return a;
-}
 
-void    acceptor_del(acceptor *a){
-	close(a->fd);
-	free(a);
-}
+#ifdef _CHUCKLUA
 
 
 #define LUA_METATABLE "acceptor_mata"
@@ -158,4 +144,25 @@ reg_luaacceptor(lua_State *L)
     lua_pop(L, 1);
 
    	SET_FUNCTION(L,"acceptor",lua_acceptor_new);
-} 
+}
+
+#else
+
+acceptor*
+acceptor_new(int32_t fd,void *ud)
+{
+	acceptor *a = calloc(1,sizeof(*a));
+	a->ud = ud;
+	a->fd = fd;
+	a->on_events = process_accept;
+	a->imp_engine_add = imp_engine_add;
+	easy_close_on_exec(fd);
+	return a;
+}
+
+void    acceptor_del(acceptor *a){
+	close(a->fd);
+	free(a);
+}
+
+#endif 

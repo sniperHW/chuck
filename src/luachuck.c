@@ -211,7 +211,7 @@ luaopen_chuck(lua_State *L)
 	lua_settable(L,-3);
 			
 	lua_pushstring(L,"socket_helper");
-	reg_luasocket_helper(L);
+	reg_CHUCKLUAcket_helper(L);
 	lua_settable(L,-3);
 
 	lua_pushstring(L,"decoder");

@@ -45,6 +45,14 @@ typedef struct redisReply {
 
 typedef struct redis_conn redis_conn;
 
+#ifdef _CHUCKLUA
+
+void
+reg_luaredis(lua_State *L);
+
+#else
+
+
 redis_conn*
 redis_connect(engine *e,sockaddr_ *addr,
               void (*on_error)(redis_conn*,int32_t err));
@@ -68,16 +76,11 @@ redis_execute(redis_conn*,const char *str,
 void 
 redis_set_clearcb(redis_conn*,void (*)(void*ud));
 
-
-void
-reg_luaredis(lua_State *L);
-
+#endif
 
 //for test
 void 
 test_parse(char *str);
-
-
 
 
 #endif    

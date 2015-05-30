@@ -6,14 +6,15 @@
 #include "util/time.h"
 #include "thread/thread.h"
 
+#ifdef _CHUCKLUA
 #define LUAENGINE_METATABLE "luaengine_metatable"
+#endif
 
 extern int32_t pipe2(int pipefd[2], int flags);
 
 enum{
 	INLOOP  =  1 << 1,
 	CLOSING =  1 << 2,
-	LUAOBj  =  1 << 3,
 };
 
 int32_t engine_add(engine *e,handle *h,generic_callback callback){
@@ -39,6 +40,8 @@ int32_t engine_remove(handle *h){
 #error "un support platform!"		
 
 #endif
+
+#ifdef _CHUCKLUA
 
 
 engine *lua_toengine(lua_State *L, int index){
@@ -141,3 +144,5 @@ void reg_luaengine(lua_State *L){
    	SET_FUNCTION(L,"RemTimer",lua_remove_timer);
 
 }
+
+#endif

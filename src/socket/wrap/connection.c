@@ -11,19 +11,14 @@ enum{
 	PENDING_RECV   = SOCKET_END << 1,
 };
 
-enum{
-	LUA_CB,
-	C_CB,
-};
-
 typedef struct{
 	listnode *node;
 	packet    *p;
-	union{
-		void    (*cb)(connection *c);
-		luaRef  luacb;
-	};
-	uint8_t   type;
+#ifdef _CHUCKLUA 		
+	luaRef  cb;	
+#else	
+	void    (*cb)(connection *c);
+#endif
 }stSendFshCb;
 
 typedef struct{
@@ -36,6 +31,7 @@ typedef struct{
 	packet        *p;
 }stPushPk;
 
+#ifdef _CHUCKLUA
 
 #define LUA_METATABLE "conn_mata"
 
@@ -57,6 +53,8 @@ PushPk(lua_State *L,luaPushFunctor *_)
 	else
 		lua_pushnil(L);
 }
+
+#endif
 
 
 static inline void 
@@ -232,24 +230,22 @@ do_sndfnsh_cb(connection *c,packet *p){
 	if(stcb->p != p)
 		return;
 
+#ifdef _CHUCKLUA	
+	const char * error;
+	stPushConn st1;	
+	if(c->lua_cb_packet.rindex == LUA_REFNIL)
+		return;
+	st1.c = c;
+	st1.base.Push = PushConn;
 
-	if(stcb->type == C_CB){
-		stcb->cb(c);
-	}else{
-		const char * error;
-		stPushConn st1;	
-		if(c->lua_cb_packet.rindex == LUA_REFNIL)
-			return;
-		st1.c = c;
-		st1.base.Push = PushConn;
-
-		if((error = LuaCallRefFunc(stcb->luacb,"f",&st1)))
-		{
-			SYS_LOG(LOG_ERROR,"error on do_sndfnsh_cb:%s\n",error);
-		}
-		release_luaRef(&stcb->luacb);
+	if((error = LuaCallRefFunc(stcb->cb,"f",&st1)))
+	{
+		SYS_LOG(LOG_ERROR,"error on do_sndfnsh_cb:%s\n",error);
 	}
-
+	release_luaRef(&stcb->cb);
+#else
+	stcb->cb(c);
+#endif
 	list_pop(&c->send_finish_cb);	
 	free(stcb);
 }
@@ -395,20 +391,6 @@ _connection_send(connection *c,packet *p,stSendFshCb *stcb)
 	return -EAGAIN;	
 }
 
-int32_t 
-connection_send(connection *c,packet *p,
-				void (*fnish_cb)(connection*))
-{
-	stSendFshCb *stcb = NULL;
-	if(fnish_cb){
-		stcb = calloc(1,sizeof(*stcb));
-		stcb->cb = fnish_cb;
-		stcb->p = p;
-		stcb->type = C_CB;
-	}
-	return _connection_send(c,p,stcb);
-}
-
 
 void 
 _connection_dctor(connection *c)
@@ -419,9 +401,9 @@ _connection_dctor(connection *c)
 		packet_del(p);
 	while((stcb = (stSendFshCb*)list_pop(&c->send_finish_cb))!=NULL)
 	{
-		if(stcb->type == LUA_CB){
-			release_luaRef(&stcb->luacb);
-		}
+#ifdef _CHUCKLUA		
+		release_luaRef(&stcb->cb);
+#endif
 		free(stcb);	
 	}
 	bytebuffer_set(&c->next_recv_buf,NULL);
@@ -430,13 +412,7 @@ _connection_dctor(connection *c)
 		unregister_timer(c->timer_);
 }
 
-void 
-connection_dctor(void *_)
-{
-	connection *c = (connection*)_;
-	_connection_dctor(c);
-	free(c);
-}
+
 
 static void 
 connection_init(connection *c,int32_t fd,
@@ -453,16 +429,6 @@ connection_init(connection *c,int32_t fd,
 	decoder_init(c->decoder_,c->next_recv_buf,0);
 }
 
-connection*
-connection_new(int32_t fd,uint32_t buffersize,decoder *d)
-{
-	buffersize = size_of_pow2(buffersize);
-    if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
-	connection *c 	 = calloc(1,sizeof(*c));
-	connection_init(c,fd,buffersize,d);
-	c->dctor = connection_dctor;
-	return c;
-}
 
 int32_t 
 connection_close(connection *c)
@@ -537,6 +503,7 @@ connection_set_sendtimeout(connection *c,uint32_t timeout)
 	}
 }
 
+#ifdef _CHUCKLUA
 
 //for lua
 
@@ -648,9 +615,8 @@ lua_conn_send(lua_State *L)
 	if(lua_type(L,3) == LUA_TFUNCTION)
 	{
 		stcb = calloc(1,sizeof(*stcb));
-		stcb->luacb = toluaRef(L,3);
-		stcb->p = p->_packet;
-		stcb->type = LUA_CB;	
+		stcb->cb = toluaRef(L,3);
+		stcb->p = p->_packet;	
 	}
 	lua_pushinteger(L,_connection_send(c,p->_packet,stcb));
 	p->_packet = NULL;
@@ -717,3 +683,39 @@ reg_luaconnection(lua_State *L)
 
    	SET_FUNCTION(L,"connection",lua_connection_new);
 }
+
+#else
+
+void 
+connection_dctor(void *_)
+{
+	connection *c = (connection*)_;
+	_connection_dctor(c);
+	free(c);
+}
+
+connection*
+connection_new(int32_t fd,uint32_t buffersize,decoder *d)
+{
+	buffersize = size_of_pow2(buffersize);
+    if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
+	connection *c 	 = calloc(1,sizeof(*c));
+	connection_init(c,fd,buffersize,d);
+	c->dctor = connection_dctor;
+	return c;
+}
+
+int32_t 
+connection_send(connection *c,packet *p,
+				void (*fnish_cb)(connection*))
+{
+	stSendFshCb *stcb = NULL;
+	if(fnish_cb){
+		stcb = calloc(1,sizeof(*stcb));
+		stcb->cb = fnish_cb;
+		stcb->p = p;
+	}
+	return _connection_send(c,p,stcb);
+}
+
+#endif
