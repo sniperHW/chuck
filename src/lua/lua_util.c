@@ -25,8 +25,13 @@ luacall(lua_State *L,const char *fmt,...)
 	int32_t ret,narg,nres,i,size,base;
 	const char *errmsg = NULL;
 	lua_State *mL;
+#ifdef _MYLUAJIT
+	lua_pushmainthread(L);
+	mL = lua_tothread(L,-1);
+#else	
 	lua_rawgeti(L,  LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
 	mL = lua_tothread(L,-1);
+#endif
 	lua_pop(L,1);
 	if(L != mL) L = mL;	//确保L是主线程
 	va_start(vl,fmt);

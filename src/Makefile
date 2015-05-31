@@ -1,9 +1,11 @@
 CFLAGS = -g -Wall -fno-strict-aliasing 
-LDFLAGS = -lpthread -lrt -llua -lm 
+LDFLAGS = -lpthread -lrt -lm 
 DEPDIR  = 
 INCLUDE = -I./ 
 DEFINE  =
 LIBNAME = libchuck.a
+# if you want to use luajit,change it to jit
+LUA     = lua53
 
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
@@ -15,6 +17,11 @@ endif
 ifeq ($(uname_S),FreeBSD)
 	LDFLAGS += -lexecinfo
 	DEFINE += -D_BSD
+endif
+
+ifeq ($(LUA),jit)
+	INCLUDE += -I../myluajit
+	DEFINE  += -D_MYLUAJIT
 endif
 
 
