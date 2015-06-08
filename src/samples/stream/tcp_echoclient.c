@@ -15,6 +15,7 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 		stream_socket_ *h = new_stream_socket(fd);
 		engine_associate(e,h,transfer_finish);
 		struct session *s = session_new(h);
+		session_recv(s,IO_POST);
 		session_send(s,1024,IO_POST);
 		++size;
 	}else if(err == ETIMEDOUT){

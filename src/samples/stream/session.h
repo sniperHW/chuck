@@ -41,7 +41,7 @@ void transfer_finish(handle *h,void *_,int32_t bytestransfer,int32_t err){
     struct session *s = req->s; 
     if(!req || bytestransfer <= 0)
     {
-socket_err:    	
+//socket_err:    	
         close_socket((socket_*)h);
         free(s);
         --client_count;           
@@ -66,9 +66,10 @@ socket_err:
     	}
     }while(bytestransfer > 0);
 */
-    if(req == &s->send_overlap)
-		session_recv(s,IO_POST);
-    else if(req == &s->recv_overlap){
+    //if(req == &s->send_overlap)
+		
+    if(req == &s->recv_overlap){
+    	session_recv(s,IO_POST);
 		session_send(s,bytestransfer,IO_POST);
 		totalbytes += bytestransfer;
 		packet_recv++;
