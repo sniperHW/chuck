@@ -1,7 +1,8 @@
 #include "chuck.h"
 #include "session.h"
 
-int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
+int32_t timer_callback(uint32_t event,uint64_t _,void *ud)
+{
 	if(event == TEVENT_TIMEOUT){
 		printf("client_count:%d,totalbytes:%f MB/s,packet_recv:%d\n",
 				client_count,totalbytes/1024/1024,packet_recv);
@@ -11,7 +12,10 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
 	return 0;
 }
 
-static void on_connection(acceptor *a,int32_t fd,sockaddr_ *_,void *ud,int32_t err){
+static void on_connection(acceptor *a,int32_t fd,
+						  sockaddr_ *_,void *ud,
+						  int32_t err)
+{
 	if(err == EENGCLOSE){
 		acceptor_del(a);
 		return;
@@ -21,7 +25,7 @@ static void on_connection(acceptor *a,int32_t fd,sockaddr_ *_,void *ud,int32_t e
 	stream_socket_ *h = new_stream_socket(fd);
 	engine_associate(e,h,transfer_finish);
 	struct session *s = session_new(h);
-	session_recv(s);
+	session_recv(s,IO_POST);
 	++client_count;
 	printf("%d\n",client_count);	
 }
