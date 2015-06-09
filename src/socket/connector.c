@@ -8,7 +8,7 @@ int32_t
 connect_timeout(uint32_t event,uint64_t _,void *ud)
 {
 	if(event == TEVENT_TIMEOUT){
-		connector *c = (connector*)ud;
+		connector *c = cast(connector*,ud);
 		c->callback(-1,ETIMEDOUT,c->ud);
 		close(c->fd);
 		free(c);
@@ -22,7 +22,7 @@ imp_engine_add(engine *e,handle *h,
 {
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
-	connector *c = (connector*)h;
+	connector *c = cast(connector*,h);
 	int32_t ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
 	if(ret == 0){
 		h->e = e;
@@ -56,7 +56,7 @@ _process_connect(connector *c)
 		//success
 		fd = c->fd;
 	}while(0);
-	event_remove((handle*)c);    
+	event_remove(cast(handle*,c));    
 	if(fd != -1){
 		c->callback(fd,0,c->ud);
 	}else{

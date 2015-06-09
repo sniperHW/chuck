@@ -40,7 +40,7 @@ event_remove(handle *h)
 		return -errno; 
 	h->events = 0;
 	h->e = NULL;
-	dlist_remove((dlistnode*)h);
+	dlist_remove(cast(dlistnode*,h));
 	return 0;	
 }
 
@@ -129,10 +129,10 @@ _engine_del(engine *e)
 {
 	handle *h;
 	if(e->tfd){
-		engine_remove((handle*)e->tfd);
+		engine_remove(cast(handle*,e->tfd));
 		wheelmgr_del(e->timermgr);
 	}
-	while((h = (handle*)dlist_pop(&e->handles))){
+	while((h = cast(handle*,dlist_pop(&e->handles)))){
 		event_remove(h);
 		h->on_events(h,EENGCLOSE);
 	}
@@ -166,7 +166,7 @@ engine_runonce(engine *e,uint32_t timeout)
 				while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
 				break;	
 			}else{
-				h = (handle*)event->data.ptr;
+				h = cast(handle*,event->data.ptr);
 				h->on_events(h,event->events);;
 			}
 		}
@@ -209,7 +209,7 @@ engine_run(engine *e)
 					while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
 					goto loopend;	
 				}else{
-					h = (handle*)event->data.ptr;
+					h = cast(handle*,event->data.ptr);
 					h->on_events(h,event->events);
 				}
 			}
@@ -251,7 +251,7 @@ engine_stop(engine *e)
 static int32_t 
 lua_engine_new(lua_State *L)
 {
-	engine *ep = (engine*)lua_newuserdata(L, sizeof(*ep));
+	engine *ep = cast(engine*,lua_newuserdata(L, sizeof(*ep)));
 	memset(ep,0,sizeof(*ep));
 	if(0 != engine_init(ep)){
 		free(ep);

@@ -45,7 +45,7 @@ int32_t engine_remove(handle *h){
 
 
 engine *lua_toengine(lua_State *L, int index){
-	return (engine*)luaL_testudata(L, index, LUAENGINE_METATABLE);
+	return cast(engine*,luaL_testudata(L, index, LUAENGINE_METATABLE));
 }
 
 static int32_t lua_engine_gc(lua_State *L){
@@ -68,7 +68,7 @@ static int32_t lua_engine_stop(lua_State *L){
 }
 
 static int32_t lua_timer_callback(uint32_t v,uint64_t _,void *ud){
-	luaRef *cb = (luaRef*)ud;
+	luaRef *cb = cast(luaRef*,ud);
 	int32_t ret = -1;
 	const char *error; 
 	if(v == TEVENT_TIMEOUT){

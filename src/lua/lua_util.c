@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <string.h>
+#include "chuck.h"
 #include "lua_util.h"
 
 static inline int 
@@ -93,12 +94,12 @@ arg_end:
 					break;
 				}
 				case 's':{
-					*va_arg(vl,char**) = (char*)lua_tostring(L,i);
+					*va_arg(vl,char**) = cast(char*,lua_tostring(L,i));
 					break;
 				}
 				case 'S':{
 					size_t l;
-					*va_arg(vl,char**) = (char*)lua_tolstring(L,i,&l);
+					*va_arg(vl,char**) = cast(char*,lua_tolstring(L,i,&l));
 					*va_arg(vl,size_t*) = l;
 					break;
 				}
@@ -158,12 +159,12 @@ LuaRef_Get(luaRef tab,const char *fmt,...)
 	for(i = 0; i < size; i += 2){	
 		k = i;	
 		switch(fmt[k]){
-			case 'i':{lua_pushinteger(L,va_arg(vl,lua_Integer));break;}
-			case 's':{lua_pushstring(L,va_arg(vl,char*));break;}
-			case 'S':{lua_pushlstring(L,va_arg(vl,char*),va_arg(vl,size_t));break;}
-			case 'n':{lua_pushnumber(L,va_arg(vl,lua_Number));break;}
-			case 'p':{lua_pushlightuserdata(L,va_arg(vl,void*));break;}
-			case 'r':{lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;}
+			case 'i':lua_pushinteger(L,va_arg(vl,lua_Integer));break;
+			case 's':lua_pushstring(L,va_arg(vl,char*));break;
+			case 'S':lua_pushlstring(L,va_arg(vl,char*),va_arg(vl,size_t));break;
+			case 'n':lua_pushnumber(L,va_arg(vl,lua_Number));break;
+			case 'p':lua_pushlightuserdata(L,va_arg(vl,void*));break;
+			case 'r':lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;
 			default:{
 				snprintf(lua_errmsg,4096,"invaild operation(%c)",fmt[k]);
 				errmsg = lua_errmsg;
@@ -175,30 +176,15 @@ LuaRef_Get(luaRef tab,const char *fmt,...)
 		//get value
 		v = k + 1;
 		switch(fmt[v]){
-			case 'i':{
-				*va_arg(vl,lua_Integer*) = lua_tointeger(L,-1);
-				break;
-			}
-			case 's':{
-				*va_arg(vl,char**) = (char*)lua_tostring(L,-1);
-				break;
-			}
+			case 'i':*va_arg(vl,lua_Integer*) = lua_tointeger(L,-1);break;
+			case 's':*va_arg(vl,char**) = cast(char*,lua_tostring(L,-1));break;
+			case 'n':*va_arg(vl,lua_Number*) = lua_tonumber(L,-1);break;
+			case 'p':*va_arg(vl,void**) = lua_touserdata(L,-1);break;
+			case 'r':*va_arg(vl,luaRef*) = toluaRef(L,-1);break;						
 			case 'S':{
 				size_t l;
-				*va_arg(vl,char**) = (char*)lua_tolstring(L,-1,&l);
+				*va_arg(vl,char**) = cast(char*,lua_tolstring(L,-1,&l));
 				*va_arg(vl,size_t*) = l;
-				break;
-			}
-			case 'n':{
-				*va_arg(vl,lua_Number*) = lua_tonumber(L,-1);
-				break;
-			}
-			case 'p':{					
-				*va_arg(vl,void**) = lua_touserdata(L,-1);
-				break;
-			}
-			case 'r':{
-				*va_arg(vl,luaRef*) = toluaRef(L,-1);
 				break;
 			}
 			default:{
@@ -243,11 +229,11 @@ LuaRef_Set(luaRef tab,const char *fmt,...)
 	   	//push key
 	   	k = i;	
 		switch(fmt[k]){
-			case 'i':{lua_pushinteger(L,va_arg(vl,lua_Integer));break;}
-			case 's':{lua_pushstring(L,va_arg(vl,char*));break;}
-			case 'S':{lua_pushlstring(L,va_arg(vl,char*),va_arg(vl,size_t));break;}
-			case 'n':{lua_pushnumber(L,va_arg(vl,double));break;}
-			case 'r':{lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;}			
+			case 'i':lua_pushinteger(L,va_arg(vl,lua_Integer));break;
+			case 's':lua_pushstring(L,va_arg(vl,char*));break;
+			case 'S':lua_pushlstring(L,va_arg(vl,char*),va_arg(vl,size_t));break;
+			case 'n':lua_pushnumber(L,va_arg(vl,double));break;
+			case 'r':lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;	
 			case 'p':{
 					void *lud = va_arg(vl,void*);
 					if(lud)
@@ -265,11 +251,11 @@ LuaRef_Set(luaRef tab,const char *fmt,...)
 		//push value
 		v = k + 1;
 		switch(fmt[v]){
-			case 'i':{lua_pushinteger(L,va_arg(vl,lua_Integer));break;}
-			case 's':{lua_pushstring(L,va_arg(vl,char*));break;}
-			case 'S':{lua_pushlstring(L,va_arg(vl,char*),va_arg(vl,size_t));break;}
-			case 'n':{lua_pushnumber(L,va_arg(vl,lua_Number));break;}
-			case 'r':{lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;}			
+			case 'i':lua_pushinteger(L,va_arg(vl,lua_Integer));break;
+			case 's':lua_pushstring(L,va_arg(vl,char*));break;
+			case 'S':lua_pushlstring(L,va_arg(vl,char*),va_arg(vl,size_t));break;
+			case 'n':lua_pushnumber(L,va_arg(vl,lua_Number));break;
+			case 'r':lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;		
 			case 'p':{
 					void *lud = va_arg(vl,void*);
 					if(lud)

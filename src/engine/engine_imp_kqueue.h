@@ -108,10 +108,10 @@ _engine_del(engine *e)
 {
 	handle *h;
 	if(e->tfd){
-		engine_remove((handle*)e->tfd);
+		engine_remove(cast(handle*,e->tfd));
 		wheelmgr_del(e->timermgr);
 	}
-	while((h = (handle*)dlist_pop(&e->handles))){
+	while((h = cast(handle*,dlist_pop(&e->handles)))){
 		event_remove(h);
 		h->on_events(h,EENGCLOSE);
 	}
@@ -164,7 +164,7 @@ engine_run(engine *e)
 					while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
 					break;	
 				}else{
-					h = (handle_t)event->udata;
+					h = cast(handle*,event->udata);
 					h->on_events(h,event->filter);;
 				}
 			}

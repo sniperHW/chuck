@@ -37,39 +37,39 @@ _lua_pack_number(wpacket *wpk,lua_State *L,
 				 int index)
 {
 	lua_Number v = lua_tonumber(L,index);
-	if(v != (lua_Integer)v){
+	if(v != cast(lua_Integer,v)){
 		wpacket_write_uint8(wpk,L_FLOAT);
 		wpacket_write_double(wpk,v);
 	}else{
-		if((int64_t)v > 0){
-			uint64_t _v = (uint64_t)v;
+		if(cast(int64_t,v) > 0){
+			uint64_t _v = cast(uint64_t,v);
 			if(_v <= 0xFF){
 				wpacket_write_uint8(wpk,L_UINT8);
-				wpacket_write_uint8(wpk,(uint8_t)_v);				
+				wpacket_write_uint8(wpk,cast(uint8_t,_v));				
 			}else if(_v <= 0xFFFF){
 				wpacket_write_uint8(wpk,L_UINT16);
-				wpacket_write_uint16(wpk,(uint16_t)_v);					
+				wpacket_write_uint16(wpk,cast(uint16_t,_v));					
 			}else if(_v <= 0xFFFFFFFF){
 				wpacket_write_uint8(wpk,L_UINT32);
-				wpacket_write_uint32(wpk,(uint32_t)_v);					
+				wpacket_write_uint32(wpk,cast(uint32_t,_v));					
 			}else{
 				wpacket_write_uint8(wpk,L_UINT64);
-				wpacket_write_uint64(wpk,(uint64_t)_v);				
+				wpacket_write_uint64(wpk,cast(uint64_t,_v));				
 			}
 		}else{
-			int64_t _v = (int64_t)v;
+			int64_t _v = cast(int64_t,v);
 			if(_v >= 0x80){
 				wpacket_write_uint8(wpk,L_INT8);
-				wpacket_write_uint8(wpk,(uint8_t)_v);				
+				wpacket_write_uint8(wpk,cast(uint8_t,_v));				
 			}else if(_v >= 0x8000){
 				wpacket_write_uint8(wpk,L_INT16);
-				wpacket_write_uint16(wpk,(uint16_t)_v);					
+				wpacket_write_uint16(wpk,cast(uint16_t,_v));					
 			}else if(_v < 0x80000000){
 				wpacket_write_uint8(wpk,L_INT32);
-				wpacket_write_uint32(wpk,(uint32_t)_v);					
+				wpacket_write_uint32(wpk,cast(uint32_t,_v));					
 			}else{
 				wpacket_write_uint8(wpk,L_INT64);
-				wpacket_write_uint64(wpk,(uint64_t)_v);				
+				wpacket_write_uint64(wpk,cast(uint64_t,_v));				
 			}
 		}
 	}
@@ -168,42 +168,15 @@ _lua_unpack_number(rpacket *rpk,lua_State *L,
 {
 	lua_Integer   n;
 	switch(type){
-		case L_FLOAT:{
-			lua_pushnumber(L, rpacket_read_double(rpk));
-			return 0;
-		}
-		case L_UINT8:{
-			n = rpacket_read_uint8(rpk);
-			break;
-		}
-		case L_UINT16:{
-			n = rpacket_read_uint16(rpk);
-			break;
-		}
-		case L_UINT32:{
-			n = rpacket_read_uint32(rpk);
-			break;
-		}
-		case L_UINT64:{
-			n = rpacket_read_uint64(rpk);
-			break;
-		}
-		case L_INT8:{
-			n = ((int8_t)rpacket_read_uint8(rpk));
-			break;
-		}
-		case L_INT16:{
-			n = ((int16_t)rpacket_read_uint16(rpk));
-			break;
-		}
-		case L_INT32:{
-			n = ((int32_t)rpacket_read_uint32(rpk));
-			break;
-		}
-		case L_INT64:{
-			n = ((int64_t)rpacket_read_uint64(rpk));		
-			break;
-		}
+		case L_FLOAT:lua_pushnumber(L, rpacket_read_double(rpk));return 0;
+		case L_UINT8:n = rpacket_read_uint8(rpk);break;
+		case L_UINT16:n = rpacket_read_uint16(rpk);break;
+		case L_UINT32:n = rpacket_read_uint32(rpk);break;
+		case L_UINT64:n = rpacket_read_uint64(rpk);break;
+		case L_INT8:n = cast(int8_t,rpacket_read_uint8(rpk));break;
+		case L_INT16:n = cast(int16_t,rpacket_read_uint16(rpk));break;
+		case L_INT32:n = cast(int32_t,rpacket_read_uint32(rpk));break;
+		case L_INT64:n = cast(int64_t,rpacket_read_uint64(rpk));break;
 		default:{
 			assert(0);
 			return -1;						
@@ -216,10 +189,10 @@ _lua_unpack_number(rpacket *rpk,lua_State *L,
 static inline int 
 _lua_unpack_string(rpacket *rpk,lua_State *L)
 {
-	uint32_t len = 0;
-	const char *data = rpacket_read_binary(rpk,(uint16_t*)&len);
+	uint16_t len = 0;
+	const char *data = rpacket_read_binary(rpk,&len);
 	if(!data) return -1;
-	lua_pushlstring(L,data,(size_t)len);
+	lua_pushlstring(L,data,cast(size_t,len));
 	return 0;
 }
 

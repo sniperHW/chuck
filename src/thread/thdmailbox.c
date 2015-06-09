@@ -169,7 +169,7 @@ mailbox_setup(engine *e,const char *name,
 }
 
 static inline tmailbox_* 
-cast(tmailbox t){
+cast2(tmailbox t){
 	refobj *tmp = cast2refobj(t);
 	if(!tmp) return NULL;
 	return (tmailbox_*)((char*)tmp - sizeof(handle));
@@ -192,7 +192,7 @@ notify(tmailbox_ *mailbox){
 int32_t 
 send_mail(tmailbox t,mail *mail_)
 {
-	tmailbox_ *target = cast(t);
+	tmailbox_ *target = cast2(t);
 	if(!target) return -ETMCLOSE;
 	if(mailbox_)
 		mail_->sender = get_refhandle(&mailbox_->refbase);

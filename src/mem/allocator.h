@@ -19,7 +19,11 @@
 #define _ALLOCATOR_H
 
 #include <stdlib.h>
-#include <stdint.h>
+#include <stdint.h> 
+
+#ifndef  cast
+#define cast(T,P) ((T)(P))
+#endif   
 
 typedef struct allocator{
 	void* (*alloc)(struct allocator*,size_t);
@@ -31,21 +35,21 @@ typedef struct allocator{
 #define ALLOC(A,SIZE)\
 	({void* __result;\
 	   if(!A) 	__result = malloc(SIZE);\
-	   else  __result = ((allocator*)A)->alloc((allocator*)A,SIZE);\
+	   else  __result = cast(allocator*,A)->alloc(cast(allocator*,A),SIZE);\
 	  __result;})
 
 #define CALLOC(A,NUM,SIZE)\
 	({void* __result;\
 	   if(!A) 	__result = calloc(NUM,SIZE);\
-	   else  __result = ((allocator*)A)->calloc((allocator*)A,NUM,SIZE);\
+	   else  __result = cast(allocator*,A)->calloc(cast(allocator*,A),NUM,SIZE);\
 	  __result;})
 
 #define REALLOC(A,PTR,SIZE) do{if(!A) realloc(PTR,SIZE);\
-								else  ((allocator*)A)->realloc((allocator*)A,PTR,SIZE);\
+								else  cast(allocator*,A)->realloc(cast(allocator*,A),PTR,SIZE);\
 							}while(0)
 
 #define FREE(A,PTR) do{if(!A) free(PTR);\
-					   else   ((allocator*)A)->free((allocator*)A,PTR);\
+					   else   cast(allocator*,A)->free(cast(allocator*,A),PTR);\
 					}while(0)
 
 #endif

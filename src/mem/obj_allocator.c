@@ -63,7 +63,7 @@ new_chunk(uint32_t idx,size_t objsize)
 static void* 
 _alloc(allocator *_,size_t size)
 {
-	obj_allocator *a = (obj_allocator*)_;	
+	obj_allocator *a = cast(obj_allocator*,_);	
 	if(unlikely(a->usesystem)) return malloc(size);
 	return _->calloc(_,1,1);
 }
@@ -71,7 +71,7 @@ _alloc(allocator *_,size_t size)
 static void* 
 _calloc(allocator *_,size_t num,size_t size)
 {
-	obj_allocator *a = (obj_allocator*)_;
+	obj_allocator *a = cast(obj_allocator*,_);
 	if(unlikely(a->usesystem)) return calloc(num,size);
 	chunk *freechunk = (chunk*)list_begin(&a->freechunk);
 	uint32_t objsize = a->objsize;
@@ -92,34 +92,34 @@ _calloc(allocator *_,size_t num,size_t size)
 		free(a->chunks);
 		a->chunks = tmp;
 		a->chunkcount = chunkcount;
-		freechunk = (chunk*)list_begin(&a->freechunk);
+		freechunk = cast(chunk*,list_begin(&a->freechunk));
 	}
-	obj *_obj = (obj*)(((char*)freechunk->data) + freechunk->head * objsize);
+	obj *_obj = cast(obj*,cast(char*,freechunk->data) + freechunk->head * objsize);
 	if(unlikely(!(freechunk->head = _obj->next)))
 		list_pop(&a->freechunk);	
 	memset(_obj->data,0,objsize-sizeof(*_obj));
 #ifdef _DEBUG
-	_obj->_allocator = (allocator*)a;
+	_obj->_allocator = cast(allocator*,a);
 #endif	
-	return (void*)_obj->data;
+	return cast(void*,_obj->data);
 }
 
 
 static void   
 _free(allocator *_,void *ptr)
 {
-	obj_allocator *a = (obj_allocator*)_;	
+	obj_allocator *a = cast(obj_allocator*,_);	
 	if(unlikely(a->usesystem)) return free(ptr);
-	obj *_obj = (obj*)((char*)ptr - sizeof(obj));
+	obj *_obj = cast(obj*,cast(char*,ptr) - sizeof(obj));
 #ifdef _DEBUG
-	assert(_obj->_allocator == (allocator*)a);
+	assert(_obj->_allocator == cast(allocator*,a));
 #endif
 	chunk *_chunk = a->chunks[_obj->chunkidx];
 	uint32_t index = _obj->idx;
 	assert(index >=1 && index <= CHUNK_OBJSIZE);
 	_obj->next = _chunk->head;
 	if(unlikely(!_chunk->head))
-		list_pushback(&a->freechunk,(listnode*)_chunk);
+		list_pushback(&a->freechunk,cast(listnode*,_chunk));
 	_chunk->head = index;	
 }
 
@@ -151,13 +151,13 @@ objpool_new(size_t objsize,uint32_t initnum)
 			list_pushback(&pool->freechunk,(listnode*)pool->chunks[i]);
 		}
 	}while(0);
-	return (allocator*)pool;
+	return cast(allocator*,pool);
 }
 
 void 
 objpool_destroy(allocator *_)
 {
-	obj_allocator *a = (obj_allocator*)_;		
+	obj_allocator *a = cast(obj_allocator*,_);		
 	uint32_t i = 0;
 	for(; i < a->chunkcount; ++i){
 		free(a->chunks[i]);

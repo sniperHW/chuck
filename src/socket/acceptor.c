@@ -13,7 +13,7 @@ imp_engine_add(engine *e,handle *h,
 	int32_t ret = event_add(e,h,EVENT_READ);
 	if(ret == 0){
 		easy_noblock(h->fd,1);
-		((acceptor*)h)->callback = (void (*)(acceptor*,int32_t fd,sockaddr_*,void*,int32_t))callback;
+		cast(acceptor*,h)->callback = cast(void (*)(acceptor*,int32_t fd,sockaddr_*,void*,int32_t),callback);
 	}
 	return ret;
 }
@@ -24,7 +24,7 @@ _accept(handle *h,sockaddr_ *addr)
 {
 	socklen_t len = 0;
 	int32_t fd; 
-	while((fd = accept(h->fd,(struct sockaddr*)addr,&len)) < 0){
+	while((fd = accept(h->fd,cast(struct sockaddr*,addr),&len)) < 0){
 #ifdef EPROTO
 		if(errno == EPROTO || errno == ECONNABORTED)
 #else
@@ -41,7 +41,7 @@ static void
 process_accept(handle *h,int32_t events)
 {
 	if(events == EENGCLOSE){
-		((acceptor*)h)->callback((acceptor*)h,-1,NULL,((acceptor*)h)->ud,EENGCLOSE);
+		cast(acceptor*,h)->callback(cast(acceptor*,h),-1,NULL,cast(acceptor*,h)->ud,EENGCLOSE);
 		return;
 	}
     int fd;
@@ -49,9 +49,9 @@ process_accept(handle *h,int32_t events)
     do{
 		fd = _accept(h,&addr);
 		if(fd >= 0)
-		   ((acceptor*)h)->callback((acceptor*)h,fd,&addr,((acceptor*)h)->ud,0);
+		   cast(acceptor*,h)->callback(cast(acceptor*,h),fd,&addr,cast(acceptor*,h)->ud,0);
 		else if(fd < 0 && fd != -EAGAIN)
-		   ((acceptor*)h)->callback((acceptor*)h,-1,NULL,((acceptor*)h)->ud,fd);
+		   cast(acceptor*,h)->callback(cast(acceptor*,h),-1,NULL,cast(acceptor*,h)->ud,fd);
 	}while(fd >= 0);	      
 }
 
@@ -64,7 +64,7 @@ process_accept(handle *h,int32_t events)
 static acceptor*
 lua_toacceptor(lua_State *L, int index) 
 {
-    return (acceptor*)luaL_testudata(L, index, LUA_METATABLE);
+    return cast(acceptor*,luaL_testudata(L, index, LUA_METATABLE));
 }
 
 static int32_t 
@@ -83,7 +83,7 @@ lua_acceptor_new(lua_State *L)
 	if(LUA_TNUMBER != lua_type(L,1))
 		return luaL_error(L,"arg1 should be number");
 	fd = lua_tonumber(L,1);
-	acceptor *a = (acceptor*)lua_newuserdata(L, sizeof(*a));
+	acceptor *a = cast(acceptor*,lua_newuserdata(L, sizeof(*a)));
 	memset(a,0,sizeof(*a));
 	a->fd = fd;
 	a->on_events = process_accept;
@@ -109,7 +109,7 @@ lua_engine_add(lua_State *L)
 	acceptor   *a = lua_toacceptor(L,1);
 	engine     *e = lua_toengine(L,2);
 	if(a && e){
-		if(0 == imp_engine_add(e,(handle*)a,(generic_callback)luacallback)){
+		if(0 == imp_engine_add(e,cast(handle*,a),cast(generic_callback,luacallback)){
 			a->luacallback = toluaRef(L,3);
 		}
 	}

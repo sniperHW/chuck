@@ -59,7 +59,7 @@ prepare_recv(redis_conn *c)
 static inline int32_t 
 Send(redis_conn *c,int32_t flag)
 {
-	return stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);
+	return stream_socket_send(cast(stream_socket_*,c),&c->send_overlap,flag);
 }
 
 
@@ -67,7 +67,7 @@ static inline void
 PostRecv(redis_conn *c)
 {
 	prepare_recv(c);
-	if(0 == stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST))
+	if(0 == stream_socket_recv(cast(stream_socket_*,c),&c->recv_overlap,IO_POST))
 		c->status |= PENDING_RECV;
 	else
 		c->status ^= PENDING_RECV;		
@@ -78,7 +78,7 @@ Recv(redis_conn *c)
 {
 	c->status ^= PENDING_RECV;
 	prepare_recv(c);
-	int32_t ret = stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_NOW);
+	int32_t ret = stream_socket_recv(cast(stream_socket_*,c),&c->recv_overlap,IO_NOW);
 	if(ret < 0 && ret == -EAGAIN)
 		c->status |= PENDING_RECV;
 	return ret;
@@ -88,16 +88,16 @@ static inline iorequest*
 prepare_send(redis_conn *c)
 {
 	int32_t     i = 0;
-	packet     *w = (packet*)list_begin(&c->send_list);
+	packet     *w = cast(packet*,list_begin(&c->send_list));
 	bytebuffer *b;
 	iorequest * O = NULL;
 	uint32_t    buffer_size,size,pos;
 	uint32_t    send_size_remain = MAX_SEND_SIZE;
 	while(w && i < MAX_WBAF && send_size_remain > 0)
 	{
-		pos = ((packet*)w)->spos;
-		b =   ((packet*)w)->head;
-		buffer_size = ((packet*)w)->len_packet;
+		pos = cast(packet*,w)->spos;
+		b =   cast(packet*,w)->head;
+		buffer_size = cast(packet*,w)->len_packet;
 		while(i < MAX_WBAF && b && buffer_size && send_size_remain > 0)
 		{
 			c->wsendbuf[i].iov_base = b->data + pos;
@@ -111,12 +111,12 @@ prepare_send(redis_conn *c)
 			b = b->next;
 			pos = 0;
 		}
-		if(send_size_remain > 0) w = (packet*)((listnode*)w)->next;
+		if(send_size_remain > 0) w = cast(packet*,cast(listnode*,w)->next);
 	}
 	if(i){
 		c->send_overlap.iovec_count = i;
 		c->send_overlap.iovec = c->wsendbuf;
-		O = (iorequest*)&c->send_overlap;
+		O = cast(iorequest*,&c->send_overlap);
 	}
 	return O;
 }
@@ -126,27 +126,27 @@ update_send_list(redis_conn *c,int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
 	packet     *w;
-	uint32_t    bytestransfer = (uint32_t)_bytestransfer;
+	uint32_t    bytestransfer = cast(uint32_t,_bytestransfer);
 	uint32_t    size;
 	do{
-		w = (packet*)list_begin(&c->send_list);
+		w = cast(packet*,list_begin(&c->send_list));
 		assert(w);
-		if((uint32_t)bytestransfer >= ((packet*)w)->len_packet)
+		if(cast(uint32_t,bytestransfer) >= cast(packet*,w)->len_packet)
 		{
 			list_pop(&c->send_list);
-			bytestransfer -= ((packet*)w)->len_packet;
+			bytestransfer -= cast(packet*,w)->len_packet;
 			packet_del(w);
 		}else{
 			do{
-				size = ((packet*)w)->head->size - ((packet*)w)->spos;
-				size = size > (uint32_t)bytestransfer ? (uint32_t)bytestransfer:size;
+				size = cast(packet*,w)->head->size - cast(packet*,w)->spos;
+				size = size > cast(uint32_t,bytestransfer) ? cast(uint32_t,bytestransfer):size;
 				bytestransfer -= size;
-				((packet*)w)->spos += size;
-				((packet*)w)->len_packet -= size;
-				if(((packet*)w)->spos >= ((packet*)w)->head->size)
+				cast(packet*,w)->spos += size;
+				cast(packet*,w)->len_packet -= size;
+				if(cast(packet*,w)->spos >= cast(packet*,w)->head->size)
 				{
-					((packet*)w)->spos = 0;
-					((packet*)w)->head = ((packet*)w)->head->next;
+					cast(packet*,w)->spos = 0;
+					cast(packet*,w)->head = cast(packet*,w)->head->next;
 				}
 			}while(bytestransfer);
 		}
@@ -206,12 +206,12 @@ RecvFinish(redis_conn *c,int32_t bytes,int32_t err_code)
 				if(!c->tree) c->tree = parse_tree_new();
 				parse_ret = parse(c->tree,&ptr);
 				if(parse_ret == REDIS_OK){
-					reply_cb *stcb = (reply_cb*)list_pop(&c->waitreplys);
+					reply_cb *stcb = cast(reply_cb*,list_pop(&c->waitreplys));
 					execute_callback(c,stcb);
 					free(stcb);
 					parse_tree_del(c->tree);
 					c->tree = NULL;
-					if(((socket_*)c)->status & SOCKET_CLOSE)
+					if(cast(socket_*,c)->status & SOCKET_CLOSE)
 						return;
 				}else if(parse_ret == REDIS_ERR){
 					printf("REDIS_ERR\n");
@@ -244,13 +244,13 @@ static void
 IoFinish(handle *sock,void *_,int32_t bytestransfer,
 	     int32_t err_code)
 {
-	iorequest  *io = ((iorequest*)_);
-	redis_conn *c  = (redis_conn*)sock;
+	iorequest  *io = cast(iorequest*,_);
+	redis_conn *c  = cast(redis_conn*,sock);
 	if(c->status & SOCKET_CLOSE)
 		return;
-	if(io == (iorequest*)&c->send_overlap)
+	if(io == cast(iorequest*,&c->send_overlap))
 		SendFinish(c,bytestransfer,err_code);
-	else if(io == (iorequest*)&c->recv_overlap)
+	else if(io == cast(iorequest*,&c->recv_overlap))
 		RecvFinish(c,bytestransfer,err_code);
 }
 
@@ -280,7 +280,7 @@ redis_close(redis_conn *c)
 {
 	if(c->status & SOCKET_CLOSE)
 		return;
-	close_socket((socket_*)c);
+	close_socket(cast(socket_*,c));
 }
 
 
@@ -303,7 +303,7 @@ typedef struct{
 static void 
 PushConn(lua_State *L,luaPushFunctor *_)
 {
-	stPushConn *self = (stPushConn*)_;
+	stPushConn *self = cast(stPushConn*,_);
 	lua_pushlightuserdata(L,self->c);
 	luaL_getmetatable(L, LUAREDIS_METATABLE);
 	lua_setmetatable(L, -2);		
@@ -333,7 +333,7 @@ typedef struct{
 }stPushResultSet;
 
 static void PushResultSet(lua_State *L,luaPushFunctor *_){
-	stPushResultSet *self = (stPushResultSet*)_;
+	stPushResultSet *self = cast(stPushResultSet*,_);
 	build_resultset(self->reply,L);
 }
 
@@ -375,7 +375,7 @@ execute_callback(redis_conn *c,reply_cb *stcb)
 
 redis_conn*
 lua_toreadisconn(lua_State *L, int index){
-	return (redis_conn*)luaL_testudata(L, index, LUAREDIS_METATABLE);
+	return cast(redis_conn*,luaL_testudata(L, index, LUAREDIS_METATABLE));
 }
 
 void         	    
@@ -393,12 +393,12 @@ lua_on_error(redis_conn *c,int32_t err)
 void 
 redis_lua_dctor(void *_)
 {
-	redis_conn *c = (redis_conn*)_;
+	redis_conn *c = cast(redis_conn*,_);
 	packet   *p;
 	reply_cb *stcb;	
-	while((p = (packet*)list_pop(&c->send_list))!=NULL)
+	while((p = cast(packet*,list_pop(&c->send_list)))!=NULL)
 		packet_del(p);
-	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
+	while((stcb = cast(reply_cb*,list_pop(&c->waitreplys)))!=NULL){
 		if(stcb->luacb.L)
 			release_luaRef(&stcb->luacb);
 		free(stcb);
@@ -430,7 +430,7 @@ lua_redis_connect(lua_State *L)
 		return 1;
 	}
 	redis_conn *conn = calloc(1,sizeof(*conn));
-	stream_socket_init((stream_socket_*)conn,fd);	
+	stream_socket_init(cast(stream_socket_*,conn),fd);	
 	conn->dctor = redis_lua_dctor;
 
 	if(LUA_TFUNCTION == lua_type(L,4)){
@@ -507,8 +507,8 @@ static int32_t
 imp_engine_add(engine *e,handle *h,
 			   generic_callback callback)
 {
-	redis_conn *c = (redis_conn*)h;
-	int32_t ret = base_engine_add(e,h,(generic_callback)IoFinish);
+	redis_conn *c = cast(redis_conn*,h);
+	int32_t ret = base_engine_add(e,h,cast(generic_callback,IoFinish));
 	if(0 == ret){
 		if(!(c->status & PENDING_RECV))
 			PostRecv(c);
@@ -540,9 +540,9 @@ redis_dctor(void *_)
 	redis_conn *c = (redis_conn*)_;
 	packet   *p;
 	reply_cb *stcb;	
-	while((p = (packet*)list_pop(&c->send_list))!=NULL)
+	while((p = cast(packet*,list_pop(&c->send_list)))!=NULL)
 		packet_del(p);
-	while((stcb = (reply_cb*)list_pop(&c->waitreplys))!=NULL){
+	while((stcb = cast(reply_cb*,list_pop(&c->waitreplys)))!=NULL){
 		if(c->clear && stcb->ud) c->clear(stcb->ud);
 		free(stcb);
 	}
@@ -583,7 +583,7 @@ typedef struct{
 
 
 static void on_connected(int32_t fd,int32_t err,void *ud){
-	stConnet *st = (stConnet*)ud;
+	stConnet *st = cast(stConnet*,ud);
 	if(fd >= 0 && err == 0){
 		redis_conn *conn = calloc(1,sizeof(*conn));
 		stream_socket_init((stream_socket_*)conn,fd);
@@ -618,7 +618,7 @@ redis_asyn_connect(engine *e,sockaddr_ *addr,
 	int32_t ret;
 	if(0 == (ret = easy_connect(fd,addr,NULL))){
 		redis_conn *conn = calloc(1,sizeof(*conn));
-		stream_socket_init((stream_socket_*)conn,fd);
+		stream_socket_init(cast(stream_socket_*,conn),fd);
 		if(!base_engine_add)
 			base_engine_add = conn->imp_engine_add; 
 		conn->imp_engine_add = imp_engine_add;		
