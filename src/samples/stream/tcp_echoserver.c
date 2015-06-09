@@ -8,7 +8,6 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud)
 				client_count,totalbytes/1024/1024,packet_recv);
 		totalbytes  = 0.0;
 		packet_recv = 0;
-		send_fail   = 0;
 	}
 	return 0;
 }
@@ -17,18 +16,17 @@ static void on_connection(acceptor *a,int32_t fd,
 						  sockaddr_ *_,void *ud,
 						  int32_t err)
 {
-	if(err == EENGCLOSE){
+	if(fd < 0){
+		printf("acceptor error\n");
 		acceptor_del(a);
 		return;
 	}
-	printf("on_connection\n");
 	engine *e = (engine*)ud;
 	stream_socket_ *h = new_stream_socket(fd);
 	engine_associate(e,h,transfer_finish);
 	struct session *s = session_new(h);
 	session_recv(s,IO_POST);
-	++client_count;
-	printf("%d\n",client_count);	
+	++client_count;	
 }
 
 

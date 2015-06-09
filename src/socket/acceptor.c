@@ -46,14 +46,13 @@ process_accept(handle *h,int32_t events)
 	}
     int fd;
     sockaddr_ addr;
-    for(;;){
-    	fd = _accept(h,&addr);
-    	if(fd < 0)
-    	   break;
-    	else{
+    do{
+		fd = _accept(h,&addr);
+		if(fd >= 0)
 		   ((acceptor*)h)->callback((acceptor*)h,fd,&addr,((acceptor*)h)->ud,0);
-    	}      
-    }
+		else if(fd < 0 && fd != -EAGAIN)
+		   ((acceptor*)h)->callback((acceptor*)h,-1,NULL,((acceptor*)h)->ud,fd);
+	}while(fd >= 0);	      
 }
 
 

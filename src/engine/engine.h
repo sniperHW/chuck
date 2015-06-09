@@ -88,9 +88,15 @@ event_enable(handle*,int32_t events);
 int32_t 
 event_disable(handle*,int32_t events);
 
+int32_t 
+is_read_enable(handle*h);
+
+int32_t 
+is_write_enable(handle*h);
+
 static inline int32_t 
 enable_read(handle *h)
-{    
+{
     return event_enable(h,EVENT_READ);
 }
 

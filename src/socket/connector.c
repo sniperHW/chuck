@@ -22,21 +22,8 @@ imp_engine_add(engine *e,handle *h,
 {
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
-	int32_t ret;
 	connector *c = (connector*)h;
-#ifdef _LINUX			
-	ret = event_add(e,h,EVENT_READ | EVENT_WRITE);
-#elif _BSD
-	ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
-	if(0 == (ret = event_add(e,h,EVENT_READ))){
-		ret = event_add(e,h,EVENT_WRITE);
-	}else{
-		event_remove(e,h);
-		return ret;
-	}		
-#else
-		return -EUNSPPLAT;
-#endif
+	int32_t ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
 	if(ret == 0){
 		h->e = e;
 		c->callback = (void (*)(int32_t fd,int32_t err,void*))callback;
@@ -87,7 +74,6 @@ process_connect(handle *h,int32_t events)
 	_process_connect((connector*)h);
 	free(h);
 }
-
 
 connector*
 connector_new(int32_t fd,void *ud,uint32_t timeout)

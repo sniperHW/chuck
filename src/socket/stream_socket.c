@@ -3,8 +3,6 @@
 #include "engine/engine.h"
 #include "socket/socket_helper.h"
 
-extern int32_t is_read_enable(handle*h);
-extern int32_t is_write_enable(handle*h);
 extern void    release_socket(socket_ *s);
 
 typedef void(*stream_callback)(stream_socket_*,void*,int32_t,int32_t);
@@ -15,14 +13,7 @@ imp_engine_add(engine *e,handle *h,
 {
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
-	int32_t ret;
-#ifdef _LINUX
-	ret = event_add(e,h,EVENT_READ|EVENT_WRITE);
-#elif   _BSD
-	ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
-#else
-	return -EUNSPPLAT;
-#endif
+	int32_t ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
 	if(ret == 0){
 		easy_noblock(h->fd,1);
 		((stream_socket_*)h)->callback = (stream_callback)callback;

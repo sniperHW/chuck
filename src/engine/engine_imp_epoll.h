@@ -5,6 +5,10 @@ typedef struct engine{
 	int32_t    maxevents;
 }engine;
 
+
+int32_t 
+event_mod(handle *h,int32_t events);
+
 int32_t 
 event_add(engine *e,handle *h,
 		  int32_t events)
@@ -14,12 +18,15 @@ event_add(engine *e,handle *h,
 	ev.data.ptr = h;
 	ev.events = events;
 	errno = 0;
-	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,h->fd,&ev)) 
-		return -errno;
-	h->events = events;
-	h->e = e;
-	dlist_pushback(&e->handles,(dlistnode*)h);
-	return 0;
+	if(!h->e){
+		if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,h->fd,&ev)) 
+			return -errno;
+		h->events = events;
+		h->e = e;
+		dlist_pushback(&e->handles,(dlistnode*)h);
+		return 0;
+	}else
+		return event_mod(h,events);
 }
 
 

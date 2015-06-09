@@ -3,13 +3,6 @@
 #include "engine/engine.h"
 #include "socket/socket_helper.h"
 
-
-extern int32_t 
-is_read_enable(handle*h);
-
-extern int32_t 
-is_write_enable(handle*h);
-
 extern void    
 release_socket(socket_ *s);
 
@@ -21,16 +14,7 @@ imp_engine_add(engine *e,handle *h,
 {
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
-	int32_t ret;
-#ifdef _LINUX
-	ret = event_add(e,h,EVENT_READ);
-#elif   _BSD
-	ret = event_add(e,h,EVENT_READ);
-	if(0 == (ret = event_add(e,h,EVFILT_READ)))
-		disable_read(h);
-#else
-	return -EUNSPPLAT;
-#endif
+	int32_t ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
 	if(ret == 0){
 		easy_noblock(h->fd,1);
 		((dgram_socket_*)h)->callback = (dgram_callback)callback;
