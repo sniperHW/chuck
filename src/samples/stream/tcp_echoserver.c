@@ -8,6 +8,7 @@ int32_t timer_callback(uint32_t event,uint64_t _,void *ud)
 				client_count,totalbytes/1024/1024,packet_recv);
 		totalbytes  = 0.0;
 		packet_recv = 0;
+		send_fail   = 0;
 	}
 	return 0;
 }

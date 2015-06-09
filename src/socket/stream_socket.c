@@ -145,7 +145,10 @@ stream_socket_recv(stream_socket_ *s,
 	else if(!h->e)
 		return -ENOASSENG;
 	errno = 0;
-	if(s->status & SOCKET_READABLE && flag == IO_NOW && list_size(&s->pending_recv)){
+	if(s->status & SOCKET_READABLE && 
+	   flag == IO_NOW && 
+	   !list_size(&s->pending_recv))
+	{
 		int32_t bytes = TEMP_FAILURE_RETRY(readv(h->fd,req->iovec,req->iovec_count));
 		if(bytes >= 0)
 			return bytes;
@@ -169,7 +172,10 @@ stream_socket_send(stream_socket_ *s,
 		return -ENOASSENG;
 
 	errno = 0;
-	if(s->status & SOCKET_WRITEABLE && flag == IO_NOW && list_size(&s->pending_send)){
+	if(s->status & SOCKET_WRITEABLE && 
+	   flag == IO_NOW && 
+	   !list_size(&s->pending_send))
+	{
 		int32_t bytes = TEMP_FAILURE_RETRY(writev(h->fd,req->iovec,req->iovec_count));
 		if(bytes >= 0)
 			return bytes;
