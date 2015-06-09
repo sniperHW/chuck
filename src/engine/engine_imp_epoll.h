@@ -160,13 +160,14 @@ engine_runonce(engine *e,uint32_t timeout)
 		e->status |= INLOOP;
 		for(i=0; i < nfds ; ++i)
 		{
-			if(e->events[i].data.fd == e->notifyfds[0]){
+			struct epoll_event *event = &e->events[i];
+			if(event->data.fd == e->notifyfds[0]){
 				int32_t _;
 				while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
 				break;	
 			}else{
-				h = (handle*)e->events[i].data.ptr;
-				h->on_events(h,e->events[i].events);;
+				h = (handle*)event->data.ptr;
+				h->on_events(h,event->events);;
 			}
 		}
 		e->status ^= INLOOP;
@@ -202,13 +203,14 @@ engine_run(engine *e)
 			e->status |= INLOOP;
 			for(i=0; i < nfds ; ++i)
 			{
-				if(e->events[i].data.fd == e->notifyfds[0]){
+				struct epoll_event *event = &e->events[i];
+				if(event->data.fd == e->notifyfds[0]){
 					int32_t _;
 					while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
 					goto loopend;	
 				}else{
-					h = (handle*)e->events[i].data.ptr;
-					h->on_events(h,e->events[i].events);
+					h = (handle*)event->data.ptr;
+					h->on_events(h,event->events);
 				}
 			}
 			e->status ^= INLOOP;
@@ -221,6 +223,7 @@ engine_run(engine *e)
 			}				
 		}else if(nfds < 0){
 			ret = -errno;
+			break;
 		}	
 	}
 loopend:	

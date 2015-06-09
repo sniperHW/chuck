@@ -4,8 +4,8 @@
 int32_t timer_callback(uint32_t event,uint64_t _,void *ud)
 {
 	if(event == TEVENT_TIMEOUT){
-		printf("client_count:%d,totalbytes:%f MB/s,packet_recv:%d\n",
-				client_count,totalbytes/1024/1024,packet_recv);
+		printf("[%ld] client_count:%d,totalbytes:%f MB/s,packet_recv:%d\n",
+				systick64(),client_count,totalbytes/1024/1024,packet_recv);
 		totalbytes  = 0.0;
 		packet_recv = 0;
 	}

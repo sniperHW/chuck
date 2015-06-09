@@ -158,13 +158,14 @@ engine_run(engine *e)
 			e->status |= INLOOP;
 			for(i=0; i < nfds ; ++i)
 			{
-				if(e->events[i].udata == e->notifyfds[0]){
+				struct kevent *event = &e->events[i];
+				if(event->udata == e->notifyfds[0]){
 					int32_t _;
 					while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
 					break;	
 				}else{
-					h = (handle_t)e->events[i].udata;
-					h->on_events(h,e->events[i].filter);;
+					h = (handle_t)event->udata;
+					h->on_events(h,event->filter);;
 				}
 			}
 			e->status ^= INLOOP;
@@ -177,6 +178,7 @@ engine_run(engine *e)
 			}				
 		}else if(nfds < 0){
 			ret = -errno;
+			break;
 		}	
 	}
 	if(e->status & CLOSING){
