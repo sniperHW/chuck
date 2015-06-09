@@ -30,7 +30,7 @@ process_read(dgram_socket_ *s)
 	int32_t bytes = 0;
 	struct msghdr _msghdr;
 	s->status |= SOCKET_READABLE;
-	while((req = (iorequest*)list_pop(&s->pending_recv))!=NULL){
+	if((req = (iorequest*)list_pop(&s->pending_recv))!=NULL){
 		errno = 0;
 		_msghdr = (struct msghdr){
 			.msg_name = &req->addr,
@@ -46,13 +46,10 @@ process_read(dgram_socket_ *s)
 			s->status ^= SOCKET_READABLE;
 			//将请求重新放回到队列
 			list_pushback(&s->pending_recv,(listnode*)req);
-			break;
 		}else{
 			s->callback(s,req,bytes,errno,_msghdr.msg_flags);
 			if(s->status & SOCKET_CLOSE)
-				return;
-			if(!s->e || !(s->status & SOCKET_READABLE))
-				break;			
+				return;		
 		}
 	}	
 	if(s->e && !list_size(&s->pending_recv)){
@@ -114,7 +111,10 @@ datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 	else if(!h->e)
 		return -ENOASSENG;
 	errno = 0;
-	if(s->status & SOCKET_READABLE && flag == IO_NOW && list_size(&s->pending_recv)){
+	if(s->status & SOCKET_READABLE && 
+	   flag == IO_NOW && 
+	   !list_size(&s->pending_recv))
+	{
 		struct msghdr _msghdr = {
 			.msg_name = &req->addr,
 			.msg_namelen = sizeof(req->addr),
