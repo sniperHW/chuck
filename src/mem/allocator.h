@@ -20,10 +20,7 @@
 
 #include <stdlib.h>
 #include <stdint.h> 
-
-#ifndef  cast
-#define cast(T,P) ((T)(P))
-#endif   
+#include "comm.h"
 
 typedef struct allocator{
 	void* (*alloc)(struct allocator*,size_t);

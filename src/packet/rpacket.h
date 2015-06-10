@@ -18,6 +18,7 @@
 #ifndef _RPACKET_H
 #define _RPACKET_H
 
+#include "comm.h"
 #include "packet/packet.h"
 #include "mem/allocator.h"
 #include "util/endian.h"    
@@ -40,8 +41,9 @@ rpacket_new(bytebuffer *b,uint32_t start_pos);
 static inline uint16_t 
 rpacket_read(rpacket *r,char *out,uint16_t size)
 {
+    uint16_t out_size;
     if(size > r->data_remain) return 0;
-    uint16_t out_size = buffer_read(&r->reader,out,(uint16_t)size);
+    out_size = buffer_read(&r->reader,out,cast(uint16_t,size));
     assert(out_size == size);
     r->data_remain -= out_size;
     return out_size;
@@ -50,10 +52,13 @@ rpacket_read(rpacket *r,char *out,uint16_t size)
 static inline uint16_t 
 rpacket_peek(rpacket *r,char *out,uint16_t size)
 {
+    bytebuffer *back1;
+    uint32_t    back2;
+    uint16_t    out_size;
     if(size > r->data_remain) return 0;
-    bytebuffer *back1 = r->reader.cur;
-    uint32_t    back2 = r->reader.pos;
-    uint16_t out_size = (uint16_t)buffer_read(&r->reader,out,(uint16_t)size);
+    back1 = r->reader.cur;
+    back2 = r->reader.pos;
+    out_size = cast(uint16_t,buffer_read(&r->reader,out,cast(uint16_t,size)));
     assert(out_size == size);
     //recover
     buffer_reader_init(&r->reader,back1,back2);

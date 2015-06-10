@@ -18,6 +18,7 @@
 #ifndef _PACKET_H
 #define _PACKET_H
 
+#include "comm.h"
 #include "util/bytebuffer.h"
 #include "util/refobj.h"
 
@@ -48,9 +49,9 @@ typedef struct packet
 #define MIN_BUFFER_SIZE 64
 
 
-#define make_writepacket(p) ((packet*)(p))->construct_write((packet*)(p))
-#define make_readpacket(p)  ((packet*)(p))->construct_read((packet*)(p))
-#define clone_packet(p)     ((packet*)(p))->clone((packet*)(p))
+#define make_writepacket(p) cast(packet*,(p))->construct_write(cast(packet*,(p)))
+#define make_readpacket(p)  cast(packet*,(p))->construct_read(cast(packet*,(p)))
+#define clone_packet(p)     cast(packet*,(p))->clone(cast(packet*,(p))) 
 
 void 
 packet_del(packet*);

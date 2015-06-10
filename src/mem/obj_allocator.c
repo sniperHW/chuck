@@ -4,7 +4,6 @@
 
 #include "obj_allocator.h"
 #include "util/list.h"
-#include "comm.h"
 #include <string.h>
 #include <assert.h>
 

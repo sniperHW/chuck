@@ -1,7 +1,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <string.h>
-#include "chuck.h"
+#include "comm.h"
 #include "lua_util.h"
 
 static inline int 
