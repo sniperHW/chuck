@@ -26,7 +26,6 @@
 #include <machine/endian.h>
 #endif
 
-#ifdef _ENDIAN_CHANGE_
 
 static inline uint16_t 
 _swap16(uint16_t num)
@@ -70,26 +69,5 @@ kn_ntoh64(uint64_t num)
 	return kn_swap64(num);
 #endif
 }
-
-#else
-
-#define _hton16(x) (x)
-#define _ntoh16(x) (x)
-#define _hton32(x) (x)
-#define _ntoh32(x) (x)
-
-static inline uint64_t 
-_hton64(uint64_t num)
-{
-	return num;
-}
-
-static inline uint64_t 
-_ntoh64(uint64_t num)
-{
-	return num;
-}
-
-#endif
 
 #endif
