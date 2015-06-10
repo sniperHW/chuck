@@ -171,7 +171,7 @@ signaler_new(int32_t signum,void *ud)
     int32_t fd = signaler_init(signum);
     if(fd < 0) return NULL;
     
-    signaler *s = calloc(1,sizeof(*s));
+    s = calloc(1,sizeof(*s));
     cast(handle*,s)->fd = fd;
     s->signum = signum;
     s->ud = ud;
