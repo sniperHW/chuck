@@ -12,12 +12,13 @@ static int32_t
 imp_engine_add(engine *e,handle *h,
 	           generic_callback callback)
 {
+	int32_t ret;
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
-	int32_t ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
+	ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
 	if(ret == 0){
 		easy_noblock(h->fd,1);
-		((dgram_socket_*)h)->callback = (dgram_callback)callback;
+		cast(dgram_socket_*,h)->callback = cast(dgram_callback,callback);
 	}
 	return ret;
 }
@@ -30,7 +31,7 @@ process_read(dgram_socket_ *s)
 	int32_t bytes = 0;
 	struct msghdr _msghdr;
 	s->status |= SOCKET_READABLE;
-	if((req = (iorequest*)list_pop(&s->pending_recv))!=NULL){
+	if((req = cast(iorequest*,list_pop(&s->pending_recv)))!=NULL){
 		errno = 0;
 		_msghdr = (struct msghdr){
 			.msg_name = &req->addr,
@@ -45,7 +46,7 @@ process_read(dgram_socket_ *s)
 		if(bytes < 0 && errno == EAGAIN){
 			s->status ^= SOCKET_READABLE;
 			//将请求重新放回到队列
-			list_pushback(&s->pending_recv,(listnode*)req);
+			list_pushback(&s->pending_recv,cast(listnode*,req));
 		}else{
 			s->callback(s,req,bytes,errno,_msghdr.msg_flags);
 			if(s->status & SOCKET_CLOSE)
@@ -54,14 +55,14 @@ process_read(dgram_socket_ *s)
 	}	
 	if(s->e && !list_size(&s->pending_recv)){
 		//没有接收请求了,取消EPOLLIN
-		disable_read((handle*)s);
+		disable_read(cast(handle*,s));
 	}
 }
 
 static void 
 on_events(handle *h,int32_t events)
 {
-	dgram_socket_ *s = (dgram_socket_*)h;
+	dgram_socket_ *s = cast(dgram_socket_*,h);
 	if(!s->e || ((s->status & SOCKET_CLOSE)))
 		return;
 	if(events == EENGCLOSE){
@@ -78,7 +79,7 @@ on_events(handle *h,int32_t events)
 		s->status ^= SOCKET_INLOOP;
 	}while(0);
 	if(s->status & SOCKET_CLOSE){
-		release_socket((socket_*)s);		
+		release_socket(cast(socket_*,s));		
 	}
 }
 
@@ -104,7 +105,8 @@ int32_t
 datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 	 				 int32_t flag,int32_t *recvflags)
 {
-	handle *h = (handle*)s;
+	int32_t bytes;
+	handle *h = cast(handle*,s);
 
 	if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
@@ -125,7 +127,7 @@ datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 			.msg_controllen = 0
 		};
 		if(*recvflags) *recvflags = 0;		
-		int32_t bytes = TEMP_FAILURE_RETRY(recvmsg(s->fd,&_msghdr,0));					
+		bytes = TEMP_FAILURE_RETRY(recvmsg(s->fd,&_msghdr,0));					
 		if(*recvflags) *recvflags = _msghdr.msg_flags;	
 		if(bytes >= 0)
 			return bytes;
@@ -133,7 +135,7 @@ datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 			return -errno;
 	}
 	s->status ^= SOCKET_READABLE;
-	list_pushback(&s->pending_recv,(listnode*)req);
+	list_pushback(&s->pending_recv,cast(listnode*,req));
 	if(!is_read_enable(h)) enable_read(h);
 	return -EAGAIN;	
 }
@@ -141,7 +143,8 @@ datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 int32_t 
 datagram_socket_send(dgram_socket_ *s,iorequest *req)
 {
-	handle *h = (handle*)s;
+	int32_t bytes;
+	handle *h = cast(handle*,s);
 
 	if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
@@ -157,7 +160,7 @@ datagram_socket_send(dgram_socket_ *s,iorequest *req)
 		.msg_control = NULL,
 		.msg_controllen = 0
 	};		
-	int32_t bytes = TEMP_FAILURE_RETRY(sendmsg(s->fd,&_msghdr,0));		
+	bytes = TEMP_FAILURE_RETRY(sendmsg(s->fd,&_msghdr,0));		
 	if(bytes >= 0)
 		return bytes;
 	else

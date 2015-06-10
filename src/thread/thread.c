@@ -30,7 +30,8 @@ struct start_arg{
 static void*
 start_routine(void *_)
 {
-	struct start_arg *starg = (struct start_arg*)_;
+	void *ret;
+	struct start_arg *starg = cast(struct start_arg*,_);
 	void *arg = starg->arg;
 	void*(*routine)(void*) = starg->routine;
 	mutex_lock(starg->mtx);
@@ -39,7 +40,7 @@ start_routine(void *_)
 		mutex_unlock(starg->mtx);
 		condition_signal(starg->cond);
 	}
-	void *ret = routine(arg);
+	ret = routine(arg);
 	clear_thdmailbox();
 	return ret;
 }
@@ -51,14 +52,15 @@ thread_new(int32_t flag,
 		   void *ud)
 {
 	pthread_attr_t attr;
+	struct start_arg starg;
+	thread *t;
 	pthread_attr_init(&attr);
 	if(flag | JOINABLE)
 		pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_JOINABLE);
 	else
 		pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED);	
 	
-	thread *t = calloc(1,sizeof(*t));
-	struct start_arg starg;
+	t = calloc(1,sizeof(*t));
 	starg.routine = routine;
 	starg.arg = ud;
 	starg.running = 0;

@@ -7,8 +7,9 @@
 int32_t 
 connect_timeout(uint32_t event,uint64_t _,void *ud)
 {
+	connector *c;
 	if(event == TEVENT_TIMEOUT){
-		connector *c = cast(connector*,ud);
+		c = cast(connector*,ud);
 		c->callback(-1,ETIMEDOUT,c->ud);
 		close(c->fd);
 		free(c);
@@ -20,10 +21,12 @@ static int32_t
 imp_engine_add(engine *e,handle *h,
 	           generic_callback callback)
 {
+	connector *c;
+	int32_t    ret;
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
-	connector *c = cast(connector*,h);
-	int32_t ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
+	c = cast(connector*,h);
+	ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
 	if(ret == 0){
 		h->e = e;
 		c->callback = (void (*)(int32_t fd,int32_t err,void*))callback;
@@ -68,10 +71,10 @@ static void
 process_connect(handle *h,int32_t events)
 {
 	if(events == EENGCLOSE){
-		((connector*)h)->callback(-1,EENGCLOSE,((connector*)h)->ud);
+		cast(connector*,h)->callback(-1,EENGCLOSE,cast(connector*,h)->ud);
 		return;
 	}
-	_process_connect((connector*)h);
+	_process_connect(cast(connector*,h));
 	free(h);
 }
 
@@ -96,21 +99,22 @@ connector_new(int32_t fd,void *ud,uint32_t timeout)
 static connector*
 lua_toconnector(lua_State *L, int index) 
 {
-    return (connector*)luaL_testudata(L, index, LUA_METATABLE);
+    return cast(connector*,luaL_testudata(L, index, LUA_METATABLE));
 }
 
 static void 
 lua_process_connect(handle *h,int32_t events)
 {
-	_process_connect((connector*)h);
+	_process_connect(cast(connector*,h));
 }
 
 
 static int32_t 
 lua_connector_new(lua_State *L)
 {
-	int32_t  fd;
-	uint32_t timeout = 0;
+	int32_t    fd;
+	uint32_t   timeout = 0;
+	connector *c;
 
 	if(LUA_TNUMBER != lua_type(L,1))
 		return luaL_error(L,"arg1 should be number");
@@ -121,7 +125,7 @@ lua_connector_new(lua_State *L)
 	fd = lua_tonumber(L,1);
 	if(!lua_isnil(L,2)) timeout = lua_tonumber(L,2);
 
-	connector *c = (connector*)lua_newuserdata(L, sizeof(*c));
+	c = cast(connector*,lua_newuserdata(L, sizeof(*c)));
 	memset(c,0,sizeof(*c));
 	c->fd = fd;
 	c->on_events = lua_process_connect;
@@ -137,7 +141,7 @@ lua_connector_new(lua_State *L)
 static void 
 luacallback(int32_t fd,int32_t err,void *ud)
 {
-	connector *c = (connector*)ud;
+	connector *c = cast(connector*,ud);
 	const char *error;
 	luaRef cb = c->luacallback;
 	if((error = LuaCallRefFunc(cb,"ii",fd,err))){
@@ -152,7 +156,7 @@ lua_engine_add(lua_State *L)
 	connector *c = lua_toconnector(L,1);
 	engine     *e = lua_toengine(L,2);
 	if(c && e){
-		if(0 == imp_engine_add(e,(handle*)c,(generic_callback)luacallback)){
+		if(0 == imp_engine_add(e,cast(handle*,c),cast(generic_callback,luacallback))){
 			c->luacallback = toluaRef(L,3);
 		}
 	}

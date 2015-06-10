@@ -18,6 +18,7 @@
 #define _THREAD_H
 #include <pthread.h>
 #include <stdint.h>
+#include "comm.h"    
 #include "thread/sync.h"
 
 typedef struct

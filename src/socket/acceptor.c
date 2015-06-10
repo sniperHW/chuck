@@ -8,9 +8,10 @@ static int32_t
 imp_engine_add(engine *e,handle *h,
 			   generic_callback callback)
 {
+	int32_t ret;
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
-	int32_t ret = event_add(e,h,EVENT_READ);
+	ret = event_add(e,h,EVENT_READ);
 	if(ret == 0){
 		easy_noblock(h->fd,1);
 		cast(acceptor*,h)->callback = cast(void (*)(acceptor*,int32_t fd,sockaddr_*,void*,int32_t),callback);
@@ -40,12 +41,12 @@ _accept(handle *h,sockaddr_ *addr)
 static void 
 process_accept(handle *h,int32_t events)
 {
+	int 	  fd;
+    sockaddr_ addr;
 	if(events == EENGCLOSE){
 		cast(acceptor*,h)->callback(cast(acceptor*,h),-1,NULL,cast(acceptor*,h)->ud,EENGCLOSE);
 		return;
 	}
-    int fd;
-    sockaddr_ addr;
     do{
 		fd = _accept(h,&addr);
 		if(fd >= 0)
@@ -79,11 +80,12 @@ lua_acceptor_gc(lua_State *L)
 static int32_t 
 lua_acceptor_new(lua_State *L)
 {
-	int32_t  fd;
+	int32_t   fd;
+	acceptor *a;
 	if(LUA_TNUMBER != lua_type(L,1))
 		return luaL_error(L,"arg1 should be number");
 	fd = lua_tonumber(L,1);
-	acceptor *a = cast(acceptor*,lua_newuserdata(L, sizeof(*a)));
+	a = cast(acceptor*,lua_newuserdata(L, sizeof(*a)));
 	memset(a,0,sizeof(*a));
 	a->fd = fd;
 	a->on_events = process_accept;

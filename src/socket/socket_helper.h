@@ -45,8 +45,8 @@ easy_addr_reuse(int32_t fd,int32_t yes)
 static inline int32_t 
 easy_noblock(int32_t fd,int32_t noblock)
 {
+    int32_t flags;
 	errno = 0;
-	int32_t flags;
 	if((flags = fcntl(fd, F_GETFL, 0)) < 0){
     	return -errno;
 	}
@@ -62,9 +62,9 @@ easy_noblock(int32_t fd,int32_t noblock)
 static inline int32_t 
 easy_close_on_exec(int32_t fd)
 {
-	errno = 0;
 	int32_t flags;
-	if((flags = fcntl(fd, F_GETFL, 0)) < 0){
+	errno = 0;
+    if((flags = fcntl(fd, F_GETFL, 0)) < 0){
     	return -errno;
 	}
 	return fcntl(fd, F_SETFD, flags|FD_CLOEXEC) == 0 ? 0 : -errno;
@@ -73,7 +73,7 @@ easy_close_on_exec(int32_t fd)
 static inline int32_t 
 easy_sockaddr_ip4(sockaddr_ *addr,const char *ip,uint16_t port)
 {
-    memset((void*)addr,0,sizeof(*addr));
+    memset(cast(void*,addr),0,sizeof(*addr));
     addr->in.sin_family = AF_INET;
     addr->in.sin_port = htons(port);
     if(inet_pton(AF_INET,ip,&addr->in.sin_addr) == 1)
@@ -84,7 +84,7 @@ easy_sockaddr_ip4(sockaddr_ *addr,const char *ip,uint16_t port)
 static inline int32_t 
 easy_sockaddr_un(sockaddr_ *addr,const char *path)
 {
-    memset((void*)addr,0,sizeof(*addr));
+    memset(cast(void*,addr),0,sizeof(*addr));
     addr->un.sun_family = AF_LOCAL;
     strncpy(addr->un.sun_path,path,sizeof(addr->un.sun_path)-1);
     return 0;
@@ -93,7 +93,7 @@ easy_sockaddr_un(sockaddr_ *addr,const char *path)
 #ifdef _CHUCKLUA
 
 void 
-reg_CHUCKLUAcket_helper(lua_State *L);
+reg_socket_helper(lua_State *L);
 
 #endif
 

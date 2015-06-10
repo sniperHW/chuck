@@ -131,18 +131,19 @@ addr2line(const char *addr,
 		  char *output,int32_t size)
 {		
 	char path[256]={0};
+	char cmd[1024]={0};
+	FILE *pipe;
+	int  i,j;
 	if(0 >= readlink("/proc/self/exe", path, 256)){
 		return -1;
 	}	
-	char cmd[1024];
 	snprintf(cmd,1024,"addr2line -fCse %s %s", path, addr);
-	FILE *pipe = popen(cmd, "r");
+	pipe = popen(cmd, "r");
 	if(!pipe) return -1;
-	int i = fread(output,1,size-1,pipe);	
+	i = fread(output,1,size-1,pipe);	
 	pclose(pipe);
 	output[i] = '\0';
-	int j = 0;
-	for(; j<=i; ++j){ 
+	for(j=0; j<=i; ++j){ 
 		if(output[j] == '\n') output[j] = ' ';	
 	}
 	return 0;
@@ -155,9 +156,15 @@ exception_throw(int32_t code,const char *file,
 {
 	void*                   bt[64];
 	char**                  strings;
+	char                    *str1,*str2;
 	size_t                  sz;
-	int32_t                 i;
+	int32_t                 i,f;
 	int32_t                 sig = 0;
+	int32_t 				size = 0;	
+	char 					logbuf[MAX_LOG_SIZE],addr[128],buf[1024];
+	char 					*ptr = logbuf;	
+	void 					*addr = NULL;	
+	int                     len;
 	exception_perthd_st		*epst;
 	callstack_frame			*call_frame;
 	exception_frame			*frame = expstack_top();
@@ -172,24 +179,20 @@ exception_throw(int32_t code,const char *file,
 		epst = __get_perthread_exception_st();
 		if(code == except_segv_fault || code == except_sigbus || code == except_arith) 
 			i = 3;
-		else{
+		else
 			i = 1;
-		}
 		for(; i < sz; ++i){
-			if(strstr(strings[i],"exception_throw")){
+			if(strstr(strings[i],"exception_throw"))
 				continue;
-			}
 			call_frame = get_csf(&epst->csf_pool);
-			char *str1 = strstr(strings[i],"[");
-			char *str2 = strstr(str1,"]");
+			str1 = strstr(strings[i],"[");
+			str2 = strstr(str1,"]");
 			
 			do{
 				if(str1 && str2 && str2 - str1 < 128){
-					int len = str2 - str1 - 1;
-					char addr[128];
+					len = str2 - str1 - 1;
 					strncpy(addr,str1+1,len);
 					addr[len] = '\0';
-					char buf[1024];
 					if(0 == addr2line(addr,buf,1024)){
 						snprintf(call_frame->info,1024,"%s %s\n",strings[i],buf);
 						break;
@@ -212,10 +215,6 @@ exception_throw(int32_t code,const char *file,
 	{
 		sz = backtrace(bt, 64);
 		strings = backtrace_symbols(bt, sz);
-		char logbuf[MAX_LOG_SIZE];
-		char *ptr = logbuf;
-		int32_t size = 0;	
-		void *addr = NULL;
 		if(info)
 			addr = info->si_addr;
 		if(code == except_segv_fault)
@@ -223,22 +222,19 @@ exception_throw(int32_t code,const char *file,
 		else
     		size += snprintf(ptr,MAX_LOG_SIZE," %s\n",exception_description(code));
 		ptr = logbuf + size;	    		    		
- 		int32_t f = 0;   			
+ 		f = 0;   			
 		if(code == except_segv_fault || code == except_sigbus || code == except_arith) 
 			i = 3;
-		else{
+		else
 			i = 1;
-		}
 		for(; i < sz; ++i){
-			char *str1 = strstr(strings[i],"[");
-			char *str2 = strstr(str1,"]");
+			str1 = strstr(strings[i],"[");
+			str2 = strstr(str1,"]");
 			do{
 				if(str1 && str2 && str2 - str1 < 128){
-					int len = str2 - str1 - 1;
-					char addr[128];
+					len = str2 - str1 - 1;
 					strncpy(addr,str1+1,len);
 					addr[len] = '\0';	
-					char buf[1024];
 					if(0 == addr2line(addr,buf,1024)){
 		        		size += snprintf(ptr,MAX_LOG_SIZE-size,"    % 2d: %s %s\n",++f,strings[i],buf);
 		        		break;

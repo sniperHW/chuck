@@ -4,15 +4,16 @@
 void 
 release_socket(socket_ *s)
 {
-	close(s->fd);
 	iorequest *req;
+	list      *l;
+	close(s->fd);
 	if(s->pending_dctor){
-		list *l = &s->pending_recv;
-		while((req = (iorequest*)list_pop(l))!=NULL)
+		l = &s->pending_recv;
+		while((req = cast(iorequest*,list_pop(l)))!=NULL)
 			s->pending_dctor(req);
 		if(s->type == STREAM){
-			l = &((stream_socket_*)s)->pending_send;
-			while((req = (iorequest*)list_pop(l))!=NULL)
+			l = &cast(stream_socket_*,s)->pending_send;
+			while((req = cast(iorequest*,list_pop(l)))!=NULL)
 				s->pending_dctor(req);
 		}	
 	}	
@@ -28,7 +29,7 @@ close_socket(socket_ *s)
 	if(s->status & SOCKET_CLOSE)
 		return;
 	s->status |= SOCKET_CLOSE;
-	engine_remove((handle*)s);			
+	engine_remove(cast(handle*,s));			
 	if(!(s->status & SOCKET_INLOOP)){
 		release_socket(s);
 	}
@@ -40,7 +41,7 @@ is_read_enable(handle*h)
 #ifdef _LINUX
 	return h->events & EPOLLIN;
 #elif   _BSD
-	return (int32_t)h->set_read;
+	return cast(int32_t,h->set_read);
 #endif
 	return 0;
 }
@@ -51,7 +52,7 @@ is_write_enable(handle*h)
 #ifdef _LINUX
 	return h->events & EPOLLOUT;
 #elif   _BSD
-	return (int32_t)h->set_write;
+	return cast(int32_t,h->set_write);
 #endif
 	return 0;	
 }

@@ -11,12 +11,13 @@ static int32_t
 imp_engine_add(engine *e,handle *h,
 			   generic_callback callback)
 {
+	int32_t ret;
 	assert(e && h && callback);
 	if(h->e) return -EASSENG;
-	int32_t ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
+	ret = event_add(e,h,EVENT_READ) || event_add(e,h,EVENT_WRITE);
 	if(ret == 0){
 		easy_noblock(h->fd,1);
-		((stream_socket_*)h)->callback = (stream_callback)callback;
+		cast(stream_socket_*,h)->callback = cast(stream_callback,callback);
 	}
 	return ret;
 }
@@ -28,13 +29,13 @@ process_read(stream_socket_ *s)
 	iorequest *req = NULL;
 	int32_t bytes = 0;
 	s->status |= SOCKET_READABLE;
-	if((req = (iorequest*)list_pop(&s->pending_recv))!=NULL){
+	if((req = cast(iorequest*,list_pop(&s->pending_recv)))!=NULL){
 		errno = 0;
-		bytes = TEMP_FAILURE_RETRY(readv(((handle*)s)->fd,req->iovec,req->iovec_count));	
+		bytes = TEMP_FAILURE_RETRY(readv(cast(handle*,s)->fd,req->iovec,req->iovec_count));	
 		if(bytes < 0 && errno == EAGAIN){
 				s->status ^= SOCKET_READABLE;
 				//将请求重新放回到队列
-				list_pushback(&s->pending_recv,(listnode*)req);
+				list_pushback(&s->pending_recv,cast(listnode*,req));
 		}else{
 			s->callback(s,req,bytes,errno);
 			if(s->status & SOCKET_CLOSE)
@@ -43,7 +44,7 @@ process_read(stream_socket_ *s)
 	}	
 	if(s->e && !list_size(&s->pending_recv)){
 		//没有接收请求了,取消EPOLLIN
-		disable_read((handle*)s);
+		disable_read(cast(handle*,s));
 	}	
 }
 
@@ -53,13 +54,13 @@ process_write(stream_socket_ *s)
 	iorequest *req = 0;
 	int32_t bytes = 0;
 	s->status |= SOCKET_WRITEABLE;
-	if((req = (iorequest*)list_pop(&s->pending_send))!=NULL){
+	if((req = cast(iorequest*,list_pop(&s->pending_send)))!=NULL){
 		errno = 0;	
 		bytes = TEMP_FAILURE_RETRY(writev(s->fd,req->iovec,req->iovec_count));
 		if(bytes < 0 && errno == EAGAIN){
 				s->status ^= SOCKET_WRITEABLE;
 				//将请求重新放回到队列
-				list_pushback(&s->pending_send,(listnode*)req);
+				list_pushback(&s->pending_send,cast(listnode*,req));
 		}else{
 			s->callback(s,req,bytes,errno);
 			if(s->status & SOCKET_CLOSE)
@@ -68,14 +69,14 @@ process_write(stream_socket_ *s)
 	}
 	if(s->e && !list_size(&s->pending_send)){
 		//没有接收请求了,取消EPOLLOUT
-		disable_write((handle*)s);
+		disable_write(cast(handle*,s));
 	}		
 }
 
 static void 
 on_events(handle *h,int32_t events)
 {
-	stream_socket_ *s = (stream_socket_*)h;
+	stream_socket_ *s = cast(stream_socket_*,h);
 	if(!s->e || s->status & SOCKET_CLOSE)
 		return;
 	if(events == EENGCLOSE){
@@ -124,7 +125,8 @@ int32_t
 stream_socket_recv(stream_socket_ *s,
 				   iorequest *req,int32_t flag)
 {
-	handle *h = (handle*)s;
+	int32_t bytes;
+	handle *h = cast(handle*,s);
 	if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
 	else if(!h->e)
@@ -134,14 +136,14 @@ stream_socket_recv(stream_socket_ *s,
 	   flag == IO_NOW && 
 	   !list_size(&s->pending_recv))
 	{
-		int32_t bytes = TEMP_FAILURE_RETRY(readv(h->fd,req->iovec,req->iovec_count));
+		bytes = TEMP_FAILURE_RETRY(readv(h->fd,req->iovec,req->iovec_count));
 		if(bytes >= 0)
 			return bytes;
 		else if(errno != EAGAIN)
 			return -errno;
 	}
 	s->status ^= SOCKET_READABLE;
-	list_pushback(&s->pending_recv,(listnode*)req);
+	list_pushback(&s->pending_recv,cast(listnode*,req));
 	if(!is_read_enable(h)) enable_read(h);
 	return -EAGAIN;	
 }
@@ -150,7 +152,8 @@ int32_t
 stream_socket_send(stream_socket_ *s,
 				   iorequest *req,int32_t flag)
 {
-	handle *h = (handle*)s;
+	int32_t bytes;
+	handle *h = cast(handle*,s);
 	if(s->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
 	else if(!h->e)
@@ -161,14 +164,14 @@ stream_socket_send(stream_socket_ *s,
 	   flag == IO_NOW && 
 	   !list_size(&s->pending_send))
 	{
-		int32_t bytes = TEMP_FAILURE_RETRY(writev(h->fd,req->iovec,req->iovec_count));
+		bytes = TEMP_FAILURE_RETRY(writev(h->fd,req->iovec,req->iovec_count));
 		if(bytes >= 0)
 			return bytes;
 		else if(errno != EAGAIN)
 			return -errno;
 	}
 	s->status ^= SOCKET_WRITEABLE;
-	list_pushback(&s->pending_send,(listnode*)req);
+	list_pushback(&s->pending_send,cast(listnode*,req));
 	if(!is_write_enable(h)) enable_write(h);
 	return -EAGAIN;	
 }

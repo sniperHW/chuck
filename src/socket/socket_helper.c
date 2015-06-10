@@ -16,10 +16,11 @@ int32_t
 easy_connect(int32_t fd,sockaddr_ *server,
 			 sockaddr_ *local)
 {
+	int32_t ret;
 	errno = 0;	
 	if(local && 0 != easy_bind(fd,local))
 		return -errno;
-	int32_t ret = connect(fd,(struct sockaddr*)server,sizeof(*server));
+	ret = connect(fd,cast(struct sockaddr*,server),sizeof(*server));
 	return ret == 0 ? ret : -errno;
 }
 
@@ -165,7 +166,7 @@ lua_close_socket(lua_State *L)
 }while(0)
 
 void 
-reg_CHUCKLUAcket_helper(lua_State *L)
+reg_socket_helper(lua_State *L)
 {
 	lua_newtable(L);
 	SET_CONST(L,AF_INET);

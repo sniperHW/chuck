@@ -48,8 +48,9 @@ bitset_del(bitset *bs)
 static inline void 
 bitset_set(bitset *bs,uint32_t index)
 {
+	uint32_t b_index;
 	if(index <= bs->size){
-		uint32_t b_index = index / (sizeof(uint32_t)*8);
+		b_index = index / (sizeof(uint32_t)*8);
 		index %= (sizeof(uint32_t)*8);
 		bs->bits[b_index] = bs->bits[b_index] | (1 << index);
 	}
@@ -58,8 +59,9 @@ bitset_set(bitset *bs,uint32_t index)
 static inline void 
 bitset_clear(bitset *bs,uint32_t index)
 {
+	uint32_t b_index;
 	if(index <= bs->size){
-		uint32_t b_index = index / (sizeof(uint32_t)*8);
+		b_index = index / (sizeof(uint32_t)*8);
 		index %= (sizeof(uint32_t)*8);
 		bs->bits[b_index] = bs->bits[b_index] ^ (1<<index);
 	}
@@ -68,8 +70,9 @@ bitset_clear(bitset *bs,uint32_t index)
 static inline int32_t 
 bitset_test(bitset *bs,uint32_t index)
 {
+	uint32_t b_index;
 	if(index <= bs->size){
-		uint32_t b_index = index / (sizeof(uint32_t)*8);
+		b_index = index / (sizeof(uint32_t)*8);
 		index %= (sizeof(uint32_t)*8);
 		return bs->bits[b_index] & (1 << index)?1:0;
 	}else
@@ -79,10 +82,10 @@ bitset_test(bitset *bs,uint32_t index)
 static inline void 
 bitset_show(void *ptr,uint32_t size)
 {
+	int i;
 	bitset *b = bitset_new(size);
 	memcpy(b->bits,ptr,size);
-	int i = b->size-1;
-	for(; i >=0; --i){
+	for(i = b->size-1; i >=0; --i){
 		printf("%d",bitset_test(b,i)?1:0);
 	} 
 	printf("\n");

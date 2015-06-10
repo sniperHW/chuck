@@ -54,10 +54,11 @@ query_mailbox(const char *name)
 
 static inline mail* getmail()
 {
+	uint32_t try_;
 	if(!list_size(&mailbox_->private_queue)){
 		LOCK(mailbox_->lock);
 		if(!list_size(&mailbox_->global_queue)){
-			uint32_t try_ = 16;
+			try_ = 16;
 			do{
 				UNLOCK(mailbox_->lock);
 				SLEEPMS(0);
@@ -65,7 +66,7 @@ static inline mail* getmail()
 				LOCK(mailbox_->lock);
 			}while(try_ > 0 &&!list_size(&mailbox_->global_queue));
 			if(try_ == 0){
-				TEMP_FAILURE_RETRY(read(((handle*)mailbox_)->fd,&try_,sizeof(try_)));
+				TEMP_FAILURE_RETRY(read(cast(handle*,mailbox_)->fd,&try_,sizeof(try_)));
 				mailbox_->wait = 1;
 				UNLOCK(mailbox_->lock);
 				return NULL;
@@ -74,7 +75,7 @@ static inline mail* getmail()
 		list_pushlist(&mailbox_->private_queue,&mailbox_->global_queue);
 		UNLOCK(mailbox_->lock);
 	}
-	return (mail*)list_pop(&mailbox_->private_queue);
+	return cast(mail*,list_pop(&mailbox_->private_queue));
 }
 
 
@@ -99,7 +100,7 @@ static void
 mailbox_dctor(void *ptr){
 	mail* mail_;	
 	uint16_t i;
-	tmailbox_* mailbox = (tmailbox_*)((char*)ptr - sizeof(handle));
+	tmailbox_* mailbox = cast(tmailbox_*,((char*)ptr - sizeof(handle)));
 	
 	LOCK(mailboxs_lock);
 	for(i = 0; i < MAX_THREADS;++i){
@@ -125,6 +126,8 @@ mailbox_setup(engine *e,const char *name,
 			  void (*onmail)(mail *_mail))
 {
 	uint16_t i;
+	int32_t tmp[2];
+	handle  *h;
 	if(mailbox_)
 		return -EALSETMBOX;
 	LOCK(mailboxs_lock);
@@ -139,15 +142,13 @@ mailbox_setup(engine *e,const char *name,
 		UNLOCK(mailboxs_lock);
 		return -EMAXTHD;
 	}
-
-	int32_t tmp[2];
 	if(pipe2(tmp,O_NONBLOCK|O_CLOEXEC) != 0){
 		UNLOCK(mailboxs_lock);
 		return -EPIPECRERR;
 	}
 
 	mailbox_  = calloc(1,sizeof(*mailbox_));
-	handle *h = (handle*)mailbox_;
+	h = cast(handle*,mailbox_);
 	h->fd = tmp[0];
 	mailbox_->notifyfd = tmp[1];	
 	h->e = e;
@@ -172,16 +173,16 @@ static inline tmailbox_*
 cast2(tmailbox t){
 	refobj *tmp = cast2refobj(t);
 	if(!tmp) return NULL;
-	return (tmailbox_*)((char*)tmp - sizeof(handle));
+	return cast(tmailbox_*,((char*)tmp - sizeof(handle)));
 }
 
 
 static inline int32_t 
 notify(tmailbox_ *mailbox){
-	int32_t ret;
+	int32_t  ret;
+	uint64_t _ = 1;
 	for(;;){
 		errno = 0;
-		uint64_t _ = 1;
 		ret = TEMP_FAILURE_RETRY(write(mailbox->notifyfd,&_,sizeof(_)));
 		if(!(ret < 0 && errno == EAGAIN))
 			break;
@@ -193,12 +194,13 @@ int32_t
 send_mail(tmailbox t,mail *mail_)
 {
 	tmailbox_ *target = cast2(t);
+	int32_t ret = 0;
+	int32_t i;
 	if(!target) return -ETMCLOSE;
 	if(mailbox_)
 		mail_->sender = get_refhandle(&mailbox_->refbase);
 	else
-		mail_->sender = (refhandle){.identity=0,.ptr=NULL};
-	int32_t ret = 0;	
+		mail_->sender = (refhandle){.identity=0,.ptr=NULL};	
 	if(target == mailbox_){
 		do{
 			if(target->wait){
@@ -208,11 +210,10 @@ send_mail(tmailbox t,mail *mail_)
 				UNLOCK(target->lock);
 				if(ret != 0) break;
 			}
-			list_pushback(&target->private_queue,(listnode*)mail_);
+			list_pushback(&target->private_queue,cast(listnode*,mail_));
 		}while(0);	
 	}else{		
 		LOCK(target->lock);
-		int32_t i;
 		for(i = 0;
 			!target->dead && list_size(&target->global_queue) > MAX_QUENESIZE;
 			++i)
@@ -231,7 +232,7 @@ send_mail(tmailbox t,mail *mail_)
 			if(target->wait && (ret = notify(target)) == 0)
 				target->wait = 0;
 			if(ret == 0)
-				list_pushback(&target->global_queue,(listnode*)mail_);
+				list_pushback(&target->global_queue,cast(listnode*,mail_));
 		}
 		UNLOCK(target->lock);
 	}

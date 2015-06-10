@@ -133,13 +133,14 @@ dlist_check_remove(dlist *dl,
                    dblnk_check _check,
                    void *ud)
 {
+    
+    dlistnode *dln,*end,*tmp;
     if(dlist_empty(dl)) return;
-
-    dlistnode* dln = dlist_begin(dl);
-    dlistnode* end = dlist_end(dl);
+    dln = dlist_begin(dl);
+    end = dlist_end(dl);
     while(dln != end)
     {
-        dlistnode *tmp = dln;
+        tmp = dln;
         dln = dln->next;
         if(_check(tmp,ud)){
             //remove

@@ -33,9 +33,9 @@ typedef struct bytebuffer{
 static inline void 
 bytebuffer_dctor(void *_)
 {
-	bytebuffer *b = (bytebuffer*)_;
+	bytebuffer *b = cast(bytebuffer*,_);
 	if(b->next)
-		refobj_dec((refobj*)b->next);
+		refobj_dec(cast(refobj*,b->next));
     free(b);
 }
 
@@ -44,11 +44,11 @@ static inline bytebuffer*
 bytebuffer_new(uint32_t capacity)
 {
 	uint32_t size = sizeof(bytebuffer) + capacity;
-    bytebuffer *b = (bytebuffer*)malloc(size);
+    bytebuffer *b = cast(bytebuffer*,malloc(size));
 	if(b){   
 		memset(b,0,sizeof(*b));
 		b->cap = capacity;
-		refobj_init((refobj*)b,bytebuffer_dctor);
+		refobj_init(cast(refobj*,b),bytebuffer_dctor);
 	}
 	return b;
 }
@@ -57,8 +57,8 @@ static inline void
 bytebuffer_set(bytebuffer **b1,bytebuffer *b2)
 {
     if(*b1 == b2) return;
-    if(b2)  refobj_inc((refobj*)b2);
-    if(*b1) refobj_dec((refobj*)*b1);
+    if(b2)  refobj_inc(cast(refobj*,b2));
+    if(*b1) refobj_dec(cast(refobj*,*b1));
 	*b1 = b2;
 }
 
@@ -106,7 +106,7 @@ buffer_read(buffer_reader *reader,
 {
 	uint32_t copy_size;
 	uint32_t out_size = 0;
-	char 	*out = (char*)_;
+	char 	*out = cast(char*,_);
 	char    *ptr;
 	bytebuffer *b = reader->cur;
 	while(b && size){
@@ -119,13 +119,13 @@ buffer_read(buffer_reader *reader,
 					*out = *ptr;
 					break;
 				}case 2:{
-					*((uint16_t*)out) = *((uint16_t*)ptr);
+					*cast(uint16_t*,out) = *cast(uint16_t*,ptr);
 					break;
 				}case 4:{
-					*((uint32_t*)out) = *((uint32_t*)ptr);
+					*cast(uint32_t*,out) = *cast(uint32_t*,ptr);
 					break;
 				}case 8:{
-					*((uint64_t*)out) = *((uint64_t*)ptr);
+					*cast(uint64_t*,out) = *cast(uint64_t*,ptr);
 					break;
 				}default:{								
 					memcpy(out,ptr,copy_size);
@@ -151,7 +151,7 @@ buffer_write(buffer_writer *writer,
 {
     uint32_t copy_size;
     uint32_t in_size = 0;
-    char 	*in = (char*)_;
+    char 	*in = cast(char*,_);
     char    *ptr;
     bytebuffer *b = writer->cur;
     while(b && size){
@@ -164,13 +164,13 @@ buffer_write(buffer_writer *writer,
 					*ptr = *in;
 					break;
 				}case 2:{
-					*((uint16_t*)ptr) = *((uint16_t*)in);
+					*cast(uint16_t*,ptr) = *cast(uint16_t*,in);
 					break;
 				}case 4:{
-					*((uint32_t*)ptr) = *((uint32_t*)in);
+					*cast(uint32_t*,ptr) = *cast(uint32_t*,in);
 					break;
 				}case 8:{
-					*((uint64_t*)ptr) = *((uint64_t*)in);
+					*cast(uint64_t*,ptr) = *cast(uint64_t*,in);
 					break;
 				}default:{								
 	        		memcpy(ptr,in,copy_size);

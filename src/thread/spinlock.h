@@ -38,12 +38,12 @@ static inline int32_t
 spin_lock(spinlock *l)
 {
 	pthread_t tid = pthread_self();
+	int32_t c,max;	
 	if(tid == l->owner)
 	{
 		++l->lock_count;
 		return 0;
 	}
-	int32_t c,max;
 	while(1)
 	{
 		if(l->owner == 0)
