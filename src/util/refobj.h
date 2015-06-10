@@ -23,6 +23,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <assert.h>
+#include "comm.h"    
 #include "util/atomic.h"
 #include "util/exception.h"  
   

@@ -9,11 +9,12 @@ static int32_t
 imp_engine_add(engine *e,handle *h,
                generic_callback callback)
 {
+    int32_t ret;
     assert(e && h && callback);
     if(h->e) return -EASSENG;
-    int32_t ret = event_add(e,h,EVENT_READ);
+    ret = event_add(e,h,EVENT_READ);
     if(ret == 0){
-        ((signaler*)h)->callback = (void (*)(struct signaler *,int32_t,void *ud))callback;
+        cast(signaler*,h)->callback = cast(void (*)(struct signaler *,int32_t,void *ud),callback);
     }
     return ret;
 }
@@ -21,11 +22,11 @@ imp_engine_add(engine *e,handle *h,
 static void 
 on_signal(handle *h,int32_t events)
 {
-
-    struct  signalfd_siginfo fdsi;
+    struct   signalfd_siginfo fdsi;
+    int32_t  ret;
     int32_t  fd = h->fd;
-    signaler *s = (signaler*)h;
-    int32_t ret = TEMP_FAILURE_RETRY(read(fd, &fdsi, sizeof(fdsi)));
+    signaler *s = cast(signaler*,h);
+    ret = TEMP_FAILURE_RETRY(read(fd, &fdsi, sizeof(fdsi)));
     if(ret != sizeof(fdsi))
         return;    
 
@@ -54,7 +55,7 @@ signaler_init(int32_t signum)
 static signaler*
 lua_tosignaler(lua_State *L, int index) 
 {
-    return (signaler*)luaL_testudata(L, index, LUA_METATABLE);
+    return cast(signaler*,luaL_testudata(L, index, LUA_METATABLE));
 }
 
 static int32_t 
@@ -62,7 +63,7 @@ lua_signaler_gc(lua_State *L)
 {
     signaler *s = lua_tosignaler(L,1);
     release_luaRef(&s->luacallback);
-    close(((handle*)s)->fd);
+    close(cast(handle*,s)->fd);
     return 0;
 }
 
@@ -81,9 +82,8 @@ lua_engine_add(lua_State *L)
     signaler   *s = lua_tosignaler(L,1);
     engine     *e = lua_toengine(L,2);
     if(s && e){
-        if(0 == imp_engine_add(e,(handle*)s,(generic_callback)luacallback)){
+        if(0 == imp_engine_add(e,cast(handle*,s),cast(generic_callback,luacallback)))
             s->luacallback = toluaRef(L,3);
-        }
     }
     return 0;
 }
@@ -93,29 +93,29 @@ lua_engine_remove(lua_State *L)
 {
     signaler   *s = lua_tosignaler(L,1);
     if(s)
-        engine_remove((handle*)s);
+        engine_remove(cast(handle*,s));
     return 0;
 }
 
 static int32_t 
 lua_signaler_new(lua_State *L)
 {
-
-    if(LUA_TNUMBER != lua_type(L,1))
-        return luaL_error(L,"arg1 should be number");
+    signaler *s;
     int32_t signum = lua_tointeger(L,1);
     int32_t fd = signaler_init(signum);
+    if(LUA_TNUMBER != lua_type(L,1))
+        return luaL_error(L,"arg1 should be number");    
     if(fd < 0){
         lua_pushnil(L);
         return 1;
     }
     
-    signaler *s = lua_newuserdata(L, sizeof(*s));
+    s = lua_newuserdata(L, sizeof(*s));
     memset(s,0,sizeof(*s));
-    ((handle*)s)->fd = fd;
+    cast(handle*,s)->fd = fd;
     s->signum = signum;
-    ((handle*)s)->on_events = on_signal;
-    ((handle*)s)->imp_engine_add = imp_engine_add;
+    cast(handle*,s)->on_events = on_signal;
+    cast(handle*,s)->imp_engine_add = imp_engine_add;
     luaL_getmetatable(L, LUA_METATABLE);
     lua_setmetatable(L, -2);  
     return 1;
@@ -167,23 +167,23 @@ reg_luasignaler(lua_State *L)
 signaler*
 signaler_new(int32_t signum,void *ud)
 {
-    
+    signaler *s;
     int32_t fd = signaler_init(signum);
     if(fd < 0) return NULL;
     
     signaler *s = calloc(1,sizeof(*s));
-    ((handle*)s)->fd = fd;
+    cast(handle*,s)->fd = fd;
     s->signum = signum;
     s->ud = ud;
-    ((handle*)s)->on_events = on_signal;
-    ((handle*)s)->imp_engine_add = imp_engine_add;    
+    cast(handle*,s)->on_events = on_signal;
+    cast(handle*,s)->imp_engine_add = imp_engine_add;    
     return s;
 }
 
 void 
 signaler_del(signaler *s)
 {
-    close(((handle*)s)->fd);
+    close(cast(handle*,s)->fd);
     free(s);
 }
 

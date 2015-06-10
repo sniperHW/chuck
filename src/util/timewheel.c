@@ -23,14 +23,15 @@ typedef struct {
 static wheel* 
 wheel_new(uint8_t type)
 {
+	wheel   *w;
+	uint16_t size,i;
 	if(type >  wheel_day)
 		return NULL;
-	wheel *w = calloc(1,sizeof(*w)*wheel_size(type)*sizeof(dlist));	
+	w = calloc(1,sizeof(*w)*wheel_size(type)*sizeof(dlist));	
 	w->type = type;
 	w->cur = 0;
-	uint16_t size = (uint16_t)wheel_size(type);
-	uint16_t i = 0;
-	for(; i < size; ++i)
+	size = cast(uint16_t,wheel_size(type));
+	for(i = 0; i < size; ++i)
 		dlist_init(&w->items[i]);
 	return w;	
 }
@@ -59,9 +60,10 @@ static inline void
 add2wheel(wheelmgr *m,wheel *w,
 		  timer *t,uint64_t remain)
 {
+	uint16_t i;
 	uint64_t slots = wheel_size(w->type) - w->cur;
 	if(w->type == wheel_day || slots > remain){
-		uint16_t i = (w->cur + remain)%(wheel_size(w->type));
+		i = (w->cur + remain)%(wheel_size(w->type));
 		dlist_pushback(&w->items[i],(dlistnode*)t);		
 	}else{
 		remain -= slots;
@@ -84,10 +86,11 @@ static inline void
 down(wheelmgr *m,timer *t,
 	 uint64_t tick,wheel *w)
 {
+	uint64_t remain;
 	assert(w->cur == 0);
 	assert(t->expire >= tick);
 	if(t->expire >= tick){
-		uint64_t remain = (t->expire - tick) - wheel_size(w->type-1);
+		remain = (t->expire - tick) - wheel_size(w->type-1);
 		remain /= precision(w->type);
 		dlist_pushback(&w->items[w->cur + remain],(dlistnode*)t);		
 	}	
@@ -99,7 +102,7 @@ tickup(wheelmgr *m,wheel *w,uint64_t tick)
 {
 	timer *t;
 	dlist *items = &w->items[w->cur];
-	while((t = (timer*)dlist_pop(items)))
+	while((t = cast(timer*,dlist_pop(items))))
 		down(m,t,tick,m->wheels[w->type-1]);
 	w->cur = (w->cur+1)%wheel_size(w->type);			
 	if(w->cur == 0 && w->type != wheel_day)
@@ -109,14 +112,16 @@ tickup(wheelmgr *m,wheel *w,uint64_t tick)
 static void 
 fire(wheelmgr *m,uint64_t tick)
 {
+	int32_t ret;
 	timer *t;
+	dlist *items;
 	wheel *w = m->wheels[wheel_sec];			
 	if((w->cur = (w->cur+1)%wheel_size(wheel_sec)) == 0)
 		tickup(m,m->wheels[wheel_hour],tick);
-	dlist *items = &w->items[w->cur];		
-	while((t = (timer*)dlist_pop(items))){
+	items = &w->items[w->cur];		
+	while((t = cast(timer*,dlist_pop(items)))){
 		t->status |= INCB;
-		int32_t ret = t->callback(TEVENT_TIMEOUT,t->expire,t->ud);
+		ret = t->callback(TEVENT_TIMEOUT,t->expire,t->ud);
 		t->status ^= INCB;
 		if(!(t->status & RELEASING) && ret >= 0){
 			if(ret > 0) t->timeout = ret;
@@ -143,10 +148,11 @@ timer*
 wheelmgr_register(wheelmgr *m,uint32_t timeout,
 				  int32_t(*callback)(uint32_t,uint64_t,void*),
 				  void*ud,uint64_t now/*just for test*/){
+	timer *t;
 	if(timeout == 0 || !callback)
 		return NULL;
 	now = now == 0 ? systick64():now;
-	timer *t = calloc(1,sizeof(*t));
+	t = calloc(1,sizeof(*t));
 	t->timeout = timeout > MAX_TIMEOUT ? MAX_TIMEOUT : timeout;
 	t->callback = callback;
 	t->ud = ud;
@@ -161,9 +167,9 @@ wheelmgr_register(wheelmgr *m,uint32_t timeout,
 wheelmgr*
 wheelmgr_new()
 {
+	int i;
 	wheelmgr *t = calloc(1,sizeof(*t));
-	int i = 0;
-	for(; i < wheel_day+1; ++i)
+	for(i = 0; i < wheel_day+1; ++i)
 		t->wheels[i] = wheel_new(i);
 	return t;
 }
@@ -173,7 +179,7 @@ unregister_timer(timer *t)
 {
 	t->status |= RELEASING;
 	if(!(t->status & INCB)){
-		dlist_remove((dlistnode*)t);
+		dlist_remove(cast(dlistnode*,t));
 		t->callback(TEVENT_DESTROY,t->expire,t->ud);
 		free(t);
 	}
@@ -182,14 +188,15 @@ unregister_timer(timer *t)
 void 
 wheelmgr_del(wheelmgr *m)
 {
-	int i = 0;
-	for(; i < wheel_day+1; ++i){
-		uint16_t j = 0;
-		uint16_t size = wheel_size(m->wheels[i]->type);
-		for(; j < size; ++j){
-			dlist *items = &m->wheels[i]->items[j];
-		    timer *t;
-			while((t = (timer*)dlist_pop(items))){
+	int i;
+	uint16_t j,size;
+	dlist   *items;
+	timer   *t;
+	for(i = 0; i < wheel_day+1; ++i){
+		size = wheel_size(m->wheels[i]->type);
+		for(j = 0; j < size; ++j){
+			items = &m->wheels[i]->items[j];
+			while((t = cast(timer*,dlist_pop(items)))){
 				t->callback(TEVENT_DESTROY,t->expire,t->ud);
 				free(t);				
 			}

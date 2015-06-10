@@ -123,7 +123,7 @@ get_csf(list *pool)
 			list_pushfront(pool,&call_frame->node);
 		}
 	}
-	return  (callstack_frame*)list_pop(pool);
+	return  cast(callstack_frame*,list_pop(pool));
 }
 
 static int32_t 

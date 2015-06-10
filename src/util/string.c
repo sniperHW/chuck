@@ -3,7 +3,6 @@
 #include <string.h>
 #include "string.h"
 #include "refobj.h"
-#include "comm.h"
 
 typedef struct
 {
@@ -17,8 +16,8 @@ typedef struct
 static void 
 holder_dctor(void *arg)
 {
-	holder *h = (holder*)arg;
-	free((void*)h->str);
+	holder *h = cast(holder*,arg);
+	free(cast(void*,h->str));
 	free(h);
 }
 
@@ -40,10 +39,11 @@ holder_append(holder *h,
 			  const char *str,
 			  uint32_t len)
 {
+	char    *tmp;
 	uint32_t total_len = h->len + len +1;
 	if(h->cap < total_len){
 		h->cap = size_of_pow2(total_len);
-		char *tmp = realloc(h->str,h->cap);
+		tmp = realloc(h->str,h->cap);
 		if(!tmp){
 			tmp = calloc(1,h->cap);
 			strcpy(tmp,h->str);
@@ -82,9 +82,11 @@ typedef struct string
 string*
 string_new(const char *str)
 {
+	string  *_str;
+	uint32_t len;
 	if(!str) return NULL;
-	string *_str = calloc(1,sizeof(*_str));
-	uint32_t len = strlen(str);
+	_str = calloc(1,sizeof(*_str));
+	len = strlen(str);
 	if(len + 1 <= MIN_STRING_LEN){
 		strcpy(_str->str,str);
 		_str->len = len;
@@ -139,9 +141,10 @@ string_len(string *s)
 void 
 string_append(string *s,const char *str)
 {
+	uint32_t len,total_len;
 	if(!s || !str) return;
-	uint32_t len = strlen(str);
-	uint32_t total_len = string_len(s) + len + 1;
+	len = strlen(str);
+	total_len = string_len(s) + len + 1;
 	if(s->holder)
 		holder_append(s->holder,str,len);	
 	else if(total_len <= MIN_STRING_LEN){

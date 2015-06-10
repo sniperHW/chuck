@@ -23,6 +23,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <signal.h>
+#include "comm.h"    
 #include "util/list.h"
 #include "util/log.h"
 
@@ -97,13 +98,13 @@ clear_callstack(exception_frame *frame)
 static inline void 
 print_call_stack(exception_frame *frame)
 {
-
-    if(!frame)return;
     char buf[MAX_LOG_SIZE];
     char *ptr = buf;
     int32_t size = 0;
     listnode *node = list_begin(&frame->call_stack);
     int32_t f = 0;
+    callstack_frame *cf;
+    if(!frame)return;
     if(frame->exception == except_segv_fault)
 	    size += snprintf(ptr,MAX_LOG_SIZE,
                          " exception\n %s (invaild access addr:%p)\n",
@@ -116,7 +117,7 @@ print_call_stack(exception_frame *frame)
     ptr = buf+size;
     while(node != NULL && size < MAX_LOG_SIZE)
     {
-        callstack_frame *cf = (callstack_frame*)node;
+        cf = (callstack_frame*)node;
         size += snprintf(ptr,MAX_LOG_SIZE-size,"        % 2d: %s",++f,cf->info);
         ptr = buf+size;
         node = node->next;
@@ -145,14 +146,14 @@ static inline exception_frame*
 expstack_pop()
 {
     list *expstack = get_current_thd_exceptionstack();
-    return (exception_frame*)list_pop(expstack);
+    return cast(exception_frame*,list_pop(expstack));
 }
 
 static inline exception_frame* 
 expstack_top()
 {
     list *expstack = get_current_thd_exceptionstack();
-    return (exception_frame*)list_begin(expstack);
+    return cast(exception_frame*,list_begin(expstack));
 }
 
 extern void 

@@ -9,7 +9,7 @@ refobj_init(refobj *r,void (*dctor)(void*))
 {
 	r->dctor = dctor;
 	r->high32 = systick32();
-	r->low32  = (uint32_t)(ATOMIC_INCREASE_FETCH(&g_ref_counter));
+	r->low32  = cast(uint32_t,(ATOMIC_INCREASE_FETCH(&g_ref_counter)));
 	ATOMIC_INCREASE_FETCH(&r->refcount);
 }
 
@@ -41,12 +41,13 @@ refobj_dec(refobj *r)
 refobj*
 cast2refobj(refhandle h)
 {
+    uint32_t c = 0;
+    struct timespec ts;
     refobj *ptr = NULL;
+    refobj *o   = NULL;
     if(unlikely(!h.ptr)) return NULL;
     TRY{
-        refobj *o = (refobj*)h.ptr;
-        uint32_t c = 0;
-    	struct timespec ts;
+        o = (refobj*)h.ptr;
         while(h.identity == o->identity){
             if(COMPARE_AND_SWAP(&o->flag,0,1)){
                 if(h.identity == o->identity){

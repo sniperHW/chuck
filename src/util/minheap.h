@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include "comm.h"    
 
 typedef struct 
 {
@@ -139,13 +140,15 @@ minheap_change(minheap *m,minheap_element *e)
 static inline void 
 minheap_insert(minheap *m,minheap_element *e)
 {
+	uint32_t          new_size;
+	minheap_element **tmp;
 	if(e->i)
 		return minheap_change(m,e);
 	if(m->size >= m->max_size-1)
 	{
 		//expand the heap
-		uint32_t new_size = m->max_size*2;
-		minheap_element **tmp = (minheap_element**)calloc(new_size,sizeof(minheap_element*));
+		new_size = m->max_size*2;
+		tmp = cast(minheap_element**,calloc(new_size,sizeof(minheap_element*)));
 		if(!tmp)
 			return;
 		memcpy(tmp,m->data,m->max_size*sizeof(minheap_element*));
@@ -189,9 +192,10 @@ minheap_min(minheap *m)
 static inline minheap_element* 
 minheap_popmin(minheap *m)
 {
+	minheap_element *e;
 	if(m->size)
 	{
-		minheap_element *e = m->data[1];
+		e = m->data[1];
 		element_swap(m,1,m->size);
 		m->data[m->size] = NULL;
 		--m->size;

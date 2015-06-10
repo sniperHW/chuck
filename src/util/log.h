@@ -18,6 +18,7 @@
 #define _LOG_H
 
 #include <stdint.h>
+#include "comm.h"    
 #include "util/singleton.h"
 
 /*

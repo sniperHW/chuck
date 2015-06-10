@@ -19,6 +19,7 @@
 #define _TIMEWHEEL_H
 
 #include <stdint.h>
+#include "comm.h"    
 
 #define MAX_TIMEOUT (1000*3600*24-1)
 

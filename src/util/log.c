@@ -57,7 +57,7 @@ struct log_item*
 logqueue_fetch(uint32_t ms)
 {
 	if(list_size(&logqueue.private_queue) > 0)
-		return (struct log_item*)list_pop(&logqueue.private_queue);
+		return cast(struct log_item*,list_pop(&logqueue.private_queue));
 	mutex_lock(logqueue.mtx);
 	if(ms > 0){
 		if(list_size(&logqueue.share_queue) == 0){
@@ -70,7 +70,7 @@ logqueue_fetch(uint32_t ms)
 		list_pushlist(&logqueue.private_queue,&logqueue.share_queue);
 	}
 	mutex_unlock(logqueue.mtx);
-	return (struct log_item*)list_pop(&logqueue.private_queue);
+	return cast(struct log_item*,list_pop(&logqueue.private_queue));
 }
 
 
@@ -81,8 +81,8 @@ int32_t
 write_prefix(char *buf,uint8_t loglev)
 {
 	struct timespec tv;
-    clock_gettime (CLOCK_REALTIME, &tv);
 	struct tm _tm;
+    clock_gettime (CLOCK_REALTIME, &tv);	
 	localtime_r(&tv.tv_sec, &_tm);
 	return sprintf(buf,"[%s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u]:",
 				   log_lev_str[loglev],
@@ -92,16 +92,20 @@ write_prefix(char *buf,uint8_t loglev)
 				   _tm.tm_hour,
 				   _tm.tm_min,
 				   _tm.tm_sec,
-				   (int32_t)tv.tv_nsec/1000000,
-				   (uint32_t)thread_id());
+				   cast(int32_t,tv.tv_nsec/1000000),
+				   cast(uint32_t,thread_id()));
 }
 
 static void* 
 log_routine(void *arg)
 {
-	g_pid = getpid();
 	time_t next_fulsh = time(NULL) + flush_interval;
 	struct log_item *item;
+	char   filename[128],buf[128];
+	struct timespec tv;
+	struct tm _tm;
+	struct logfile *l;		
+	g_pid = getpid();	
 	while(1){
 		item = logqueue_fetch(stop?0:100);
 		if(item){
@@ -112,10 +116,7 @@ log_routine(void *arg)
 					item->_logfile->total_size = 0;
 				}
 				//还没创建文件
-				char filename[128];
-				struct timespec tv;
 				clock_gettime(CLOCK_REALTIME, &tv);
-				struct tm _tm;
 				localtime_r(&tv.tv_sec, &_tm);
 				snprintf(filename,128,"%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
 						 item->_logfile->filename,
@@ -126,7 +127,7 @@ log_routine(void *arg)
 					     _tm.tm_hour,
 					     _tm.tm_min,
 					     _tm.tm_sec,
-					     (int32_t)tv.tv_nsec/1000000);
+					     cast(int32_t,tv.tv_nsec/1000000));
 				item->_logfile->file = fopen(filename,"w+");
 			}
 			if(item->_logfile->file){
@@ -140,12 +141,12 @@ log_routine(void *arg)
 		}
 
 		if(time(NULL) >= next_fulsh){
-			struct logfile *l = NULL;	
+			l = NULL;	
 			mutex_lock(g_mtx_log_file_list);
-			l = (struct logfile*)list_begin(&g_log_file_list);
+			l = cast(struct logfile*,list_begin(&g_log_file_list));
 			while(l != NULL){
 				if(l->file) fflush(l->file);
-				l = (struct logfile*)((listnode*)l)->next;
+				l = cast(struct logfile*,cast(listnode*,l)->next);
 			}
 			mutex_unlock(g_mtx_log_file_list); 
 			next_fulsh = time(NULL) + flush_interval;
@@ -154,10 +155,8 @@ log_routine(void *arg)
 	}
 
 	//向所有打开的日志文件写入"log close success"
-	struct logfile *l = NULL;
-	char buf[128];
 	mutex_lock(g_mtx_log_file_list);
-	while((l = (logfile*)list_pop(&g_log_file_list)) != NULL)
+	while((l = cast(logfile*,list_pop(&g_log_file_list))) != NULL)
 	{
 		if(l->file){
 			int32_t size = write_prefix(buf,LOG_INFO);
@@ -208,8 +207,9 @@ log_once_routine()
 logfile*
 create_logfile(const char *filename)
 {
+	logfile *l;
 	pthread_once(&g_log_key_once,log_once_routine);
-	logfile *l = calloc(1,sizeof(*l));
+	l = calloc(1,sizeof(*l));
 	strncpy(l->filename,filename,256);
 	mutex_lock(g_mtx_log_file_list);
 	list_pushback(&g_log_file_list,(listnode*)l);
