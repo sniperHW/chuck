@@ -43,15 +43,9 @@ process_read(dgram_socket_ *s)
 			.msg_controllen = 0
 		};
 		bytes = TEMP_FAILURE_RETRY(recvmsg(s->fd,&_msghdr,0));	
-		if(bytes < 0 && errno == EAGAIN){
-			s->status ^= SOCKET_READABLE;
-			//将请求重新放回到队列
-			list_pushback(&s->pending_recv,cast(listnode*,req));
-		}else{
-			s->callback(s,req,bytes,errno,_msghdr.msg_flags);
-			if(s->status & SOCKET_CLOSE)
-				return;		
-		}
+		s->callback(s,req,bytes,errno,_msghdr.msg_flags);
+		if(s->status & SOCKET_CLOSE)
+			return;		
 	}	
 	if(s->e && !list_size(&s->pending_recv)){
 		//没有接收请求了,取消EPOLLIN

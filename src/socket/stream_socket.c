@@ -32,15 +32,9 @@ process_read(stream_socket_ *s)
 	if((req = cast(iorequest*,list_pop(&s->pending_recv)))!=NULL){
 		errno = 0;
 		bytes = TEMP_FAILURE_RETRY(readv(cast(handle*,s)->fd,req->iovec,req->iovec_count));	
-		if(bytes < 0 && errno == EAGAIN){
-				s->status ^= SOCKET_READABLE;
-				//将请求重新放回到队列
-				list_pushback(&s->pending_recv,cast(listnode*,req));
-		}else{
-			s->callback(s,req,bytes,errno);
-			if(s->status & SOCKET_CLOSE)
-				return;			
-		}
+		s->callback(s,req,bytes,errno);
+		if(s->status & SOCKET_CLOSE)
+			return;			
 	}	
 	if(s->e && !list_size(&s->pending_recv)){
 		//没有接收请求了,取消EPOLLIN
@@ -53,24 +47,15 @@ process_write(stream_socket_ *s)
 {
 	iorequest *req = 0;
 	int32_t bytes = 0;
+	disable_write(cast(handle*,s));
 	s->status |= SOCKET_WRITEABLE;
 	if((req = cast(iorequest*,list_pop(&s->pending_send)))!=NULL){
 		errno = 0;	
 		bytes = TEMP_FAILURE_RETRY(writev(s->fd,req->iovec,req->iovec_count));
-		if(bytes < 0 && errno == EAGAIN){
-				s->status ^= SOCKET_WRITEABLE;
-				//将请求重新放回到队列
-				list_pushback(&s->pending_send,cast(listnode*,req));
-		}else{
-			s->callback(s,req,bytes,errno);
-			if(s->status & SOCKET_CLOSE)
-				return;				
-		}
-	}
-	if(s->e && !list_size(&s->pending_send)){
-		//没有接收请求了,取消EPOLLOUT
-		disable_write(cast(handle*,s));
-	}		
+		s->callback(s,req,bytes,errno);
+		if(s->status & SOCKET_CLOSE)
+			return;				
+	}	
 }
 
 static void 

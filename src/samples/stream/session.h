@@ -40,7 +40,7 @@ int      packet_recv  = 0;
 
 void transfer_finish(handle *h,void *_,int32_t bytestransfer,int32_t err){
     my_ioreq *req = ((my_ioreq*)_);
-    struct session *s = req->s; 
+    struct    session *s = req->s;
     if(!req || bytestransfer <= 0)
     {
 socket_err:      	
@@ -49,7 +49,6 @@ socket_err:
         --client_count;           
         return;
     }
-
     if(req == &s->send_overlap)
 		session_recv(s,IO_POST);
     else{
@@ -61,7 +60,7 @@ socket_err:
 			session_recv(s,IO_POST);
 		else if(bytestransfer < 0 && bytestransfer != -EAGAIN)
 			goto socket_err;
-	}
+	} 
 }
 
 struct session *session_new(stream_socket_ *h){
