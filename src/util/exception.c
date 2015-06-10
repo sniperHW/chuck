@@ -162,8 +162,7 @@ exception_throw(int32_t code,const char *file,
 	int32_t                 sig = 0;
 	int32_t 				size = 0;	
 	char 					logbuf[MAX_LOG_SIZE],addr[128],buf[1024];
-	char 					*ptr = logbuf;	
-	void 					*addr = NULL;	
+	char 					*ptr = logbuf;		
 	int                     len;
 	exception_perthd_st		*epst;
 	callstack_frame			*call_frame;
@@ -215,10 +214,9 @@ exception_throw(int32_t code,const char *file,
 	{
 		sz = backtrace(bt, 64);
 		strings = backtrace_symbols(bt, sz);
-		if(info)
-			addr = info->si_addr;
 		if(code == except_segv_fault)
-    		size += snprintf(ptr,MAX_LOG_SIZE," %s [invaild access addr:%p]\n",exception_description(code),addr);
+    		size += snprintf(ptr,MAX_LOG_SIZE," %s [invaild access addr:%p]\n",
+    						 exception_description(code),info?info->si_addr:NULL);
 		else
     		size += snprintf(ptr,MAX_LOG_SIZE," %s\n",exception_description(code));
 		ptr = logbuf + size;	    		    		
