@@ -326,7 +326,7 @@ enum{
     EPKTOOLARGE,                /*packet too large*/
     ERVTIMEOUT,                 /*recv timeout*/
     ESNTIMEOUT,                 /*send timeout*/
-    EENGCLOSE,                  /*engile close*/
+    EENGCLOSE = 0xabcddcba,      /*engile close*/
 };
     
 #endif
