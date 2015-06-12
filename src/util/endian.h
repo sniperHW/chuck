@@ -61,12 +61,12 @@ _hton64(uint64_t num)
 }
 
 static inline uint64_t 
-kn_ntoh64(uint64_t num)
+_ntoh64(uint64_t num)
 {
 #if __BYTE_ORDER == __BIG_ENDIAN 
 	return num;
 #else
-	return kn_swap64(num);
+	return _swap64(num);
 #endif
 }
 

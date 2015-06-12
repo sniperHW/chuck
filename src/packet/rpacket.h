@@ -73,10 +73,10 @@ const void*
 rpacket_read_binary(rpacket*,uint16_t *len);
 
 #define RPACKET_READ(R,TYPE)\
-        ({TYPE __result;rpacket_read(R,(char*)&__result,sizeof(TYPE));__result;})
+        ({TYPE __result=0;rpacket_read(R,(char*)&__result,sizeof(TYPE));__result;})
 
 #define RPACKET_PEEK(R,TYPE)\
-        ({TYPE __result;rpacket_read(R,(char*)&__result,sizeof(TYPE));__result;})
+        ({TYPE __result=0;rpacket_read(R,(char*)&__result,sizeof(TYPE));__result;})
 
 static inline uint8_t 
 rpacket_read_uint8(rpacket *r)
