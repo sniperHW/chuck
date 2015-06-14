@@ -111,9 +111,8 @@ lua_engine_add(lua_State *L)
 	acceptor   *a = lua_toacceptor(L,1);
 	engine     *e = lua_toengine(L,2);
 	if(a && e){
-		if(0 == imp_engine_add(e,cast(handle*,a),cast(generic_callback,luacallback)){
+		if(0 == imp_engine_add(e,cast(handle*,a),cast(generic_callback,luacallback)))
 			a->luacallback = toluaRef(L,3);
-		}
 	}
 	return 0;
 }
