@@ -19,7 +19,8 @@
 #define _TIMEWHEEL_H
 
 #include <stdint.h>
-#include "comm.h"    
+#include "comm.h"
+#include "lua/lua_util.h"    
 
 #define MAX_TIMEOUT (1000*3600*24-1)
 
@@ -47,5 +48,12 @@ unregister_timer(timer*);
 
 void      
 wheelmgr_tick(wheelmgr*,uint64_t now); 
+
+#ifdef _CHUCKLUA
+
+void
+reg_luatimewheel(lua_State *L); 
+
+#endif
 
 #endif

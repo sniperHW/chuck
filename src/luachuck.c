@@ -8,6 +8,7 @@
 #include "util/time.h"
 #include "db/redis/client.h"
 #include "util/signaler.h"
+#include "util/timewheel.h"
 
 #define SET_CONST(L,N) do{\
 		lua_pushstring(L, #N);\
@@ -202,6 +203,7 @@ luaopen_chuck(lua_State *L)
 	reg_luaconnector(L);
 	reg_luaacceptor(L);
 	reg_luaengine(L);
+	reg_luatimewheel(L);
 
 	//SET_FUNCTION(L,"get_bytebuffer_count",lua_get_bytebuffer_count);
 	SET_FUNCTION(L,"systick",lua_systick);
