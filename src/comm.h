@@ -51,7 +51,8 @@
 
 enum{
     EVENT_READ  =  EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP,
-    EVENT_WRITE =  EPOLLOUT,    
+    EVENT_WRITE =  EPOLLOUT,
+    EVENT_ECLOSE = 0xffffffff,//engine close    
 };
 
 #elif _BSD
@@ -60,7 +61,8 @@ enum{
 
 enum{
     EVENT_READ  =  EVFILT_READ,
-    EVENT_WRITE =  EVFILT_WRITE,    
+    EVENT_WRITE =  EVFILT_WRITE,
+    EVENT_ECLOSE = 0xffffffff,//engine close         
 };
 
 #else
@@ -326,7 +328,7 @@ enum{
     EPKTOOLARGE,                /*packet too large*/
     ERVTIMEOUT,                 /*recv timeout*/
     ESNTIMEOUT,                 /*send timeout*/
-    EENGCLOSE = 0xabcddcba,      /*engile close*/
+    EENGCLOSE,                  /*engile close*/
 };
     
 #endif

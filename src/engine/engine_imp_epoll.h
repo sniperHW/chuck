@@ -134,7 +134,7 @@ _engine_del(engine *e)
 	}
 	while((h = cast(handle*,dlist_pop(&e->handles)))){
 		event_remove(h);
-		h->on_events(h,EENGCLOSE);
+		h->on_events(h,EVENT_ECLOSE);
 	}
 	close(e->epfd);
 	close(e->notifyfds[0]);

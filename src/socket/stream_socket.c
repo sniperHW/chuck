@@ -64,7 +64,7 @@ on_events(handle *h,int32_t events)
 	stream_socket_ *s = cast(stream_socket_*,h);
 	if(!s->e || s->status & SOCKET_CLOSE)
 		return;
-	if(events == EENGCLOSE){
+	if(events == EVENT_ECLOSE){
 		s->callback(s,NULL,-1,EENGCLOSE);
 		return;
 	}

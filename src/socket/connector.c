@@ -70,7 +70,7 @@ _process_connect(connector *c)
 static void 
 process_connect(handle *h,int32_t events)
 {
-	if(events == EENGCLOSE){
+	if(events == EVENT_ECLOSE){
 		cast(connector*,h)->callback(-1,EENGCLOSE,cast(connector*,h)->ud);
 		return;
 	}

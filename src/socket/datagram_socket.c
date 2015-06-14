@@ -59,7 +59,7 @@ on_events(handle *h,int32_t events)
 	dgram_socket_ *s = cast(dgram_socket_*,h);
 	if(!s->e || ((s->status & SOCKET_CLOSE)))
 		return;
-	if(events == EENGCLOSE){
+	if(events == EVENT_ECLOSE){
 		s->callback(s,NULL,-1,EENGCLOSE,0);
 		return;
 	}	

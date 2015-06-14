@@ -43,7 +43,7 @@ process_accept(handle *h,int32_t events)
 {
 	int 	  fd;
     sockaddr_ addr;
-	if(events == EENGCLOSE){
+	if(events == EVENT_ECLOSE){
 		cast(acceptor*,h)->callback(cast(acceptor*,h),-1,NULL,cast(acceptor*,h)->ud,EENGCLOSE);
 		return;
 	}
