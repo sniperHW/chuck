@@ -67,7 +67,7 @@ rpacket_read_binary(rpacket *r,uint16_t *len)
 			r->binpos += copy_size;
 			if(r->data_remain && r->reader.pos >= r->reader.cur->size)
 				buffer_reader_init(&r->reader,r->reader.cur->next,0);
-		}		
+		}	
 	}
 	return addr;
 }
@@ -75,7 +75,11 @@ rpacket_read_binary(rpacket *r,uint16_t *len)
 const char*
 rpacket_read_string(rpacket *r)
 {
-	return rpacket_read_binary(r,NULL);
+	uint16_t len;	
+	char *str =  rpacket_read_binary(r,&len);
+	if(str && str[len-1] == '\0')
+		return str;	
+	return NULL;
 }
 
 static packet*
