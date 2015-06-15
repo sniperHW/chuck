@@ -76,7 +76,7 @@ const char*
 rpacket_read_string(rpacket *r)
 {
 	uint16_t len;	
-	char *str =  rpacket_read_binary(r,&len);
+	char *str =  (char*)rpacket_read_binary(r,&len);
 	if(str && str[len-1] == '\0')
 		return str;	
 	return NULL;
