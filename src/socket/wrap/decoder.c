@@ -200,11 +200,17 @@ on_body(http_parser *parser, const char *at, size_t length)
 	return httppacket_on_body(decoder->packet,at,length);			
 }
 
+
+enum{
+	HTTP_COMPLETE = 1,
+	HTTP_TOOLARGE = 2,
+};
+
 static int 
 on_message_complete(http_parser *parser)
 {	
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->complete = 1;
+	decoder->status   = HTTP_COMPLETE;
 	decoder->pos      = 0;
 	decoder->size     = 0;
 	return 0;							
@@ -224,18 +230,12 @@ http_decoder_update(decoder *_,bytebuffer *buff,
 {
 	httpdecoder *d = cast(httpdecoder*,_);
 	buffer_reader reader;
-	uint32_t space = d->cap - d->pos;
-	uint32_t newcap;
 	char    *tmp;
-	buffer_reader_init(&reader,buff,pos);
-	if(space < size){
-		newcap = d->cap*2;
-		tmp = realloc(d->databuffer,newcap);	
-		if(!(tmp = realloc(d->databuffer,newcap))) return;
-		if(tmp != d->databuffer) d->databuffer = tmp;
-		d->cap = newcap;
+	if(d->max_packet_size - d->pos < size){
+		d->status = HTTP_TOOLARGE;
+		return;
 	}
-
+	buffer_reader_init(&reader,buff,pos);
 	buffer_read(&reader,&d->databuffer[d->pos],size);
 	d->size       += size;
 	d->pos        += pos;
@@ -245,14 +245,19 @@ static packet*
 http_unpack(decoder *_,int32_t *err){
 	httpdecoder *d = cast(httpdecoder*,_);
 	packet *ret    = NULL;
-	size_t  size   = d->size - d->pos;
-	size_t nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->databuffer[d->pos]),size);		
-	if(nparsed != size){
-		if(err) *err = EPKTOOLARGE;										
-	}else if(d->complete){
-		d->complete = 0;
-		ret         = cast(packet*,d->packet);
-		d->packet   = NULL;
+	size_t  nparsed,size;
+	if(d->status == HTTP_TOOLARGE)
+		if(err) *err = EHTTPPARSE;
+	else{
+		size   = d->size - d->pos;
+		nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->databuffer[d->pos]),size);		
+		if(nparsed != size){
+			if(err) *err = EHTTPPARSE;										
+		}else if(d->complete){
+			d->complete = 0;
+			ret         = cast(packet*,d->packet);
+			d->packet   = NULL;
+		}
 	}
 	return ret;
 }
@@ -265,12 +270,11 @@ http_decoder_dctor(decoder *_)
 }	
 
 decoder*
-http_decoder_new(uint32_t max_body_size)
+http_decoder_new(uint32_t max_packet_size)
 {
 	httpdecoder *d     = calloc(1,sizeof(*d));
-	d->max_packet_size = max_body_size;
-	d->databuffer      = malloc(max_body_size);
-	d->cap             = max_body_size;
+	d->max_packet_size = max_packet_size;
+	d->databuffer      = malloc(max_packet_size);
 	d->unpack 		   = http_unpack;
 	d->dctor           = http_decoder_dctor;
 	d->decoder_init    = http_decoder_init;
