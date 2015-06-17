@@ -163,32 +163,28 @@ static int
 on_url(http_parser *parser, const char *at, size_t length)
 {	
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	httppacket_onurl(decoder->packet,at,length);
-	return 0;
+	return httppacket_onurl(decoder->packet,at,length);
 }
 
 static int 
 on_status(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	httppacket_onstatus(decoder->packet,at,length);	
-	return 0;			
+	return httppacket_onstatus(decoder->packet,at,length);			
 }
 
 static int 
 on_header_field(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	httppacket_on_header_field(decoder->packet,at,length);	
-	return 0;			
+	return httppacket_on_header_field(decoder->packet,at,length);				
 }
 
 static int 
 on_header_value(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	httppacket_on_header_value(decoder->packet,at,length);
-	return 0;			
+	return httppacket_on_header_value(decoder->packet,at,length);			
 }
 
 static int 
@@ -201,10 +197,7 @@ static int
 on_body(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	if(length > decoder->max_packet_size)
-		return -1;
-	httppacket_on_body(decoder->packet,at,length);	
-	return 0;			
+	return httppacket_on_body(decoder->packet,at,length);			
 }
 
 static int 
@@ -251,8 +244,8 @@ http_decoder_update(decoder *_,bytebuffer *buff,
 static packet*
 http_unpack(decoder *_,int32_t *err){
 	httpdecoder *d = cast(httpdecoder*,_);
-	packet *ret = NULL;
-	size_t  size = d->size - d->pos;
+	packet *ret    = NULL;
+	size_t  size   = d->size - d->pos;
 	size_t nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->databuffer[d->pos]),size);		
 	if(nparsed != size){
 		if(err) *err = EPKTOOLARGE;										
