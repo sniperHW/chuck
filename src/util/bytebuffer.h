@@ -100,6 +100,7 @@ reader_check_size(buffer_reader *reader,
 	return reader->cur->size >= tmp && tmp > size;
 }
 
+
 static inline uint32_t 
 buffer_read(buffer_reader *reader,
 			void *_,uint32_t size)

@@ -101,7 +101,7 @@ update_next_recv_pos(datagram *d,int32_t _bytestransfer)
 	assert(_bytestransfer >= 0);
 	uint32_t bytes = (uint32_t)_bytestransfer;
 	uint32_t size;
-	decoder_update(d->decoder_,d->next_recv_buf,d->next_recv_pos,bytes);
+	d->decoder_->decoder_update(d->decoder_,d->next_recv_buf,d->next_recv_pos,bytes);
 	do{
 		size = d->next_recv_buf->cap - d->next_recv_pos;
 		size = size > bytes ? bytes:size;
@@ -178,40 +178,6 @@ datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
 	dgarm->imp_engine_add = imp_engine_add;
 	dgarm->dctor = datagram_dctor;
 	dgarm->decoder_ = d ? d:dgram_raw_decoder_new();
-	decoder_init(dgarm->decoder_,dgarm->next_recv_buf,0);
+	dgarm->decoder_->decoder_init(dgarm->decoder_,dgarm->next_recv_buf,0);
 	return dgarm;
-}
-
-static packet*
-rawpk_unpack(decoder *d,int32_t *err)
-{
-	rawpacket    *raw;
-	uint32_t      size;
-	buffer_writer writer;
-	bytebuffer   *buff;
-	if(err) *err = 0;
-	if(!d->size) return NULL;
-	raw = rawpacket_new(d->size);
-	buffer_writer_init(&writer,((packet*)raw)->head,0);
-	((packet*)raw)->len_packet = d->size;
-	while(d->size){
-		buff = d->buff;
-		size = buff->size - d->pos;
-		buffer_write(&writer,buff->data + d->pos,size);
-		d->size -= size;
-		d->pos += size;
-		if(d->pos >= buff->cap){
-			d->pos = 0;
-			bytebuffer_set(&d->buff,buff->next);
-		}
-	}
-	return (packet*)raw;
-}
-
-decoder*
-dgram_raw_decoder_new()
-{
-	decoder *d = calloc(1,sizeof(*d));
-	d->unpack = rawpk_unpack;
-	return d;	
 }

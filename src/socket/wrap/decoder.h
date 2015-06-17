@@ -20,48 +20,57 @@
 
 #include "comm.h"
 #include "packet/packet.h"
+#include "packet/httppacket.h"    
 #include "util/bytebuffer.h"
 #include "lua/lua_util.h"
+#include "http-parser/http_parser.h"
 
 /*enum {
     DERR_TOOLARGE  = -1,
     DERR_UNKNOW    = -2,
 };*/
 
+typedef struct decoder decoder;    
+
+#define decoder_head                                                \
+    packet     *(*unpack)(struct decoder*,int32_t *err);            \
+    void        (*dctor)(struct decoder*);                          \
+    bytebuffer *buff;                                               \
+    uint32_t    pos;                                                \
+    uint32_t    size;                                               \
+    uint32_t    max_packet_size;                                    \
+    void (*decoder_init)(decoder*,bytebuffer*,uint32_t);            \
+    void (*decoder_update)(decoder*,bytebuffer*,uint32_t,uint32_t)
 //解包器接口
 typedef struct decoder{
-    packet     *(*unpack)(struct decoder*,int32_t *err);
-    void        (*dctor)(struct decoder*);
-    bytebuffer *buff;
-    uint32_t    pos;
-    uint32_t    size;//data size in byte waiting unpack     
-    uint32_t    max_packet_size;
+    decoder_head;
 }decoder;
+
+typedef struct httpdecoder{
+    decoder_head;
+    http_parser          parser;
+    http_parser_settings settings;
+    httppacket          *packet;
+    char                *databuffer;
+    uint32_t             cap;
+    int                  complete;   
+}httpdecoder;
 
 
 decoder*
 rpacket_decoder_new(uint32_t max_packet_size);
 
+decoder*
+conn_raw_decoder_new();
+
+decoder*
+dgram_raw_decoder_new();
+
+decoder*
+http_decoder_new(uint32_t max_body_size);
+
 void 
 decoder_del(decoder*);
-
-static inline void 
-decoder_init(decoder *d,bytebuffer *buff,uint32_t pos)
-{
-    d->buff = buff;
-    refobj_inc((refobj*)buff);
-    d->pos  = pos;
-    d->size = 0;
-}
-
-static inline void 
-decoder_update(decoder *d,bytebuffer *buff,
-               uint32_t pos,uint32_t size)
-{
-    if(!d->buff)
-        decoder_init(d,buff,pos);
-    d->size += size;
-}
 
 #ifdef _CHUCKLUA
 

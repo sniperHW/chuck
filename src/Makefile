@@ -1,7 +1,7 @@
 CFLAGS = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lrt -lm 
 DEPDIR  = 
-INCLUDE = -I./ 
+INCLUDE = -I./ -I../deps
 DEFINE  =
 LIBNAME = libchuck.a
 # if you want to use luajit,change it to jit
@@ -20,7 +20,7 @@ ifeq ($(uname_S),FreeBSD)
 endif
 
 ifeq ($(LUA),jit)
-	INCLUDE += -I../myluajit
+	INCLUDE += -I../deps/myluajit
 	DEFINE  += -D_MYLUAJIT
 endif
 

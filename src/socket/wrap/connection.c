@@ -126,7 +126,7 @@ update_next_recv_pos(connection *c,
 	assert(_bytestransfer > 0);
 	uint32_t bytes = (uint32_t)_bytestransfer;
 	uint32_t size;
-	decoder_update(c->decoder_,c->next_recv_buf,c->next_recv_pos,bytes);
+	c->decoder_->decoder_update(c->decoder_,c->next_recv_buf,c->next_recv_pos,bytes);
 	do{
 		size = c->next_recv_buf->cap - c->next_recv_pos;
 		size = size > bytes ? bytes:size;
@@ -426,7 +426,7 @@ connection_init(connection *c,int32_t fd,
 		base_engine_add = c->imp_engine_add; 
 	c->imp_engine_add = imp_engine_add;
 	c->decoder_ = d ? d:conn_raw_decoder_new();
-	decoder_init(c->decoder_,c->next_recv_buf,0);
+	c->decoder_->decoder_init(c->decoder_,c->next_recv_buf,0);
 }
 
 
@@ -437,36 +437,6 @@ connection_close(connection *c)
 		return -ESOCKCLOSE;
 	close_socket((socket_*)c);
 	return 0;
-}
-
-static packet*
-rawpk_unpack(decoder *d,int32_t *err)
-{
-	rawpacket  *raw;
-	uint32_t    size;
-	if(err) *err = 0;
-	if(!d->size) return NULL;
-
-	assert(d->buff->size > d->pos);
-	raw = rawpacket_new_by_buffer(d->buff,d->pos);
-	size = d->buff->size - d->pos;
-	assert(d->size >= size);
-	d->pos  += size;
-	d->size -= size;
-	((packet*)raw)->len_packet = size;
-	if(d->pos >= d->buff->cap){
-		d->pos = 0;
-		bytebuffer_set(&d->buff,d->buff->next);
-	}
-	return (packet*)raw;
-}
-
-decoder*
-conn_raw_decoder_new()
-{
-	decoder *d = calloc(1,sizeof(*d));
-	d->unpack = rawpk_unpack;
-	return d;	
 }
 
 
