@@ -65,7 +65,7 @@ decoder*
 dgram_raw_decoder_new();
 
 decoder*
-http_decoder_new(uint32_t max_body_size);
+http_decoder_new(uint32_t max_packet_size);
 
 void 
 decoder_del(decoder*);

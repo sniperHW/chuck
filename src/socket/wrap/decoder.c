@@ -155,7 +155,8 @@ static int
 on_message_begin (http_parser *parser)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->packet      = httppacket_new(decoder->buff);
+	if(decoder->packet)      return -1;
+	decoder->packet           = httppacket_new(decoder->buff);
 	return 0;
 }
 
@@ -164,7 +165,7 @@ on_url(http_parser *parser, const char *at, size_t length)
 {	
 	httpdecoder *decoder = cast2httpdecoder(parser);
 	decoder->buff->data[length] = 0;
-	return httppacket_onurl(decoder->packet,at,length);
+	return httppacket_onurl(decoder->packet,cast(char*,at),length);
 }
 
 static int 
@@ -172,7 +173,7 @@ on_status(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
 	decoder->buff->data[length] = 0;
-	return httppacket_onstatus(decoder->packet,at,length);			
+	return httppacket_onstatus(decoder->packet,cast(char*,at),length);			
 }
 
 static int 
@@ -180,7 +181,7 @@ on_header_field(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
 	decoder->buff->data[length] = 0;
-	return httppacket_on_header_field(decoder->packet,at,length);				
+	return httppacket_on_header_field(decoder->packet,cast(char*,at),length);				
 }
 
 static int 
@@ -188,12 +189,14 @@ on_header_value(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
 	decoder->buff->data[length] = 0;
-	return httppacket_on_header_value(decoder->packet,at,length);			
+	return httppacket_on_header_value(decoder->packet,cast(char*,at),length);			
 }
 
 static int 
 on_headers_complete(http_parser *parser)
 {	
+	httpdecoder *decoder = cast2httpdecoder(parser);
+	httppacket_set_method(decoder->packet,parser->method);
 	return 0;		
 }
 
@@ -202,7 +205,7 @@ on_body(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
 	decoder->buff->data[length] = 0;
-	return httppacket_on_body(decoder->packet,at,length);			
+	return httppacket_on_body(decoder->packet,cast(char*,at),length);			
 }
 
 
@@ -251,15 +254,16 @@ http_unpack(decoder *_,int32_t *err){
 	httpdecoder *d = cast(httpdecoder*,_);
 	packet *ret    = NULL;
 	size_t  nparsed,size;
-	if(d->status == HTTP_TOOLARGE)
+	if(d->status == HTTP_TOOLARGE){
 		if(err) *err = EHTTPPARSE;
+	}
 	else{
 		size   = d->size - d->pos;
 		nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->buff->data[d->pos]),size);		
 		if(nparsed != size){
 			if(err) *err = EHTTPPARSE;										
-		}else if(d->complete){
-			d->complete = 0;
+		}else if(d->status == HTTP_COMPLETE){
+			d->status = 0;
 			ret         = cast(packet*,d->packet);
 			d->packet   = NULL;
 		}
@@ -323,6 +327,15 @@ lua_rpacket_decoder_new(lua_State *L)
 	return 1;
 }
 
+int32_t 
+lua_http_decoder_new(lua_State *L)
+{
+	if(LUA_TNUMBER != lua_type(L,1))
+		return luaL_error(L,"arg1 should be number");
+	lua_pushlightuserdata(L,http_decoder_new(lua_tonumber(L,1)));
+	return 1;
+}
+
 #define SET_FUNCTION(L,NAME,FUNC) do{\
 	lua_pushstring(L,NAME);\
 	lua_pushcfunction(L,FUNC);\
@@ -336,6 +349,7 @@ reg_luadecoder(lua_State *L)
 	SET_FUNCTION(L,"rpacket",lua_rpacket_decoder_new);
 	SET_FUNCTION(L,"conn_rawpacket",lua_conn_rawpacket_decoder_new);
 	SET_FUNCTION(L,"dgram_rawpacket",lua_dgram_rawpacket_decoder_new);
+	SET_FUNCTION(L,"http",lua_http_decoder_new);
 }
 
 #endif

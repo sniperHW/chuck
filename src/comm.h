@@ -329,6 +329,7 @@ enum{
     ERVTIMEOUT,                 /*recv timeout*/
     ESNTIMEOUT,                 /*send timeout*/
     EENGCLOSE,                  /*engile close*/
+    EHTTPPARSE,                 /*http parse error*/
 };
     
 #endif

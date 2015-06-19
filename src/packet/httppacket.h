@@ -6,29 +6,45 @@
 #include "mem/allocator.h"
 #include "util/endian.h"
 
+typedef struct st_header{
+	listnode node;
+	char *field;
+	char *value;
+}st_header;
 
 typedef struct
 {
     packet          base;
+    int32_t          method;
+    char            *url;
+    char            *status;
+    char            *body;
+    size_t            bodysize;
+    list                 headers;
 }httppacket;
 
-
 httppacket*
-httppacket_new();
+httppacket_new(bytebuffer *b);
 
-int
-httppacket_onurl(httppacket*,const char *at, size_t length);
+int32_t
+httppacket_onurl(httppacket *p,char *at, size_t length);
 
-int
-httppacket_onstatus(httppacket*,const char *at, size_t length);
+int32_t
+httppacket_onstatus(httppacket *p,char *at, size_t length);
 
-int
-httppacket_on_header_field(httppacket*,const char *at, size_t length);	
+int32_t
+httppacket_on_header_field(httppacket *p,char *at, size_t length);
 
-int
-httppacket_on_header_value(httppacket*,const char *at, size_t length);
+int32_t
+httppacket_on_header_value(httppacket *p,char *at, size_t length);
 
-int
-httppacket_on_body(httppacket*,const char *at, size_t length);	
+int32_t
+httppacket_on_body(httppacket *p,char *at, size_t length);
+
+void 
+httppacket_set_method(httppacket *p,int32_t method);
+
+const char*
+httppacket_get_value(httppacket *p,const char *field);
 
 #endif
