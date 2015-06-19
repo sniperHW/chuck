@@ -155,7 +155,7 @@ static int
 on_message_begin (http_parser *parser)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->packet      = httppacket_new();
+	decoder->packet      = httppacket_new(decoder->buff);
 	return 0;
 }
 
@@ -163,6 +163,7 @@ static int
 on_url(http_parser *parser, const char *at, size_t length)
 {	
 	httpdecoder *decoder = cast2httpdecoder(parser);
+	decoder->buff->data[length] = 0;
 	return httppacket_onurl(decoder->packet,at,length);
 }
 
@@ -170,6 +171,7 @@ static int
 on_status(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
+	decoder->buff->data[length] = 0;
 	return httppacket_onstatus(decoder->packet,at,length);			
 }
 
@@ -177,6 +179,7 @@ static int
 on_header_field(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
+	decoder->buff->data[length] = 0;
 	return httppacket_on_header_field(decoder->packet,at,length);				
 }
 
@@ -184,6 +187,7 @@ static int
 on_header_value(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
+	decoder->buff->data[length] = 0;
 	return httppacket_on_header_value(decoder->packet,at,length);			
 }
 
@@ -197,6 +201,7 @@ static int
 on_body(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
+	decoder->buff->data[length] = 0;
 	return httppacket_on_body(decoder->packet,at,length);			
 }
 
@@ -210,9 +215,10 @@ static int
 on_message_complete(http_parser *parser)
 {	
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->status   = HTTP_COMPLETE;
-	decoder->pos      = 0;
-	decoder->size     = 0;
+	decoder->status      = HTTP_COMPLETE;
+	decoder->pos         = 0;
+	decoder->size        = 0;
+	bytebuffer_set(&decoder->buff,bytebuffer_new(decoder->max_packet_size));
 	return 0;							
 }
 
@@ -230,13 +236,12 @@ http_decoder_update(decoder *_,bytebuffer *buff,
 {
 	httpdecoder *d = cast(httpdecoder*,_);
 	buffer_reader reader;
-	char    *tmp;
 	if(d->max_packet_size - d->pos < size){
 		d->status = HTTP_TOOLARGE;
 		return;
 	}
 	buffer_reader_init(&reader,buff,pos);
-	buffer_read(&reader,&d->databuffer[d->pos],size);
+	buffer_read(&reader,&d->buff->data[d->pos],size);
 	d->size       += size;
 	d->pos        += pos;
 }
@@ -250,7 +255,7 @@ http_unpack(decoder *_,int32_t *err){
 		if(err) *err = EHTTPPARSE;
 	else{
 		size   = d->size - d->pos;
-		nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->databuffer[d->pos]),size);		
+		nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->buff->data[d->pos]),size);		
 		if(nparsed != size){
 			if(err) *err = EHTTPPARSE;										
 		}else if(d->complete){
@@ -262,21 +267,14 @@ http_unpack(decoder *_,int32_t *err){
 	return ret;
 }
 
-void
-http_decoder_dctor(decoder *_)
-{
-	httpdecoder *d = cast(httpdecoder*,_);
-	free(d->databuffer);
-}	
 
 decoder*
 http_decoder_new(uint32_t max_packet_size)
 {
 	httpdecoder *d     = calloc(1,sizeof(*d));
 	d->max_packet_size = max_packet_size;
-	d->databuffer      = malloc(max_packet_size);
+	d->buff      	   = bytebuffer_new(max_packet_size);
 	d->unpack 		   = http_unpack;
-	d->dctor           = http_decoder_dctor;
 	d->decoder_init    = http_decoder_init;
 	d->decoder_update  = http_decoder_update;	
 	d->settings.on_message_begin = on_message_begin;

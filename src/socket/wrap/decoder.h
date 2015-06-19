@@ -51,7 +51,6 @@ typedef struct httpdecoder{
     http_parser          parser;
     http_parser_settings settings;
     httppacket          *packet;
-    char                *databuffer;
     int                  status;   
 }httpdecoder;
 
