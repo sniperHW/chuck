@@ -445,9 +445,10 @@ lua_http_header_field(lua_State *L)
 		return luaL_error(L,"invaild operation");
 	if(!lua_isstring(L,2))
 		return luaL_error(L,"invaild operation");
-	hpk = cast(httppacket*,p->_packet);
-	cur  = list_begin(&hpk->headers);
-	end  = list_end(&hpk->headers);
+	field = lua_tostring(L,2);
+	hpk   = cast(httppacket*,p->_packet);
+	cur   = list_begin(&hpk->headers);
+	end   = list_end(&hpk->headers);
 	lua_newtable(L);
 	for(; cur != end;cur = cur->next)
 	{

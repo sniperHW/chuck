@@ -126,7 +126,8 @@ update_next_recv_pos(connection *c,
 	assert(_bytestransfer > 0);
 	uint32_t bytes = (uint32_t)_bytestransfer;
 	uint32_t size;
-	c->decoder_->decoder_update(c->decoder_,c->next_recv_buf,c->next_recv_pos,bytes);
+	bytebuffer *buff = c->next_recv_buf;
+	uint32_t    pos  = c->next_recv_pos;
 	do{
 		size = c->next_recv_buf->cap - c->next_recv_pos;
 		size = size > bytes ? bytes:size;
@@ -139,6 +140,7 @@ update_next_recv_pos(connection *c,
 			c->next_recv_pos = 0;
 		}
 	}while(bytes);
+	c->decoder_->decoder_update(c->decoder_,buff,pos,(uint32_t)_bytestransfer);
 }
 
 static void 

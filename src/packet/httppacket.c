@@ -59,24 +59,11 @@ httppacket_clone(packet *_){
 	return cast(packet*,p);	
 }
 
-int32_t
-httppacket_onurl(httppacket *p,char *at, size_t length)
-{
-	p->url = at;
-	return 0;
-}
-
-int32_t
-httppacket_onstatus(httppacket *p,char *at, size_t length)
-{
-	p->status = at;
-	return 0;
-}
 
 int32_t
 httppacket_on_header_field(httppacket *p,char *at, size_t length)
 {
-	st_header  *h = malloc(sizeof(*h));
+	st_header  *h = calloc(1,sizeof(*h));
 	h->field      = at;
 	list_pushback(&p->headers,cast(listnode*,h));
 	return 0;
@@ -90,21 +77,7 @@ httppacket_on_header_value(httppacket *p,char *at, size_t length)
 	return 0;
 }
 
-int32_t
-httppacket_on_body(httppacket *p,char *at, size_t length)
-{
-	p->body     = at;
-	p->bodysize = length;
-	return 0;
-}
-
-void 
-httppacket_set_method(httppacket *p,int32_t method)
-{
-	p->method = method;
-}
-
-const char *httppacket_get_value(httppacket *p,const char *field)
+const char *httppacket_get_header(httppacket *p,const char *field)
 {
 	st_header *h;
 	listnode    *cur = list_begin(&p->headers);

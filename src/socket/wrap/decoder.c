@@ -155,57 +155,61 @@ static int
 on_message_begin (http_parser *parser)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	if(decoder->packet)      return -1;
-	decoder->packet           = httppacket_new(decoder->buff);
+	if(decoder->packet)  return -1;
+	decoder->packet      = httppacket_new(decoder->buff);
 	return 0;
 }
 
 static int 
 on_url(http_parser *parser, const char *at, size_t length)
 {	
-	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->buff->data[length] = 0;
-	return httppacket_onurl(decoder->packet,cast(char*,at),length);
+	httpdecoder *decoder   = cast2httpdecoder(parser);
+	cast(char*,at)[length] = 0;
+	decoder->packet->url   = cast(char*,at);
+	return 0;
 }
 
 static int 
 on_status(http_parser *parser, const char *at, size_t length)
 {
-	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->buff->data[length] = 0;
-	return httppacket_onstatus(decoder->packet,cast(char*,at),length);			
+	httpdecoder *decoder    = cast2httpdecoder(parser);
+	cast(char*,at)[length]  = 0;
+	decoder->packet->status = cast(char*,at);
+	return 0;			
 }
 
 static int 
 on_header_field(http_parser *parser, const char *at, size_t length)
 {
-	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->buff->data[length] = 0;
+	httpdecoder *decoder   = cast2httpdecoder(parser);
+	cast(char*,at)[length] = 0;
 	return httppacket_on_header_field(decoder->packet,cast(char*,at),length);				
 }
 
 static int 
 on_header_value(http_parser *parser, const char *at, size_t length)
 {
-	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->buff->data[length] = 0;
+	httpdecoder *decoder   = cast2httpdecoder(parser);
+	cast(char*,at)[length] = 0;
 	return httppacket_on_header_value(decoder->packet,cast(char*,at),length);			
 }
 
 static int 
 on_headers_complete(http_parser *parser)
 {	
-	httpdecoder *decoder = cast2httpdecoder(parser);
-	httppacket_set_method(decoder->packet,parser->method);
+	httpdecoder *decoder    = cast2httpdecoder(parser);
+	decoder->packet->method = parser->method;
 	return 0;		
 }
 
 static int 
 on_body(http_parser *parser, const char *at, size_t length)
 {
-	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->buff->data[length] = 0;
-	return httppacket_on_body(decoder->packet,cast(char*,at),length);			
+	httpdecoder *decoder      = cast2httpdecoder(parser);
+	cast(char*,at)[length]    = 0;
+	decoder->packet->body     = cast(char*,at);
+	decoder->packet->bodysize = length;
+	return 0;		
 }
 
 
@@ -246,6 +250,7 @@ http_decoder_update(decoder *_,bytebuffer *buff,
 	buffer_reader_init(&reader,buff,pos);
 	buffer_read(&reader,&d->buff->data[d->pos],size);
 	d->size       += size;
+	d->buff->size = d->size;
 	d->pos        += pos;
 }
 

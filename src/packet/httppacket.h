@@ -27,24 +27,12 @@ httppacket*
 httppacket_new(bytebuffer *b);
 
 int32_t
-httppacket_onurl(httppacket *p,char *at, size_t length);
-
-int32_t
-httppacket_onstatus(httppacket *p,char *at, size_t length);
-
-int32_t
 httppacket_on_header_field(httppacket *p,char *at, size_t length);
 
 int32_t
 httppacket_on_header_value(httppacket *p,char *at, size_t length);
 
-int32_t
-httppacket_on_body(httppacket *p,char *at, size_t length);
-
-void 
-httppacket_set_method(httppacket *p,int32_t method);
-
 const char*
-httppacket_get_value(httppacket *p,const char *field);
+httppacket_get_header(httppacket *p,const char *field);
 
 #endif
