@@ -151,6 +151,7 @@ RecvFinish(connection *c,int32_t bytes,
 	packet *pk;	
 	do{	
 		if(bytes == 0 || (bytes < 0 && err_code != EAGAIN)){
+			printf("error\n");
 			c->on_packet(c,NULL,err_code);
 			return;	
 		}else if(bytes > 0){

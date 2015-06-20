@@ -44,6 +44,10 @@ httppacket_clone(packet *_){
 		cast(packet*,p)->head  = _->head;
 		cast(packet*,p)->dctor = httppacket_dctor;
 		p->method              = o->method;
+		p->url                 = o->url;
+		p->status              = o->status;
+		p->body                = o->body;
+		p->bodysize            = o->bodysize;
 		refobj_inc(cast(refobj*,_->head));
 		cur  = list_begin(&o->headers);
 		end  = list_end(&o->headers);

@@ -166,6 +166,7 @@ on_url(http_parser *parser, const char *at, size_t length)
 	httpdecoder *decoder   = cast2httpdecoder(parser);
 	cast(char*,at)[length] = 0;
 	decoder->packet->url   = cast(char*,at);
+	printf("Url:%s\n",decoder->packet->url);
 	return 0;
 }
 
