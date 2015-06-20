@@ -23,6 +23,7 @@ httppacket_new(bytebuffer *b)
 {
 	httppacket *p = calloc(1,sizeof(*p));
 	cast(packet*,p)->type = HTTPPACKET;
+	p->method     = -1;
 	if(b){
 		cast(packet*,p)->head  = b;
 		cast(packet*,p)->dctor = httppacket_dctor;
@@ -34,6 +35,8 @@ httppacket_new(bytebuffer *b)
 
 static packet*
 httppacket_clone(packet *_){
+	st_header *h,*hh;
+	listnode  *cur,*end;
 	httppacket *o = cast(httppacket*,_);
 	httppacket *p = calloc(1,sizeof(*p));
 	cast(packet*,p)->type = HTTPPACKET;
@@ -42,9 +45,8 @@ httppacket_clone(packet *_){
 		cast(packet*,p)->dctor = httppacket_dctor;
 		p->method              = o->method;
 		refobj_inc(cast(refobj*,_->head));
-		st_header *h,*hh;
-		listnode    *cur  = list_begin(&o->headers);
-		listnode    *end  = list_end(&o->headers);
+		cur  = list_begin(&o->headers);
+		end  = list_end(&o->headers);
 		for(; cur != end;cur = cur->next){
 			h    = cast(st_header*,cur);
 			hh   = calloc(1,sizeof(*hh));

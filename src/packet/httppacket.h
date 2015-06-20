@@ -15,12 +15,12 @@ typedef struct st_header{
 typedef struct
 {
     packet          base;
-    int32_t          method;
-    char            *url;
-    char            *status;
-    char            *body;
-    size_t            bodysize;
-    list                 headers;
+    int32_t         method;
+    char           *url;
+    char           *status;
+    char           *body;
+    size_t          bodysize;
+    list            headers;
 }httppacket;
 
 httppacket*

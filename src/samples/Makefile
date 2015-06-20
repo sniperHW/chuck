@@ -1,7 +1,7 @@
 CFLAGS = -g -O2 -Wall -fno-strict-aliasing 
-LDFLAGS = -lpthread -lrt -llua -lm -ljemalloc
+LDFLAGS = -lpthread -lrt -llua -lm -ljemalloc ./../../deps/http-parser/libhttp_parser.a
 DEPDIR  = 
-INCLUDE = -I./../ 
+INCLUDE = -I./../ -I./../../deps
 DEFINE  =
 
 # Platform-specific overrides

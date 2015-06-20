@@ -26,7 +26,7 @@ enum{
 	WPACKET = 1,
 	RPACKET,
 	RAWPACKET,
-              HTTPPACKET,
+    HTTPPACKET,
 	PACKET_END,
 };
 
@@ -37,7 +37,7 @@ typedef struct packet
     struct packet*  (*construct_write)(struct packet*);
     struct packet*  (*construct_read)(struct packet*);
     struct packet*  (*clone)(struct packet*);
-    void                    (*dctor)(void*);
+    void            (*dctor)(void*);
     uint32_t    len_packet;                                  //total size of packet in bytes        
     uint32_t    spos:16;                                     //start pos in head 
     uint32_t    type:16;

@@ -1,13 +1,17 @@
+#ifdef _CHUCKLUA
+
 #include "packet/luapacket.h"
 #include "packet/rawpacket.h"
 #include "packet/wpacket.h"
 #include "packet/rpacket.h"
+#include "packet/httppacket.h"
 #include "lua/lua_util_packet.h"
 #include "comm.h"
 
-#define LUARPACKET_METATABLE   "luarpacket_metatable"
-#define LUAWPACKET_METATABLE   "luawpacket_metatable"
-#define LUARAWPACKET_METATABLE "luarawpacket_metatable"
+#define LUARPACKET_METATABLE    "luarpacket_metatable"
+#define LUAWPACKET_METATABLE    "luawpacket_metatable"
+#define LUARAWPACKET_METATABLE  "luarawpacket_metatable"
+#define LUAHTTPPACKET_METATABLE "luahttppacket_metatable"
 
 luapacket *
 lua_topacket(lua_State *L, int index)
@@ -24,6 +28,8 @@ lua_pushpacket(lua_State *L,packet *pk)
 		luaL_getmetatable(L, LUARPACKET_METATABLE);
 	else if(pk->type == WPACKET)
 		luaL_getmetatable(L, LUAWPACKET_METATABLE);
+	else if(pk->type == HTTPPACKET)
+		luaL_getmetatable(L, LUAHTTPPACKET_METATABLE);
 	else
 		luaL_getmetatable(L, LUARAWPACKET_METATABLE);
 	lua_setmetatable(L, -2);
@@ -369,13 +375,135 @@ lua_clone_packet(lua_State *L)
 		luaL_getmetatable(L, LUAWPACKET_METATABLE);
 	}else if(other->_packet->type == RAWPACKET){
 		p = cast(luapacket*,lua_newuserdata(L, sizeof(*p)));
-		luaL_getmetatable(L, LUARAWPACKET_METATABLE);		
+		luaL_getmetatable(L, LUARAWPACKET_METATABLE);
+	}else if(other->_packet->type == HTTPPACKET){
+		p = cast(luapacket*,lua_newuserdata(L, sizeof(*p)));
+		luaL_getmetatable(L, LUAHTTPPACKET_METATABLE);					
 	}else{
 		return luaL_error(L,"invaild packet type");
 	}
 	lua_setmetatable(L, -2);	
 	p->_packet = clone_packet(other->_packet);
 	return 1;	
+}
+
+#include "http-parser/http_parser.h"
+
+const char *http_method_name[] = 
+  {
+#define XX(num, name, string) #string,
+  HTTP_METHOD_MAP(XX)
+#undef XX
+  };
+
+static int32_t
+lua_http_method(lua_State *L)
+{
+	httppacket *hpk;
+	luapacket *p = lua_topacket(L,1);
+	if(!p->_packet || p->_packet->type != HTTPPACKET)
+		return luaL_error(L,"invaild operation");
+	hpk = cast(httppacket*,p->_packet);
+	if(hpk->method < 0)
+		return 0;
+	else
+		lua_pushstring(L,http_method_name[hpk->method]);
+	return 1;	
+}
+
+static int32_t
+lua_http_headers(lua_State *L)
+{
+	httppacket *hpk;
+	st_header  *head;
+	listnode   *cur,*end;
+	luapacket *p = lua_topacket(L,1);
+	if(!p->_packet || p->_packet->type != HTTPPACKET)
+		return luaL_error(L,"invaild operation");
+	hpk = cast(httppacket*,p->_packet);
+	cur  = list_begin(&hpk->headers);
+	end  = list_end(&hpk->headers);
+	lua_newtable(L);
+	for(; cur != end;cur = cur->next){
+		head    = cast(st_header*,cur);
+		lua_pushstring(L,head->field);
+		lua_pushstring(L,head->value);
+		lua_settable(L,-3);
+	}	
+	return 1;
+}
+
+static int32_t 
+lua_http_header_field(lua_State *L)
+{
+	httppacket *hpk;
+	st_header  *head;
+	listnode   *cur,*end;
+	const char *field;	
+	luapacket *p = lua_topacket(L,1);
+	if(!p->_packet || p->_packet->type != HTTPPACKET)
+		return luaL_error(L,"invaild operation");
+	if(!lua_isstring(L,2))
+		return luaL_error(L,"invaild operation");
+	hpk = cast(httppacket*,p->_packet);
+	cur  = list_begin(&hpk->headers);
+	end  = list_end(&hpk->headers);
+	lua_newtable(L);
+	for(; cur != end;cur = cur->next)
+	{
+		head    = cast(st_header*,cur);
+		if(strcmp(field,head->field) == 0)
+		{
+			lua_pushstring(L,head->value);
+			return 1;
+		}
+	}	
+	return 0;	
+}
+
+static int32_t
+lua_http_content(lua_State *L)
+{
+	httppacket *hpk;
+	luapacket *p = lua_topacket(L,1);
+	if(!p->_packet || p->_packet->type != HTTPPACKET)
+		return luaL_error(L,"invaild opration");
+	hpk = cast(httppacket*,p->_packet);
+	if(hpk->body)
+		lua_pushlstring(L,hpk->body,hpk->bodysize);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+static int32_t
+lua_http_url(lua_State *L)
+{
+	httppacket *hpk;
+	luapacket *p = lua_topacket(L,1);
+	if(!p->_packet || p->_packet->type != HTTPPACKET)
+		return luaL_error(L,"invaild opration");
+	hpk = cast(httppacket*,p->_packet);
+	if(hpk->url)
+		lua_pushstring(L,hpk->url);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+static int32_t
+lua_http_status(lua_State *L)
+{
+	httppacket *hpk;
+	luapacket *p = lua_topacket(L,1);
+	if(!p->_packet || p->_packet->type != HTTPPACKET)
+		return luaL_error(L,"invaild opration");
+	hpk = cast(httppacket*,p->_packet);
+	if(hpk->status)
+		lua_pushstring(L,hpk->status);
+	else
+		lua_pushnil(L);
+	return 1;
 }
 
 #define SET_FUNCTION(L,NAME,FUNC) do{\
@@ -400,7 +528,12 @@ reg_luapacket(lua_State *L)
     luaL_Reg rawpacket_mt[] = {
         {"__gc", luapacket_gc},
         {NULL, NULL}
-    };        
+    };
+
+    luaL_Reg httppacket_mt[] = {
+        {"__gc", luapacket_gc},
+        {NULL, NULL}
+    };             
 
     luaL_Reg rpacket_methods[] = {
         {"ReadU8",  _read_uint8},
@@ -429,7 +562,17 @@ reg_luapacket(lua_State *L)
     luaL_Reg rawpacket_methods[] = {                 
 		{"ReadBin", _read_rawbin},
         {NULL, NULL}
-    };             
+    };
+
+    luaL_Reg httppacket_methods[] = {                 
+		{"Method", lua_http_method},
+		{"Status", lua_http_status},
+		{"Content",lua_http_content},
+		{"Url",    lua_http_url},
+		{"Headers",lua_http_headers},
+		{"Header", lua_http_header_field},
+        {NULL, NULL}
+    };                  
 
     luaL_newmetatable(L, LUARPACKET_METATABLE);
     luaL_setfuncs(L, rpacket_mt, 0);
@@ -452,7 +595,12 @@ reg_luapacket(lua_State *L)
     lua_setfield(L, -2, "__index");
     lua_pop(L, 1);
 
+    luaL_newmetatable(L, LUAHTTPPACKET_METATABLE);
+    luaL_setfuncs(L, httppacket_mt, 0);
 
+    luaL_newlib(L, httppacket_methods);
+    lua_setfield(L, -2, "__index");
+    lua_pop(L, 1);    
 
    	lua_newtable(L);
 
@@ -463,3 +611,5 @@ reg_luapacket(lua_State *L)
 
 
 }
+
+#endif
