@@ -17,9 +17,16 @@ Router.RegHandler("/",function (req,res,param)
   	res:End("hello world!")
 end)
 
-local server = Http.HttpServer(engine,"127.0.0.1",8010,Router.Dispatch)
+local server = Http.HttpServer(engine,"127.0.0.1",8010,function (req,res)--Router.Dispatch)
+	res:WriteHead(200,"OK", {"Connection: Keep-Alive","Content-Type: text/plain"})
+  	res:End("hello world!")
+end)
 
 if server then
+	chuck.RegTimer(engine,1000,function() 
+		collectgarbage("collect")
+		print(collectgarbage("count")/1024) 
+	end)
 	signaler:Register(engine,sigint_handler)
 	engine:Run()
 end

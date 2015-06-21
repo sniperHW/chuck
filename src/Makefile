@@ -81,12 +81,12 @@ testcase:$(test-source)
 
 chuck.so-debug:$(source)
 	$(CC) -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG -D_CHUCKLUA
-	$(CC) $(CFLAGS) -shared -o chuck.so *.o -L../deps/http-parser -lhttp_parser -lpthread -lrt -lm
+	$(CC) $(CFLAGS) -shared -o chuck.so *.o -L../deps/http-parser -lhttp_parser -lpthread -ljemalloc -lrt -lm
 	rm *.o
 
 chuck.so-release:$(source)
 	$(CC) -O2 -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG -D_CHUCKLUA
-	$(CC) -O2 $(CFLAGS) -shared -o chuck.so *.o -L../deps/http-parser -lhttp_parser -lpthread -lrt -lm
+	$(CC) -O2 $(CFLAGS) -shared -o chuck.so *.o -L../deps/http-parser -lhttp_parser -lpthread -ljemalloc -lrt -lm
 	rm *.o	
 
 clean:

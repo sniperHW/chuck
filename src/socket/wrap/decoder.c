@@ -3,20 +3,15 @@
 #include "packet/rawpacket.h"
 
 static inline void 
-_decoder_init(decoder *d,bytebuffer *buff,uint32_t pos)
-{
-    d->buff = buff;
-    refobj_inc((refobj*)buff);
-    d->pos  = pos;
-    d->size = 0;
-}
-
-static inline void 
 _decoder_update(decoder *d,bytebuffer *buff,
                uint32_t pos,uint32_t size)
 {
-    if(!d->buff)
-        _decoder_init(d,buff,pos);
+    if(!d->buff){
+	    d->buff = buff;
+	    refobj_inc((refobj*)buff);
+	    d->pos  = pos;
+	    d->size = 0;
+    }
     d->size += size;
 }
 
@@ -70,7 +65,6 @@ decoder*
 rpacket_decoder_new(uint32_t max_packet_size)
 {
 	decoder *d = calloc(1,sizeof(*d));
-	d->decoder_init = _decoder_init;
 	d->decoder_update = _decoder_update;
 	d->unpack = rpk_unpack;
 	d->max_packet_size = max_packet_size;
@@ -103,7 +97,6 @@ decoder*
 conn_raw_decoder_new()
 {
     decoder *d = calloc(1,sizeof(*d));
-	d->decoder_init = _decoder_init;
 	d->decoder_update = _decoder_update;    
     d->unpack = conn_rawpk_unpack;
     return d;   
@@ -140,7 +133,6 @@ dgram_raw_decoder_new()
 {
 	decoder *d = calloc(1,sizeof(*d));
 	d->unpack = dgram_rawpk_unpack;
-	d->decoder_init = _decoder_init;
 	d->decoder_update = _decoder_update; 	
 	return d;	
 }
@@ -228,18 +220,17 @@ on_message_complete(http_parser *parser)
 
 
 static inline void 
-http_decoder_init(decoder *d,bytebuffer *buff,uint32_t pos)
-{
-    d->pos  = 0;
-    d->size = 0;
-}
-
-static inline void 
 http_decoder_update(decoder *_,bytebuffer *buff,
                uint32_t pos,uint32_t size)
 {
 	httpdecoder *d = cast(httpdecoder*,_);
 	buffer_reader reader;
+
+	/*if(!d->buff){
+		d->buff = bytebuffer_new(d->max_packet_size);
+	    d->pos  = 0;
+    	d->size = 0;	
+	}*/
 	if(d->max_packet_size - d->pos < size){
 		d->status = HTTP_TOOLARGE;
 		return;
@@ -274,21 +265,26 @@ http_unpack(decoder *_,int32_t *err){
 			d->status   = 0;
 			ret         = cast(packet*,d->packet);
 			d->packet   = NULL;
-			bytebuffer_set(&d->buff,bytebuffer_new(d->max_packet_size));			
+			refobj_dec(cast(refobj*,d->buff));
+			d->buff     = bytebuffer_new(d->max_packet_size);		
 		}
 	}
 	return ret;
 }
 
+void http_decoderdctor(struct decoder *_) 
+{
+	httpdecoder *d = cast(httpdecoder*,_);
+	if(d->packet) packet_del(cast(packet*,d->packet));
+}
 
 decoder*
 http_decoder_new(uint32_t max_packet_size)
 {
 	httpdecoder *d     = calloc(1,sizeof(*d));
 	d->max_packet_size = max_packet_size;
-	d->buff      	   = bytebuffer_new(max_packet_size);
 	d->unpack 		   = http_unpack;
-	d->decoder_init    = http_decoder_init;
+	d->buff            = bytebuffer_new(d->max_packet_size);
 	d->decoder_update  = http_decoder_update;	
 	d->settings.on_message_begin = on_message_begin;
 	d->settings.on_url = on_url;
@@ -307,7 +303,7 @@ void
 decoder_del(decoder *d)
 {
 	if(d->dctor) d->dctor(d);
-	if(d->buff) bytebuffer_set(&d->buff,NULL);
+	if(d->buff)  refobj_dec(cast(refobj*,d->buff));
 	free(d);
 }
 

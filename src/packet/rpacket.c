@@ -28,7 +28,8 @@ rpacket_new(bytebuffer *b,uint32_t start_pos)
 		cast(packet*,r)->spos = start_pos;
 		refobj_inc(cast(refobj*,b));
 		buffer_reader_init(&r->reader,b,start_pos);
-		buffer_read(&r->reader,&r->data_remain,sizeof(r->data_remain));		
+		buffer_read(&r->reader,&r->data_remain,sizeof(r->data_remain));
+		r->data_remain = _ntoh16(r->data_remain);		
 		cast(packet*,r)->len_packet = r->data_remain + SIZE_HEAD;
 	}
 	INIT_CONSTROUCTOR(r);

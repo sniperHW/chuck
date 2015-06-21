@@ -10,6 +10,7 @@
 #include "util/signaler.h"
 #include "util/timewheel.h"
 
+
 #define SET_CONST(L,N) do{\
 		lua_pushstring(L, #N);\
 		lua_pushinteger(L, N);\
@@ -22,6 +23,7 @@
 	lua_settable(L, -3);\
 }while(0)
 
+int bytecount = 0;
 
 
 void 

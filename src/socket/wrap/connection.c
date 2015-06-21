@@ -429,7 +429,6 @@ connection_init(connection *c,int32_t fd,
 		base_engine_add = c->imp_engine_add; 
 	c->imp_engine_add = imp_engine_add;
 	c->decoder_ = d ? d:conn_raw_decoder_new();
-	c->decoder_->decoder_init(c->decoder_,c->next_recv_buf,0);
 }
 
 

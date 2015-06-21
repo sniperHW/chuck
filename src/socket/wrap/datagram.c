@@ -178,6 +178,5 @@ datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
 	dgarm->imp_engine_add = imp_engine_add;
 	dgarm->dctor = datagram_dctor;
 	dgarm->decoder_ = d ? d:dgram_raw_decoder_new();
-	dgarm->decoder_->decoder_init(dgarm->decoder_,dgarm->next_recv_buf,0);
 	return dgarm;
 }

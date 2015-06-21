@@ -26,6 +26,7 @@ function connect_callback(fd,errnum)
 		local conn = connection(fd,4096,decoder.rpacket(4096))
 		if conn then
 			conn:Add2Engine(engine,function (_,p,err)
+				print(p,err)
 				if(p) then
 					conn:Send(packet.wpacket(p))
 				else

@@ -39,7 +39,6 @@ typedef struct decoder decoder;
     uint32_t    pos;                                                \
     uint32_t    size;                                               \
     uint32_t    max_packet_size;                                    \
-    void (*decoder_init)(decoder*,bytebuffer*,uint32_t);            \
     void (*decoder_update)(decoder*,bytebuffer*,uint32_t,uint32_t)
 //解包器接口
 typedef struct decoder{
