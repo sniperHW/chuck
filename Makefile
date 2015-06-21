@@ -1,8 +1,8 @@
 libchuck:
 	cd src;make libchuck-release
 
-chuck.so:
-	cd src;make chuck.so-release
+chuck:
+	cd src;make chuck.so-release;cp chuck.so ../
 
-samples:
-	cd src/samples;make
+examples:
+	cd samples;make
