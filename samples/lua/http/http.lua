@@ -86,13 +86,12 @@ function http_server:CreateServer(engine,ip,port,on_request)
 	if 0 == socket_helper.listen(fd,ip,port) then
 		local acceptor = chuck.acceptor(fd)
 		acceptor:Add2Engine(engine,function (client)
-			print("new client")
 			local conn = connection(client,65535,decoder.http(65535))
 			conn:Add2Engine(engine,function (_,rpk,err)
 				if rpk then
 					local response = http_response:new()
 					response.connection = conn
-					if on_request(rpk,response) then
+					if not on_request(rpk,response) then
 						return 
 					end
 				end

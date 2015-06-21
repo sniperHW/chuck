@@ -13,13 +13,11 @@ end
 local signaler = signal.signaler(signal.SIGINT)
 
 Router.RegHandler("/",function (req,res,param)
-	res:WriteHead(200,"OK", {"Content-Type: text/plain"})
+	res:WriteHead(200,"OK", {"Connection: Keep-Alive","Content-Type: text/plain"})
   	res:End("hello world!")
 end)
 
-local server = Http.HttpServer(engine,"127.0.0.1",8010,function(req,res)
-	return Router.Dispatch(req,res)
-end)
+local server = Http.HttpServer(engine,"127.0.0.1",8010,Router.Dispatch)
 
 if server then
 	signaler:Register(engine,sigint_handler)

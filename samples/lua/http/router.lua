@@ -33,12 +33,12 @@ function router.Dispatch(req,res)
 	if url then
 		local handler = router.handler[url]
 		if handler then
-			return not handler(req,res,param)
+			return handler(req,res,param)
 		else
-			return false
+			return "error"
 		end
 	else
-		return false
+		return "error"
 	end
 end
 

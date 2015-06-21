@@ -151,7 +151,6 @@ RecvFinish(connection *c,int32_t bytes,
 	packet *pk;	
 	do{	
 		if(bytes == 0 || (bytes < 0 && err_code != EAGAIN)){
-			printf("error\n");
 			c->on_packet(c,NULL,err_code);
 			return;	
 		}else if(bytes > 0){
@@ -159,6 +158,7 @@ RecvFinish(connection *c,int32_t bytes,
 			update_next_recv_pos(c,bytes);
 			int32_t unpack_err;
 			do{
+				unpack_err = 0;
 				pk = c->decoder_->unpack(c->decoder_,&unpack_err);
 				if(pk){
 					c->on_packet(c,pk,0);
@@ -532,6 +532,7 @@ lua_on_packet(connection *c,packet *p,int32_t err)
 	st1.c = c;
 	st1.base.Push = PushConn;
 	stPushPk st2;
+
 	/*
 	* p will be delete after lua_on_packet
 	* so,we must clone p here
