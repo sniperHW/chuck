@@ -501,6 +501,18 @@ lua_http_url(lua_State *L)
 }
 
 static int32_t
+lua_http_keepalive(lua_State *L)
+{
+	httppacket *hpk;
+	luapacket *p = lua_topacket(L,1);
+	if(!p->_packet || p->_packet->type != HTTPPACKET)
+		return luaL_error(L,"invaild opration");
+	hpk = cast(httppacket*,p->_packet);
+	lua_pushboolean(L,hpk->keepalive);
+	return 1;	
+}
+
+static int32_t
 lua_http_status(lua_State *L)
 {
 	httppacket *hpk;
@@ -582,6 +594,7 @@ reg_luapacket(lua_State *L)
 		{"Url",    lua_http_url},
 		{"Headers",lua_http_headers},
 		{"Header", lua_http_header_field},
+		{"KeepAlive",lua_http_keepalive},
         {NULL, NULL}
     };                  
 

@@ -13,17 +13,19 @@ end
 local signaler = signal.signaler(signal.SIGINT)
 
 Router.RegHandler("/",function (req,res,param)
-	res:WriteHead(200,"OK", {"Connection: Keep-Alive","Content-Type: text/plain"})
+	res:WriteHead(200,"OK", {"Content-Type: text/plain"})
   	res:End("hello world!")
 end)
 
-local server = Http.HttpServer(engine,"127.0.0.1",8010,function (req,res)--Router.Dispatch)
-	--for k,v in pairs(req:Headers()) do
-	--	print(k,v)
-	--end
-	res:WriteHead(200,"OK", {"Connection: Keep-Alive","Content-Type: text/plain"})
+--ocal server = Http.HttpServer(engine,"127.0.0.1",8010,Router.Dispatch)
+
+
+--for wrk test
+local server = Http.HttpServer(engine,"127.0.0.1",8010,function (req,res)
+	res:WriteHead(200,"OK", {"Content-Type: text/plain"})
   	res:End("hello world!")
 end)
+
 
 if server then
 	chuck.RegTimer(engine,50,function() 

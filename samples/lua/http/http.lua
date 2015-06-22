@@ -1,6 +1,5 @@
 local chuck = require("chuck")
 local socket_helper = chuck.socket_helper
-local connection = chuck.connection
 local decoder = chuck.decoder
 local packet = chuck.packet
 
@@ -39,7 +38,14 @@ end
 
 function http_response:End(body)
 	self.body = body
-	self.connection:Send(packet.rawpacket(self:buildResponse()))
+	local response_packet = packet.rawpacket(self:buildResponse())
+	if self.KeepAlive then
+		self.connection:Send(response_packet)
+	else
+		self.connection:Send(response_packet,function ()
+			self.connection:Close()
+		end)
+	end
 end
 
 
@@ -86,12 +92,22 @@ function http_server:CreateServer(engine,ip,port,on_request)
 	if 0 == socket_helper.listen(fd,ip,port) then
 		local acceptor = chuck.acceptor(fd)
 		acceptor:Add2Engine(engine,function (client)
-			local conn = connection(client,4096,decoder.http(4096))
+			local conn = chuck.connection(client,4096,decoder.http(65535))
 			conn:Add2Engine(engine,function (_,rpk,err)
+				if not conn then
+					return
+				end
 				if rpk then
+					--for k,v in pairs(rpk:Headers()) do
+					--	print(k,v)
+					--end
 					local response = http_response:new()
 					response.connection = conn
+					response.KeepAlive  = rpk:KeepAlive()
 					if not on_request(rpk,response) then
+						if not response.KeepAlive then
+							conn = nil
+						end
 						return 
 					end
 				end
@@ -112,12 +128,13 @@ end
 
 local httpclient = {}
 
-function httpclient:new(host,port)
-  local o = {}
-  o.__index = httpclient      
+function httpclient:new(host,port,KeepAlive)
+  local o     = {}
+  o.__index   = httpclient      
   setmetatable(o,o)
-  o.host    = host
-  o.port    = port or 80
+  o.host      = host
+  o.port      = port or 80
+  o.KeepAlive = KeepAlive
   return o
 end
 
@@ -136,41 +153,72 @@ function httpclient:buildRequest(request)
 end
 
 
-function httpclient:request(method,request,on_result)
---[[
-	if C.Connect(self.host,self.port,function (s,success)
-			if success then
-				print("connect success") 
-				local connection = socket.New(s)
-				C.Bind(s,C.HttpDecoder(65535),function (_,rpk)
-					on_result(rpk)
-					if connection then
-						connection:Close()
-					end
-				end,
-				function (_)
-					connection = nil
-				end)
-				request.method = method
-				connection:Send(C.NewRawPacket(self:buildRequest(request)))
-			else
-				on_result(nil)
-				print("connect failed")
-			end
-		end) then
-		return true
-	else
-		return false
+function httpclient:request(engine,method,request,on_response)
+
+	local function SendRequest()
+		request.method = method
+		if self.KeepAlive then
+			request:WriteHead({"Connection: Keep-Alive"})
+		end
+		self.conn:Send(packet.rawpacket(self:buildRequest(request)))
 	end
-]]--	
+
+	if not self.conn then
+		local fd = socket_helper.socket(socket_helper.AF_INET,
+										socket_helper.SOCK_STREAM,
+										socket_helper.IPPROTO_TCP)
+
+		if not fd then
+			return false
+		end
+
+		local function connect_callback(fd,err)
+			if err ~= 0 then
+				on_response(nil)
+				socket_helper.close(fd)
+			else
+				self.conn = chuck.connection(fd,4096,decoder.http(65535))
+				if self.conn then
+					self.conn:Add2Engine(engine,function (_,res,err)
+						on_response(res)
+						if not self.KeepAlive then
+							self.conn:Close()
+							self.conn = nil
+						end
+					end)
+					SendRequest()
+				else
+					on_response(nil)
+					socket_helper.close(fd)
+				end					
+			end
+		end
+
+		socket_helper.noblock(fd,1)
+		local ret = socket_helper.connect(fd,self.host,self.port)
+		if ret == 0 then
+			connect_callback(fd,0)
+		elseif ret == -err.EINPROGRESS then
+			local connector = chuck.connector(fd,5000)
+			connector:Add2Engine(engine,function(fd,errnum)
+				connect_callback(fd,errnum)
+				connector = nil 
+			end)
+		else
+			return false
+		end
+	else
+		SendRequest()
+	end	
+	return true
 end
 
-function httpclient:Post(request,on_result)
-	return self:request("POST",request,on_result)
+function httpclient:Post(engine,request,on_response)
+	return self:request(engine,"POST",request,on_response)
 end
 
-function httpclient:Get(request,on_result)
-	return self:request("GET",request,on_result)
+function httpclient:Get(engine,request,on_response)
+	return self:request(engine,"GET",request,on_response)
 end
 
 local function HttpClient(host,port)

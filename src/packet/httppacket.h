@@ -16,6 +16,7 @@ typedef struct
 {
     packet          base;
     int32_t         method;
+    int32_t         keepalive;
     size_t          url;
     size_t          status;
     size_t          body;
