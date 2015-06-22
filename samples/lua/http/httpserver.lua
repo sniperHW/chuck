@@ -1,39 +1,27 @@
-local chuck = require("chuck")
+local chuck  = require("chuck")
 local Http   = require("samples.lua.http.http")
 local Router = require("samples.lua.http.router")
-local signal = chuck.signal
+local signaler = chuck.signal.signaler(chuck.signal.SIGINT)
 
-local engine = chuck.engine()
-
-local function sigint_handler()
+signaler:Register(Http.engine,function () 
 	print("recv sigint")
-	engine:Stop()
-end
-
-local signaler = signal.signaler(signal.SIGINT)
+	Http.Stop()
+end)
 
 Router.RegHandler("/",function (req,res,param)
 	res:WriteHead(200,"OK", {"Content-Type: text/plain"})
   	res:End("hello world!")
 end)
 
---ocal server = Http.HttpServer(engine,"127.0.0.1",8010,Router.Dispatch)
-
+--local server = Http.HttpServer(Router.Dispatch):Listen("127.0.0.1",8010)
 
 --for wrk test
-local server = Http.HttpServer(engine,"127.0.0.1",8010,function (req,res)
+local server = Http.HttpServer(function (req,res)
 	res:WriteHead(200,"OK", {"Content-Type: text/plain"})
   	res:End("hello world!")
-end)
+end):Listen("127.0.0.1",8010)
 
 
 if server then
-	chuck.RegTimer(engine,50,function() 
-		collectgarbage("collect")
-	end)	
-	chuck.RegTimer(engine,1000,function() 
-		print(collectgarbage("count")/1024,chuck.buffercount()) 
-	end)
-	signaler:Register(engine,sigint_handler)
-	engine:Run()
+	Http.Run()
 end

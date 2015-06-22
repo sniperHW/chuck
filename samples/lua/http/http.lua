@@ -1,7 +1,15 @@
-local chuck = require("chuck")
+local chuck  = require("chuck")
 local socket_helper = chuck.socket_helper
-local decoder = chuck.decoder
-local packet = chuck.packet
+local decoder  = chuck.decoder
+local packet   = chuck.packet
+local engine   = chuck.engine()
+
+chuck.RegTimer(engine,50,function() 
+	collectgarbage("collect")
+end)	
+chuck.RegTimer(engine,1000,function() 
+	print(collectgarbage("count")/1024,chuck.buffercount()) 
+end)
 
 local http_response = {}
 
@@ -74,14 +82,16 @@ end
 
 local http_server = {}
 
-function http_server:new()
-  local o = {}
-  o.__index = http_server      
+function http_server:new(on_request)
+  local o      = {}
+  o.__index    = http_server
+  o.on_request = on_request      
   setmetatable(o,o)
   return o
 end
 
-function http_server:CreateServer(engine,ip,port,on_request)
+
+function http_server:Listen(ip,port)
 	local fd =  socket_helper.socket(socket_helper.AF_INET,
 								 socket_helper.SOCK_STREAM,
 								 socket_helper.IPPROTO_TCP)
@@ -104,7 +114,7 @@ function http_server:CreateServer(engine,ip,port,on_request)
 					local response = http_response:new()
 					response.connection = conn
 					response.KeepAlive  = rpk:KeepAlive()
-					if not on_request(rpk,response) then
+					if not self.on_request(rpk,response) then
 						if not response.KeepAlive then
 							conn = nil
 						end
@@ -121,8 +131,8 @@ function http_server:CreateServer(engine,ip,port,on_request)
 	return nil	
 end
 
-local function HttpServer(engine,ip,port,on_request)
-	return http_server:new():CreateServer(engine,ip,port,on_request)
+local function HttpServer(on_request)
+	return http_server:new(on_request)
 end
 
 
@@ -153,7 +163,7 @@ function httpclient:buildRequest(request)
 end
 
 
-function httpclient:request(engine,method,request,on_response)
+function httpclient:request(method,request,on_response)
 
 	local function SendRequest()
 		request.method = method
@@ -213,12 +223,12 @@ function httpclient:request(engine,method,request,on_response)
 	return true
 end
 
-function httpclient:Post(engine,request,on_response)
-	return self:request(engine,"POST",request,on_response)
+function httpclient:Post(request,on_response)
+	return self:request("POST",request,on_response)
 end
 
-function httpclient:Get(engine,request,on_response)
-	return self:request(engine,"GET",request,on_response)
+function httpclient:Get(request,on_response)
+	return self:request("GET",request,on_response)
 end
 
 local function HttpClient(host,port)
@@ -227,11 +237,18 @@ end
 
 local function HttpRequest(path)
 	return http_request:new(path)
-end 
+end
 
 
 return {
 	HttpServer  = HttpServer,
 	HttpClient  = HttpClient,
 	HttpRequest = HttpRequest,
+	Run         = function ()
+		engine:Run()
+	end,
+	Stop        = function ()
+		engine:Stop()
+	end,
+	engine      = engine,   
 }
