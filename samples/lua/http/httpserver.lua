@@ -18,6 +18,9 @@ Router.RegHandler("/",function (req,res,param)
 end)
 
 local server = Http.HttpServer(engine,"127.0.0.1",8010,function (req,res)--Router.Dispatch)
+	--for k,v in pairs(req:Headers()) do
+	--	print(k,v)
+	--end
 	res:WriteHead(200,"OK", {"Connection: Keep-Alive","Content-Type: text/plain"})
   	res:End("hello world!")
 end)

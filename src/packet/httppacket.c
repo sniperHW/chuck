@@ -63,12 +63,18 @@ httppacket_clone(packet *_){
 	return cast(packet*,p);	
 }
 
+void
+httppacket_on_buffer_expand(httppacket *p,bytebuffer *b)
+{
+	bytebuffer_set(&cast(packet*,p)->head,b);
+}
+
 
 int32_t
 httppacket_on_header_field(httppacket *p,char *at, size_t length)
 {
 	st_header  *h = calloc(1,sizeof(*h));
-	h->field      = at;
+	h->field      = at - &cast(packet*,p)->head->data[0];
 	list_pushback(&p->headers,cast(listnode*,h));
 	return 0;
 }	
@@ -77,19 +83,20 @@ int32_t
 httppacket_on_header_value(httppacket *p,char *at, size_t length)
 {
 	st_header *h = cast(st_header*,p->headers.tail);
-	h->value     = at;
+	h->value     = at - &cast(packet*,p)->head->data[0];
 	return 0;
 }
 
 const char *httppacket_get_header(httppacket *p,const char *field)
 {
 	st_header *h;
-	listnode    *cur = list_begin(&p->headers);
-	listnode    *end = list_end(&p->headers);
+	listnode    *cur  = list_begin(&p->headers);
+	listnode    *end  = list_end(&p->headers);
+	char        *data = cast(packet*,p)->head->data;
 	for(; cur != end;cur = cur->next){
 		h = cast(st_header*,cur);
-		if(strcmp(field,h->field) == 0)
-			return h->value;
+		if(strcmp(field,&data[h->field]) == 0)
+			return &data[h->value];
 	}
 	return NULL;
 }
