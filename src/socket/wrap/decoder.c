@@ -226,17 +226,17 @@ http_decoder_update(decoder *_,bytebuffer *buff,
 	httpdecoder *d = cast(httpdecoder*,_);
 	buffer_reader reader;
 
-	/*if(!d->buff){
+	if(!d->buff){
 		d->buff = bytebuffer_new(d->max_packet_size);
 	    d->pos  = 0;
     	d->size = 0;	
-	}*/
+	}
 	if(d->max_packet_size - d->pos < size){
 		d->status = HTTP_TOOLARGE;
 		return;
 	}
 	buffer_reader_init(&reader,buff,pos);
-	buffer_read(&reader,&d->buff->data[d->pos],size);
+	buffer_read(&reader,&d->buff->data[d->size],size);
 	d->size       += size;
 	d->buff->size = d->size;
 }
@@ -259,14 +259,11 @@ http_unpack(decoder *_,int32_t *err){
 			if(err){ 
 				*err = EHTTPPARSE;
 			}										
-		}else if(d->status == HTTP_COMPLETE){
-			d->pos      = 0;
-			d->size     = 0;			
+		}else if(d->status == HTTP_COMPLETE){		
 			d->status   = 0;
 			ret         = cast(packet*,d->packet);
 			d->packet   = NULL;
-			refobj_dec(cast(refobj*,d->buff));
-			d->buff     = bytebuffer_new(d->max_packet_size);		
+			bytebuffer_set(&d->buff,NULL);		
 		}
 	}
 	return ret;

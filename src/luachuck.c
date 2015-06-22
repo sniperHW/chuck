@@ -183,12 +183,12 @@ lua_regerrcode(lua_State *L)
 	SET_CONST(L,EHTTPPARSE);
 }
 
-/*int32_t 
+int32_t 
 lua_get_bytebuffer_count(lua_State *L)
 {
-	lua_pushinteger(L,bytebuffer_count);
+	lua_pushinteger(L,bytecount);
 	return 1;
-}*/
+}
 
 int32_t 
 lua_systick(lua_State *L)
@@ -209,7 +209,7 @@ luaopen_chuck(lua_State *L)
 	reg_luaengine(L);
 	reg_luatimewheel(L);
 
-	//SET_FUNCTION(L,"get_bytebuffer_count",lua_get_bytebuffer_count);
+	SET_FUNCTION(L,"buffercount",lua_get_bytebuffer_count);
 	SET_FUNCTION(L,"systick",lua_systick);
 
 	lua_pushstring(L,"packet");

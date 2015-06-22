@@ -17,6 +17,7 @@ ifeq ($(uname_S),FreeBSD)
 endif
 
 source =  stream/connection/conn_echo_server.c\
+		  stream/connection/httpserver.c\
 		  stream/connection/conn_broad_server.c\
 		  stream/connection/conn_broad_client.c\
 		  stream/tcp_echoserver.c\
@@ -52,4 +53,5 @@ all:
 	$(CC) $(CFLAGS) -o bin/signal signal.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/testmailbox testmailbox.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/proxyserver proxyserver.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)	
+	$(CC) $(CFLAGS) -o bin/httpserver httpserver.o ../src/libchuck.a ../deps/http-parser/libhttp_parser.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	rm *.o		  

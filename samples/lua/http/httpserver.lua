@@ -23,9 +23,11 @@ local server = Http.HttpServer(engine,"127.0.0.1",8010,function (req,res)--Route
 end)
 
 if server then
-	chuck.RegTimer(engine,1000,function() 
+	chuck.RegTimer(engine,50,function() 
 		collectgarbage("collect")
-		print(collectgarbage("count")/1024) 
+	end)	
+	chuck.RegTimer(engine,1000,function() 
+		print(collectgarbage("count")/1024,chuck.buffercount()) 
 	end)
 	signaler:Register(engine,sigint_handler)
 	engine:Run()
