@@ -164,7 +164,7 @@ end
 
 
 function httpclient:request(method,request,on_response)
-
+--[[self.responses = self.responses or {}
 	local function SendRequest()
 		request.method = method
 		if self.KeepAlive then
@@ -220,7 +220,8 @@ function httpclient:request(method,request,on_response)
 	else
 		SendRequest()
 	end	
-	return true
+	return true]]--
+	return false
 end
 
 function httpclient:Post(request,on_response)
@@ -244,11 +245,7 @@ return {
 	HttpServer  = HttpServer,
 	HttpClient  = HttpClient,
 	HttpRequest = HttpRequest,
-	Run         = function ()
-		engine:Run()
-	end,
-	Stop        = function ()
-		engine:Stop()
-	end,
+	Run         = function () engine:Run()  end,
+	Stop        = function () engine:Stop() end,
 	engine      = engine,   
 }
