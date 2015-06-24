@@ -4,12 +4,13 @@ local decoder  = chuck.decoder
 local packet   = chuck.packet
 local engine   = chuck.engine()
 
-chuck.RegTimer(engine,50,function() 
+chuck.RegTimer(engine,1000,function() 
 	collectgarbage("collect")
-end)	
+end)
+--[[	
 chuck.RegTimer(engine,1000,function() 
 	print(collectgarbage("count")/1024,chuck.buffercount()) 
-end)
+end)]]--
 
 local http_response = {}
 
@@ -102,15 +103,12 @@ function http_server:Listen(ip,port)
 	if 0 == socket_helper.listen(fd,ip,port) then
 		local acceptor = chuck.acceptor(fd)
 		acceptor:Add2Engine(engine,function (client)
-			local conn = chuck.connection(client,4096,decoder.http(65535))
+			local conn = chuck.connection(client,4096,decoder.connection.http(65535))
 			conn:Add2Engine(engine,function (_,rpk,err)
 				if not conn then
 					return
 				end
 				if rpk then
-					--for k,v in pairs(rpk:Headers()) do
-					--	print(k,v)
-					--end
 					local response = http_response:new()
 					response.connection = conn
 					response.KeepAlive  = rpk:KeepAlive()

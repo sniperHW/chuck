@@ -364,10 +364,20 @@ void
 reg_luadecoder(lua_State *L)
 {
 	lua_newtable(L);
+
+	lua_newtable(L);
 	SET_FUNCTION(L,"rpacket",lua_rpacket_decoder_new);
-	SET_FUNCTION(L,"conn_rawpacket",lua_conn_rawpacket_decoder_new);
-	SET_FUNCTION(L,"dgram_rawpacket",lua_dgarm_rawpacket_decoder_new);
+	SET_FUNCTION(L,"rawpacket",lua_conn_rawpacket_decoder_new);
 	SET_FUNCTION(L,"http",lua_http_decoder_new);
+	lua_pushstring(L,"connection");
+	lua_settable(L,-3);
+
+	lua_newtable(L);
+	SET_FUNCTION(L,"rpacket",lua_rpacket_decoder_new);
+	SET_FUNCTION(L,"rawpacket",lua_dgarm_rawpacket_decoder_new);
+	lua_pushstring(L,"datagram");
+	lua_settable(L,-3);
+	
 }
 
 #endif

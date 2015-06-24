@@ -23,7 +23,7 @@ function connect_callback(fd,errnum)
 		socket_helper.close(fd)
 	else
 		print("connect success2")
-		local conn = connection(fd,4096,decoder.rpacket(4096))
+		local conn = connection(fd,4096,decoder.connection.rpacket(4096))
 		if conn then
 			conn:Add2Engine(engine,function (_,p,err)
 				print(p,err)

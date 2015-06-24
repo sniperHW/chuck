@@ -33,7 +33,7 @@ end
 
 function on_new_client(fd)
 	print("on_new_client")
-	local conn = connection(fd,65535,decoder.rpacket(65535))
+	local conn = connection(fd,65535,decoder.connection.rpacket(65535))
 	conn:Add2Engine(engine,on_packet)
 	table.insert(clients,conn)--hold the conn to prevent lua gc
 end
