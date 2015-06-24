@@ -1,0 +1,24 @@
+<!DOCTYPE html><!--STATUS OK-->
+<html>
+<head>
+</head>
+
+<?lua
+
+	local str = "current time:"
+	local date = os.date()
+	str = str .. date .. "<br>"
+	local h = tonumber(string.match(date, "(%d+):"))
+	if h > 0 and h < 12 then
+		str = str .. "good morning"
+	elseif h >= 12 and h < 18 then
+		str = str .. "good afternoon"
+	else
+		str = str .. "good night"
+	end
+	return str
+
+/?lua>
+
+</html>
+
