@@ -145,6 +145,7 @@ function httpclient:new(host,port,KeepAlive)
   o.host      = host
   o.port      = port or 80
   o.KeepAlive = KeepAlive
+  o.requests  = {}  
   return o
 end
 
@@ -164,64 +165,87 @@ end
 
 
 function httpclient:request(method,request,on_response)
---[[self.responses = self.responses or {}
-	local function SendRequest()
-		request.method = method
-		if self.KeepAlive then
-			request:WriteHead({"Connection: Keep-Alive"})
-		end
-		self.conn:Send(packet.rawpacket(self:buildRequest(request)))
-	end
+  request.method = method
+  table.insert(self.requests,{request,on_response})
 
-	if not self.conn then
-		local fd = socket_helper.socket(socket_helper.AF_INET,
-										socket_helper.SOCK_STREAM,
-										socket_helper.IPPROTO_TCP)
-
-		if not fd then
-			return false
-		end
-
-		local function connect_callback(fd,err)
-			if err ~= 0 then
-				on_response(nil)
-				socket_helper.close(fd)
-			else
-				self.conn = chuck.connection(fd,4096,decoder.http(65535))
-				if self.conn then
-					self.conn:Add2Engine(engine,function (_,res,err)
-						on_response(res)
-						if not self.KeepAlive then
-							self.conn:Close()
-							self.conn = nil
-						end
-					end)
-					SendRequest()
-				else
-					on_response(nil)
-					socket_helper.close(fd)
-				end					
+  local function SendRequest()
+  		if #self.requests > 0 then
+			local request = self.requests[1][1]
+			if self.KeepAlive then
+				request:WriteHead({"Connection: Keep-Alive"})
 			end
+			self.conn:Send(packet.rawpacket(self:buildRequest(request)))
 		end
+  end
 
-		socket_helper.noblock(fd,1)
-		local ret = socket_helper.connect(fd,self.host,self.port)
-		if ret == 0 then
-			connect_callback(fd,0)
-		elseif ret == -err.EINPROGRESS then
-			local connector = chuck.connector(fd,5000)
-			connector:Add2Engine(engine,function(fd,errnum)
-				connect_callback(fd,errnum)
-				connector = nil 
-			end)
+  local function OnResponse(res)
+  		if #self.requests > 0 then
+			local on_response = self.requests[1][2]
+			table.remove(self.requests,1)
+			on_response(res)
+		end  	
+  end
+
+  if #self.requests == 1 then
+	    if not self.conn then
+			local fd = socket_helper.socket(socket_helper.AF_INET,
+											socket_helper.SOCK_STREAM,
+											socket_helper.IPPROTO_TCP)
+
+			if not fd then
+				return false
+			end
+
+			local function connect_callback(fd,err)
+				if err ~= 0 then
+					for k,v in pairs(self.requests) do
+						v[2](nil)
+					end
+					self.requests  = {}
+					socket_helper.close(fd)
+				else
+					self.conn = chuck.connection(fd,4096,decoder.http(65535))
+					if self.conn then
+						self.conn:Add2Engine(engine,function (_,res,err)
+							OnResponse(res)
+							if not self.KeepAlive then
+								self.conn:Close()
+								self.conn = nil
+							end
+							--send another request if any
+							SendRequest()
+						end)
+						--connected,send the first request
+						SendRequest()
+					else
+						for k,v in pairs(self.requests) do
+							v[2](nil)
+						end
+						self.requests  = {}
+						socket_helper.close(fd)
+					end					
+				end
+			end
+
+			socket_helper.noblock(fd,1)
+			local ret = socket_helper.connect(fd,self.host,self.port)
+			if ret == 0 then
+				connect_callback(fd,0)
+			elseif ret == -err.EINPROGRESS then
+				local connector = chuck.connector(fd,5000)
+				connector:Add2Engine(engine,function(fd,errnum)
+					connect_callback(fd,errnum)
+					connector = nil 
+				end)
+			else
+				return false
+			end
 		else
-			return false
+			--no other pending request,send immediate
+			SendRequest()
 		end
-	else
-		SendRequest()
 	end	
-	return true]]--
-	return false
+	return true
 end
 
 function httpclient:Post(request,on_response)

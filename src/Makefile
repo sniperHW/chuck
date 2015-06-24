@@ -38,6 +38,7 @@ source =  util/exception.c\
 		  packet/rawpacket.c\
 		  packet/luapacket.c\
 		  packet/httppacket.c\
+		  packet/decoder.c\		  
 		  thread/thread.c\
 		  thread/spinlock.c\
 		  thread/thdmailbox.c\
@@ -47,7 +48,6 @@ source =  util/exception.c\
 		  socket/stream_socket.c\
 		  socket/datagram_socket.c\
 		  socket/socket_helper.c\
-		  socket/wrap/decoder.c\
 		  socket/wrap/connection.c\
 		  socket/wrap/datagram.c\
 		  engine/engine.c\

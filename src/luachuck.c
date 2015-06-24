@@ -4,7 +4,7 @@
 #include "socket/socket_helper.h"
 #include "socket/connector.h"
 #include "socket/acceptor.h"
-#include "socket/wrap/decoder.h"
+#include "packet/decoder.h"
 #include "util/time.h"
 #include "db/redis/client.h"
 #include "util/signaler.h"
