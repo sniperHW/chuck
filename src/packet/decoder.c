@@ -147,7 +147,10 @@ static int
 on_message_begin (http_parser *parser)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	if(decoder->packet){  return -1; printf("error here\n");}
+	if(decoder->packet){
+		//unsupport http pipe  
+		return -1;
+	}
 	decoder->packet      = httppacket_new(decoder->buff);
 	return 0;
 }
