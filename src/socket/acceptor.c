@@ -52,8 +52,18 @@ process_accept(handle *h,int32_t events)
 		if(fd >= 0)
 		   cast(acceptor*,h)->callback(cast(acceptor*,h),fd,&addr,cast(acceptor*,h)->ud,0);
 		else if(fd < 0 && fd != -EAGAIN)
-		   cast(acceptor*,h)->callback(cast(acceptor*,h),-1,NULL,cast(acceptor*,h)->ud,fd);
-	}while(fd >= 0);	      
+		   cast(acceptor*,h)->callback(cast(acceptor*,h),-1,NULL,cast(acceptor*,h)->ud,-fd);
+	}while(fd >= 0 && is_read_enable(h));	      
+}
+
+int32_t
+acceptor_enable(acceptor *a){
+	return enable_read(cast(handle*,a));
+}
+
+int32_t
+acceptor_disable(acceptor *a){
+	return disable_read(cast(handle*,a));
 }
 
 
@@ -73,7 +83,18 @@ lua_acceptor_gc(lua_State *L)
 {
 	acceptor *a = lua_toacceptor(L,1);
 	release_luaRef(&a->luacallback);
-	close(a->fd);
+	if(a->fd >= 0) close(a->fd);
+	return 0;
+}
+
+static int32_t
+lua_acceptor_close(lua_State *L)
+{
+	acceptor *a = lua_toacceptor(L,1);
+	if(a->fd >= 0){
+		close(a->fd);
+		a->fd = -1;
+	}
 	return 0;
 }
 
@@ -108,13 +129,38 @@ luacallback(acceptor *a,int32_t fd,sockaddr_ *addr,void *ud,int32_t err)
 static int32_t 
 lua_engine_add(lua_State *L)
 {
-	acceptor   *a = lua_toacceptor(L,1);
-	engine     *e = lua_toengine(L,2);
+	int32_t     ret = 0;
+	acceptor   *a   = lua_toacceptor(L,1);
+	engine     *e   = lua_toengine(L,2);
 	if(a && e){
-		if(0 == imp_engine_add(e,cast(handle*,a),cast(generic_callback,luacallback)))
+		if(0 == imp_engine_add(e,cast(handle*,a),cast(generic_callback,luacallback))){
 			a->luacallback = toluaRef(L,3);
+			ret = 1;
+		}
 	}
-	return 0;
+	lua_pushboolean(L,ret);
+	return 1;
+}
+
+
+static int32_t 
+lua_enable(lua_State *L)
+{
+	int32_t   	ret = 0;
+	acceptor   *a   = lua_toacceptor(L,1);
+	if(a) ret = acceptor_enable(a) == 0 ? 1:0;
+	lua_pushboolean(L,ret);
+	return 1;
+}
+
+static int32_t 
+lua_disable(lua_State *L)
+{
+	int32_t   	ret = 0;
+	acceptor   *a   = lua_toacceptor(L,1);
+	if(a) ret = acceptor_disable(a) == 0 ? 1:0;
+	lua_pushboolean(L,ret);
+	return 1;
 }
 
 #define SET_FUNCTION(L,NAME,FUNC) do{\
@@ -133,6 +179,9 @@ reg_luaacceptor(lua_State *L)
 
     luaL_Reg acceptor_methods[] = {
         {"Add2Engine",lua_engine_add},
+        {"Enable",lua_enable},
+        {"Disable",lua_disable},
+        {"Close",lua_acceptor_close},
         {NULL,     NULL}
     };
 

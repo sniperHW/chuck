@@ -30,7 +30,13 @@ typedef struct acceptor{
 #ifdef _CHUCKLUA    
     luaRef  luacallback;
 #endif
-}acceptor;    
+}acceptor;
+
+int32_t
+acceptor_enable(acceptor*);
+
+int32_t
+acceptor_disable(acceptor*);
 
 #ifdef _CHUCKLUA
 
