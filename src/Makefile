@@ -1,11 +1,12 @@
-CFLAGS = -g -Wall -fno-strict-aliasing 
+CFLAGS   = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lrt -lm 
-DEPDIR  = 
+DEPDIR   = 
 INCLUDE = -I./ -I../deps
-DEFINE  =
+DEFINE    =
 LIBNAME = libchuck.a
 # if you want to use luajit,change it to jit
-LUA     = lua53
+LUA          = lua53
+HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
 
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
@@ -61,6 +62,9 @@ test-source = test/testexception.c\
 			  test/testpacket.c\
 			  test/testdecoder.c
 
+$(HTTP_PARSER):
+	cd ../deps/http-parser/;make package			  
+
 libchuck-release:$(source)
 	$(CC) -fPIC -O2 $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
@@ -79,12 +83,12 @@ testcase:$(test-source)
 	$(CC) $(CFLAGS) -o testdecoder testdecoder.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	rm *.o
 
-chuck.so-debug:$(source)
+chuck.so-debug:$(source) $(HTTP_PARSER)
 	$(CC) -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG -D_CHUCKLUA
 	$(CC) $(CFLAGS) -shared -o chuck.so *.o -L../deps/http-parser -lhttp_parser -lpthread -ljemalloc -lrt -lm
 	rm *.o
 
-chuck.so-release:$(source)
+chuck.so-release:$(source) $(HTTP_PARSER)
 	$(CC) -O2 -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG -D_CHUCKLUA
 	$(CC) -O2 $(CFLAGS) -shared -o chuck.so *.o -L../deps/http-parser -lhttp_parser -lpthread -ljemalloc -lrt -lm
 	rm *.o	

@@ -48,13 +48,7 @@ end
 function http_response:End(body)
 	self.body = body
 	local response_packet = packet.rawpacket(self:buildResponse())
-	if self.KeepAlive then
-		self.connection:Send(response_packet)
-	else
-		self.connection:Send(response_packet,function ()
-			self.connection:Close()
-		end)
-	end
+	self.connection:Send(response_packet)
 end
 
 
@@ -111,11 +105,7 @@ function http_server:Listen(ip,port)
 				if rpk then
 					local response = http_response:new()
 					response.connection = conn
-					response.KeepAlive  = rpk:KeepAlive()
 					if not self.on_request(rpk,response) then
-						if not response.KeepAlive then
-							conn = nil
-						end
 						return 
 					end
 				end
@@ -136,13 +126,12 @@ end
 
 local httpclient = {}
 
-function httpclient:new(host,port,KeepAlive)
+function httpclient:new(host,port)
   local o     = {}
   o.__index   = httpclient      
   setmetatable(o,o)
   o.host      = host
   o.port      = port or 80
-  o.KeepAlive = KeepAlive
   o.requests  = {}  
   return o
 end
@@ -169,9 +158,6 @@ function httpclient:request(method,request,on_response)
   local function SendRequest()
   		if #self.requests > 0 then
 			local request = self.requests[1][1]
-			if self.KeepAlive then
-				request:WriteHead({"Connection: Keep-Alive"})
-			end
 			self.conn:Send(packet.rawpacket(self:buildRequest(request)))
 		end
   end

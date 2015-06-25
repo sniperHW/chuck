@@ -48,7 +48,6 @@ httppacket_clone(packet *_){
 		p->status              = o->status;
 		p->body                = o->body;
 		p->bodysize            = o->bodysize;
-		p->keepalive           = o->keepalive;
 		refobj_inc(cast(refobj*,_->head));
 		cur  = list_begin(&o->headers);
 		end  = list_end(&o->headers);
@@ -86,9 +85,6 @@ httppacket_on_header_value(httppacket *p,char *at, size_t length)
 	st_header *h = cast(st_header*,p->headers.tail);
 	char   *data = cast(packet*,p)->head->data;
 	h->value     = at - &data[0];
-	if(strcasecmp(&data[h->field],"Connection") == 0 &&
-	   strcasecmp(at,"Keep-Alive") == 0)
-		p->keepalive = 1;
 	return 0;
 }
 
