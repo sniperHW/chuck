@@ -38,7 +38,7 @@ source =  util/exception.c\
 		  packet/rawpacket.c\
 		  packet/luapacket.c\
 		  packet/httppacket.c\
-		  packet/decoder.c\		  
+		  packet/decoder.c\
 		  thread/thread.c\
 		  thread/spinlock.c\
 		  thread/thdmailbox.c\
