@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include "string.h"
 #include "refobj.h"
 
@@ -138,8 +139,9 @@ string_len(string *s)
 }
 
 
-void 
-string_append(string *s,const char *str)
+
+static void 
+_string_append(string *s,const char *str)
 {
 	uint32_t len,total_len;
 	if(!s || !str) return;
@@ -155,4 +157,15 @@ string_append(string *s,const char *str)
 		s->holder = holder_new(string_cstr(s),s->len);
 		holder_append(s->holder,str,len);
 	}
+}
+
+void        
+string_append(string *s,...)
+{
+	va_list vl;
+	const char *str = NULL;
+	va_start(vl,s);
+	while((str = va_arg(vl,const char *)))
+		_string_append(s,str);
+	va_end(vl);
 }

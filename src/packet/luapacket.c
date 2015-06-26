@@ -415,8 +415,9 @@ lua_http_headers(lua_State *L)
 {
 	httppacket *hpk;
 	st_header  *head;
-	listnode   *cur,*end;
-	char       *data;
+	listnode     *cur,*end;
+	char           *data;
+	int32_t         i = 1;
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != HTTPPACKET)
 		return luaL_error(L,"invaild operation");
@@ -427,9 +428,12 @@ lua_http_headers(lua_State *L)
 	lua_newtable(L);
 	for(; cur != end;cur = cur->next){
 		head    = cast(st_header*,cur);
+		lua_newtable(L);
 		lua_pushstring(L,&data[head->field]);
+		lua_rawseti(L,-2,1);
 		lua_pushstring(L,&data[head->value]);
-		lua_settable(L,-3);
+		lua_rawseti(L,-2,2);
+		lua_rawseti(L,-2,i++);
 	}	
 	return 1;
 }

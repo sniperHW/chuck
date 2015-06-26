@@ -3,6 +3,7 @@ local socket_helper = chuck.socket_helper
 local decoder  = chuck.decoder
 local packet   = chuck.packet
 local engine   = chuck.engine()
+local errno     = chuck.error
 
 chuck.RegTimer(engine,1000,function() 
 	collectgarbage("collect")
@@ -59,6 +60,7 @@ function http_request:new(path)
   o.__index = http_request      
   setmetatable(o,o)
   o.path = path
+  o.headers = {}
   return o
 end
 
@@ -188,7 +190,7 @@ function httpclient:request(method,request,on_response)
 					self.requests  = {}
 					socket_helper.close(fd)
 				else
-					self.conn = chuck.connection(fd,4096,decoder.http(65535))
+					self.conn = chuck.connection(fd,4096,decoder.connection.http(65535))
 					if self.conn then
 						self.conn:Add2Engine(engine,function (_,res,err)
 							OnResponse(res)
@@ -215,7 +217,7 @@ function httpclient:request(method,request,on_response)
 			local ret = socket_helper.connect(fd,self.host,self.port)
 			if ret == 0 then
 				connect_callback(fd,0)
-			elseif ret == -err.EINPROGRESS then
+			elseif ret == -errno.EINPROGRESS then
 				local connector = chuck.connector(fd,5000)
 				connector:Add2Engine(engine,function(fd,errnum)
 					connect_callback(fd,errnum)

@@ -37,7 +37,7 @@ int32_t
 string_len(string*);
     
 void        
-string_append(string*,const char*);
+string_append(string*,...);
 
 
 #endif

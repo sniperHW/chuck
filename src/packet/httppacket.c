@@ -99,12 +99,11 @@ httppacket_get_header(httppacket *p,const char *field)
 	for(; cur != end;cur = cur->next){
 		h = cast(st_header*,cur);
 		if(strcasecmp(field,&data[h->field]) == 0){
-			if(!ret){
+			if(!ret)
 				ret = string_new(cast(const char*,&data[h->value]));
-			}else{
-				string_append(ret,",");
-				string_append(ret,cast(const char*,&data[h->value]));
-			}
+			else
+				string_append(ret,",",cast(const char*,&data[h->value]));
+			
 		}
 	}
 	return ret;

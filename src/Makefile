@@ -33,6 +33,7 @@ source =  util/exception.c\
 		  util/refobj.c\
 		  util/timerfd.c\
 		  util/signaler.c\
+		  util/string.c\
 		  packet/wpacket.c\
 		  packet/rpacket.c\
 		  packet/packet.c\

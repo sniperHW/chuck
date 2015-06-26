@@ -3,7 +3,7 @@ local socket_helper = chuck.socket_helper
 local connection = chuck.connection
 local packet = chuck.packet
 local decoder = chuck.decoder
-local err = chuck.error
+local errno = chuck.error
 local signal = chuck.signal
 
 
@@ -55,7 +55,7 @@ for i = 1,100 do
 
 	if ret == 0 then
 		connect_callback(fd,0)
-	elseif ret == -err.EINPROGRESS then
+	elseif ret == -errno.EINPROGRESS then
 		local connector = chuck.connector(fd,5000)
 		connector:Add2Engine(engine,function(fd,errnum)
 										--use closure to hold the reference of connector
