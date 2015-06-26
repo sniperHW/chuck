@@ -5,6 +5,7 @@
 #include "packet/packet.h"
 #include "mem/allocator.h"
 #include "util/endian.h"
+#include "util/string.h"
 
 typedef struct st_header{
 	listnode node;
@@ -35,7 +36,7 @@ httppacket_on_header_value(httppacket *p,char *at, size_t length);
 void
 httppacket_on_buffer_expand(httppacket *p,bytebuffer *b);
 
-const char*
+string*
 httppacket_get_header(httppacket *p,const char *field);
 
 #endif

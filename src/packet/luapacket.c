@@ -6,6 +6,7 @@
 #include "packet/rpacket.h"
 #include "packet/httppacket.h"
 #include "lua/lua_util_packet.h"
+#include "http-parser/http_parser.h"
 #include "comm.h"
 
 #define LUARPACKET_METATABLE    "luarpacket_metatable"
@@ -387,8 +388,6 @@ lua_clone_packet(lua_State *L)
 	return 1;	
 }
 
-#include "http-parser/http_parser.h"
-
 const char *http_method_name[] = 
   {
 #define XX(num, name, string) #string,
@@ -439,29 +438,20 @@ static int32_t
 lua_http_header_field(lua_State *L)
 {
 	httppacket *hpk;
-	st_header  *head;
-	listnode   *cur,*end;
 	const char *field;
-	char       *data;	
-	luapacket *p = lua_topacket(L,1);
+	string         *header;	
+	luapacket  *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != HTTPPACKET)
 		return luaL_error(L,"invaild operation");
 	if(!lua_isstring(L,2))
 		return luaL_error(L,"invaild operation");
-	data  = p->_packet->head->data;
 	field = lua_tostring(L,2);
 	hpk   = cast(httppacket*,p->_packet);
-	cur   = list_begin(&hpk->headers);
-	end   = list_end(&hpk->headers);
-	lua_newtable(L);
-	for(; cur != end;cur = cur->next)
-	{
-		head    = cast(st_header*,cur);
-		if(strcmp(field,&data[head->field]) == 0)
-		{
-			lua_pushstring(L,&data[head->value]);
-			return 1;
-		}
+	header = httppacket_get_header(hpk,field);
+	if(header){
+		lua_pushstring(L,string_cstr(header));
+		string_del(header);
+		return 1;
 	}	
 	return 0;	
 }

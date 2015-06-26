@@ -88,16 +88,24 @@ httppacket_on_header_value(httppacket *p,char *at, size_t length)
 	return 0;
 }
 
-const char *httppacket_get_header(httppacket *p,const char *field)
+string*
+httppacket_get_header(httppacket *p,const char *field)
 {
 	st_header *h;
+	string        *ret = NULL;
 	listnode    *cur  = list_begin(&p->headers);
 	listnode    *end  = list_end(&p->headers);
 	char        *data = cast(packet*,p)->head->data;
 	for(; cur != end;cur = cur->next){
 		h = cast(st_header*,cur);
-		if(strcasecmp(field,&data[h->field]) == 0)
-			return &data[h->value];
+		if(strcasecmp(field,&data[h->field]) == 0){
+			if(!ret){
+				ret = string_new(cast(const char*,&data[h->value]));
+			}else{
+				string_append(ret,",");
+				string_append(ret,cast(const char*,&data[h->value]));
+			}
+		}
 	}
-	return NULL;
+	return ret;
 }
