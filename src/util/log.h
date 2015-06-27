@@ -61,7 +61,8 @@ write_prefix(char *buf,uint8_t loglev);
 static inline void
 set_log_lev(int32_t loglev)
 {
-    g_loglev = loglev;
+    if(loglev >= LOG_INFO && loglev <= LOG_CRITICAL)
+        g_loglev = loglev;
 }
 
 #define  MAX_LOG_SIZE 65535
@@ -99,7 +100,16 @@ set_log_lev(int32_t loglev)
 
 #define IMP_LOG(LOGNAME) IMPLEMENT_SINGLETON(LOGNAME,LOGNAME##create_function,NULL)
 
-#define GET_LOGFILE(LOGNAME) GET_INSTANCE(LOGNAME)->_logfile           
+#define GET_LOGFILE(LOGNAME) GET_INSTANCE(LOGNAME)->_logfile 
+
+#ifdef _CHUCKLUA
+
+typedef struct lua_State lua_State;
+
+void
+lua_reglog(lua_State *L);
+
+#endif          
 
 
 #endif

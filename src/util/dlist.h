@@ -149,4 +149,7 @@ dlist_check_remove(dlist *dl,
     }
 }
 
+#define dlist_foreach(DLIST,IT)\
+ for((IT)=dlist_begin((DLIST)); (IT) != dlist_end((DLIST)); (IT) = (IT)->next)
+
 #endif

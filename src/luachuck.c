@@ -9,6 +9,7 @@
 #include "db/redis/client.h"
 #include "util/signaler.h"
 #include "util/timewheel.h"
+#include "util/log.h"
 
 
 #define SET_CONST(L,N) do{\
@@ -234,6 +235,10 @@ luaopen_chuck(lua_State *L)
 
 	lua_pushstring(L,"signal");
 	reg_luasignaler(L);
+	lua_settable(L,-3);
+
+	lua_pushstring(L,"log");
+	lua_reglog(L);
 	lua_settable(L,-3);
 		
 	return 1;

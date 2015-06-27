@@ -70,7 +70,7 @@ acceptor_disable(acceptor *a){
 #ifdef _CHUCKLUA
 
 
-#define LUA_METATABLE "acceptor_mata"
+#define LUA_METATABLE "acceptor_meta"
 
 static acceptor*
 lua_toacceptor(lua_State *L, int index) 
@@ -192,7 +192,7 @@ reg_luaacceptor(lua_State *L)
     lua_setfield(L, -2, "__index");
     lua_pop(L, 1);
 
-   	SET_FUNCTION(L,"acceptor",lua_acceptor_new);
+    SET_FUNCTION(L,"acceptor",lua_acceptor_new);
 }
 
 #else
