@@ -1,11 +1,11 @@
-local LinkQue =  require "lua.linkque"
-local chuck   =  require("chuck")
+local LinkQue =  require "distri.linkque"
+local chuck     =  require("chuck")
 
 local sche = {
 	ready      = LinkQue.New(),
-	timer      = CMinHeap.New(),
-	allcos     = {},
-	co_count   = 0,
+	timer      =  chuck.TimingWheel(),
+	allcos      = {},
+	co_count = 0,
 	current    = nil,
 }
 
@@ -22,57 +22,42 @@ local function add2Ready(co)
     	return
     end
     co.status = stat_ready
-    sche.timer:Remove(co)    
+    if co.wheel then
+    	co.wheel:UnRegister()
+    	co.wheel = nil
+    end    
     sche.ready:Push(co) 
 end
 
-local function _block(ms,stat)
+local function block(ms,stat)
 	local co = sche.runningco
 	if co.status ~= stat_running then
 		return
 	end
     	if ms and ms > 0 then
-        		local timeout = C.GetSysTick() + ms
-        		if co.heapele then
-             			sche.timer:Change(co,timeout)       			
-        		else
-            			sche.timer:Insert(co,timeout)        			
-        		end
+		if co.wheel then	
+    	       		co.wheel:UnRegister()
+    	       	end
+    	       	co.wheel = sche.timer:Register(ms,function ()
+    	       		co.timeout = true
+    	       		add2Ready(co)
+    	       	end)
     	end
 	co.status = stat
 	coroutine.yield(co.coroutine)
-	if co.heapele then		
-	        sche.timer:Remove(co)
-	        return "timeout"
+	if co.timeout then	
+    	       co.timeout = nils		
+	       return "timeout"
 	end
 end
-
-local function Sleep(ms)
-	local stat
-	if ms and ms > 0 then
-		stat = stat_sleep
-	else
-		stat = stat_yield
-	end
-	return _block(ms,stat)
-end
-
-local function Yield()
-    Sleep(0)
-end
-
-local function Block(ms)
-	return _block(ms,stat_block)
-end
-
-local function WakeUp(co)
-    add2Ready(co)
-end
-
 
 local function SwitchTo(co)
 	local pre_co = sche.runningco
 	sche.runningco = co
+	if co.wheel then	
+    	       	co.wheel:UnRegister()
+    	       	co.wheel = nil
+    	end		
 	co.status = stat_running
 	coroutine.resume(co.coroutine,co)
 	sche.runningco = pre_co
@@ -85,8 +70,7 @@ local function Schedule(co)
 		local status = co.status
 		if status == stat_ready or status == stat_dead or status == stat_running then
 			return sche.ready:Len()
-		end
-		sche.timer:Remove(co)
+		end	
 		if SwitchTo(co) == stat_yield then
 			add2Ready(co)
 		end
@@ -94,6 +78,7 @@ local function Schedule(co)
 			return -1
 		end		
 	else
+		sche.timer:Tick()
 		local yields = {}
 		co = readylist:Pop()
 		while co do
@@ -105,12 +90,7 @@ local function Schedule(co)
 			end			
 			co = readylist:Pop()
 		end
-		local timeouts = sche.timer:Pop(C.GetSysTick())
-		if timeouts then
-			for k,v in pairs(timeouts) do
-				add2Ready(v)
-			end
-		end		
+		sche.timer:Tick()	
 		for k,v in pairs(yields) do
 			add2Ready(v)
 		end
@@ -118,33 +98,26 @@ local function Schedule(co)
     return sche.ready:Len()
 end
 
-local function Running()
-    return sche.runningco
-end
-
-local function GetCoByIdentity(identity)
-	return sche.allcos[identity]
-end
-
 local function start_fun(co)
 	local stack,errmsg
-    if not xpcall(co.start_func,
-    			  function (err)
-    			  	errmsg = err
-    			 	stack  = debug.traceback()
-    			  end,
-    			  table.unpack(co.args)) then
-        CLog.SysLog(CLog.LOG_ERROR,string.format("error on start_fun:%s\n%s",errmsg,stack))
-    end
-    sche.allcos[co.identity] = nil
-    sche.co_count = sche.co_count - 1
-    co.status = stat_dead
+    	if not xpcall(co.start_func,
+    		       function (err)
+    			errmsg = err
+    			stack  = debug.traceback()
+    		       end,
+    		       table.unpack(co.args)
+    	) then
+        		CLog.SysLog(CLog.LOG_ERROR,string.format("error on start_fun:%s\n%s",errmsg,stack))
+    	end
+    	sche.allcos[co.identity] = nil
+    	sche.co_count = sche.co_count - 1
+    	co.status = stat_dead
 end
 
 local g_counter = 0
 local function gen_identity()
 	g_counter = bit32.band(g_counter + 1,0x000FFFFF)
-	return string.format("%d-%d",C.GetSysTick(),g_counter)
+	return string.format("%d-%d",chuck.systick(),g_counter)
 end
 
 --产生一个coroutine在下次调用Schedule时执行
@@ -173,15 +146,15 @@ local function Exit()
 end
 
 return {
-		Spawn = Spawn,
-		SpawnAndRun = SpawnAndRun,
-		Yield = Yield,
-		Sleep = Sleep,
-		Block = Block,
-		WakeUp = WakeUp,
-		Running = Running,
-		GetCoByIdentity = GetCoByIdentity,
-		Schedule = Schedule,
-		GetCoCount = function () return  sche.co_count  end,
-		Exit = Exit,
+	Spawn = Spawn,
+	SpawnAndRun = SpawnAndRun,
+	Yield =  function () block(0,stat_yield) end,
+	Sleep = function (ms) block(ms,stat_sleep) end,
+	Block = function (ms) block(ms,stat_block) end,
+	WakeUp = add2Ready,
+	Running = function () return sche.runningco end,
+	GetCoByIdentity = function (identity) return sche.allcos[identity] end,
+	Schedule = Schedule,
+	GetCoCount = function () return  sche.co_count  end,
+	Exit = Exit,
 }

@@ -288,8 +288,8 @@ lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb)
 	memset(t,0,sizeof(*t));
 	t->timeout  = timeout;
 	t->callback = lua_timeout_callback;
-	t->ud = cast(void*,cb);
 	t->luacb = *cb;
+	t->ud = cast(void*,&t->luacb);	
 	if(!m->lasttime){
 		m->lasttime = now;
 	}
@@ -374,7 +374,7 @@ reg_luatimewheel(lua_State *L)
 
     luaL_Reg wheelmgr_methods[] = {
         {"Register",    lua_register_timer},
-        {"Tick",   		lua_wheel_tick},
+        {"Tick",           lua_wheel_tick},
         {NULL,     NULL}
     };
 
@@ -397,7 +397,7 @@ reg_luatimewheel(lua_State *L)
     lua_setfield(L, -2, "__index");
     lua_pop(L, 1);    
 
-   	SET_FUNCTION(L,"wheelmgr",lua_wheelmgr_new);
+    SET_FUNCTION(L,"TimingWheel",lua_wheelmgr_new);
 
 }
 
