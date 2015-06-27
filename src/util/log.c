@@ -2,20 +2,22 @@
 #include "util/log.h"
 #include "util/list.h"
 #include "thread/thread.h"
-//#include "atomic.h"
 
 static pthread_once_t 	g_log_key_once = PTHREAD_ONCE_INIT;
-static mutex           *g_mtx_log_file_list = NULL;
-static list             g_log_file_list;
-static thread    	   *g_log_thd = NULL;
+static mutex                  *g_mtx_log_file_list = NULL;
+static list                          g_log_file_list;
+static thread    	            *g_log_thd = NULL;
 static pid_t          	g_pid = -1;
-static uint32_t         flush_interval = 1;  //flush every 1 second
-static volatile int32_t stop = 0;
-
+static uint32_t                 flush_interval = 1;  //flush every 1 second
+static volatile int32_t      stop = 0;
+int32_t                             g_loglev = LOG_INFO;
 
 const char *log_lev_str[] = {
 	"INFO",
-	"ERROR"
+	"DEBUG",
+	"WARN",
+	"ERROR",
+	"CRITICAL",
 };
 
 typedef struct logfile{
@@ -82,7 +84,7 @@ write_prefix(char *buf,uint8_t loglev)
 {
 	struct timespec tv;
 	struct tm _tm;
-    clock_gettime (CLOCK_REALTIME, &tv);	
+    	clock_gettime (CLOCK_REALTIME, &tv);	
 	localtime_r(&tv.tv_sec, &_tm);
 	return sprintf(buf,"[%s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u]:",
 				   log_lev_str[loglev],
@@ -163,6 +165,7 @@ log_routine(void *arg)
 			snprintf(&buf[size],128-size,"log close success");
 			fprintf(l->file,"%s\n",buf);
 			fflush(l->file);
+			fclose(l->file);
 		}
 	}	
 	mutex_unlock(g_mtx_log_file_list);

@@ -66,12 +66,12 @@ test-source = test/testexception.c\
 $(HTTP_PARSER):
 	cd ../deps/http-parser/;make package			  
 
-libchuck-release:$(source)
+libchuck-release:$(source) $(HTTP_PARSER)
 	$(CC) -fPIC -O2 $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
 	rm *.o
 
-libchuck-debug:$(source)
+libchuck-debug:$(source) $(HTTP_PARSER)
 	$(CC) -fPIC $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
 	ar -rc $(LIBNAME) *.o
 	rm *.o
