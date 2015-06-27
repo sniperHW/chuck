@@ -1,5 +1,7 @@
 local LinkQue =  require "distri.linkque"
-local chuck     =  require("chuck")
+local chuck   =  require("chuck")
+local Log     =  chuck.log
+local SysLog  =  Log.SysLog 
 
 local sche = {
 	ready      = LinkQue.New(),
@@ -107,7 +109,7 @@ local function start_fun(co)
     		       end,
     		       table.unpack(co.args)
     	) then
-        		CLog.SysLog(CLog.LOG_ERROR,string.format("error on start_fun:%s\n%s",errmsg,stack))
+        		SysLog(Log.ERROR,string.format("error on start_fun:%s\n%s",errmsg,stack))
     	end
     	sche.allcos[co.identity] = nil
     	sche.co_count = sche.co_count - 1
