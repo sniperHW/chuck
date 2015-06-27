@@ -28,14 +28,11 @@ typedef struct
 	int32_t    lock_count;
 }spinlock;
 
-spinlock*
-spin_new();
+spinlock *spin_new();
 
-void       
-spin_del(spinlock*);
+void spin_del(spinlock*);
 
-static inline int32_t 
-spin_lock(spinlock *l)
+static inline int32_t spin_lock(spinlock *l)
 {
 	pthread_t tid = pthread_self();
 	int32_t c,max;	
@@ -58,8 +55,7 @@ spin_lock(spinlock *l)
 	return 0;
 }
 
-static inline 
-int32_t spin_unlock(spinlock *l)
+static inline int32_t spin_unlock(spinlock *l)
 {
 	pthread_t tid = pthread_self();
 	if(tid == l->owner && --l->lock_count == 0){

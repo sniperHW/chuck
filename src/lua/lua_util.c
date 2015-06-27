@@ -4,8 +4,7 @@
 #include "comm.h"
 #include "lua_util.h"
 
-static inline int 
-__traceback (lua_State *L) 
+static inline int __traceback (lua_State *L) 
 {
   const char *msg = lua_tostring(L, 1);
   if(msg)
@@ -19,8 +18,7 @@ __traceback (lua_State *L)
 
 static __thread char lua_errmsg[4096];
 
-const char*
-luacall(lua_State *L,const char *fmt,...)
+const char *luacall(lua_State *L,const char *fmt,...)
 {
 	va_list vl;
 	int32_t ret,narg,nres,i,size,base;
@@ -130,8 +128,7 @@ end:
 
 
 
-const char*
-LuaRef_Get(luaRef tab,const char *fmt,...)
+const char *LuaRef_Get(luaRef tab,const char *fmt,...)
 {
 	int32_t i,size,oldtop,k,v;
 	va_list vl;
@@ -201,8 +198,7 @@ end:
 	return errmsg;
 }
 
-const char*
-LuaRef_Set(luaRef tab,const char *fmt,...)
+const char *LuaRef_Set(luaRef tab,const char *fmt,...)
 {
 	assert(tab.L);
 	assert(fmt);
@@ -279,8 +275,7 @@ end:
 	return errmsg;
 }
 
-luaRef 
-makeLuaObjByStr(lua_State *L,const char *str)
+luaRef makeLuaObjByStr(lua_State *L,const char *str)
 {
 	if(0 != luaL_dostring(L,str)){
 		printf("%s\n",lua_tostring(L,-1));

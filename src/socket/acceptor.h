@@ -32,24 +32,19 @@ typedef struct acceptor{
 #endif
 }acceptor;
 
-int32_t
-acceptor_enable(acceptor*);
+int32_t acceptor_enable(acceptor*);
 
-int32_t
-acceptor_disable(acceptor*);
+int32_t acceptor_disable(acceptor*);
 
 #ifdef _CHUCKLUA
 
-void    
-reg_luaacceptor(lua_State *L);   
+void    reg_luaacceptor(lua_State *L);   
 
 #else
 
-acceptor*
-acceptor_new(int32_t fd,void *ud);
+acceptor *acceptor_new(int32_t fd,void *ud);
 
-void    
-acceptor_del(acceptor*); 
+void    acceptor_del(acceptor*); 
 
 #endif
 

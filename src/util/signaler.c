@@ -5,9 +5,7 @@
 #include "util/log.h"    
 
 
-static int32_t 
-imp_engine_add(engine *e,handle *h,
-               generic_callback callback)
+static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 {
     int32_t ret;
     assert(e && h && callback);
@@ -19,8 +17,7 @@ imp_engine_add(engine *e,handle *h,
     return ret;
 }
 
-static void 
-on_signal(handle *h,int32_t events)
+static void on_signal(handle *h,int32_t events)
 {
     struct   signalfd_siginfo fdsi;
     int32_t  ret;
@@ -34,8 +31,7 @@ on_signal(handle *h,int32_t events)
 }
 
 
-static int32_t 
-signaler_init(int32_t signum)
+static int32_t signaler_init(int32_t signum)
 {
     sigset_t  mask;  
     sigemptyset(&mask);
@@ -52,14 +48,12 @@ signaler_init(int32_t signum)
 
 #define LUA_METATABLE "signer_mata"
 
-static signaler*
-lua_tosignaler(lua_State *L, int index) 
+static signaler *lua_tosignaler(lua_State *L, int index) 
 {
     return cast(signaler*,luaL_testudata(L, index, LUA_METATABLE));
 }
 
-static int32_t 
-lua_signaler_gc(lua_State *L)
+static int32_t lua_signaler_gc(lua_State *L)
 {
     signaler *s = lua_tosignaler(L,1);
     release_luaRef(&s->luacallback);
@@ -67,8 +61,7 @@ lua_signaler_gc(lua_State *L)
     return 0;
 }
 
-static void 
-luacallback(signaler *s,int32_t signum,void *ud)
+static void luacallback(signaler *s,int32_t signum,void *ud)
 {
     const char *error;
     if((error = LuaCallRefFunc(s->luacallback,"i",signum))){
@@ -76,8 +69,7 @@ luacallback(signaler *s,int32_t signum,void *ud)
     }
 }
 
-static int32_t 
-lua_engine_add(lua_State *L)
+static int32_t lua_engine_add(lua_State *L)
 {
     signaler   *s = lua_tosignaler(L,1);
     engine     *e = lua_toengine(L,2);
@@ -88,8 +80,7 @@ lua_engine_add(lua_State *L)
     return 0;
 }
 
-static int32_t 
-lua_engine_remove(lua_State *L)
+static int32_t lua_engine_remove(lua_State *L)
 {
     signaler   *s = lua_tosignaler(L,1);
     if(s)
@@ -97,8 +88,7 @@ lua_engine_remove(lua_State *L)
     return 0;
 }
 
-static int32_t 
-lua_signaler_new(lua_State *L)
+static int32_t lua_signaler_new(lua_State *L)
 {
     signaler *s;
     int32_t signum = lua_tointeger(L,1);
@@ -134,8 +124,7 @@ lua_signaler_new(lua_State *L)
         lua_settable(L, -3);\
 }while(0)
 
-void    
-reg_luasignaler(lua_State *L)
+void reg_luasignaler(lua_State *L)
 {
     luaL_Reg signaler_mt[] = {
         {"__gc", lua_signaler_gc},
@@ -164,8 +153,7 @@ reg_luasignaler(lua_State *L)
 
 #else
 
-signaler*
-signaler_new(int32_t signum,void *ud)
+signaler *signaler_new(int32_t signum,void *ud)
 {
     signaler *s;
     int32_t fd = signaler_init(signum);
@@ -180,8 +168,7 @@ signaler_new(int32_t signum,void *ud)
     return s;
 }
 
-void 
-signaler_del(signaler *s)
+void signaler_del(signaler *s)
 {
     close(cast(handle*,s)->fd);
     free(s);

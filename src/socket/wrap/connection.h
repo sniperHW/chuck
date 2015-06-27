@@ -53,33 +53,21 @@ typedef struct connection{
 }connection;
 
 
-void
-connection_set_recvtimeout(connection *c,uint32_t timeout);
+void connection_set_recvtimeout(connection *c,uint32_t timeout);
 
-void
-connection_set_sendtimeout(connection *c,uint32_t timeout);
-
-decoder*
-conn_raw_decoder_new();
-
+void connection_set_sendtimeout(connection *c,uint32_t timeout);
 
 #if _CHUCKLUA
 
-void        
-reg_luaconnection(lua_State *L);
+void reg_luaconnection(lua_State *L);
 
 #else
 
-connection*
-connection_new(int32_t fd,uint32_t buffersize,
-               decoder *d);
+connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d);
 
-int32_t     
-connection_send(connection *c,packet *p,
-                void (*fnish_cb)(connection*));
+int32_t     connection_send(connection *c,packet *p,void (*fnish_cb)(connection*));
 
-int32_t        
-connection_close(connection *c);
+int32_t     connection_close(connection *c);
 
 #endif
 

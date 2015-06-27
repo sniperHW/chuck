@@ -47,40 +47,32 @@ typedef struct redis_conn redis_conn;
 
 #ifdef _CHUCKLUA
 
-void
-reg_luaredis(lua_State *L);
+void reg_luaredis(lua_State *L);
 
 #else
 
+typedef void (*redis_error_cb)(redis_conn*,int32_t err);
+typedef void (*redis_connect_cb)(redis_conn*,int32_t,void*);
+typedef void (*redis_reply_cb)(redis_conn*,redisReply*,void *ud);
+typedef void (*redis_clear_cb)(void*ud);
 
-redis_conn*
-redis_connect(engine *e,sockaddr_ *addr,
-              void (*on_error)(redis_conn*,int32_t err));
-
-redis_conn*
-redis_asyn_connect(engine *e,sockaddr_ *addr,
-                   void (*on_connect)(redis_conn*,int32_t,void*),//callback on connected
-                   void *ud,                                     //ud pass to on_connect
-                   void (*on_error)(redis_conn*,int32_t),        //callback on error
-                   int32_t *err);
-
-void        
-redis_close(redis_conn*);
-
-int32_t     
-redis_execute(redis_conn*,const char *str,
-            void (*)(redis_conn*,redisReply*,void *ud),
-            void *ud);
+redis_conn *redis_connect(engine *e,sockaddr_ *addr,redis_error_cb);
 
 
-void 
-redis_set_clearcb(redis_conn*,void (*)(void*ud));
+redis_conn *redis_asyn_connect(engine *e,sockaddr_ *addr,redis_connect_cb,
+                               void *ud,redis_error_cb,int32_t *err);
+
+void        redis_close(redis_conn*);
+
+int32_t     redis_execute(redis_conn*,const char *str,redis_reply_cb,void *ud);
+
+
+void        redis_set_clearcb(redis_conn*,redis_clear_cb);
 
 #endif
 
 //for test
-void 
-test_parse(char *str);
+void        test_parse(char *str);
 
 
 #endif    

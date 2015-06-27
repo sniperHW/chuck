@@ -21,8 +21,7 @@ typedef struct {
 #define wheel_size(T) (T==wheel_sec?1000:T==wheel_hour?3600:T==wheel_day?24:0)
 #define precision(T) (T==wheel_sec?1:T==wheel_hour?1000:T==wheel_day?3600:0)
 
-static wheel* 
-wheel_new(uint8_t type)
+static wheel *wheel_new(uint8_t type)
 {
 	wheel   *w;
 	uint16_t size,i;
@@ -60,9 +59,7 @@ typedef struct wheelmgr{
 }wheelmgr;
 
 
-static inline void 
-add2wheel(wheelmgr *m,wheel *w,
-		  timer *t,uint64_t remain)
+static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain)
 {
 	uint16_t i;
 	uint64_t slots = wheel_size(w->type) - w->cur;
@@ -76,9 +73,7 @@ add2wheel(wheelmgr *m,wheel *w,
 	}
 }
 
-static inline void 
-_reg(wheelmgr *m,timer *t,
-	 uint64_t tick,wheel *w)
+static inline void _reg(wheelmgr *m,timer *t,uint64_t tick,wheel *w)
 {
 	assert(t->expire > tick);
 	if(t->expire > tick)
@@ -86,9 +81,7 @@ _reg(wheelmgr *m,timer *t,
 }
 
 //将本级超时的定时器推到下级时间轮中
-static inline void 
-down(wheelmgr *m,timer *t,
-	 uint64_t tick,wheel *w)
+static inline void down(wheelmgr *m,timer *t,uint64_t tick,wheel *w)
 {
 	uint64_t remain;
 	assert(w->cur == 0);
@@ -101,8 +94,7 @@ down(wheelmgr *m,timer *t,
 }
 
 //处理上一级时间轮
-static inline void 
-tickup(wheelmgr *m,wheel *w,uint64_t tick)
+static inline void tickup(wheelmgr *m,wheel *w,uint64_t tick)
 {
 	timer *t;
 	dlist *items = &w->items[w->cur];
@@ -113,8 +105,7 @@ tickup(wheelmgr *m,wheel *w,uint64_t tick)
 		tickup(m,m->wheels[w->type+1],tick);
 }
 
-static void 
-fire(wheelmgr *m,uint64_t tick)
+static void fire(wheelmgr *m,uint64_t tick)
 {
 	int32_t ret;
 	timer *t;
@@ -144,18 +135,17 @@ fire(wheelmgr *m,uint64_t tick)
 	}
 }
 
-void 
-wheelmgr_tick(wheelmgr *m,uint64_t now)
+void wheelmgr_tick(wheelmgr *m,uint64_t now)
 {
 	while(m->lasttime != now){
 		fire(m,++m->lasttime);
 	}
 } 
 
-timer*
-wheelmgr_register(wheelmgr *m,uint32_t timeout,
+timer *wheelmgr_register(wheelmgr *m,uint32_t timeout,
 				  int32_t(*callback)(uint32_t,uint64_t,void*),
-				  void*ud,uint64_t now/*just for test*/){
+				  void*ud,uint64_t now/*just for test*/)
+{
 	timer *t;
 	if(timeout == 0 || !callback)
 		return NULL;
@@ -172,8 +162,7 @@ wheelmgr_register(wheelmgr *m,uint32_t timeout,
 	return t;
 }
 
-wheelmgr*
-wheelmgr_new()
+wheelmgr *wheelmgr_new()
 {
 	int i;
 	wheelmgr *t = calloc(1,sizeof(*t));
@@ -182,8 +171,7 @@ wheelmgr_new()
 	return t;
 }
 
-void 
-unregister_timer(timer *t)
+void unregister_timer(timer *t)
 {
 	t->status |= RELEASING;
 	if(!(t->status & INCB)){
@@ -193,8 +181,7 @@ unregister_timer(timer *t)
 	}
 }
 
-void 
-wheelmgr_del(wheelmgr *m)
+void wheelmgr_del(wheelmgr *m)
 {
 	int i;
 	uint16_t j,size;
@@ -223,8 +210,7 @@ wheelmgr_del(wheelmgr *m)
 #define TIMER_METATABLE     "timer_meta"
 #define WHEELMGR_METATABLE  "wheelmgr_meta"
 
-static int32_t 
-lua_wheelmgr_new(lua_State *L)
+static int32_t lua_wheelmgr_new(lua_State *L)
 {
 	int i;
 	wheelmgr *w = cast(wheelmgr*,lua_newuserdata(L, sizeof(*w)));	
@@ -236,20 +222,17 @@ lua_wheelmgr_new(lua_State *L)
 	return 1;
 }
 
-wheelmgr*
-lua_towheelmgr(lua_State *L, int index)
+wheelmgr *lua_towheelmgr(lua_State *L, int index)
 {
     return (wheelmgr*)luaL_testudata(L, index, WHEELMGR_METATABLE);
 }
 
-timer*
-lua_totimer(lua_State *L, int index)
+timer *lua_totimer(lua_State *L, int index)
 {
     return (timer*)luaL_testudata(L, index, TIMER_METATABLE);
 }
 
-static int32_t 
-lua_wheelmgr_gc(lua_State *L)
+static int32_t lua_wheelmgr_gc(lua_State *L)
 {
 	wheelmgr *w = lua_towheelmgr(L,1);
 	int      i;
@@ -280,8 +263,7 @@ static int32_t lua_timeout_callback(uint32_t _1,uint64_t _2,void *ud)
 }
 
 
-static void
-lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb)
+static void lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb)
 {
 	timer *t     = cast(timer*,lua_newuserdata(L, sizeof(*t)));
 	uint64_t now = systick64();
@@ -300,8 +282,7 @@ lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb)
 }
 
 
-static int32_t
-lua_register_timer(lua_State *L)
+static int32_t lua_register_timer(lua_State *L)
 {
 	wheelmgr *w       = lua_towheelmgr(L,1);
 	uint32_t  timeout = cast(uint32_t,lua_tointeger(L,2));
@@ -317,8 +298,7 @@ lua_register_timer(lua_State *L)
 
 
 
-static int32_t
-lua_unregister_timer(lua_State *L)
+static int32_t lua_unregister_timer(lua_State *L)
 {
 	timer    *t = lua_totimer(L,1);
 	t->status |= RELEASING;
@@ -330,8 +310,7 @@ lua_unregister_timer(lua_State *L)
 }
 
 
-static int32_t 
-lua_timer_gc(lua_State *L)
+static int32_t lua_timer_gc(lua_State *L)
 {
 	timer *t = lua_totimer(L,1);
 	t->status |= RELEASING;
@@ -343,8 +322,7 @@ lua_timer_gc(lua_State *L)
 	return 0;
 }
 
-static int32_t
-lua_wheel_tick(lua_State *L)
+static int32_t lua_wheel_tick(lua_State *L)
 {
 	wheelmgr *w = lua_towheelmgr(L,1);
 	wheelmgr_tick(w,systick64());
@@ -358,8 +336,7 @@ lua_wheel_tick(lua_State *L)
 }while(0) 
 
 
-void
-reg_luatimewheel(lua_State *L)
+void reg_luatimewheel(lua_State *L)
 {
     luaL_Reg wheelmgr_mt[] = {
         {"__gc", lua_wheelmgr_gc},

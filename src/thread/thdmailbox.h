@@ -14,8 +14,7 @@ typedef struct{
 }mail;
 
 
-static inline void
-mail_del(void *_)
+static inline void mail_del(void *_)
 {
 	mail *mail_ = (mail*)_;
 	if(mail_->dcotr)
@@ -24,14 +23,10 @@ mail_del(void *_)
 }
 
 
-int32_t 
-mailbox_setup(engine*,const char *name,
-			  void (*onmail)(mail *_mail));
+int32_t mailbox_setup(engine*,const char *name,void (*onmail)(mail *_mail));
 
-tmailbox
-query_mailbox(const char *name); 
+tmailbox query_mailbox(const char *name); 
 
-int32_t
-send_mail(tmailbox,mail*);
+int32_t send_mail(tmailbox,mail*);
 
 #endif

@@ -32,27 +32,21 @@ enum{
 	TEVENT_DESTROY,
 };
 
-wheelmgr*
-wheelmgr_new();
+wheelmgr *wheelmgr_new();
 
-void      
-wheelmgr_del(wheelmgr*);
+void wheelmgr_del(wheelmgr*);
 
-timer*
-wheelmgr_register(wheelmgr*,uint32_t timeout,
+timer *wheelmgr_register(wheelmgr*,uint32_t timeout,
                   int32_t(*)(uint32_t,uint64_t,void*),
                   void*,uint64_t now);
 
-void      
-unregister_timer(timer*);
+void unregister_timer(timer*);
 
-void      
-wheelmgr_tick(wheelmgr*,uint64_t now); 
+void wheelmgr_tick(wheelmgr*,uint64_t now); 
 
 #ifdef _CHUCKLUA
 
-void
-reg_luatimewheel(lua_State *L); 
+void reg_luatimewheel(lua_State *L); 
 
 #endif
 

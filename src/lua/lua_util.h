@@ -76,8 +76,7 @@ typedef struct luaPushFunctor{
 	void (*Push)(lua_State *L,struct luaPushFunctor *self);
 }luaPushFunctor;
 
-static inline void 
-release_luaRef(luaRef *ref)
+static inline void release_luaRef(luaRef *ref)
 {
 	if(ref->L && ref->rindex != LUA_REFNIL){
 		luaL_unref(ref->L,LUA_REGISTRYINDEX,ref->rindex);
@@ -86,8 +85,7 @@ release_luaRef(luaRef *ref)
 	}
 }
 
-static inline luaRef 
-toluaRef(lua_State *L,int idx)
+static inline luaRef toluaRef(lua_State *L,int idx)
 {
 	luaRef ref;
 	lua_pushvalue(L,idx);
@@ -103,8 +101,7 @@ toluaRef(lua_State *L,int idx)
 	return ref;
 }
 
-static inline void 
-push_LuaRef(lua_State *L,luaRef ref)
+static inline void push_LuaRef(lua_State *L,luaRef ref)
 {
 	lua_rawgeti(L,LUA_REGISTRYINDEX,ref.rindex);
 }

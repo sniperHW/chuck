@@ -4,9 +4,7 @@
 #include "engine/engine.h"
 
 
-static int32_t 
-imp_engine_add(engine *e,handle *h,
-			   generic_callback callback)
+static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 {
 	int32_t ret;
 	assert(e && h && callback);
@@ -18,8 +16,7 @@ imp_engine_add(engine *e,handle *h,
 	return ret;
 }
 
-static void 
-on_timeout(handle *h,int32_t events)
+static void on_timeout(handle *h,int32_t events)
 {
 	int64_t _;
 	if(events == EENGCLOSE)
@@ -28,8 +25,7 @@ on_timeout(handle *h,int32_t events)
 	cast(timerfd*,h)->callback(cast(timerfd*,h)->ud);
 }
 
-timerfd*
-timerfd_new(uint32_t timeout,void *ud)
+timerfd *timerfd_new(uint32_t timeout,void *ud)
 {
 	struct itimerspec spec;
     struct timespec now;
@@ -63,8 +59,7 @@ timerfd_new(uint32_t timeout,void *ud)
 	return t;
 }
 
-void 
-timerfd_del(timerfd *t)
+void timerfd_del(timerfd *t)
 {
 	close(cast(handle*,t)->fd);
 	free(t);

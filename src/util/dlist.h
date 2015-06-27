@@ -35,40 +35,34 @@ typedef struct dlist
     struct dlistnode tail;
 }dlist;
 
-static inline int32_t 
-dlist_empty(dlist *dl)
+static inline int32_t dlist_empty(dlist *dl)
 {
     return dl->head.next == &dl->tail ? 1:0;
 }
 
-static inline dlistnode*
-dlist_begin(dlist *dl)
+static inline dlistnode *dlist_begin(dlist *dl)
 {
     return dl->head.next;
 }
 
-static inline dlistnode*
-dlist_end(dlist *dl)
+static inline dlistnode *dlist_end(dlist *dl)
 {
     return &dl->tail;
 }
 
-static inline dlistnode*
-dlist_rbegin(dlist *dl)
+static inline dlistnode *dlist_rbegin(dlist *dl)
 {
     return dl->tail.pre;
 }
 
-static inline dlistnode*
-dlist_rend(dlist *dl)
+static inline dlistnode *dlist_rend(dlist *dl)
 {
     return &dl->head;
 }
 
 
 
-static inline int32_t 
-dlist_remove(dlistnode *dln)
+static inline int32_t dlist_remove(dlistnode *dln)
 {
     if(!dln->owner || (!dln->pre && !dln->next)) 
         return -1;
@@ -79,8 +73,7 @@ dlist_remove(dlistnode *dln)
     return 0;
 }
 
-static inline dlistnode*
-dlist_pop(dlist *dl)
+static inline dlistnode *dlist_pop(dlist *dl)
 {
     dlistnode *n = NULL;
     if(!dlist_empty(dl)){
@@ -90,8 +83,7 @@ dlist_pop(dlist *dl)
     return n;
 }
 
-static inline int32_t 
-dlist_pushback(dlist *dl,dlistnode *dln)
+static inline int32_t dlist_pushback(dlist *dl,dlistnode *dln)
 {
     if(dln->owner || dln->pre || dln->next) 
         return -1;
@@ -103,8 +95,7 @@ dlist_pushback(dlist *dl,dlistnode *dln)
     return 0;
 }
 
-static inline int32_t 
-dlist_pushfront(dlist *dl,dlistnode *dln)
+static inline int32_t dlist_pushfront(dlist *dl,dlistnode *dln)
 {
     if(dln->owner || dln->pre || dln->next) 
         return -1;
@@ -117,8 +108,7 @@ dlist_pushfront(dlist *dl,dlistnode *dln)
     return 0;
 }
 
-static inline void 
-dlist_init(dlist *dl)
+static inline void dlist_init(dlist *dl)
 {
     dl->head.pre = dl->tail.next = NULL;
     dl->head.next = &dl->tail;
@@ -128,10 +118,7 @@ dlist_init(dlist *dl)
 //if the dblnk_check return != 0,dln will be remove
 typedef int32_t (*dblnk_check)(dlistnode*,void *);
 
-static inline void 
-dlist_check_remove(dlist *dl,
-                   dblnk_check _check,
-                   void *ud)
+static inline void dlist_check_remove(dlist *dl,dblnk_check _check,void *ud)
 {
     
     dlistnode *dln,*end,*tmp;

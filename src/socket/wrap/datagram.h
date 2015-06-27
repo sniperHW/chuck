@@ -36,20 +36,15 @@ typedef struct datagram{
 }datagram;
 
 
-datagram*
-datagram_new(int32_t fd,uint32_t buffersize,decoder *d);
+datagram *datagram_new(int32_t fd,uint32_t buffersize,decoder *d);
 
-int32_t   
-datagram_send(datagram *d,packet *p,sockaddr_ *addr);
+int32_t   datagram_send(datagram *d,packet *p,sockaddr_ *addr);
 
-void      
-datagram_close(datagram *d);
+void      datagram_close(datagram *d);
 
-decoder*
-dgram_raw_decoder_new();
+decoder  *dgram_raw_decoder_new();
 
-int32_t   
-datagram_reg_tolua(lua_State *L);
+int32_t   datagram_reg_tolua(lua_State *L);
 
 
 #endif    

@@ -4,9 +4,7 @@
 #include "socket/socket_helper.h"
 #include "util/log.h"
 
-static int32_t 
-imp_engine_add(engine *e,handle *h,
-			   generic_callback callback)
+static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 {
 	int32_t ret;
 	assert(e && h && callback);
@@ -20,8 +18,7 @@ imp_engine_add(engine *e,handle *h,
 }
 
 
-static int 
-_accept(handle *h,sockaddr_ *addr)
+static int _accept(handle *h,sockaddr_ *addr)
 {
 	socklen_t len = 0;
 	int32_t fd; 
@@ -38,8 +35,7 @@ _accept(handle *h,sockaddr_ *addr)
 	return fd;
 }
 
-static void 
-process_accept(handle *h,int32_t events)
+static void process_accept(handle *h,int32_t events)
 {
 	int 	  fd;
     sockaddr_ addr;
@@ -56,13 +52,13 @@ process_accept(handle *h,int32_t events)
 	}while(fd >= 0 && is_read_enable(h));	      
 }
 
-int32_t
-acceptor_enable(acceptor *a){
+int32_t acceptor_enable(acceptor *a)
+{
 	return enable_read(cast(handle*,a));
 }
 
-int32_t
-acceptor_disable(acceptor *a){
+int32_t acceptor_disable(acceptor *a)
+{
 	return disable_read(cast(handle*,a));
 }
 
@@ -72,14 +68,12 @@ acceptor_disable(acceptor *a){
 
 #define LUA_METATABLE "acceptor_meta"
 
-static acceptor*
-lua_toacceptor(lua_State *L, int index) 
+static acceptor *lua_toacceptor(lua_State *L, int index) 
 {
     return cast(acceptor*,luaL_testudata(L, index, LUA_METATABLE));
 }
 
-static int32_t 
-lua_acceptor_gc(lua_State *L)
+static int32_t lua_acceptor_gc(lua_State *L)
 {
 	acceptor *a = lua_toacceptor(L,1);
 	release_luaRef(&a->luacallback);
@@ -87,8 +81,7 @@ lua_acceptor_gc(lua_State *L)
 	return 0;
 }
 
-static int32_t
-lua_acceptor_close(lua_State *L)
+static int32_t lua_acceptor_close(lua_State *L)
 {
 	acceptor *a = lua_toacceptor(L,1);
 	if(a->fd >= 0){
@@ -98,8 +91,7 @@ lua_acceptor_close(lua_State *L)
 	return 0;
 }
 
-static int32_t 
-lua_acceptor_new(lua_State *L)
+static int32_t lua_acceptor_new(lua_State *L)
 {
 	int32_t   fd;
 	acceptor *a;
@@ -117,8 +109,7 @@ lua_acceptor_new(lua_State *L)
 	return 1;
 }
 
-static void 
-luacallback(acceptor *a,int32_t fd,sockaddr_ *addr,void *ud,int32_t err)
+static void luacallback(acceptor *a,int32_t fd,sockaddr_ *addr,void *ud,int32_t err)
 {
 	const char *error;
 	if((error = LuaCallRefFunc(a->luacallback,"ii",fd,err))){
@@ -126,8 +117,7 @@ luacallback(acceptor *a,int32_t fd,sockaddr_ *addr,void *ud,int32_t err)
 	}
 }
 
-static int32_t 
-lua_engine_add(lua_State *L)
+static int32_t lua_engine_add(lua_State *L)
 {
 	int32_t     ret = 0;
 	acceptor   *a   = lua_toacceptor(L,1);
@@ -143,8 +133,7 @@ lua_engine_add(lua_State *L)
 }
 
 
-static int32_t 
-lua_enable(lua_State *L)
+static int32_t lua_enable(lua_State *L)
 {
 	int32_t   	ret = 0;
 	acceptor   *a   = lua_toacceptor(L,1);
@@ -153,8 +142,7 @@ lua_enable(lua_State *L)
 	return 1;
 }
 
-static int32_t 
-lua_disable(lua_State *L)
+static int32_t lua_disable(lua_State *L)
 {
 	int32_t   	ret = 0;
 	acceptor   *a   = lua_toacceptor(L,1);
@@ -169,8 +157,7 @@ lua_disable(lua_State *L)
 	lua_settable(L, -3);\
 }while(0)
 
-void    
-reg_luaacceptor(lua_State *L)
+void    reg_luaacceptor(lua_State *L)
 {
     luaL_Reg acceptor_mt[] = {
         {"__gc", lua_acceptor_gc},
@@ -197,8 +184,7 @@ reg_luaacceptor(lua_State *L)
 
 #else
 
-acceptor*
-acceptor_new(int32_t fd,void *ud)
+acceptor *acceptor_new(int32_t fd,void *ud)
 {
 	acceptor *a = calloc(1,sizeof(*a));
 	a->ud = ud;
@@ -209,7 +195,8 @@ acceptor_new(int32_t fd,void *ud)
 	return a;
 }
 
-void    acceptor_del(acceptor *a){
+void    acceptor_del(acceptor *a)
+{
 	close(a->fd);
 	free(a);
 }

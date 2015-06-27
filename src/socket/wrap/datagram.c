@@ -8,8 +8,7 @@ enum{
 
 static int32_t (*base_engine_add)(engine*,struct handle*,generic_callback) = NULL;
 
-int32_t 
-datagram_send(datagram *d,packet *p,sockaddr_ *addr)
+int32_t datagram_send(datagram *d,packet *p,sockaddr_ *addr)
 {
 	iorequest   o;
 	int32_t     ret,i;
@@ -53,8 +52,7 @@ datagram_send(datagram *d,packet *p,sockaddr_ *addr)
 	return ret;
 }
 
-static inline void 
-prepare_recv(datagram *d)
+static inline void prepare_recv(datagram *d)
 {
 	bytebuffer *buf;
 	int32_t     i = 0;
@@ -87,16 +85,14 @@ prepare_recv(datagram *d)
 	d->recv_overlap.iovec = d->wrecvbuf;
 }
 
-static inline void
-PostRecv(datagram *d)
+static inline void PostRecv(datagram *d)
 {
 	d->status |= RECVING;
 	prepare_recv(d);
 	datagram_socket_recv((dgram_socket_*)d,&d->recv_overlap,IO_POST,NULL);		
 }
 
-static inline void 
-update_next_recv_pos(datagram *d,int32_t _bytestransfer)
+static inline void update_next_recv_pos(datagram *d,int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
 	uint32_t bytes = (uint32_t)_bytestransfer;
@@ -116,9 +112,7 @@ update_next_recv_pos(datagram *d,int32_t _bytestransfer)
 	}while(bytes);
 }
 
-static void 
-IoFinish(handle *sock,void *_,int32_t bytes,
-		 int32_t err_code,int32_t recvflags)
+static void IoFinish(handle *sock,void *_,int32_t bytes,int32_t err_code,int32_t recvflags)
 {
 	int32_t unpack_err;
 	datagram *d = (datagram*)sock;	
@@ -136,9 +130,7 @@ IoFinish(handle *sock,void *_,int32_t bytes,
 }
 
 
-static int32_t 
-imp_engine_add(engine *e,handle *h,
-		       generic_callback callback)
+static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 {
 	int32_t ret;
 	assert(e && h && callback);
@@ -154,8 +146,7 @@ imp_engine_add(engine *e,handle *h,
 	return ret;
 }
 
-void 
-datagram_dctor(void *_)
+void datagram_dctor(void *_)
 {
 	datagram *d = (datagram*)_;
 	bytebuffer_set(&d->next_recv_buf,NULL);
@@ -163,8 +154,7 @@ datagram_dctor(void *_)
 	free(d);	
 }
 
-datagram*
-datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
+datagram *datagram_new(int32_t fd,uint32_t buffersize,decoder *d)
 {
 	buffersize = size_of_pow2(buffersize);
     if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	

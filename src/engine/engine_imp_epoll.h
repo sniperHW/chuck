@@ -6,12 +6,9 @@ typedef struct engine{
 }engine;
 
 
-int32_t 
-event_mod(handle *h,int32_t events);
+int32_t event_mod(handle *h,int32_t events);
 
-int32_t 
-event_add(engine *e,handle *h,
-		  int32_t events)
+int32_t event_add(engine *e,handle *h,int32_t events)
 {
 	assert((events & EPOLLET) == 0);
 	struct epoll_event ev = {0};
@@ -30,8 +27,7 @@ event_add(engine *e,handle *h,
 }
 
 
-int32_t 
-event_remove(handle *h)
+int32_t event_remove(handle *h)
 {
 	struct epoll_event ev = {0};
 	errno = 0;
@@ -44,8 +40,7 @@ event_remove(handle *h)
 	return 0;	
 }
 
-int32_t 
-event_mod(handle *h,int32_t events)
+int32_t event_mod(handle *h,int32_t events)
 {
 	assert((events & EPOLLET) == 0);
 	engine *e = h->e;	
@@ -60,29 +55,26 @@ event_mod(handle *h,int32_t events)
 }
 
 
-int32_t 
-event_enable(handle *h,int32_t events)
+int32_t event_enable(handle *h,int32_t events)
 {
 	return event_mod(h,h->events | events);
 }
 
-int32_t 
-event_disable(handle *h,int32_t events)
+int32_t event_disable(handle *h,int32_t events)
 {
 	return event_mod(h,h->events & (~events));
 }
 
-void 
-timerfd_callback(void *ud)
+void timerfd_callback(void *ud)
 {
 	wheelmgr *mgr = (wheelmgr*)ud;
 	wheelmgr_tick(mgr,systick64());
 }
 
-timer*
-engine_regtimer(engine *e,uint32_t timeout,
-			    int32_t(*cb)(uint32_t,uint64_t,void*),
-			    void *ud)
+timer *engine_regtimer(
+		engine *e,uint32_t timeout,
+		int32_t(*cb)(uint32_t,uint64_t,void*),
+		void *ud)
 {
 	if(!e->tfd){
 		e->timermgr = wheelmgr_new();
@@ -93,8 +85,7 @@ engine_regtimer(engine *e,uint32_t timeout,
 }
 
 
-static int32_t 
-engine_init(engine *e)
+static int32_t engine_init(engine *e)
 {
 	int32_t epfd = epoll_create1(EPOLL_CLOEXEC);
 	if(epfd < 0) return -1;
@@ -124,8 +115,7 @@ engine_init(engine *e)
 	return 0;
 }
 
-static inline void
-_engine_del(engine *e)
+static inline void _engine_del(engine *e)
 {
 	handle *h;
 	if(e->tfd){
@@ -143,13 +133,11 @@ _engine_del(engine *e)
 }
 
 #ifdef _CHUCKLUA
-static void
-engine_del_lua(engine *e);
+static void engine_del_lua(engine *e);
 #endif 
 
 
-int32_t
-engine_runonce(engine *e,uint32_t timeout)
+int32_t engine_runonce(engine *e,uint32_t timeout)
 {
 	errno = 0;
 	int32_t i;
@@ -190,8 +178,7 @@ engine_runonce(engine *e,uint32_t timeout)
 	return ret;	
 }
 
-int32_t 
-engine_run(engine *e)
+int32_t engine_run(engine *e)
 {
 	int32_t ret = 0;
 	for(;;){
@@ -239,8 +226,7 @@ loopend:
 }
 
 
-void 
-engine_stop(engine *e)
+void engine_stop(engine *e)
 {
 	int32_t _;
 	TEMP_FAILURE_RETRY(write(e->notifyfds[1],&_,sizeof(_)));
@@ -248,8 +234,7 @@ engine_stop(engine *e)
 
 #ifdef _CHUCKLUA
 
-static int32_t 
-lua_engine_new(lua_State *L)
+static int32_t lua_engine_new(lua_State *L)
 {
 	engine *ep = cast(engine*,lua_newuserdata(L, sizeof(*ep)));
 	memset(ep,0,sizeof(*ep));
@@ -264,8 +249,7 @@ lua_engine_new(lua_State *L)
 }
 
 
-static void
-engine_del_lua(engine *e)
+static void engine_del_lua(engine *e)
 {
 	assert(e->threadid == thread_id());
 	if(e->status & INLOOP)
@@ -277,8 +261,7 @@ engine_del_lua(engine *e)
 
 #else
 
-engine* 
-engine_new()
+engine *engine_new()
 {
 	engine *ep = calloc(1,sizeof(*ep));
 	if(0 != engine_init(ep)){
@@ -288,8 +271,7 @@ engine_new()
 	return ep;
 }
 
-void 
-engine_del(engine *e)
+void engine_del(engine *e)
 {
 	assert(e->threadid == thread_id());
 	if(e->status & INLOOP)

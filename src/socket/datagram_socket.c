@@ -3,14 +3,11 @@
 #include "engine/engine.h"
 #include "socket/socket_helper.h"
 
-extern void    
-release_socket(socket_ *s);
+extern void    release_socket(socket_ *s);
 
 typedef void(*dgram_callback)(dgram_socket_*,void*,int32_t,int32_t,int32_t);  
 
-static int32_t 
-imp_engine_add(engine *e,handle *h,
-	           generic_callback callback)
+static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 {
 	int32_t ret;
 	assert(e && h && callback);
@@ -24,8 +21,7 @@ imp_engine_add(engine *e,handle *h,
 }
 
 
-static void 
-process_read(dgram_socket_ *s)
+static void process_read(dgram_socket_ *s)
 {
 	iorequest *req = NULL;
 	int32_t bytes = 0;
@@ -53,8 +49,7 @@ process_read(dgram_socket_ *s)
 	}
 }
 
-static void 
-on_events(handle *h,int32_t events)
+static void on_events(handle *h,int32_t events)
 {
 	dgram_socket_ *s = cast(dgram_socket_*,h);
 	if(!s->e || ((s->status & SOCKET_CLOSE)))
@@ -77,8 +72,7 @@ on_events(handle *h,int32_t events)
 	}
 }
 
-void    
-datagram_socket_init(dgram_socket_ *s,int32_t fd)
+void    datagram_socket_init(dgram_socket_ *s,int32_t fd)
 {
 	s->fd = fd;
 	s->on_events = on_events;
@@ -87,16 +81,14 @@ datagram_socket_init(dgram_socket_ *s,int32_t fd)
 	easy_close_on_exec(fd);
 }		
 
-dgram_socket_*
-new_datagram_socket(int32_t fd)
+dgram_socket_ *new_datagram_socket(int32_t fd)
 {
 	dgram_socket_ *s = calloc(1,sizeof(*s));
 	datagram_socket_init(s,fd);
 	return s;
 }
 
-int32_t 
-datagram_socket_recv(dgram_socket_ *s,iorequest *req,
+int32_t datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 	 				 int32_t flag,int32_t *recvflags)
 {
 	int32_t bytes;
@@ -134,8 +126,7 @@ datagram_socket_recv(dgram_socket_ *s,iorequest *req,
 	return -EAGAIN;	
 }
 
-int32_t 
-datagram_socket_send(dgram_socket_ *s,iorequest *req)
+int32_t datagram_socket_send(dgram_socket_ *s,iorequest *req)
 {
 	int32_t bytes;
 	handle *h = cast(handle*,s);

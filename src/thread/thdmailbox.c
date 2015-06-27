@@ -33,8 +33,7 @@ static record   thread_mailboxs[MAX_THREADS] = {};
 #define LOCK(q) while (__sync_lock_test_and_set(&q,1)) {}
 #define UNLOCK(q) __sync_lock_release(&q);
 
-tmailbox
-query_mailbox(const char *name)
+tmailbox query_mailbox(const char *name)
 {
 	uint16_t i;
 	tmailbox m = {.identity=0,.ptr=NULL};
@@ -79,8 +78,8 @@ static inline mail* getmail()
 }
 
 
-static void 
-on_events(handle *h,int32_t events){
+static void on_events(handle *h,int32_t events)
+{
 	if(events == EENGCLOSE){
 		return;
 	}
@@ -96,8 +95,8 @@ on_events(handle *h,int32_t events){
 }
 
 
-static void 
-mailbox_dctor(void *ptr){
+static void mailbox_dctor(void *ptr)
+{
 	mail* mail_;	
 	uint16_t i;
 	tmailbox_* mailbox = cast(tmailbox_*,((char*)ptr - sizeof(handle)));
@@ -121,9 +120,7 @@ mailbox_dctor(void *ptr){
 	free(mailbox);			
 }
 
-int32_t 
-mailbox_setup(engine *e,const char *name,
-			  void (*onmail)(mail *_mail))
+int32_t mailbox_setup(engine *e,const char *name,void (*onmail)(mail *_mail))
 {
 	uint16_t i;
 	int32_t tmp[2];
@@ -169,16 +166,16 @@ mailbox_setup(engine *e,const char *name,
 	return 0;
 }
 
-static inline tmailbox_* 
-cast2(tmailbox t){
+static inline tmailbox_* cast2(tmailbox t)
+{
 	refobj *tmp = cast2refobj(t);
 	if(!tmp) return NULL;
 	return cast(tmailbox_*,((char*)tmp - sizeof(handle)));
 }
 
 
-static inline int32_t 
-notify(tmailbox_ *mailbox){
+static inline int32_t notify(tmailbox_ *mailbox)
+{
 	int32_t  ret;
 	uint64_t _ = 1;
 	for(;;){
@@ -190,8 +187,7 @@ notify(tmailbox_ *mailbox){
 	return ret > 0 ? 0:-1;
 }
 
-int32_t 
-send_mail(tmailbox t,mail *mail_)
+int32_t send_mail(tmailbox t,mail *mail_)
 {
 	tmailbox_ *target = cast2(t);
 	int32_t ret = 0;
@@ -241,8 +237,7 @@ send_mail(tmailbox t,mail *mail_)
 }
 
 //call on thread end
-void 
-clear_thdmailbox()
+void clear_thdmailbox()
 {
 	if(mailbox_){
 		mailbox_->dead = 1;

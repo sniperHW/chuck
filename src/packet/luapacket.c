@@ -14,14 +14,12 @@
 #define LUARAWPACKET_METATABLE  "luarawpacket_metatable"
 #define LUAHTTPPACKET_METATABLE "luahttppacket_metatable"
 
-luapacket *
-lua_topacket(lua_State *L, int index)
+luapacket *lua_topacket(lua_State *L, int index)
 {
     return cast(luapacket*,lua_touserdata(L, index));
 }
 
-void 
-lua_pushpacket(lua_State *L,packet *pk)
+void lua_pushpacket(lua_State *L,packet *pk)
 {
 	luapacket *p = cast(luapacket*,lua_newuserdata(L, sizeof(*p)));
 	p->_packet = pk;
@@ -37,8 +35,7 @@ lua_pushpacket(lua_State *L,packet *pk)
 }
 
 
-static int32_t 
-luapacket_gc(lua_State *L)
+static int32_t luapacket_gc(lua_State *L)
 {
 	luapacket *p = lua_topacket(L,1);
 	if(p->_packet){ 
@@ -48,8 +45,7 @@ luapacket_gc(lua_State *L)
     return 0;
 }
 
-static int32_t 
-_write_uint8(lua_State *L)
+static int32_t _write_uint8(lua_State *L)
 {
 	uint8_t v;
 	wpacket *wpk;
@@ -64,8 +60,7 @@ _write_uint8(lua_State *L)
 	return 0;	
 }
 
-static int32_t 
-_write_uint16(lua_State *L)
+static int32_t _write_uint16(lua_State *L)
 {
 	uint16_t  v;
 	wpacket   *wpk;
@@ -80,8 +75,7 @@ _write_uint16(lua_State *L)
 	return 0;	
 }
 
-static int32_t 
-_write_uint32(lua_State *L)
+static int32_t _write_uint32(lua_State *L)
 {
 	uint32_t  v;
 	wpacket   *wpk;
@@ -96,8 +90,7 @@ _write_uint32(lua_State *L)
 	return 0;	
 }
 
-static int32_t 
-_write_double(lua_State *L)
+static int32_t _write_double(lua_State *L)
 {
 	double    v;
 	wpacket   *wpk;
@@ -112,8 +105,7 @@ _write_double(lua_State *L)
 	return 0;	
 }
 
-static int32_t 
-_write_string(lua_State *L)
+static int32_t _write_string(lua_State *L)
 {
 	size_t     len;
 	const char *data;
@@ -130,8 +122,7 @@ _write_string(lua_State *L)
 }
 
 
-int32_t 
-_write_table(lua_State *L)
+int32_t _write_table(lua_State *L)
 {
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != WPACKET)
@@ -144,8 +135,7 @@ _write_table(lua_State *L)
 }
 
 
-static int32_t 
-_read_uint8(lua_State *L)
+static int32_t _read_uint8(lua_State *L)
 {
 	rpacket   *rpk;
 	luapacket *p = lua_topacket(L,1);
@@ -156,8 +146,7 @@ _read_uint8(lua_State *L)
 	return 1;	
 }
 
-static int32_t 
-_read_uint16(lua_State *L)
+static int32_t _read_uint16(lua_State *L)
 {
 	rpacket   *rpk;
 	luapacket *p = lua_topacket(L,1);
@@ -168,8 +157,7 @@ _read_uint16(lua_State *L)
 	return 1;	
 }
 
-static int32_t 
-_read_uint32(lua_State *L)
+static int32_t _read_uint32(lua_State *L)
 {
 	rpacket   *rpk;
 	luapacket *p = lua_topacket(L,1);
@@ -180,8 +168,7 @@ _read_uint32(lua_State *L)
 	return 1;	
 }
 
-static int32_t
-_read_int8(lua_State *L)
+static int32_t _read_int8(lua_State *L)
 {
 	rpacket   *rpk;
 	luapacket *p = lua_topacket(L,1);
@@ -192,8 +179,7 @@ _read_int8(lua_State *L)
 	return 1;	
 }
 
-static int32_t 
-_read_int16(lua_State *L)
+static int32_t _read_int16(lua_State *L)
 {
 	rpacket   *rpk;
 	luapacket *p = lua_topacket(L,1);
@@ -204,8 +190,7 @@ _read_int16(lua_State *L)
 	return 1;	
 }
 
-static int32_t 
-_read_int32(lua_State *L)
+static int32_t _read_int32(lua_State *L)
 {
 	rpacket   *rpk;
 	luapacket *p = lua_topacket(L,1);
@@ -217,8 +202,7 @@ _read_int32(lua_State *L)
 }
 
 
-static int32_t 
-_read_double(lua_State *L)
+static int32_t _read_double(lua_State *L)
 {
 	rpacket   *rpk;
 	luapacket *p = lua_topacket(L,1);
@@ -229,8 +213,7 @@ _read_double(lua_State *L)
 	return 1;	
 }
 
-static int32_t 
-_read_string(lua_State *L)
+static int32_t _read_string(lua_State *L)
 {
 	rpacket    *rpk;
 	uint16_t   len;
@@ -248,8 +231,7 @@ _read_string(lua_State *L)
 }
 
 
-static int32_t 
-_read_table(lua_State *L)
+static int32_t _read_table(lua_State *L)
 {
 	rpacket   *rpk;
 	int32_t   old_top;        
@@ -265,8 +247,7 @@ _read_table(lua_State *L)
 	return 1;
 }
 
-static int32_t 
-_read_rawbin(lua_State *L)
+static int32_t _read_rawbin(lua_State *L)
 {
 	rawpacket *rawpk;
 	uint32_t  len = 0;
@@ -280,8 +261,7 @@ _read_rawbin(lua_State *L)
 	return 1;						
 }
 
-static int32_t 
-lua_new_wpacket(lua_State *L)
+static int32_t lua_new_wpacket(lua_State *L)
 {
 	size_t  len = 0;
 	luapacket *other,*p;
@@ -310,8 +290,7 @@ lua_new_wpacket(lua_State *L)
 		return luaL_error(L,"invaild opration for arg1");		
 }
 
-static int32_t 
-lua_new_rpacket(lua_State *L)
+static int32_t lua_new_rpacket(lua_State *L)
 {
 	luapacket *other,*p;
 	int32_t argtype = lua_type(L,1); 
@@ -330,8 +309,7 @@ lua_new_rpacket(lua_State *L)
 		return luaL_error(L,"invaild opration for arg1");	
 }
 
-static int32_t 
-lua_new_rawpacket(lua_State *L)
+static int32_t lua_new_rawpacket(lua_State *L)
 {
 	size_t    len;
 	char      *data;
@@ -361,8 +339,7 @@ lua_new_rawpacket(lua_State *L)
 		return luaL_error(L,"invaild opration for arg1");	
 }
 
-static int32_t 
-lua_clone_packet(lua_State *L)
+static int32_t lua_clone_packet(lua_State *L)
 {
 	luapacket *p,*other;
 	if(lua_type(L,1) !=  LUA_TUSERDATA)
@@ -395,8 +372,7 @@ const char *http_method_name[] =
 #undef XX
   };
 
-static int32_t
-lua_http_method(lua_State *L)
+static int32_t lua_http_method(lua_State *L)
 {
 	httppacket *hpk;
 	luapacket *p = lua_topacket(L,1);
@@ -410,8 +386,7 @@ lua_http_method(lua_State *L)
 	return 1;	
 }
 
-static int32_t
-lua_http_headers(lua_State *L)
+static int32_t lua_http_headers(lua_State *L)
 {
 	httppacket *hpk;
 	st_header  *head;
@@ -438,8 +413,7 @@ lua_http_headers(lua_State *L)
 	return 1;
 }
 
-static int32_t 
-lua_http_header_field(lua_State *L)
+static int32_t lua_http_header_field(lua_State *L)
 {
 	httppacket *hpk;
 	const char *field;
@@ -460,8 +434,7 @@ lua_http_header_field(lua_State *L)
 	return 0;	
 }
 
-static int32_t
-lua_http_content(lua_State *L)
+static int32_t lua_http_content(lua_State *L)
 {
 	httppacket *hpk;
 	char       *data;
@@ -477,8 +450,7 @@ lua_http_content(lua_State *L)
 	return 1;
 }
 
-static int32_t
-lua_http_url(lua_State *L)
+static int32_t lua_http_url(lua_State *L)
 {
 	httppacket *hpk;
 	char       *data;
@@ -494,8 +466,7 @@ lua_http_url(lua_State *L)
 	return 1;
 }
 
-static int32_t
-lua_http_status(lua_State *L)
+static int32_t lua_http_status(lua_State *L)
 {
 	httppacket *hpk;
 	char       *data;
@@ -517,8 +488,7 @@ lua_http_status(lua_State *L)
 	lua_settable(L, -3);\
 }while(0)
 
-void 
-reg_luapacket(lua_State *L)
+void reg_luapacket(lua_State *L)
 {
     luaL_Reg rpacket_mt[] = {
         {"__gc", luapacket_gc},

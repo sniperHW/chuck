@@ -1,8 +1,7 @@
 #include "socket/socket_helper.h"
 
 
-int32_t 
-easy_listen(int32_t fd,sockaddr_ *server)
+int32_t easy_listen(int32_t fd,sockaddr_ *server)
 {
 	errno = 0;
 	if(easy_bind(fd,server) != 0)
@@ -12,9 +11,7 @@ easy_listen(int32_t fd,sockaddr_ *server)
 	return 0;
 }
 
-int32_t 
-easy_connect(int32_t fd,sockaddr_ *server,
-			 sockaddr_ *local)
+int32_t easy_connect(int32_t fd,sockaddr_ *server,sockaddr_ *local)
 {
 	int32_t ret;
 	errno = 0;	
@@ -26,8 +23,7 @@ easy_connect(int32_t fd,sockaddr_ *server,
 
 #ifdef _CHUCKLUA
 
-static int32_t 
-lua_easy_connect(lua_State *L)
+static int32_t lua_easy_connect(lua_State *L)
 {
 	int32_t fd;
 	const char *ip;
@@ -54,8 +50,7 @@ lua_easy_connect(lua_State *L)
 	return 1;				
 }
 
-static int32_t 
-lua_socket(lua_State *L)
+static int32_t lua_socket(lua_State *L)
 {
 	int32_t family;
 	int32_t type;
@@ -78,8 +73,7 @@ lua_socket(lua_State *L)
 	return 1;
 }
 
-static int32_t 
-lua_easy_listen(lua_State *L)
+static int32_t lua_easy_listen(lua_State *L)
 {
 	int32_t fd;
 	const char *ip;
@@ -106,8 +100,7 @@ lua_easy_listen(lua_State *L)
 	return 1;
 }
 
-static int32_t 
-lua_easy_noblock(lua_State *L)
+static int32_t lua_easy_noblock(lua_State *L)
 {
 	int32_t fd;
 	int32_t yes;
@@ -124,8 +117,7 @@ lua_easy_noblock(lua_State *L)
 	return 1;
 }
 
-static int32_t 
-lua_easy_addr_reuse(lua_State *L)
+static int32_t lua_easy_addr_reuse(lua_State *L)
 {
 	int32_t fd;
 	int32_t yes;
@@ -142,8 +134,7 @@ lua_easy_addr_reuse(lua_State *L)
 	return 1;
 }
 
-static int32_t 
-lua_close_socket(lua_State *L)
+static int32_t lua_close_socket(lua_State *L)
 {
 	int32_t fd;
 	if(lua_type(L,1) != LUA_TNUMBER)
@@ -165,8 +156,7 @@ lua_close_socket(lua_State *L)
 	lua_settable(L, -3);\
 }while(0)
 
-void 
-reg_socket_helper(lua_State *L)
+void reg_socket_helper(lua_State *L)
 {
 	lua_newtable(L);
 	SET_CONST(L,AF_INET);

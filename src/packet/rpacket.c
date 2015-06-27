@@ -3,14 +3,11 @@
 
 allocator *g_rpk_allocator = NULL;
 
-static packet*
-rpacket_clone(packet*);
+static packet *rpacket_clone(packet*);
 
-packet*
-wpacket_makeread(packet*);
+packet *wpacket_makeread(packet*);
 
-packet*
-rpacket_makewrite(packet*);
+packet *rpacket_makewrite(packet*);
 
 #define INIT_CONSTROUCTOR(p){\
 	cast(packet*,p)->construct_write = rpacket_makewrite;\
@@ -18,8 +15,7 @@ rpacket_makewrite(packet*);
 	cast(packet*,p)->clone           = rpacket_clone;\
 }
 
-rpacket*
-rpacket_new(bytebuffer *b,uint32_t start_pos)
+rpacket *rpacket_new(bytebuffer *b,uint32_t start_pos)
 {
 	rpacket *r = cast(rpacket*,CALLOC(g_rpk_allocator,1,sizeof(*r)));
 	cast(packet*,r)->type = RPACKET;
@@ -37,8 +33,7 @@ rpacket_new(bytebuffer *b,uint32_t start_pos)
 }
 
 
-const void*
-rpacket_read_binary(rpacket *r,uint16_t *len)
+const void *rpacket_read_binary(rpacket *r,uint16_t *len)
 {
 	void    *addr = 0;
 	uint32_t copy_size;
@@ -73,8 +68,7 @@ rpacket_read_binary(rpacket *r,uint16_t *len)
 	return addr;
 }
 
-const char*
-rpacket_read_string(rpacket *r)
+const char *rpacket_read_string(rpacket *r)
 {
 	uint16_t len;	
 	char *str =  (char*)rpacket_read_binary(r,&len);
@@ -83,8 +77,7 @@ rpacket_read_string(rpacket *r)
 	return NULL;
 }
 
-static packet*
-rpacket_clone(packet *p)
+static packet *rpacket_clone(packet *p)
 {
 	rpacket *r,*ori;
 	ori = (rpacket*)p;
@@ -103,8 +96,7 @@ rpacket_clone(packet *p)
 }
 
 
-packet*
-wpacket_makeread(packet *p)
+packet *wpacket_makeread(packet *p)
 {
 	rpacket *r;
 	if(p->type == WPACKET){

@@ -7,9 +7,7 @@ extern void    release_socket(socket_ *s);
 
 typedef void(*stream_callback)(stream_socket_*,void*,int32_t,int32_t);
 
-static int32_t 
-imp_engine_add(engine *e,handle *h,
-			   generic_callback callback)
+static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 {
 	int32_t ret;
 	assert(e && h && callback);
@@ -23,8 +21,7 @@ imp_engine_add(engine *e,handle *h,
 }
 
  
-static void 
-process_read(stream_socket_ *s)
+static void process_read(stream_socket_ *s)
 {
 	iorequest *req = NULL;
 	int32_t bytes = 0;
@@ -42,8 +39,7 @@ process_read(stream_socket_ *s)
 	}	
 }
 
-static void 
-process_write(stream_socket_ *s)
+static void process_write(stream_socket_ *s)
 {
 	iorequest *req = 0;
 	int32_t bytes = 0;
@@ -58,8 +54,7 @@ process_write(stream_socket_ *s)
 	}	
 }
 
-static void 
-on_events(handle *h,int32_t events)
+static void on_events(handle *h,int32_t events)
 {
 	stream_socket_ *s = cast(stream_socket_*,h);
 	if(!s->e || s->status & SOCKET_CLOSE)
@@ -85,8 +80,7 @@ on_events(handle *h,int32_t events)
 }
 
 
-void    
-stream_socket_init(stream_socket_ *s,int32_t fd)
+void stream_socket_init(stream_socket_ *s,int32_t fd)
 {
 	s->on_events = on_events;
 	s->imp_engine_add = imp_engine_add;
@@ -98,17 +92,14 @@ stream_socket_init(stream_socket_ *s,int32_t fd)
 	easy_close_on_exec(fd);		
 }	
 
-stream_socket_*
-new_stream_socket(int32_t fd)
+stream_socket_ *new_stream_socket(int32_t fd)
 {
 	stream_socket_ *s = calloc(1,sizeof(*s));
 	stream_socket_init(s,fd);
 	return s;
 }
 
-int32_t 
-stream_socket_recv(stream_socket_ *s,
-				   iorequest *req,int32_t flag)
+int32_t stream_socket_recv(stream_socket_ *s,iorequest *req,int32_t flag)
 {
 	int32_t bytes;
 	handle *h = cast(handle*,s);
@@ -133,9 +124,7 @@ stream_socket_recv(stream_socket_ *s,
 	return -EAGAIN;	
 }
 
-int32_t 
-stream_socket_send(stream_socket_ *s,
-				   iorequest *req,int32_t flag)
+int32_t stream_socket_send(stream_socket_ *s,iorequest *req,int32_t flag)
 {
 	int32_t bytes;
 	handle *h = cast(handle*,s);

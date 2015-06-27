@@ -35,8 +35,7 @@ typedef struct{
 
 #define LUA_METATABLE "conn_mata"
 
-static void 
-PushConn(lua_State *L,luaPushFunctor *_)
+static void PushConn(lua_State *L,luaPushFunctor *_)
 {
 	stPushConn *self = (stPushConn*)_;
 	lua_pushlightuserdata(L,self->c);
@@ -44,8 +43,7 @@ PushConn(lua_State *L,luaPushFunctor *_)
 	lua_setmetatable(L, -2);		
 }
 
-static void 
-PushPk(lua_State *L,luaPushFunctor *_)
+static void PushPk(lua_State *L,luaPushFunctor *_)
 {
 	stPushPk *self = (stPushPk*)_;
 	if(self->p)
@@ -57,8 +55,7 @@ PushPk(lua_State *L,luaPushFunctor *_)
 #endif
 
 
-static inline void 
-prepare_recv(connection *c)
+static inline void prepare_recv(connection *c)
 {
 	bytebuffer *buf;
 	int32_t     i = 0;
@@ -91,8 +88,7 @@ prepare_recv(connection *c)
 	c->recv_overlap.iovec = c->wrecvbuf;
 }
 
-static inline void 
-PostRecv(connection *c)
+static inline void PostRecv(connection *c)
 {
 	prepare_recv(c);
 	if(0 == stream_socket_recv((stream_socket_*)c,&c->recv_overlap,IO_POST))
@@ -101,8 +97,7 @@ PostRecv(connection *c)
 		c->status ^= PENDING_RECV;		
 }
 
-static inline int32_t 
-Recv(connection *c)
+static inline int32_t Recv(connection *c)
 {
 	c->status ^= PENDING_RECV;
 	prepare_recv(c);
@@ -112,16 +107,13 @@ Recv(connection *c)
 	return ret;
 }
 
-static inline int32_t 
-Send(connection *c,int32_t flag)
+static inline int32_t Send(connection *c,int32_t flag)
 {
 	return stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
 }
 
 
-static inline void 
-update_next_recv_pos(connection *c,
-					 int32_t _bytestransfer)
+static inline void update_next_recv_pos(connection *c,int32_t _bytestransfer)
 {
 	assert(_bytestransfer > 0);
 	uint32_t bytes = (uint32_t)_bytestransfer;
@@ -141,9 +133,7 @@ update_next_recv_pos(connection *c,
 	}while(bytes);
 }
 
-static void 
-RecvFinish(connection *c,int32_t bytes,
-		   int32_t err_code)
+static void RecvFinish(connection *c,int32_t bytes,int32_t err_code)
 {
 	int32_t total_recv = 0;
 	packet *pk;	
@@ -184,8 +174,7 @@ RecvFinish(connection *c,int32_t bytes,
 	}while(1);
 }
 
-static inline iorequest*
-prepare_send(connection *c)
+static inline iorequest *prepare_send(connection *c)
 {
 	int32_t     i = 0;
 	packet     *w = (packet*)list_begin(&c->send_list);
@@ -222,9 +211,8 @@ prepare_send(connection *c)
 }
 
 
-static inline void 
-do_sndfnsh_cb(connection *c,packet *p){
-
+static inline void do_sndfnsh_cb(connection *c,packet *p)
+{
 	stSendFshCb *stcb = (stSendFshCb*)list_begin(&c->send_finish_cb);
 	if(!stcb) 
 		return;
@@ -252,9 +240,7 @@ do_sndfnsh_cb(connection *c,packet *p){
 }
 
 
-static inline void 
-update_send_list(connection *c,
-				 int32_t _bytestransfer)
+static inline void update_send_list(connection *c,int32_t _bytestransfer)
 {
 	assert(_bytestransfer >= 0);
 	packet     *w;
@@ -289,8 +275,7 @@ update_send_list(connection *c,
 }
 
 
-static void 
-SendFinish(connection *c,int32_t bytes,int32_t err_code)
+static void SendFinish(connection *c,int32_t bytes,int32_t err_code)
 {
 	while(bytes >= 0){
 		update_send_list(c,bytes);
@@ -307,9 +292,7 @@ SendFinish(connection *c,int32_t bytes,int32_t err_code)
 	c->on_packet(c,NULL,err_code);	
 }
 
-static void 
-IoFinish(handle *sock,void *_,
-		 int32_t bytes,int32_t err_code)
+static void IoFinish(handle *sock,void *_,int32_t bytes,int32_t err_code)
 {
 	iorequest  *io = ((iorequest*)_);
 	connection *c  = (connection*)sock;
@@ -321,8 +304,8 @@ IoFinish(handle *sock,void *_,
 		RecvFinish(c,bytes,err_code);
 }
 
-static int32_t 
-timer_callback(uint32_t event,uint64_t tick,void *ud){
+static int32_t timer_callback(uint32_t event,uint64_t tick,void *ud)
+{
 	if(event == TEVENT_TIMEOUT){
 		connection *c = (connection*)ud;
 		if(c->recvtimeout &&
@@ -345,9 +328,7 @@ timer_callback(uint32_t event,uint64_t tick,void *ud){
 	return 0;
 }	
 
-static int32_t 
-imp_engine_add(engine *e,handle *h,
-			   generic_callback callback)
+static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 {
 	int32_t ret;
 	connection *c = (connection*)h;
@@ -368,8 +349,7 @@ imp_engine_add(engine *e,handle *h,
 }
 
 
-static int32_t
-_connection_send(connection *c,packet *p,stSendFshCb *stcb)
+static int32_t _connection_send(connection *c,packet *p,stSendFshCb *stcb)
 {
 	int32_t ret;
 	if(p->type != WPACKET && p->type != RAWPACKET){
@@ -393,8 +373,7 @@ _connection_send(connection *c,packet *p,stSendFshCb *stcb)
 }
 
 
-void 
-_connection_dctor(connection *c)
+void _connection_dctor(connection *c)
 {
 	packet *p;
 	stSendFshCb *stcb;
@@ -415,9 +394,7 @@ _connection_dctor(connection *c)
 
 
 
-static void 
-connection_init(connection *c,int32_t fd,
-				uint32_t buffersize,decoder *d)
+static void connection_init(connection *c,int32_t fd,uint32_t buffersize,decoder *d)
 {
 	stream_socket_init((stream_socket_*)c,fd);
 	c->recv_bufsize  = buffersize;
@@ -430,8 +407,7 @@ connection_init(connection *c,int32_t fd,
 }
 
 
-int32_t 
-connection_close(connection *c)
+int32_t connection_close(connection *c)
 {
 	if(c->status & SOCKET_CLOSE)
 		return -ESOCKCLOSE;
@@ -440,8 +416,7 @@ connection_close(connection *c)
 }
 
 
-void
-connection_set_recvtimeout(connection *c,uint32_t timeout)
+void connection_set_recvtimeout(connection *c,uint32_t timeout)
 {
 	handle *h = (handle*)c;
 	c->recvtimeout = timeout;
@@ -457,8 +432,7 @@ connection_set_recvtimeout(connection *c,uint32_t timeout)
 }
 
 
-void
-connection_set_sendtimeout(connection *c,uint32_t timeout)
+void connection_set_sendtimeout(connection *c,uint32_t timeout)
 {
 	handle *h = (handle*)c;
 	c->sendtimeout = timeout;
@@ -477,8 +451,7 @@ connection_set_sendtimeout(connection *c,uint32_t timeout)
 
 //for lua
 
-void 
-lua_connection_dctor(void *_)
+void lua_connection_dctor(void *_)
 {
 	connection *c = (connection*)_;
 	_connection_dctor(c);
@@ -486,14 +459,12 @@ lua_connection_dctor(void *_)
 	//should not invoke free
 }
 
-connection*
-lua_toconnection(lua_State *L, int index)
+connection *lua_toconnection(lua_State *L, int index)
 {
     return (connection*)luaL_testudata(L, index, LUA_METATABLE);
 }
 
-static int32_t 
-lua_connection_new(lua_State *L)
+static int32_t lua_connection_new(lua_State *L)
 {
 	int32_t  fd;
 	int32_t  buffersize;
@@ -519,8 +490,7 @@ lua_connection_new(lua_State *L)
 }
 
 
-static void 
-lua_on_packet(connection *c,packet *p,int32_t err)
+static void lua_on_packet(connection *c,packet *p,int32_t err)
 {
 	const char * error;
 	stPushConn st1;	
@@ -544,8 +514,7 @@ lua_on_packet(connection *c,packet *p,int32_t err)
 
 }
 
-static int32_t 
-lua_engine_add(lua_State *L)
+static int32_t lua_engine_add(lua_State *L)
 {
 	connection *c = lua_toconnection(L,1);
 	engine     *e = lua_toengine(L,2);
@@ -557,8 +526,7 @@ lua_engine_add(lua_State *L)
 	return 0;
 }
 
-static int32_t 
-lua_engine_remove(lua_State *L)
+static int32_t lua_engine_remove(lua_State *L)
 {
 	connection *c = lua_toconnection(L,1);
 	if(c){
@@ -568,8 +536,7 @@ lua_engine_remove(lua_State *L)
 }
 
 
-static int32_t 
-lua_conn_close(lua_State *L)
+static int32_t lua_conn_close(lua_State *L)
 {
 	connection *c = lua_toconnection(L,1);
 	connection_close(c);
@@ -577,8 +544,7 @@ lua_conn_close(lua_State *L)
 }
 
 
-static int32_t 
-lua_conn_send(lua_State *L)
+static int32_t lua_conn_send(lua_State *L)
 {
 	connection  *c = lua_toconnection(L,1);
 	luapacket   *p = lua_topacket(L,2);
@@ -594,8 +560,7 @@ lua_conn_send(lua_State *L)
 	return 1;
 }
 
-static int32_t
-lua_set_recvtimeout(lua_State *L)
+static int32_t lua_set_recvtimeout(lua_State *L)
 {
 	connection  *c = lua_toconnection(L,1);
 	uint32_t     timeout = lua_tointeger(L,2);
@@ -603,8 +568,7 @@ lua_set_recvtimeout(lua_State *L)
 	return 0; 
 }
 
-static int32_t
-lua_set_sendtimeout(lua_State *L)
+static int32_t lua_set_sendtimeout(lua_State *L)
 {
 	connection  *c = lua_toconnection(L,1);
 	uint32_t     timeout = lua_tointeger(L,2);
@@ -613,8 +577,7 @@ lua_set_sendtimeout(lua_State *L)
 }
 
 
-static int32_t 
-lua_connection_gc(lua_State *L)
+static int32_t lua_connection_gc(lua_State *L)
 {
 	connection *c = lua_toconnection(L,1);
 	connection_close(c);
@@ -627,8 +590,7 @@ lua_connection_gc(lua_State *L)
 	lua_settable(L, -3);\
 }while(0)
 
-void    
-reg_luaconnection(lua_State *L)
+void reg_luaconnection(lua_State *L)
 {
     luaL_Reg conn_mt[] = {
         {"__gc", lua_connection_gc},
@@ -657,16 +619,14 @@ reg_luaconnection(lua_State *L)
 
 #else
 
-void 
-connection_dctor(void *_)
+void connection_dctor(void *_)
 {
 	connection *c = (connection*)_;
 	_connection_dctor(c);
 	free(c);
 }
 
-connection*
-connection_new(int32_t fd,uint32_t buffersize,decoder *d)
+connection *connection_new(int32_t fd,uint32_t buffersize,decoder *d)
 {
 	buffersize = size_of_pow2(buffersize);
     if(buffersize < MIN_RECV_BUFSIZE) buffersize = MIN_RECV_BUFSIZE;	
@@ -676,9 +636,7 @@ connection_new(int32_t fd,uint32_t buffersize,decoder *d)
 	return c;
 }
 
-int32_t 
-connection_send(connection *c,packet *p,
-				void (*fnish_cb)(connection*))
+int32_t connection_send(connection *c,packet *p,void (*fnish_cb)(connection*))
 {
 	stSendFshCb *stcb = NULL;
 	if(fnish_cb){

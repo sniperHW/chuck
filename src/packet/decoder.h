@@ -54,25 +54,19 @@ typedef struct httpdecoder{
 }httpdecoder;
 
 
-decoder*
-rpacket_decoder_new(uint32_t max_packet_size);
+decoder *rpacket_decoder_new(uint32_t max_packet_size);
 
-decoder*
-conn_raw_decoder_new();
+decoder *conn_raw_decoder_new();
 
-decoder*
-dgram_raw_decoder_new();
+decoder *dgram_raw_decoder_new();
 
-decoder*
-http_decoder_new(uint32_t max_packet_size);
+decoder *http_decoder_new(uint32_t max_packet_size);
 
-void 
-decoder_del(decoder*);
+void decoder_del(decoder*);
 
 #ifdef _CHUCKLUA
 
-void 
-reg_luadecoder(lua_State *L);
+void reg_luadecoder(lua_State *L);
 
 #endif
 

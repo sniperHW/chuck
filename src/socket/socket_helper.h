@@ -21,20 +21,16 @@
 #include "./socket.h"
 #include "lua/lua_util.h"
 
-int32_t 
-easy_listen(int32_t fd,sockaddr_ *server);
+int32_t easy_listen(int32_t fd,sockaddr_ *server);
 
-int32_t 
-easy_connect(int32_t fd,sockaddr_ *server,sockaddr_ *local);
+int32_t easy_connect(int32_t fd,sockaddr_ *server,sockaddr_ *local);
 
-static inline int32_t 
-easy_bind(int32_t fd,sockaddr_ *addr)
+static inline int32_t easy_bind(int32_t fd,sockaddr_ *addr)
 {
     return bind(fd,(struct sockaddr*)addr,sizeof(*addr));
 }
 
-static inline int32_t 
-easy_addr_reuse(int32_t fd,int32_t yes)
+static inline int32_t easy_addr_reuse(int32_t fd,int32_t yes)
 {
 	errno = 0;
 	if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)))
@@ -42,8 +38,7 @@ easy_addr_reuse(int32_t fd,int32_t yes)
 	return 0;	
 }
 
-static inline int32_t 
-easy_noblock(int32_t fd,int32_t noblock)
+static inline int32_t easy_noblock(int32_t fd,int32_t noblock)
 {
     int32_t flags;
 	errno = 0;
@@ -59,8 +54,7 @@ easy_noblock(int32_t fd,int32_t noblock)
     return fcntl(fd, F_SETFL, flags) == 0 ? 0 : -errno;	
 }
 
-static inline int32_t 
-easy_close_on_exec(int32_t fd)
+static inline int32_t easy_close_on_exec(int32_t fd)
 {
 	int32_t flags;
 	errno = 0;
@@ -70,8 +64,7 @@ easy_close_on_exec(int32_t fd)
 	return fcntl(fd, F_SETFD, flags|FD_CLOEXEC) == 0 ? 0 : -errno;
 }
 
-static inline int32_t 
-easy_sockaddr_ip4(sockaddr_ *addr,const char *ip,uint16_t port)
+static inline int32_t easy_sockaddr_ip4(sockaddr_ *addr,const char *ip,uint16_t port)
 {
     memset(cast(void*,addr),0,sizeof(*addr));
     addr->in.sin_family = AF_INET;
@@ -81,8 +74,7 @@ easy_sockaddr_ip4(sockaddr_ *addr,const char *ip,uint16_t port)
     return -1;
 }
 
-static inline int32_t 
-easy_sockaddr_un(sockaddr_ *addr,const char *path)
+static inline int32_t easy_sockaddr_un(sockaddr_ *addr,const char *path)
 {
     memset(cast(void*,addr),0,sizeof(*addr));
     addr->un.sun_family = AF_LOCAL;
@@ -92,8 +84,7 @@ easy_sockaddr_un(sockaddr_ *addr,const char *path)
 
 #ifdef _CHUCKLUA
 
-void 
-reg_socket_helper(lua_State *L);
+void reg_socket_helper(lua_State *L);
 
 #endif
 

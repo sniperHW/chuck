@@ -2,9 +2,7 @@
 #include "packet/rpacket.h"
 #include "packet/rawpacket.h"
 
-static inline void 
-_decoder_update(decoder *d,bytebuffer *buff,
-               uint32_t pos,uint32_t size)
+static inline void _decoder_update(decoder *d,bytebuffer *buff,uint32_t pos,uint32_t size)
 {
     if(!d->buff){
 	    d->buff = buff;
@@ -15,8 +13,7 @@ _decoder_update(decoder *d,bytebuffer *buff,
     d->size += size;
 }
 
-static packet*
-rpk_unpack(decoder *d,int32_t *err)
+static packet *rpk_unpack(decoder *d,int32_t *err)
 {
 	TYPE_HEAD     pk_len;
 	uint32_t      pk_total,size;
@@ -61,8 +58,7 @@ rpk_unpack(decoder *d,int32_t *err)
 }
 
 
-decoder*
-rpacket_decoder_new(uint32_t max_packet_size)
+decoder *rpacket_decoder_new(uint32_t max_packet_size)
 {
 	decoder *d = calloc(1,sizeof(*d));
 	d->decoder_update = _decoder_update;
@@ -71,8 +67,7 @@ rpacket_decoder_new(uint32_t max_packet_size)
 	return d;
 }
 
-static packet*
-conn_rawpk_unpack(decoder *d,int32_t *err)
+static packet *conn_rawpk_unpack(decoder *d,int32_t *err)
 {
     rawpacket  *raw;
     uint32_t    size;
@@ -93,8 +88,7 @@ conn_rawpk_unpack(decoder *d,int32_t *err)
     return (packet*)raw;
 }
 
-decoder*
-conn_raw_decoder_new()
+decoder *conn_raw_decoder_new()
 {
     decoder *d = calloc(1,sizeof(*d));
 	d->decoder_update = _decoder_update;    
@@ -102,8 +96,7 @@ conn_raw_decoder_new()
     return d;   
 }
 
-static packet*
-dgram_rawpk_unpack(decoder *d,int32_t *err)
+static packet *dgram_rawpk_unpack(decoder *d,int32_t *err)
 {
 	rawpacket    *raw;
 	uint32_t      size;
@@ -128,8 +121,7 @@ dgram_rawpk_unpack(decoder *d,int32_t *err)
 	return (packet*)raw;
 }
 
-decoder*
-dgram_raw_decoder_new()
+decoder *dgram_raw_decoder_new()
 {
 	decoder *d = calloc(1,sizeof(*d));
 	d->unpack = dgram_rawpk_unpack;
@@ -137,14 +129,12 @@ dgram_raw_decoder_new()
 	return d;	
 }
 
-static inline httpdecoder*
-cast2httpdecoder(http_parser *parser)
+static inline httpdecoder *cast2httpdecoder(http_parser *parser)
 {
 	return cast(httpdecoder*,((char*)parser - sizeof(decoder)));
 }
 
-static int 
-on_message_begin (http_parser *parser)
+static inline int on_message_begin(http_parser *parser)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
 	if(decoder->packet){
@@ -155,8 +145,7 @@ on_message_begin (http_parser *parser)
 	return 0;
 }
 
-static int 
-on_url(http_parser *parser, const char *at, size_t length)
+static inline int on_url(http_parser *parser, const char *at, size_t length)
 {	
 	httpdecoder *decoder   = cast2httpdecoder(parser);
 	cast(char*,at)[length] = 0;
@@ -164,8 +153,7 @@ on_url(http_parser *parser, const char *at, size_t length)
 	return 0;
 }
 
-static int 
-on_status(http_parser *parser, const char *at, size_t length)
+static inline int on_status(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder    = cast2httpdecoder(parser);
 	cast(char*,at)[length]  = 0;
@@ -173,32 +161,28 @@ on_status(http_parser *parser, const char *at, size_t length)
 	return 0;			
 }
 
-static int 
-on_header_field(http_parser *parser, const char *at, size_t length)
+static inline int on_header_field(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder   = cast2httpdecoder(parser);
 	cast(char*,at)[length] = 0;
 	return httppacket_on_header_field(decoder->packet,cast(char*,at),length);				
 }
 
-static int 
-on_header_value(http_parser *parser, const char *at, size_t length)
+static inline int on_header_value(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder   = cast2httpdecoder(parser);
 	cast(char*,at)[length] = 0;
 	return httppacket_on_header_value(decoder->packet,cast(char*,at),length);			
 }
 
-static int 
-on_headers_complete(http_parser *parser)
+static inline int on_headers_complete(http_parser *parser)
 {	
 	httpdecoder *decoder    = cast2httpdecoder(parser);
 	decoder->packet->method = parser->method;
 	return 0;		
 }
 
-static int 
-on_body(http_parser *parser, const char *at, size_t length)
+static inline int on_body(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder      = cast2httpdecoder(parser);
 	cast(char*,at)[length]    = 0;
@@ -213,8 +197,7 @@ enum{
 	HTTP_TOOLARGE = 2,
 };
 
-static int 
-on_message_complete(http_parser *parser)
+static inline int on_message_complete(http_parser *parser)
 {	
 	httpdecoder *decoder = cast2httpdecoder(parser);
 	decoder->status      = HTTP_COMPLETE;
@@ -222,8 +205,7 @@ on_message_complete(http_parser *parser)
 }
 
 
-static inline int32_t
-http_decoder_expand(httpdecoder *d,uint32_t size)
+static inline int32_t http_decoder_expand(httpdecoder *d,uint32_t size)
 {
 	bytebuffer *newbuff;
 	uint32_t newsize = size_of_pow2(size);
@@ -237,9 +219,7 @@ http_decoder_expand(httpdecoder *d,uint32_t size)
    	return 0;
 }
 
-static inline void 
-http_decoder_update(decoder *_,bytebuffer *buff,
-               uint32_t pos,uint32_t size)
+static inline void http_decoder_update(decoder *_,bytebuffer *buff,uint32_t pos,uint32_t size)
 {
 	httpdecoder *d = cast(httpdecoder*,_);
 	buffer_reader reader;
@@ -261,8 +241,8 @@ http_decoder_update(decoder *_,bytebuffer *buff,
 	d->buff->size = d->size;
 }
 
-static packet*
-http_unpack(decoder *_,int32_t *err){
+static packet *http_unpack(decoder *_,int32_t *err)
+{
 	httpdecoder *d = cast(httpdecoder*,_);
 	packet *ret    = NULL;
 	size_t  nparsed,size;
@@ -291,8 +271,7 @@ void http_decoderdctor(struct decoder *_)
 	if(d->packet) packet_del(cast(packet*,d->packet));
 }
 
-decoder*
-http_decoder_new(uint32_t max_packet_size)
+decoder *http_decoder_new(uint32_t max_packet_size)
 {
 	httpdecoder *d     = calloc(1,sizeof(*d));
 	d->max_packet_size = max_packet_size < 1024 ? 1024:size_of_pow2(max_packet_size);
@@ -312,8 +291,7 @@ http_decoder_new(uint32_t max_packet_size)
 }
 
 
-void 
-decoder_del(decoder *d)
+void decoder_del(decoder *d)
 {
 	if(d->dctor) d->dctor(d);
 	if(d->buff)  refobj_dec(cast(refobj*,d->buff));
@@ -322,22 +300,19 @@ decoder_del(decoder *d)
 
 #ifdef _CHUCKLUA
 
-int32_t 
-lua_dgarm_rawpacket_decoder_new(lua_State *L)
+int32_t lua_dgarm_rawpacket_decoder_new(lua_State *L)
 {
 	lua_pushlightuserdata(L,dgram_raw_decoder_new());
 	return 1;
 }
 
-int32_t 
-lua_conn_rawpacket_decoder_new(lua_State *L)
+int32_t lua_conn_rawpacket_decoder_new(lua_State *L)
 {
 	lua_pushlightuserdata(L,conn_raw_decoder_new());
 	return 1;
 }
 
-int32_t 
-lua_rpacket_decoder_new(lua_State *L)
+int32_t lua_rpacket_decoder_new(lua_State *L)
 {
 	if(LUA_TNUMBER != lua_type(L,1))
 		return luaL_error(L,"arg1 should be number");
@@ -345,8 +320,7 @@ lua_rpacket_decoder_new(lua_State *L)
 	return 1;
 }
 
-int32_t 
-lua_http_decoder_new(lua_State *L)
+int32_t lua_http_decoder_new(lua_State *L)
 {
 	if(LUA_TNUMBER != lua_type(L,1))
 		return luaL_error(L,"arg1 should be number");
@@ -360,8 +334,7 @@ lua_http_decoder_new(lua_State *L)
 	lua_settable(L, -3);\
 }while(0)
 
-void 
-reg_luadecoder(lua_State *L)
+void reg_luadecoder(lua_State *L)
 {
 	lua_newtable(L);
 	

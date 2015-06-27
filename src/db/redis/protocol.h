@@ -49,8 +49,7 @@ do{         												\
 		return REDIS_ERR;									\
 }while(0)
 
-static int32_t 
-parse_string(parse_tree *current,char **str)
+static int32_t parse_string(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;
 	char c;
@@ -80,8 +79,7 @@ parse_string(parse_tree *current,char **str)
 	return REDIS_OK;
 }
 
-static int32_t 
-parse_integer(parse_tree *current,char **str)
+static int32_t parse_integer(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;	
 	do{
@@ -102,8 +100,7 @@ parse_integer(parse_tree *current,char **str)
 
 
 
-static int32_t 
-parse_breply(parse_tree *current,char **str)
+static int32_t parse_breply(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;
 	if(!current->want){
@@ -131,8 +128,7 @@ parse_breply(parse_tree *current,char **str)
 }
 
 
-static parse_tree*
-parse_tree_new()
+static parse_tree *parse_tree_new()
 {
 
 	parse_tree *tree = calloc(1,sizeof(*tree));
@@ -141,8 +137,7 @@ parse_tree_new()
 	return tree;
 }
 
-static void 
-parse_tree_del(parse_tree *tree)
+static void parse_tree_del(parse_tree *tree)
 {
 	size_t i;
 	if(tree->childs){
@@ -156,11 +151,9 @@ parse_tree_del(parse_tree *tree)
 	free(tree);
 }
 
-static int32_t  
-parse(parse_tree *current,char **str);
+static int32_t parse(parse_tree *current,char **str);
 
-static int32_t 
-parse_mbreply(parse_tree *current,char **str)
+static int32_t parse_mbreply(parse_tree *current,char **str)
 {
 	redisReply *reply = current->reply;
 	size_t  i;
@@ -201,8 +194,7 @@ parse_mbreply(parse_tree *current,char **str)
 #define IS_LR_CR(CC) (CC == '\n' || CC == '\r') 
 
 
-static int32_t  
-parse(parse_tree *current,char **str)
+static int32_t parse(parse_tree *current,char **str)
 {
 	int32_t ret = REDIS_RETRY;
 	redisReply *reply = current->reply;		
@@ -281,8 +273,7 @@ static inline void u2s(uint32_t num,char **ptr){
 
 
 //for request
-static packet*
-convert(list *l,size_t space)
+static packet *convert(list *l,size_t space)
 {
 	static char *end = "\r\n";
 	char *ptr,*ptr1;
@@ -310,8 +301,7 @@ convert(list *l,size_t space)
 }
 
 
-static packet*
-build_request(const char *cmd)
+static packet *build_request(const char *cmd)
 {
 	list l;
 	list_init(&l);

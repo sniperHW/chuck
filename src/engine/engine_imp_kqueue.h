@@ -7,9 +7,7 @@ typedef struct engine{
    	struct kevent change;	
 }engine;
 
-int32_t 
-event_add(engine *e,handle *h,
-		  int32_t events)
+int32_t event_add(engine *e,handle *h,int32_t events)
 {	
 	struct kevent ke;
 	EV_SET(&ke, h->fd, events, EV_ADD, 0, 0, h);
@@ -25,8 +23,7 @@ event_add(engine *e,handle *h,
 	return 0;	
 }
 
-int32_t 
-event_remove(handle *h)
+int32_t event_remove(handle *h)
 {
 	struct kevent ke;
 	EV_SET(&ke, h->fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
@@ -38,8 +35,7 @@ event_remove(handle *h)
 	return 0;	
 }
 
-int32_t 
-event_enable(handle *h,int32_t events)
+int32_t event_enable(handle *h,int32_t events)
 {
 	struct kevent ke;
 	EV_SET(&ke, h->fd, events,EV_ENABLE, 0, 0, h);
@@ -53,8 +49,7 @@ event_enable(handle *h,int32_t events)
 	return 0;
 }
 
-int32_t 
-event_disable(handle *h,int32_t events)
+int32_t event_disable(handle *h,int32_t events)
 {
 	struct kevent ke;
 	EV_SET(&ke, h->fd, events,EV_DISABLE, 0, 0, h);
@@ -71,8 +66,7 @@ event_disable(handle *h,int32_t events)
 }
 
 
-engine *
-engine_new()
+engine *engine_new()
 {
 	int32_t kfd = kqueue();
 	if(kfd < 0) return NULL;
@@ -103,8 +97,7 @@ engine_new()
 }
 
 
-static inline void
-_engine_del(engine *e)
+static inline void _engine_del(engine *e)
 {
 	handle *h;
 	if(e->tfd){
@@ -121,8 +114,7 @@ _engine_del(engine *e)
 	free(e->events);
 }
 
-void 
-engine_del(engine *e)
+void engine_del(engine *e)
 {
 	assert(e->threadid == thread_id());
 	if(e->status & INLOOP)
@@ -144,8 +136,7 @@ engine_del_lua(engine *e)
 	}
 }*/
 
-int32_t 
-engine_run(engine *e)
+int32_t engine_run(engine *e)
 {
 	int32_t ret = 0;
 	for(;;){
@@ -191,8 +182,7 @@ engine_run(engine *e)
 	return ret;
 }
 
-void 
-engine_stop(engine *e)
+void engine_stop(engine *e)
 {
 	int32_t _;
 	TEMP_FAILURE_RETRY(write(e->notifyfds[1],&_,sizeof(_)));

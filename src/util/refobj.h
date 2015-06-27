@@ -43,19 +43,16 @@ typedef struct
         void (*dctor)(void*);
 }refobj;
 
-void 
-refobj_init(refobj *r,void (*dctor)(void*));
+void refobj_init(refobj *r,void (*dctor)(void*));
 
-static inline uint32_t 
-refobj_inc(refobj *r)
+static inline uint32_t refobj_inc(refobj *r)
 {
     uint32_t ret = ATOMIC_INCREASE_FETCH(&r->refcount);
     //assert(ret < 100);
     return ret;
 }
 
-uint32_t 
-refobj_dec(refobj *r);
+uint32_t refobj_dec(refobj *r);
 
 typedef struct{
     union{  
@@ -68,25 +65,21 @@ typedef struct{
 }refhandle;
 
 
-refobj*
-cast2refobj(refhandle h);
+refobj *cast2refobj(refhandle h);
 
-static inline void 
-refhandle_clear(refhandle *h)
+static inline void refhandle_clear(refhandle *h)
 {
     h->ptr = NULL;
     h->identity = 0;
 }
 
-static inline int32_t 
-is_vaild_refhandle(refhandle *h){
+static inline int32_t is_vaild_refhandle(refhandle *h){
     if(!h->ptr || !(h->identity > 0))
         return 0;
     return 1;
 }
 
-static inline refhandle 
-get_refhandle(refobj *o)
+static inline refhandle get_refhandle(refobj *o)
 {
     return (refhandle){.identity=o->identity,.ptr=o}; 
 } 

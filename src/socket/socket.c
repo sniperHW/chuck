@@ -1,8 +1,7 @@
 #include "socket/socket.h"
 #include "engine/engine.h"
 
-void 
-release_socket(socket_ *s)
+void release_socket(socket_ *s)
 {
 	iorequest *req;
 	list      *l;
@@ -23,8 +22,7 @@ release_socket(socket_ *s)
 		free(s);
 }
 
-void 
-close_socket(socket_ *s)
+void close_socket(socket_ *s)
 {
 	if(s->status & SOCKET_CLOSE)
 		return;
@@ -35,8 +33,7 @@ close_socket(socket_ *s)
 	}
 }
 
-int32_t 
-is_read_enable(handle*h)
+int32_t is_read_enable(handle*h)
 {
 #ifdef _LINUX
 	return h->events & EPOLLIN;
@@ -46,8 +43,7 @@ is_read_enable(handle*h)
 	return 0;
 }
 
-int32_t 
-is_write_enable(handle*h)
+int32_t is_write_enable(handle*h)
 {
 #ifdef _LINUX
 	return h->events & EPOLLOUT;

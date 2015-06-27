@@ -128,14 +128,12 @@ typedef struct handle{
 #define likely(x) __builtin_expect(!!(x), 1)  
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
-static inline int32_t 
-is_pow2(uint32_t size)
+static inline int32_t is_pow2(uint32_t size)
 {
     return !(size&(size-1));
 }
 
-static inline uint32_t 
-size_of_pow2(uint32_t size)
+static inline uint32_t size_of_pow2(uint32_t size)
 {
     if(is_pow2(size)) return size;
     size = size-1;
@@ -147,8 +145,7 @@ size_of_pow2(uint32_t size)
     return size + 1;
 }
 
-static inline uint8_t 
-get_pow2(uint32_t size)
+static inline uint8_t get_pow2(uint32_t size)
 {
     uint8_t pow2 = 0;
     if(!is_pow2(size)) size = (size << 1);
@@ -159,8 +156,7 @@ get_pow2(uint32_t size)
     return pow2;
 }
 
-static inline uint32_t 
-align_size(uint32_t size,uint32_t align)
+static inline uint32_t align_size(uint32_t size,uint32_t align)
 {
     align = size_of_pow2(align);
     if(align < 4) align = 4;

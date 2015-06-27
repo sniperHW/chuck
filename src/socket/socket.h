@@ -57,46 +57,34 @@ struct dgram_socket_{
 };
 
 
-stream_socket_*
-new_stream_socket(int32_t fd);
+stream_socket_ *new_stream_socket(int32_t fd);
 
-dgram_socket_ *
-new_datagram_socket(int32_t fd);
+dgram_socket_  *new_datagram_socket(int32_t fd);
 
-static inline void 
-socket_set_pending_dctor(socket_ *s,
-						 void (*pending_dctor)(iorequest*))
+static inline void socket_set_pending_dctor(socket_ *s,void (*pending_dctor)(iorequest*))
 {
 	s->pending_dctor = pending_dctor;
 }
 
-void 
-close_socket(socket_ *s);
+void close_socket(socket_ *s);
 
 enum{
 	IO_POST = 1,
 	IO_NOW  = 2,
 };
 
-int32_t 
-stream_socket_send(stream_socket_*,iorequest*,int32_t flag);
+int32_t stream_socket_send(stream_socket_*,iorequest*,int32_t flag);
 
-int32_t 
-stream_socket_recv(stream_socket_*,iorequest*,int32_t flag);
+int32_t stream_socket_recv(stream_socket_*,iorequest*,int32_t flag);
 
 //Synchronous send noly
-int32_t 
-datagram_socket_send(dgram_socket_*,iorequest*);
+int32_t datagram_socket_send(dgram_socket_*,iorequest*);
 
-int32_t 
-datagram_socket_recv(dgram_socket_*,iorequest*,
-					 int32_t flag,int32_t *recvflags);
+int32_t datagram_socket_recv(dgram_socket_*,iorequest*,int32_t flag,int32_t *recvflags);
 
 //use by subclass to construct base part
-void    
-stream_socket_init(stream_socket_*,int32_t fd);
+void    stream_socket_init(stream_socket_*,int32_t fd);
 
-void    
-datagram_socket_init(dgram_socket_*,int32_t fd);
+void    datagram_socket_init(dgram_socket_*,int32_t fd);
 
 #endif

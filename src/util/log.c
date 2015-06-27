@@ -51,8 +51,7 @@ struct{
 }logqueue;
 
 
-void 
-logqueue_push(struct log_item *item)
+void logqueue_push(struct log_item *item)
 {
 	mutex_lock(logqueue.mtx);
 	list_pushback(&logqueue.share_queue,(listnode*)item);
@@ -64,8 +63,7 @@ logqueue_push(struct log_item *item)
 	mutex_unlock(logqueue.mtx);
 }
 
-struct log_item*
-logqueue_fetch(uint32_t ms)
+struct log_item *logqueue_fetch(uint32_t ms)
 {
 	if(list_size(&logqueue.private_queue) > 0)
 		return cast(struct log_item*,list_pop(&logqueue.private_queue));
@@ -88,8 +86,7 @@ logqueue_fetch(uint32_t ms)
 DEF_LOG(sys_log,SYSLOG_NAME);
 IMP_LOG(sys_log);
 
-int32_t 
-write_prefix(char *buf,uint8_t loglev)
+int32_t write_prefix(char *buf,uint8_t loglev)
 {
 	struct timespec tv;
 	struct tm _tm;
@@ -107,8 +104,7 @@ write_prefix(char *buf,uint8_t loglev)
 				   cast(uint32_t,thread_id()));
 }
 
-static void* 
-log_routine(void *arg)
+static void *log_routine(void *arg)
 {
 	time_t next_fulsh = time(NULL) + flush_interval;
 	struct log_item *item;
@@ -192,8 +188,7 @@ log_routine(void *arg)
 	return NULL;
 }
 
-static void 
-on_process_end()
+static void on_process_end()
 {
 	if(g_pid == getpid()){
 		if(g_log_thd){
@@ -203,8 +198,7 @@ on_process_end()
 	}
 }
 
-void 
-_write_log(logfile *l,const char *content)
+void _write_log(logfile *l,const char *content)
 {
 	uint32_t content_len = strlen(content)+1;
 	struct log_item *item = calloc(1,sizeof(*item) + content_len);
@@ -214,8 +208,7 @@ _write_log(logfile *l,const char *content)
 	printf("%s",content);
 }
 			           
-static void 
-log_once_routine()
+static void log_once_routine()
 {
 	dlist_init(&g_log_file_list);
 	g_mtx_log_file_list = mutex_new();
@@ -227,8 +220,7 @@ log_once_routine()
 	atexit(on_process_end);
 }
 
-logfile*
-create_logfile(const char *filename)
+logfile *create_logfile(const char *filename)
 {
 	logfile *l;
 	pthread_once(&g_log_key_once,log_once_routine);
@@ -240,14 +232,12 @@ create_logfile(const char *filename)
 	return l;
 }
 
-void 
-write_log(logfile* l,const char *content)
+void write_log(logfile* l,const char *content)
 {
 	_write_log(l,content);
 }
 
-void 
-write_sys_log(const char *content)
+void write_sys_log(const char *content)
 {
 	_write_log(GET_LOGFILE(sys_log),content);
 }
@@ -263,8 +253,8 @@ struct lua_logfile{
 	logfile *l;
 };
 
-static void
-close_logfile(logfile *l){
+static void close_logfile(logfile *l)
+{
 	struct log_item *item;
 	mutex_lock(g_mtx_log_file_list);
 	if(!(l->status & CLOSING)){
@@ -278,8 +268,7 @@ close_logfile(logfile *l){
 	mutex_unlock(g_mtx_log_file_list);
 } 
 
-static int32_t
-lua_create_logfile(lua_State *L)
+static int32_t lua_create_logfile(lua_State *L)
 {
 	logfile *l;
 	struct lua_logfile *ll;
@@ -295,8 +284,7 @@ lua_create_logfile(lua_State *L)
 	return 0;	
 }
 
-static int32_t
-lua_syslog(lua_State *L)
+static int32_t lua_syslog(lua_State *L)
 {
 	int32_t loglev;
 	const   char *msg;
@@ -308,22 +296,19 @@ lua_syslog(lua_State *L)
 	return 0;
 }
 
-struct lua_logfile*
-to_lua_logfile(lua_State *L, int index) 
+struct lua_logfile *to_lua_logfile(lua_State *L, int index) 
 {
 	return cast(struct lua_logfile*,luaL_testudata(L, index, LUA_METATABLE));
 }
 
-static int32_t 
-lua_logfile_gc(lua_State *L)
+static int32_t lua_logfile_gc(lua_State *L)
 {
 	struct lua_logfile *ll = to_lua_logfile(L,1);
 	close_logfile(ll->l);
 	return 0;
 }
 
-static int32_t
-lua_write_log(lua_State *L)
+static int32_t lua_write_log(lua_State *L)
 {
 	int32_t loglev;
 	const   char *msg;
@@ -337,8 +322,8 @@ lua_write_log(lua_State *L)
 	return 0;	
 }
 
-static int32_t
-lua_set_loglev(lua_State *L){
+static int32_t lua_set_loglev(lua_State *L)
+{
 	if(lua_isnumber(L,1))
 		set_log_lev(lua_tointeger(L,1));
 	return 0;
@@ -356,8 +341,7 @@ lua_set_loglev(lua_State *L){
 		lua_settable(L, -3);\
 }while(0)
 
-void
-lua_reglog(lua_State *L)
+void lua_reglog(lua_State *L)
 {
     luaL_Reg log_mt[] = {
         {"__gc", lua_logfile_gc},

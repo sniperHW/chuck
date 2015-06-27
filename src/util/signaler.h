@@ -34,16 +34,13 @@ typedef struct signaler{
 
 #ifdef _CHUCKLUA
 
-void    
-reg_luasignaler(lua_State *L); 
+void reg_luasignaler(lua_State *L); 
 
 #else
 
-signaler*
-signaler_new(int32_t signum,void *ud);
+signaler *signaler_new(int32_t signum,void *ud);
 
-void    
-signaler_del(signaler*);
+void signaler_del(signaler*);
 
 #endif
 

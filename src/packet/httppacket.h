@@ -24,19 +24,14 @@ typedef struct
     list            headers;
 }httppacket;
 
-httppacket*
-httppacket_new(bytebuffer *b);
+httppacket *httppacket_new(bytebuffer *b);
 
-int32_t
-httppacket_on_header_field(httppacket *p,char *at, size_t length);
+int32_t httppacket_on_header_field(httppacket *p,char *at, size_t length);
 
-int32_t
-httppacket_on_header_value(httppacket *p,char *at, size_t length);
+int32_t httppacket_on_header_value(httppacket *p,char *at, size_t length);
 
-void
-httppacket_on_buffer_expand(httppacket *p,bytebuffer *b);
+void httppacket_on_buffer_expand(httppacket *p,bytebuffer *b);
 
-string*
-httppacket_get_header(httppacket *p,const char *field);
+string *httppacket_get_header(httppacket *p,const char *field);
 
 #endif

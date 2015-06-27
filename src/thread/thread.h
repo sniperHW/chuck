@@ -34,18 +34,12 @@ enum
 	JOINABLE = 1 << 2,
 };
 
-thread*
-thread_new(int32_t flag,
-           void *(*routine)(void*),
-           void *ud);
+thread *thread_new(int32_t flag,void *(*routine)(void*),void *ud);
 
-void*
-thread_del(thread*);
+void *thread_del(thread*);
 
-void*
-thread_join(thread*);
+void *thread_join(thread*);
 
-pid_t
-thread_id();
+pid_t thread_id();
 
 #endif

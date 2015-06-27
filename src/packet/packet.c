@@ -3,8 +3,7 @@
 #include "packet/wpacket.h"
 #include "packet/rpacket.h"
 
-void 
-packet_del(packet *p)
+void packet_del(packet *p)
 {
 	if(p->dctor) p->dctor(p);
 	if(p->type == RPACKET && cast(rpacket*,p)->binbuf)

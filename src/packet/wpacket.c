@@ -3,14 +3,11 @@
 
 allocator *g_wpk_allocator = NULL;
 
-static packet*
-wpacket_clone(packet*);
+static packet *wpacket_clone(packet*);
 
-packet*
-wpacket_makeread(packet*);
+packet *wpacket_makeread(packet*);
 
-packet*
-rpacket_makewrite(packet*);
+packet *rpacket_makewrite(packet*);
 
 
 #define INIT_CONSTROUCTOR(p){\
@@ -20,8 +17,7 @@ rpacket_makewrite(packet*);
 }
 
 
-wpacket*
-wpacket_new(uint16_t size)
+wpacket *wpacket_new(uint16_t size)
 {
 	bytebuffer *b;
 	wpacket    *w;
@@ -39,8 +35,7 @@ wpacket_new(uint16_t size)
 	return w;
 }
 
-static packet*
-wpacket_clone(packet *p)
+static packet *wpacket_clone(packet *p)
 {
 	if(p->type == WPACKET){
 		wpacket *w = cast(wpacket*,CALLOC(g_wpk_allocator,1,sizeof(*w)));
@@ -55,8 +50,7 @@ wpacket_clone(packet *p)
 		return NULL;
 }
 
-packet*
-rpacket_makewrite(packet *p)
+packet *rpacket_makewrite(packet *p)
 {
 	if(p->type == RPACKET){
 		wpacket *w = cast(wpacket*,CALLOC(g_wpk_allocator,1,sizeof(*w)));	

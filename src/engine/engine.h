@@ -34,86 +34,64 @@
 
 #ifdef _CHUCKLUA
 
-engine*
-lua_toengine(lua_State *L, int index);
+engine *lua_toengine(lua_State *L, int index);
 
-void
-reg_luaengine(lua_State *L);                    
+void reg_luaengine(lua_State *L);                    
 
 #else
 
-engine*
-engine_new();
+engine *engine_new();
 
-void    
-engine_del(engine*);
+void engine_del(engine*);
 
 
 #endif
 
-int32_t 
-engine_run(engine*);
+int32_t engine_run(engine*);
 
-int32_t
-engine_runonce(engine*,uint32_t timeout);
+int32_t engine_runonce(engine*,uint32_t timeout);
 
-void    
-engine_stop(engine*);
+void    engine_stop(engine*);
 
-int32_t 
-engine_add(engine*,handle*,generic_callback);
+int32_t engine_add(engine*,handle*,generic_callback);
 
-int32_t 
-engine_remove(handle*);
+int32_t engine_remove(handle*);
 
-timer*
-engine_regtimer(engine*,uint32_t timeout,
-                int32_t(*)(uint32_t,uint64_t,void*),
-                void*);
+timer  *engine_regtimer(engine*,uint32_t timeout,int32_t(*)(uint32_t,uint64_t,void*),void*);
 
 
 #define engine_associate(E,H,C)\
             engine_add((E),(handle*)(H),(generic_callback)(C))
 
 //private function
-int32_t 
-event_add(engine*,handle*,int32_t events);
+int32_t event_add(engine*,handle*,int32_t events);
 
-int32_t 
-event_remove(handle*);
+int32_t event_remove(handle*);
 
-int32_t 
-event_enable(handle*,int32_t events);
+int32_t event_enable(handle*,int32_t events);
 
-int32_t 
-event_disable(handle*,int32_t events);
+int32_t event_disable(handle*,int32_t events);
 
-int32_t 
-is_read_enable(handle*h);
+int32_t is_read_enable(handle*h);
 
-int32_t 
-is_write_enable(handle*h);
+int32_t is_write_enable(handle*h);
 
-static inline int32_t 
-enable_read(handle *h)
+static inline int32_t enable_read(handle *h)
 {
     return event_enable(h,EVENT_READ);
 }
 
-static inline int32_t 
-disable_read(handle *h)
+static inline int32_t disable_read(handle *h)
 {
     return event_disable(h,EVENT_READ);
 }
 
-static inline int32_t 
-enable_write(handle *h)
+static inline int32_t enable_write(handle *h)
 {   
     return event_enable(h,EVENT_WRITE);
 }
 
-static inline int32_t 
-disable_write(handle *h)
+static inline int32_t disable_write(handle *h)
 {
     return event_disable(h,EVENT_WRITE);         
 }

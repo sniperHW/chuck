@@ -41,25 +41,20 @@ typedef struct logfile logfile;
 
 #define SYSLOG_NAME "syslog"
 
-logfile*
-create_logfile(const char *filename);
+logfile *create_logfile(const char *filename);
 
 
 /*  don't use this 3 functions directly
 *   used the marcos below instead
 */
-void 
-write_log(logfile*,const char *context);
+void write_log(logfile*,const char *context);
 
 //写入系统日志,默认文件名由SYSLOG_NAME定义
-void 
-write_sys_log(const char *content);
+void write_sys_log(const char *content);
 
-int32_t 
-write_prefix(char *buf,uint8_t loglev);
+int32_t write_prefix(char *buf,uint8_t loglev);
 
-static inline void
-set_log_lev(int32_t loglev)
+static inline void set_log_lev(int32_t loglev)
 {
     if(loglev >= LOG_INFO && loglev <= LOG_CRITICAL)
         g_loglev = loglev;
@@ -106,8 +101,7 @@ set_log_lev(int32_t loglev)
 
 typedef struct lua_State lua_State;
 
-void
-lua_reglog(lua_State *L);
+void lua_reglog(lua_State *L);
 
 #endif          
 

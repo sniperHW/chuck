@@ -21,9 +21,7 @@ enum{
 #define VAILD_VAILD_TYPE(TYPE) (TYPE == LUA_TSTRING || TYPE == LUA_TNUMBER || TYPE == LUA_TTABLE || TYPE == LUA_TBOOLEAN)
 
 
-static inline void 
-_lua_pack_string(wpacket *wpk,lua_State *L,
-				 int index)
+static inline void _lua_pack_string(wpacket *wpk,lua_State *L,int index)
 {
 	size_t len;
 	const char *data;
@@ -32,9 +30,7 @@ _lua_pack_string(wpacket *wpk,lua_State *L,
 	wpacket_write_binary(wpk,data,len);	
 }
 
-static  void 
-_lua_pack_number(wpacket *wpk,lua_State *L,
-				 int index)
+static  void _lua_pack_number(wpacket *wpk,lua_State *L,int index)
 {
 	lua_Number v = lua_tonumber(L,index);
 	if(v != cast(lua_Integer,v)){
@@ -75,9 +71,7 @@ _lua_pack_number(wpacket *wpk,lua_State *L,
 	}
 }
 
-static inline void 
-_lua_pack_boolean(wpacket *wpk,lua_State *L,
-			      int index)
+static inline void _lua_pack_boolean(wpacket *wpk,lua_State *L,int index)
 {
 	wpacket_write_uint8(wpk,L_BOOL);
 	wpacket_write_uint8(wpk,lua_toboolean(L,index));
@@ -96,9 +90,7 @@ const char *lua_pack_error_msg[] = {
 	"lua table contain metatable",
 };
 
-static const char* 
-_lua_pack_table(wpacket *wpk,lua_State *L,
-				int index)
+static const char *_lua_pack_table(wpacket *wpk,lua_State *L,int index)
 {
 	wpacket_write_uint8(wpk,L_TABLE);
 	wpacket_book book = wpacket_book_uint32(wpk);
@@ -143,9 +135,7 @@ _lua_pack_table(wpacket *wpk,lua_State *L,
 }
 
 
-const char*
-lua_pack_table(wpacket *wpk,lua_State *L,
-			   int index)
+const char *lua_pack_table(wpacket *wpk,lua_State *L,int index)
 {
 	if(lua_type(L, index) != LUA_TTABLE)
 		return lua_pack_error_msg[ERR_NOT_TABLE];
@@ -155,16 +145,13 @@ lua_pack_table(wpacket *wpk,lua_State *L,
 }
 
 
-static inline int  
-_lua_unpack_boolean(rpacket *rpk,lua_State *L)
+static inline int _lua_unpack_boolean(rpacket *rpk,lua_State *L)
 {
 	lua_pushboolean(L,rpacket_read_uint8(rpk));
 	return 0;
 }
 
-static inline int 
-_lua_unpack_number(rpacket *rpk,lua_State *L,
-				   int type)
+static inline int _lua_unpack_number(rpacket *rpk,lua_State *L,int type)
 {
 	lua_Integer   n;
 	switch(type){
@@ -186,8 +173,7 @@ _lua_unpack_number(rpacket *rpk,lua_State *L,
 	return 0;
 }
 
-static inline int 
-_lua_unpack_string(rpacket *rpk,lua_State *L)
+static inline int _lua_unpack_string(rpacket *rpk,lua_State *L)
 {
 	uint16_t len = 0;
 	const char *data = rpacket_read_binary(rpk,&len);
@@ -196,8 +182,7 @@ _lua_unpack_string(rpacket *rpk,lua_State *L)
 	return 0;
 }
 
-static int 
-_lua_unpack_table(rpacket *rpk,lua_State *L)
+static int _lua_unpack_table(rpacket *rpk,lua_State *L)
 {
 	int size = rpacket_read_uint32(rpk);
 	int i = 0;
@@ -229,8 +214,7 @@ _lua_unpack_table(rpacket *rpk,lua_State *L)
 	return 0;
 }
 
-int 
-lua_unpack_table(rpacket *rpk,lua_State *L)
+int lua_unpack_table(rpacket *rpk,lua_State *L)
 {
 	if(rpacket_read_uint8(rpk) == L_TABLE && 0 == _lua_unpack_table(rpk,L))
 		return 0;

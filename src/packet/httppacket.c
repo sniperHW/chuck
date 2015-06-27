@@ -9,8 +9,7 @@ httppacket_clone(packet*);
 	cast(packet*,p)->clone           = httppacket_clone;    \
 }
 
-void 
-httppacket_dctor(void *_)
+void httppacket_dctor(void *_)
 {
 	st_header  *h;
 	httppacket *p = cast(httppacket*,_);
@@ -18,8 +17,7 @@ httppacket_dctor(void *_)
 		free(h);
 }
 
-httppacket*
-httppacket_new(bytebuffer *b)
+httppacket *httppacket_new(bytebuffer *b)
 {
 	httppacket *p = calloc(1,sizeof(*p));
 	cast(packet*,p)->type = HTTPPACKET;
@@ -33,8 +31,7 @@ httppacket_new(bytebuffer *b)
 	return p;		
 }
 
-static packet*
-httppacket_clone(packet *_){
+static packet *httppacket_clone(packet *_){
 	st_header *h,*hh;
 	listnode  *cur,*end;
 	httppacket *o = cast(httppacket*,_);
@@ -63,15 +60,13 @@ httppacket_clone(packet *_){
 	return cast(packet*,p);	
 }
 
-void
-httppacket_on_buffer_expand(httppacket *p,bytebuffer *b)
+void httppacket_on_buffer_expand(httppacket *p,bytebuffer *b)
 {
 	bytebuffer_set(&cast(packet*,p)->head,b);
 }
 
 
-int32_t
-httppacket_on_header_field(httppacket *p,char *at, size_t length)
+int32_t httppacket_on_header_field(httppacket *p,char *at, size_t length)
 {
 	st_header  *h = calloc(1,sizeof(*h));
 	h->field      = at - &cast(packet*,p)->head->data[0];
@@ -79,8 +74,7 @@ httppacket_on_header_field(httppacket *p,char *at, size_t length)
 	return 0;
 }	
 
-int32_t
-httppacket_on_header_value(httppacket *p,char *at, size_t length)
+int32_t httppacket_on_header_value(httppacket *p,char *at, size_t length)
 {
 	st_header *h = cast(st_header*,p->headers.tail);
 	char   *data = cast(packet*,p)->head->data;
@@ -88,8 +82,7 @@ httppacket_on_header_value(httppacket *p,char *at, size_t length)
 	return 0;
 }
 
-string*
-httppacket_get_header(httppacket *p,const char *field)
+string *httppacket_get_header(httppacket *p,const char *field)
 {
 	st_header *h;
 	string        *ret = NULL;

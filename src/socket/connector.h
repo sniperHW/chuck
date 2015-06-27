@@ -35,14 +35,12 @@ typedef struct{
 #endif     
 }connector;
 
-connector*
-connector_new(int32_t fd,void *ud,uint32_t timeout);    
+connector *connector_new(int32_t fd,void *ud,uint32_t timeout);    
 
 #ifdef _CHUCKLUA
 
 //need not delete,engine will do for you
-void    
-reg_luaconnector(lua_State *L);
+void    reg_luaconnector(lua_State *L);
 
 #endif
 

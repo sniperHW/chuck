@@ -21,23 +21,17 @@
 
 typedef struct string string;
 
-string*     
-string_new(const char *);
+string *string_new(const char *);
 
-string*     
-string_copy_new(string *);
+string *string_copy_new(string *);
 
-void        
-string_del(string*);
+void string_del(string*);
 
-const char*
-string_cstr(string*);
+const char *string_cstr(string*);
 
-int32_t     
-string_len(string*);
+int32_t string_len(string*);
     
-void        
-string_append(string*,...);
+void string_append(string*,...);
 
 
 #endif
