@@ -55,8 +55,11 @@ static int32_t lua_engine_gc(lua_State *L){
 }
 
 static int32_t lua_engine_run(lua_State *L){
-	engine *e = lua_toengine(L,1);
-	lua_pushinteger(L,engine_run(e));
+	engine *e    = lua_toengine(L,1);
+	if(lua_isnumber(L,2))
+		lua_pushinteger(L,engine_runonce(e,cast(uint32_t,lua_tointeger(L,2))));
+	else
+		lua_pushinteger(L,engine_run(e));
 	return 1;
 }
 
@@ -121,27 +124,27 @@ static int32_t lua_remove_timer(lua_State *L){
 
 
 void reg_luaengine(lua_State *L){
-    luaL_Reg engine_mt[] = {
-        {"__gc", lua_engine_gc},
-        {NULL, NULL}
-    };
+	luaL_Reg engine_mt[] = {
+		{"__gc", lua_engine_gc},
+		{NULL, NULL}
+	};
 
-    luaL_Reg engine_methods[] = {
-        {"Run",    lua_engine_run},
-        {"Stop",   lua_engine_stop},
-        {NULL,     NULL}
-    };
+	luaL_Reg engine_methods[] = {
+		{"Run",    lua_engine_run},
+		{"Stop",   lua_engine_stop},
+		{NULL,     NULL}
+	};
 
-    luaL_newmetatable(L, LUAENGINE_METATABLE);
-    luaL_setfuncs(L, engine_mt, 0);
+	luaL_newmetatable(L, LUAENGINE_METATABLE);
+	luaL_setfuncs(L, engine_mt, 0);
 
-    luaL_newlib(L, engine_methods);
-    lua_setfield(L, -2, "__index");
-    lua_pop(L, 1);
+	luaL_newlib(L, engine_methods);
+	lua_setfield(L, -2, "__index");
+	lua_pop(L, 1);
 
-   	SET_FUNCTION(L,"engine",lua_engine_new);
-   	SET_FUNCTION(L,"RegTimer",lua_engine_reg_timer);
-   	SET_FUNCTION(L,"RemTimer",lua_remove_timer);
+	SET_FUNCTION(L,"engine",lua_engine_new);
+	SET_FUNCTION(L,"RegTimer",lua_engine_reg_timer);
+	SET_FUNCTION(L,"RemTimer",lua_remove_timer);
 
 }
 

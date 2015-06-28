@@ -42,8 +42,6 @@ int32_t   datagram_send(datagram *d,packet *p,sockaddr_ *addr);
 
 void      datagram_close(datagram *d);
 
-decoder  *dgram_raw_decoder_new();
-
 int32_t   datagram_reg_tolua(lua_State *L);
 
 

@@ -142,14 +142,17 @@ static void luacallback(int32_t fd,int32_t err,void *ud)
 
 static int32_t lua_engine_add(lua_State *L)
 {
-	connector *c = lua_toconnector(L,1);
-	engine     *e = lua_toengine(L,2);
+	connector  *c = lua_toconnector(L,1);
+	engine       *e = lua_toengine(L,2);
+	int32_t        ret = 0;
 	if(c && e){
 		if(0 == imp_engine_add(e,cast(handle*,c),cast(generic_callback,luacallback))){
 			c->luacallback = toluaRef(L,3);
+			ret = 1;
 		}
 	}
-	return 0;
+	lua_pushboolean(L,ret);
+	return 1;
 }
 
 

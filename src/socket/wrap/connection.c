@@ -308,8 +308,7 @@ static int32_t timer_callback(uint32_t event,uint64_t tick,void *ud)
 {
 	if(event == TEVENT_TIMEOUT){
 		connection *c = (connection*)ud;
-		if(c->recvtimeout &&
-		   c->recvtimeout + tick > c->lastrecv)
+		if(c->recvtimeout && tick > c->lastrecv + c->recvtimeout)
 		{
 		   c->on_packet(c,NULL,ERVTIMEOUT);
 			if(c->status & SOCKET_CLOSE)
@@ -318,7 +317,7 @@ static int32_t timer_callback(uint32_t event,uint64_t tick,void *ud)
 		if(c->sendtimeout){
 			packet *p = (packet*)list_begin(&c->send_list);
 			if(p){
-				if(p->sendtime + c->sendtimeout > tick)
+				if(tick > p->sendtime + c->sendtimeout)
 					c->on_packet(c,NULL,ESNTIMEOUT);
 				if(c->status & SOCKET_CLOSE)
 					return 0;
@@ -421,7 +420,7 @@ void connection_set_recvtimeout(connection *c,uint32_t timeout)
 	handle *h = (handle*)c;
 	c->recvtimeout = timeout;
 	if(h->e && c->recvtimeout && !c->timer_)
-		c->timer_ = engine_regtimer(h->e,1000,timer_callback,c);
+		c->timer_ = engine_regtimer(h->e,timeout,timer_callback,c);
 	else if(!c->recvtimeout && 
 			!c->sendtimeout &&
 			c->timer_)
@@ -437,7 +436,7 @@ void connection_set_sendtimeout(connection *c,uint32_t timeout)
 	handle *h = (handle*)c;
 	c->sendtimeout = timeout;
 	if(h->e && c->sendtimeout && !c->timer_)
-		c->timer_ = engine_regtimer(h->e,1000,timer_callback,c);
+		c->timer_ = engine_regtimer(h->e,timeout,timer_callback,c);
 	else if(!c->recvtimeout && 
 			!c->sendtimeout &&
 			c->timer_)
@@ -517,13 +516,16 @@ static void lua_on_packet(connection *c,packet *p,int32_t err)
 static int32_t lua_engine_add(lua_State *L)
 {
 	connection *c = lua_toconnection(L,1);
-	engine     *e = lua_toengine(L,2);
+	engine        *e = lua_toengine(L,2);
+	int32_t        ret = 0;
 	if(c && e){
 		if(0 == imp_engine_add(e,(handle*)c,(generic_callback)lua_on_packet)){
 			c->lua_cb_packet = toluaRef(L,3);
+			ret = 1;
 		}
 	}
-	return 0;
+	lua_pushboolean(L,ret);
+	return 1;
 }
 
 static int32_t lua_engine_remove(lua_State *L)
