@@ -1,3 +1,4 @@
+#define __CORE__
 #include <assert.h>
 #include <sys/signalfd.h>
 #include "util/signaler.h"

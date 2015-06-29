@@ -1,3 +1,4 @@
+#define __CORE__
 #include <assert.h>
 #include <sys/timerfd.h>
 #include "util/timerfd.h"

@@ -1,3 +1,4 @@
+#define __CORE__
 #include <assert.h>
 #include "socket/socket.h"
 #include "engine/engine.h"

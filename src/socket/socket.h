@@ -82,9 +82,13 @@ int32_t datagram_socket_send(dgram_socket_*,iorequest*);
 
 int32_t datagram_socket_recv(dgram_socket_*,iorequest*,int32_t flag,int32_t *recvflags);
 
+#ifdef __CORE__
+
 //use by subclass to construct base part
 void    stream_socket_init(stream_socket_*,int32_t fd);
 
 void    datagram_socket_init(dgram_socket_*,int32_t fd);
+
+#endif
 
 #endif

@@ -1,3 +1,4 @@
+#define __CORE__
 #include "thdmailbox.h"
 #include "thread/spinlock.h"
 #include "engine/engine.h"

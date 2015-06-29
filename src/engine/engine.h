@@ -62,6 +62,8 @@ timer  *engine_regtimer(engine*,uint32_t timeout,int32_t(*)(uint32_t,uint64_t,vo
 
 #define engine_associate(E,H,C)\
             engine_add((E),(handle*)(H),(generic_callback)(C))
+            
+#ifdef __CORE__            
 
 //private function
 int32_t event_add(engine*,handle*,int32_t events);
@@ -96,5 +98,6 @@ static inline int32_t disable_write(handle *h)
     return event_disable(h,EVENT_WRITE);         
 }
 
+#endif
     
 #endif

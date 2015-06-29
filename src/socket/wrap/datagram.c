@@ -1,3 +1,4 @@
+#define __CORE__
 #include "socket/wrap/datagram.h"
 #include "engine/engine.h"
 #include "packet/rawpacket.h"

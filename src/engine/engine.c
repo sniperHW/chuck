@@ -1,3 +1,4 @@
+#define __CORE__
 #include <fcntl.h>              /* Obtain O_* constant definitions */
 #include <unistd.h>
 #include <assert.h>

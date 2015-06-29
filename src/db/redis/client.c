@@ -1,3 +1,4 @@
+#define __CORE__
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
