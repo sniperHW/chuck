@@ -16,7 +16,7 @@ function pool.Block(ms)
 	if ms > 0 and taskque:Len() > 0 then
 		local node = free:Front()
 		if node then
-			Sche.WakeUp(node.ut)
+			Sche.WakeUp(node[1])
 		end
 	end
 	Sche.Block(ms)
@@ -25,7 +25,7 @@ end
 local function GetTask()
 	local task
 	local ut = Sche.Running()
-	local node = {ut=ut}
+	local node = {ut}
 	free:Push(node)
 	while true do
 		task = taskque:Pop()
@@ -64,7 +64,7 @@ function pool.AddTask(task)
 	taskque:Push(task)
 	local node = free:Front()
 	if node then
-		Sche.WakeUp(node.ut)
+		Sche.WakeUp(node[1])
 	elseif total < max then
 		Sche.Spawn(ut_main)
 	end

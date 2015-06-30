@@ -28,7 +28,7 @@ local function add2Ready(co)
     	co.wheel:UnRegister()
     	co.wheel = nil
     end    
-    sche.ready:Push(co) 
+    sche.ready:Push({co}) 
 end
 
 local function block(ms,stat)
@@ -84,6 +84,7 @@ local function Schedule(co)
 		local yields = {}
 		co = readylist:Pop()
 		while co do
+			co = co[1]
 			if SwitchTo(co) == stat_yield then
 				table.insert(yields,co)
 			end
