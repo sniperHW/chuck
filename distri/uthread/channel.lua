@@ -1,5 +1,5 @@
 local LinkQue = require "distri.linkque"
-local Shce = require "distri.sche"
+local Shce = require "distri.uthread.sche"
 
 local channel = {}
 

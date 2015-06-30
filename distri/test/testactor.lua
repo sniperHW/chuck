@@ -1,5 +1,5 @@
-local Sche = require "distri.sche"
-local Actor = require "distri.actor"
+local Sche = require "distri.uthread.sche"
+local Actor = require "distri.uthread.actor"
 
 for i=1,10 do
 	Actor.Spawn(i,function (self)

@@ -1,5 +1,5 @@
-local Channel = require "distri.channel"
-local Sche = require "distri.sche"
+local Channel = require "distri.uthread.channel"
+local Sche = require "distri.uthread.sche"
 
 local actor = {}
 

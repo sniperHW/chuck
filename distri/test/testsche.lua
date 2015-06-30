@@ -1,4 +1,4 @@
-local Sche = require("distri.sche")
+local Sche = require("distri.uthread.sche")
 
 local function co_fun(name)
 	while true do

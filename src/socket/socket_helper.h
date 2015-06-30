@@ -82,6 +82,19 @@ static inline int32_t easy_sockaddr_un(sockaddr_ *addr,const char *path)
     return 0;
 }
 
+//get the first ipv4 address of name
+static inline int32_t easy_hostbyname_ipv4(const char *name,char *host,size_t len)
+{
+    int     h_err;
+    char    buf[8192];
+    struct hostent ret, *result;
+    if(gethostbyname_r(name, &ret, buf, 8192, &result, &h_err) != 0)
+        return -1;
+    if(inet_ntop(AF_INET, result->h_addr_list[0],host, len) != NULL)
+        return 0;
+    return -1;
+}
+
 #ifdef _CHUCKLUA
 
 void reg_socket_helper(lua_State *L);

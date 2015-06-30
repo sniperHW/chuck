@@ -37,19 +37,19 @@ local function block(ms,stat)
 		return
 	end
     	if ms and ms > 0 then
-		if co.wheel then	
-    	       		co.wheel:UnRegister()
-    	       	end
-    	       	co.wheel = sche.timer:Register(ms,function ()
-    	       		co.timeout = true
-    	       		add2Ready(co)
-    	       	end)
-    	end
+			if co.wheel then	
+    	    	co.wheel:UnRegister()
+    	    end
+    	    co.wheel = sche.timer:Register(ms,function ()
+    	       	co.timeout = true
+    	       	add2Ready(co)
+    	    end)
+    end
 	co.status = stat
 	coroutine.yield(co.coroutine)
 	if co.timeout then	
-    	       co.timeout = nils		
-	       return "timeout"
+    	co.timeout = nils		
+	    return "timeout"
 	end
 end
 

@@ -78,7 +78,7 @@ static int32_t lua_easy_listen(lua_State *L)
 	int32_t fd;
 	const char *ip;
 	uint16_t port;
-
+	sockaddr_ addr;
 	if(lua_type(L,1) != LUA_TNUMBER)
 		return luaL_error(L,"invaild arg1");
 
@@ -92,7 +92,6 @@ static int32_t lua_easy_listen(lua_State *L)
 	ip   = lua_tostring(L,2);
 	port = lua_tonumber(L,3);
 
-	sockaddr_ addr;
 	if(0 != easy_sockaddr_ip4(&addr,ip,port))
 		return 	luaL_error(L,"invaild address or port");
 
@@ -144,6 +143,29 @@ static int32_t lua_close_socket(lua_State *L)
 	return 0;
 }
 
+static int32_t lua_gethostbyname_ipv4(lua_State *L)
+{
+	int     i,c;
+	char    ip[32];
+	int     h_err;
+    char    buf[8192];
+    struct hostent ret, *result;	
+	if(lua_type(L,1) != LUA_TSTRING)
+		return luaL_error(L,"invaild arg1");
+    if(gethostbyname_r(lua_tostring(L,1), &ret, buf, 8192, &result, &h_err) != 0)
+        return 0;
+    lua_newtable(L);
+    for (i = 0,c = 1; result->h_addr_list[i] != NULL; i++)
+    {	
+    	if(inet_ntop(AF_INET, result->h_addr_list[i],ip, 32) != NULL)
+    	{
+    		lua_pushstring(L,ip);
+    		lua_rawseti(L,-2,c++);
+    	}
+    }
+	return 1;
+}
+
 #define SET_CONST(L,N) do{\
 		lua_pushstring(L, #N);\
 		lua_pushinteger(L, N);\
@@ -169,6 +191,7 @@ void reg_socket_helper(lua_State *L)
 	SET_FUNCTION(L,"noblock",lua_easy_noblock);
 	SET_FUNCTION(L,"addr_reuse",lua_easy_addr_reuse);
 	SET_FUNCTION(L,"close",lua_close_socket);
+	SET_FUNCTION(L,"gethostbyname_ipv4",lua_gethostbyname_ipv4);
 }
 
 #endif

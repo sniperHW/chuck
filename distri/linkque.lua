@@ -30,9 +30,9 @@ end
 
 function LinkQue:Front()
     if self.size > 0 then
-	return self.head.__next
+		return self.head.__next
     else
-	return nil
+		return nil
     end	
 end
 
