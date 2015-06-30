@@ -136,7 +136,7 @@ static void luacallback(int32_t fd,int32_t err,void *ud)
 	const char *error;
 	luaRef cb = c->luacallback;
 	if((error = LuaCallRefFunc(cb,"ii",fd,err))){
-		SYS_LOG(LOG_ERROR,"error on connector callback:%s\n",error);	
+		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);	
 	}
 	release_luaRef(&cb);
 }

@@ -114,7 +114,7 @@ static void luacallback(acceptor *a,int32_t fd,sockaddr_ *addr,void *ud,int32_t 
 {
 	const char *error;
 	if((error = LuaCallRefFunc(a->luacallback,"ii",fd,err))){
-		SYS_LOG(LOG_ERROR,"error on acceptor callback:%s\n",error);	
+		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);
 	}
 }
 

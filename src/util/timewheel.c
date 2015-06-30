@@ -258,7 +258,7 @@ static int32_t lua_timeout_callback(uint32_t _1,uint64_t _2,void *ud)
 	const char *error;
 	int32_t     ret = -1;
 	if((error = LuaCallRefFunc(*cb,":i",&ret)))
-		SYS_LOG(LOG_ERROR,"error on lua_timeout_callback:%s\n",error);
+		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);
 	return ret;
 }
 

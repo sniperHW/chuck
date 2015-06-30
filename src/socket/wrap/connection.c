@@ -230,7 +230,7 @@ static inline void do_sndfnsh_cb(connection *c,packet *p)
 
 	if((error = LuaCallRefFunc(stcb->cb,"f",&st1)))
 	{
-		SYS_LOG(LOG_ERROR,"error on do_sndfnsh_cb:%s\n",error);
+		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);
 	}
 	release_luaRef(&stcb->cb);
 #else
@@ -509,7 +509,7 @@ static void lua_on_packet(connection *c,packet *p,int32_t err)
 
 	if((error = LuaCallRefFunc(c->lua_cb_packet,"ffi",&st1,&st2,err)))
 	{
-		SYS_LOG(LOG_ERROR,"error on lua_cb_packet:%s\n",error);
+		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);
 	}
 
 }

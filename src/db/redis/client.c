@@ -330,7 +330,7 @@ void execute_callback(redis_conn *c,reply_cb *stcb)
 	//process lua callback
 	if(!stcb->luacb.L) return;
 
-	const char *error;
+	const char *error = NULL;
 	stPushConn st1;	
 	st1.c = c;
 	st1.base.Push = PushConn;
@@ -338,25 +338,20 @@ void execute_callback(redis_conn *c,reply_cb *stcb)
 	stPushResultSet st2;
 	if(reply->type == REDIS_REPLY_ERROR  || 
        reply->type == REDIS_REPLY_STATUS ||
-       reply->type == REDIS_REPLY_STRING){
-		if((error = LuaCallRefFunc(stcb->luacb,"fs",&st1,reply->str))){
-			SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
-		}					
+       reply->type == REDIS_REPLY_STRING)
+	{
+		error = LuaCallRefFunc(stcb->luacb,"fs",&st1,reply->str);				
 	}else if(reply->type == REDIS_REPLY_NIL){
-		if((error = LuaCallRefFunc(stcb->luacb,"fp",&st1,NULL))){
-			SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
-		}			
+		error = LuaCallRefFunc(stcb->luacb,"fp",&st1,NULL);			
 	}else if(reply->type == REDIS_REPLY_INTEGER){
-		if((error = LuaCallRefFunc(stcb->luacb,"fi",&st1,reply->integer))){
-			SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
-		}			
+		error = LuaCallRefFunc(stcb->luacb,"fi",&st1,reply->integer);		
 	}else{
 		st2.base.Push = PushResultSet;
 		st2.reply = reply;
-		if((error = LuaCallRefFunc(stcb->luacb,"ff",&st1,&st2))){
-			SYS_LOG(LOG_ERROR,"error on lua_redis_query_callback:%s\n",error);	
-		}				
+		error = LuaCallRefFunc(stcb->luacb,"ff",&st1,&st2);			
 	}
+	if(error)
+		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);	
 	release_luaRef(&stcb->luacb);
 }
 
@@ -371,7 +366,7 @@ void lua_on_error(redis_conn *c,int32_t err)
 	st.c = c;
 	st.base.Push = PushConn;
 	if((error = LuaCallRefFunc(c->lua_err_cb,"fi",&st,err))){
-		SYS_LOG(LOG_ERROR,"error on redis lua_err_cb:%s\n",error);	
+		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);	
 	}
 }
 
