@@ -4,7 +4,7 @@ local LinkQue = require("distri.linkque")
 
 for i = 1,10 do
 	Task.New(function ()
-		Task.Block(1)
+		Sche.Sleep(100)
 		print("i'm",i,Sche.Running())
 	end)
 end

@@ -15,7 +15,7 @@ local stat_ready   = 1
 local stat_sleep   = 2
 local stat_yield   = 3
 local stat_dead    = 4
-local stat_block   = 5
+local stat_wait    = 5
 local stat_running = 6
 
 local function add2Ready(co)
@@ -31,35 +31,70 @@ local function add2Ready(co)
     sche.ready:Push({co}) 
 end
 
-local function block(ms,stat)
+
+local function yield()
 	local co = sche.runningco
 	if co.status ~= stat_running then
 		return
 	end
-    	if ms and ms > 0 then
-			if co.wheel then	
-    	    	co.wheel:UnRegister()
-    	    end
-    	    co.wheel = sche.timer:Register(ms,function ()
-    	       	co.timeout = true
-    	       	add2Ready(co)
-    	    end)
+	co.status = stat_yield
+	coroutine.yield(co.coroutine)	
+end
+
+local function _wait(co,ms)
+    if ms then
+	    co.wheel = sche.timer:Register(ms,function ()
+	       	co.timeout = true
+	       	add2Ready(co)
+	    end)
     end
-	co.status = stat
+	co.status = stat_wait
 	coroutine.yield(co.coroutine)
 	if co.timeout then	
     	co.timeout = nils		
 	    return "timeout"
+	end    	
+end
+
+local function wait(ms)
+	local co = sche.runningco
+	if co.status ~= stat_running then
+		return
+	elseif ms == 0 then
+		return yield()
+	end	
+	if co.wait_func then
+		co.wait_func(co,ms)
+	else
+		_wait(co,ms)
 	end
 end
 
-local function SwitchTo(co)
+local function _sleep(co,ms)
+	co.wheel = sche.timer:Register(ms,function ()
+	    add2Ready(co)
+	end)
+	co.status = stat_sleep
+	coroutine.yield(co.coroutine)   	
+end
+
+local function sleep(ms)
+	local co = sche.runningco
+	if co.status ~= stat_running then
+		return
+	elseif not ms or ms == 0 then
+		return yield()
+	end	
+	if co.sleep_func then
+		co.sleep_func(co,ms)
+	else
+		_sleep(co,ms)
+	end
+end
+
+local function switchTo(co)
 	local pre_co = sche.runningco
 	sche.runningco = co
-	if co.wheel then	
-    	       	co.wheel:UnRegister()
-    	       	co.wheel = nil
-    	end		
 	co.status = stat_running
 	coroutine.resume(co.coroutine,co)
 	sche.runningco = pre_co
@@ -72,12 +107,13 @@ local function Schedule(co)
 		local status = co.status
 		if status == stat_ready or status == stat_dead or status == stat_running then
 			return sche.ready:Len()
-		end	
-		if SwitchTo(co) == stat_yield then
-			add2Ready(co)
 		end
-		if sche.stop then
-			return -1
+		if co.wheel then	
+	    	co.wheel:UnRegister()
+	    	co.wheel = nil
+	    end					
+		if switchTo(co) == stat_yield then
+			add2Ready(co)
 		end		
 	else
 		sche.timer:Tick()
@@ -85,12 +121,9 @@ local function Schedule(co)
 		co = readylist:Pop()
 		while co do
 			co = co[1]
-			if SwitchTo(co) == stat_yield then
+			if switchTo(co) == stat_yield then
 				table.insert(yields,co)
-			end
-			if sche.stop then
-				return -1
-			end			
+			end		
 			co = readylist:Pop()
 		end
 		sche.timer:Tick()	
@@ -143,21 +176,117 @@ local function SpawnAndRun(func,...)
 	return co
 end
 
-local function Exit()
-	sche.stop = true
-	Yield() --yield to scheduler	
+local pool = {
+	init    = 1000,
+	max     = 65535,
+	free    = LinkQue.New(),
+	taskque = LinkQue.New(),
+	total   = 0,
+	block   = 0,
+}
+
+local ut_main
+
+local function pool_sleep(co,ms)
+	pool.block = pool.block + 1	
+	if ms > 0 and pool.taskque:Len() > 0 then
+		local node = pool.free:Front()
+		if node then
+			--当前uthread将进入睡眠,如果还有任务尝试唤醒另一空闲uthread执行task
+			add2Ready(node[1])
+		elseif pool.block == pool.total and pool.total < pool.max then
+			--所有uthread都被阻塞,但没有超过上限,创建一个
+			SpawnAndRun(ut_main)
+		end
+	end
+	_sleep(co,ms)
+	pool.block = pool.block - 1
+end
+
+local function pool_wait(co,ms)
+	pool.block = pool.block + 1
+	if pool.taskque:Len() > 0 then
+		local node = pool.free:Front()
+		if node then
+			--当前uthread将进入等待,如果还有任务尝试唤醒另一空闲uthread执行task
+			add2Ready(node[1])
+		elseif pool.block == pool.total and pool.total < pool.max then
+			--所有uthread都被阻塞,但没有超过上限,创建一个
+			SpawnAndRun(ut_main)
+		end
+	end
+	pool.block = pool.block + 1
+	_wait(co,ms)
+	pool.block = pool.block - 1
+end
+
+local function GetTask()
+	local task
+	local ut = sche.runningco
+	local node = {ut}
+	pool.free:Push(node)
+	while true do
+		task = pool.taskque:Pop()
+		if task then
+			pool.free:Remove(node)
+			return task
+		end
+		_wait(ut)
+	end
+end
+
+local function Do(task)
+	local stack,errmsg
+	if not xpcall(task.func,
+		          function (err)
+					errmsg = err
+					stack  = debug.traceback()
+		       	  end,table.unpack(task.arg))
+	then
+    		SysLog(Log.ERROR,string.format("error on [task:Do]:%s\n%s",errmsg,stack))
+	end
+end
+
+ut_main = function ()
+	local co = sche.runningco
+	co.wait_func  = pool_wait
+	co.sleep_func = pool_sleep
+	pool.total = pool.total + 1
+	while true do
+		Do(GetTask())
+		if pool.free:Len() >= pool.init then
+			break
+		end
+	end
+	pool.total = pool.total - 1
+end
+
+function pool.AddTask(task)
+	if pool.total == 0 then
+		for i = 1,pool.init do
+			SpawnAndRun(ut_main)
+		end
+	end	
+	pool.taskque:Push(task)
+	if pool.free:Len() == pool.total then
+		--所有uthread都在等待任务,唤醒一个
+		add2Ready(pool.free:Front()[1])
+	elseif pool.block == pool.total and pool.total < pool.max then
+		--所有uthread都被阻塞,但没有超过上限,创建一个
+		SpawnAndRun(ut_main)
+	end
 end
 
 return {
 	Spawn = Spawn,
 	SpawnAndRun = SpawnAndRun,
-	Yield =  function () block(0,stat_yield) end,
-	Sleep = function (ms) block(ms,stat_sleep) end,
-	Block = function (ms) block(ms,stat_block) end,
+	Yield = yield,
+	Sleep = sleep,
+	Wait  = wait,
 	WakeUp = add2Ready,
 	Running = function () return sche.runningco end,
 	GetCoByIdentity = function (identity) return sche.allcos[identity] end,
 	Schedule = Schedule,
 	GetCoCount = function () return  sche.co_count  end,
-	Exit = Exit,
+	Pool = pool,
 }

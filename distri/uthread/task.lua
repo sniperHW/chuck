@@ -1,4 +1,4 @@
-local pool = require("distri.uthread.pool")
+local pool = require("distri.uthread.sche").Pool
 local task = {}
 local currentTask
 
@@ -13,5 +13,4 @@ end
 
 return {
 	New = function(func,...) task:new(func,...) end,
-	Block = function(ms) pool.Block(ms) end
 }

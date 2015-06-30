@@ -26,7 +26,7 @@ function channel:Recv()
 		if not msg then
 			local co = Shce.Running()
 			self.block:Push(co)
-			Shce.Block()
+			Shce.Wait()
 		else
 			return table.unpack(msg)
 		end
