@@ -21,46 +21,34 @@ if client then
 	end
 
 	local server = Socket.stream.listen("127.0.0.1",8010,function (s,errno)
-		if s then
-			if s:Ok(4096,Socket.stream.rawdecoder,Task.Wrap(function (_,msg,errno)
-					if msg then						
-						local cmd = string.format("hmget chaid:%d chainfo skills",1)	
-						local err,reply = client:Do(cmd)
-						local result = ""
-						if reply then
-							for k,v in pairs(reply) do
-								result = result .. v .. "\n"
-							end
-						else
-							result = "error\n"
-						end					
-						s:Send(Packet.rawpacket(result))
-					else
-						s:Close()
-						s = nil
+		if not s then
+			return
+		end
+		local succ = s:Ok(4096,Socket.stream.rawdecoder,Task.Wrap(function (_,msg,errno)
+			if msg then						
+				local cmd = string.format("hmget chaid:%d chainfo skills",1)	
+				local err,reply = client:Do(cmd)
+				local result = ""
+				if reply then
+					for k,v in pairs(reply) do
+						result = result .. v .. "\n"
 					end
-			end)) then
-				s:SetRecvTimeout(5000)
+				else
+					result = "error\n"
+				end					
+				s:Send(Packet.rawpacket(result))
+			else
+				s:Close()
+				s = nil
 			end
-		end		
+		end)
+		if succ then	
+			s:SetRecvTimeout(5000)
+		end	
 	end)
 	if server then
 		Distri.Run()
 	end
---[[
-	for i = 1,1000 do
-		Task.New(function ()
-			local cmd = string.format("hmget chaid:%d chainfo skills",i)		
-			local err,reply = client:Do(cmd)
-			if reply then
-				print("--------------------" .. i .. "---------------------------")
-				for k,v in pairs(reply) do
-					print(k,v)
-				end
-			end
-		end)
-	end
-]]--
 end
 
 
