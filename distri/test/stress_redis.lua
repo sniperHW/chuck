@@ -1,10 +1,8 @@
 local Task   = require("distri.uthread.task")
 local Distri = require("distri.distri")
 local Redis  = require("distri.redis")
-local Socket = require("distri.socket")
 local chuck  = require("chuck")
-local Packet = chuck.packet
-local clone  = Packet.clone
+
 
 local count  = 0
 
