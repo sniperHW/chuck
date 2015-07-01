@@ -18,7 +18,7 @@ local stat_dead    = 4
 local stat_wait    = 5
 local stat_running = 6
 
-local function add2Ready(co)
+local function add2Ready(co,...)
     local status = co.status
     if status == stat_ready or status == stat_dead or status == stat_running then
     	return
@@ -28,6 +28,7 @@ local function add2Ready(co)
     	co.wheel:UnRegister()
     	co.wheel = nil
     end    
+    co.__wait_ret = table.pack(...)
     sche.ready:Push({co}) 
 end
 
@@ -44,16 +45,12 @@ end
 local function _wait(co,ms)
     if ms then
 	    co.wheel = sche.timer:Register(ms,function ()
-	       	co.timeout = true
-	       	add2Ready(co)
+	       	add2Ready(co,"timeout")
 	    end)
     end
 	co.status = stat_wait
 	coroutine.yield(co.coroutine)
-	if co.timeout then	
-    	co.timeout = nils		
-	    return "timeout"
-	end    	
+	return table.unpack(co.__wait_ret) 	
 end
 
 local function wait(ms)
@@ -64,9 +61,9 @@ local function wait(ms)
 		return yield()
 	end	
 	if co.wait_func then
-		co.wait_func(co,ms)
+		return co.wait_func(co,ms)
 	else
-		_wait(co,ms)
+		return _wait(co,ms)
 	end
 end
 
@@ -215,9 +212,9 @@ local function pool_wait(co,ms)
 			SpawnAndRun(ut_main)
 		end
 	end
-	pool.block = pool.block + 1
-	_wait(co,ms)
+	local ret = table.pack(_wait(co,ms))
 	pool.block = pool.block - 1
+	return table.unpack(ret)
 end
 
 local function GetTask()

@@ -8,7 +8,7 @@ local clone     = Packet.clone
 local err,client = Redis.Connect("127.0.0.1",6379)
 
 if client then
-	--[[for i = 1,1000 do
+	for i = 1,1000 do
 		Task.New(function ()
 			local cmd = string.format("hmset chaid:%d chainfo %s skills %s",i,
 									  "fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
@@ -18,7 +18,7 @@ if client then
 				print(i,reply)
 			end
 		end)
-	end]]--
+	end
 
 	local server = Socket.stream.listen("127.0.0.1",8010,function (s,errno)
 		if s then
@@ -39,15 +39,14 @@ if client then
 						s:Close()
 						s = nil
 					end
-			end),client) then
+			end)) then
 				s:SetRecvTimeout(5000)
 			end
 		end		
 	end)
-
 	if server then
 		Distri.Run()
-	end	
+	end
 --[[
 	for i = 1,1000 do
 		Task.New(function ()

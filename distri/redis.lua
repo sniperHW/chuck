@@ -23,8 +23,7 @@ function client:Close(err)
 		co = self.pending:Pop()
 		if co then
 			co = co[1]
-			co.redis_err = err
-			Sche.WakeUp(co)
+			Sche.WakeUp(co,false,err)
 		else
 			map[self.c] = nil
 			self.c:Close()
@@ -41,29 +40,28 @@ function client:Do(cmd)
 	if not self.c then return "client close" end
 
 	if "ok" == self.c:Execute(cmd,function (_,reply)
-		co.reply = reply
-		Sche.WakeUp(co)
+		Sche.WakeUp(co,true,reply)
 	end) then
 		local node = {co}
 		self.pending:Push(node)
-		Sche.Wait()
+		--[[
+			如果succ == true,则reply是操作结果,
+			否则,reply是传递给Close的err值
+		]]--
+		local succ,reply = Sche.Wait()
 		self.pending:Remove(node)
-		local reply     = co.reply
-		local redis_err = co.redis_err
-		co.reply        = nil
-		co.redis_err    = nil
-		if not self.c then
-			return "client close"
+		if succ then
+			return nil,reply
 		else
-			return redis_err,reply
-		end
+			return reply
+		end	
 	end
 	return "error"
 end
 
 local redis = {}
 
-function redis.Connect(ip,port,on_error) 
+function redis.Connect(ip,port,on_error)
 	local err,c = chuck.redis.Connect(engine,ip,port,function (_,err)
 		local c = map[_]
 		if c then
