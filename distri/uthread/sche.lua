@@ -3,6 +3,11 @@ local chuck   =  require("chuck")
 local Log     =  chuck.log
 local SysLog  =  Log.SysLog 
 
+--for luajit
+if not table.unpack then
+	table.unpack = unpack
+end
+
 local sche = {
 	ready      = LinkQue.New(),
 	timer      =  chuck.TimingWheel(),
@@ -28,7 +33,7 @@ local function add2Ready(co,...)
     	co.wheel:UnRegister()
     	co.wheel = nil
     end    
-    co.__wait_ret = table.pack(...)
+    co.__wait_ret = {...}
     sche.ready:Push({co}) 
 end
 
@@ -133,23 +138,23 @@ end
 
 local function start_fun(co)
 	local stack,errmsg
-    	if not xpcall(co.start_func,
-    		       function (err)
-    			errmsg = err
-    			stack  = debug.traceback()
-    		       end,
-    		       table.unpack(co.args)
-    	) then
-        		SysLog(Log.ERROR,string.format("error on start_fun:%s\n%s",errmsg,stack))
-    	end
-    	sche.allcos[co.identity] = nil
-    	sche.co_count = sche.co_count - 1
-    	co.status = stat_dead
+	if not xpcall(co.start_func,
+		       function (err)
+			errmsg = err
+			stack  = debug.traceback()
+		       end,
+		       table.unpack(co.args)
+	) then
+    		SysLog(Log.ERROR,string.format("error on start_fun:%s\n%s",errmsg,stack))
+	end
+	sche.allcos[co.identity] = nil
+	sche.co_count = sche.co_count - 1
+	co.status = stat_dead
 end
 
 local g_counter = 0
 local function gen_identity()
-	g_counter = bit32.band(g_counter + 1,0x000FFFFF)
+	g_counter = g_counter + 1
 	return string.format("%d-%d",chuck.systick(),g_counter)
 end
 
@@ -174,7 +179,7 @@ local function SpawnAndRun(func,...)
 end
 
 local pool = {
-	init    = 1000,
+	init    = 1,
 	max     = 65535,
 	free    = LinkQue.New(),
 	taskque = LinkQue.New(),
@@ -212,7 +217,7 @@ local function pool_wait(co,ms)
 			SpawnAndRun(ut_main)
 		end
 	end
-	local ret = table.pack(_wait(co,ms))
+	local ret = {_wait(co,ms)}
 	pool.block = pool.block - 1
 	return table.unpack(ret)
 end
@@ -263,6 +268,7 @@ function pool.AddTask(task)
 		for i = 1,pool.init do
 			SpawnAndRun(ut_main)
 		end
+		pool.total = pool.init
 	end	
 	pool.taskque:Push(task)
 	if pool.free:Len() == pool.total then

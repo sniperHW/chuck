@@ -7,7 +7,7 @@ function task:new(func,...)
 	o.__index = task
 	setmetatable(o, o)
 	o.func = func
-	o.arg = table.pack(...)	  
+	o.arg = {...}	  
 	pool.AddTask(o)
 end
 

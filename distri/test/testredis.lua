@@ -2,8 +2,9 @@ local Task   = require("distri.uthread.task")
 local Distri = require("distri.distri")
 local Redis  = require("distri.redis")
 local Socket = require("distri.socket")
-local Packet = require("chuck").packet
-local clone     = Packet.clone
+local chuck  = require("chuck")
+local Packet = chuck.packet
+local clone  = Packet.clone
 
 local err,client = Redis.Connect("127.0.0.1",6379)
 
@@ -41,12 +42,13 @@ if client then
 				s:Close()
 				s = nil
 			end
-		end)
+		end))
 		if succ then	
 			s:SetRecvTimeout(5000)
 		end	
 	end)
 	if server then
+		Distri.Signal(chuck.signal.SIGINT,Distri.Stop)
 		Distri.Run()
 	end
 end
