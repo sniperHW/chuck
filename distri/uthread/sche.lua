@@ -179,7 +179,7 @@ local function SpawnAndRun(func,...)
 end
 
 local pool = {
-	init    = 1,
+	init    = 100,
 	max     = 65535,
 	free    = LinkQue.New(),
 	taskque = LinkQue.New(),
@@ -198,7 +198,8 @@ local function pool_sleep(co,ms)
 			add2Ready(node[1])
 		elseif pool.block == pool.total and pool.total < pool.max then
 			--所有uthread都被阻塞,但没有超过上限,创建一个
-			SpawnAndRun(ut_main)
+			pool.total = pool.total + 1
+			Spawn(ut_main)
 		end
 	end
 	_sleep(co,ms)
@@ -214,7 +215,8 @@ local function pool_wait(co,ms)
 			add2Ready(node[1])
 		elseif pool.block == pool.total and pool.total < pool.max then
 			--所有uthread都被阻塞,但没有超过上限,创建一个
-			SpawnAndRun(ut_main)
+			pool.total = pool.total + 1
+			Spawn(ut_main)
 		end
 	end
 	local ret = {_wait(co,ms)}
@@ -253,7 +255,6 @@ ut_main = function ()
 	local co = sche.runningco
 	co.wait_func  = pool_wait
 	co.sleep_func = pool_sleep
-	pool.total = pool.total + 1
 	while true do
 		Do(GetTask())
 		if pool.free:Len() >= pool.init then
