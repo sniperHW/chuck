@@ -408,20 +408,21 @@ int32_t lua_redis_connect(lua_State *L)
 		lua_pushstring(L,"connect error\n");
 		return 1;
 	}
-	conn = calloc(1,sizeof(*conn));
+	lua_pushnil(L);
+	//lua_pushlightuserdata(L,conn);
+	conn = (redis_conn*)lua_newuserdata(L, sizeof(*conn));
+	memset(conn,0,sizeof(*conn));
 	stream_socket_init(cast(stream_socket_*,conn),fd);	
 	conn->dctor = redis_lua_dctor;
-
 	if(LUA_TFUNCTION == lua_type(L,4)){
 		conn->lua_err_cb  = toluaRef(L,4);
 		conn->on_error = lua_on_error;
 	}
-	engine_associate(e,conn,IoFinish); 	
-	PostRecv(conn);	
-	lua_pushnil(L);
-	lua_pushlightuserdata(L,conn);
 	luaL_getmetatable(L, LUAREDIS_METATABLE);
 	lua_setmetatable(L, -2);
+	
+	engine_associate(e,conn,IoFinish); 	
+	PostRecv(conn);
 	return 2;
 }
 
