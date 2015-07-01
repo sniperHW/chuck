@@ -26,14 +26,18 @@ function stream_socket:new(fd)
 	return o
 end
 
-function stream_socket:Close()
+function stream_socket:Close(errno)
 	if self.conn then
 		self.conn:Close()
+		if self.on_close then
+			self.on_close(errno)
+		end
 	elseif self.fd then
 		close(self.fd)
 	end
 	self.conn = nil
 	self.fd = nil
+	self.on_close = nil
 end
 
 function stream_socket:Send(packet,sendFinish)
@@ -45,12 +49,13 @@ function stream_socket:Send(packet,sendFinish)
 	end
 end
 
-function stream_socket:Ok(recvbuff_size,decoder,on_packet)
+function stream_socket:Ok(recvbuff_size,decoder,on_packet,on_close)
 	local function __on_packet(_,packet,err)
 		on_packet(self,packet,err)
 	end
 	self.conn = chuck.connection(self.fd,recvbuff_size,decoder)
 	if self.conn:Add2Engine(engine,__on_packet) then
+		self.on_close = on_close
 		return true
 	end
 end
@@ -75,8 +80,8 @@ local function stream_socket_listen(host,port,callback)
 		local function __callback(fd,errno)
 			local s
 			if fd then s = stream_socket:new(fd) end
-			callback(s,errno)
-		end
+				callback(s,errno)
+			end
 		if acceptor:Add2Engine(engine,__callback) then
 			return acceptor
 		end
@@ -103,7 +108,7 @@ local function stream_socket_connect(host,port,callback,noblock,timeout)
 		local connector = chuck.connector(fd,timeout)
 		connector:Add2Engine(engine,
 				            function(fd,errno)
-					           __callback(fd,errno)
+				               __callback(fd,errno)
 					           connector = nil 
 				             end)
 	else

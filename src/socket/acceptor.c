@@ -78,6 +78,7 @@ static int32_t lua_acceptor_gc(lua_State *L)
 {
 	acceptor *a = lua_toacceptor(L,1);
 	release_luaRef(&a->luacallback);
+	engine_remove(cast(handle*,a));
 	if(a->fd >= 0) close(a->fd);
 	return 0;
 }
@@ -85,6 +86,7 @@ static int32_t lua_acceptor_gc(lua_State *L)
 static int32_t lua_acceptor_close(lua_State *L)
 {
 	acceptor *a = lua_toacceptor(L,1);
+	engine_remove(cast(handle*,a));
 	if(a->fd >= 0){
 		close(a->fd);
 		a->fd = -1;

@@ -3,7 +3,7 @@ local socket = require("distri.socket")
 local engine = require("distri.engine")
 local signal = chuck.signal
 local signaler = signal.signaler(signal.SIGINT)
-local clone     = chuck.packet
+local clone     = chuck.packet.clone
 
 local server = socket.stream.listen("127.0.0.1",8010,function (s,errno)
 	if s then
