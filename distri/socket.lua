@@ -11,6 +11,7 @@ local socket = socket_helper.socket
 local addr_reuse = socket_helper.addr_reuse
 local set_noblock = socket_helper.noblock
 local close = socket_helper.close
+local Sche  = require("distri.uthread.sche")
 
 local stream_socket = {}
 
@@ -28,6 +29,12 @@ end
 
 function stream_socket:Close(errno)
 	if self.conn then
+		if self.pending_call then
+			--连接断开,如果有未决的rpc调用,通过失败
+			for k,v in pairs(self.pending_call) do
+				Sche.WakeUp(v.co,"socket close")
+			end
+		end
 		self.conn:Close()
 		if self.on_close then
 			self.on_close(errno)

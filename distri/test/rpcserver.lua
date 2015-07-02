@@ -27,7 +27,6 @@ local server = Socket.stream.Listen("127.0.0.1",8010,function (s,errno)
 	if s then
 		s:Ok(4096,Socket.stream.decoder.rpacket(4096),function (_,msg,errno)
 			if msg then
-				--print(msg.ReadU8)
 				rpcServer:ProcessCall(s,msg)
 				count = count + 1
 			else
@@ -43,7 +42,7 @@ if server then
 	Distri.RegTimer(1000,function ()
    		collectgarbage("collect") 
    		local now = chuck.systick()
-   		print("rpc:" .. count*1000/(now-last))
+   		print("rpc call:" .. count*1000/(now-last) .. "/s")
    		last = now
    		count = 0 
 	end)

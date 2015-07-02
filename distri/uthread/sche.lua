@@ -55,7 +55,9 @@ local function _wait(co,ms)
     end
 	co.status = stat_wait
 	coroutine.yield(co.coroutine)
-	return table.unpack(co.__wait_ret) 	
+
+	return table.unpack(co.__wait_ret)
+	 	
 end
 
 local function wait(ms)
@@ -103,7 +105,7 @@ local function switchTo(co)
 	return co.status	
 end
 
-local function Schedule(co)
+local function Schedule(co,...)
 	local readylist = sche.ready
 	if co then
 		local status = co.status
@@ -113,7 +115,8 @@ local function Schedule(co)
 		if co.wheel then	
 	    	co.wheel:UnRegister()
 	    	co.wheel = nil
-	    end					
+	    end
+	    co.__wait_ret = {...}					
 		if switchTo(co) == stat_yield then
 			add2Ready(co)
 		end		
@@ -228,14 +231,14 @@ local function GetTask()
 	local task
 	local ut = sche.runningco
 	local node = {ut}
-	pool.free:Push(node)
 	while true do
 		task = pool.taskque:Pop()
 		if task then
-			pool.free:Remove(node)
 			return task
 		end
+		pool.free:Push(node)
 		_wait(ut)
+		pool.free:Remove(node)
 	end
 end
 

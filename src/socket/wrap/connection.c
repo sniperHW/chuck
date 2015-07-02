@@ -113,7 +113,6 @@ static inline int32_t Send(connection *c,int32_t flag)
 	return stream_socket_send((stream_socket_*)c,&c->send_overlap,flag);		
 }
 
-
 static inline void update_next_recv_pos(connection *c,int32_t _bytestransfer)
 {
 	assert(_bytestransfer > 0);
@@ -128,6 +127,8 @@ static inline void update_next_recv_pos(connection *c,int32_t _bytestransfer)
 		bytes -= size;
 		if(c->next_recv_pos >= c->next_recv_buf->cap)
 		{
+			if(!c->next_recv_buf->next)
+				c->next_recv_buf->next = bytebuffer_new(c->recv_bufsize);			
 			bytebuffer_set(&c->next_recv_buf,c->next_recv_buf->next);
 			c->next_recv_pos = 0;
 		}

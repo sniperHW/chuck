@@ -11,7 +11,11 @@ function distri.Run()
 	stop = false
 	local ms = 1
 	while not stop and engine:Run(ms) do
-		ms = Sche.Schedule() > 0 and 1 or 0
+		if Sche.Schedule() > 0 then
+			ms = 0
+		else
+			ms = 5
+		end
 	end
 end
 

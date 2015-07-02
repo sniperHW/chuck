@@ -131,7 +131,8 @@ static inline uint32_t buffer_read(buffer_reader *reader,void *_,uint32_t size)
 		if(b->next && reader->pos >= b->size){
 			reader->pos = 0;
 			b = reader->cur = b->next;
-		}
+		}else
+			break;
 	}
 	return out_size;
 }

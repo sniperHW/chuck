@@ -134,11 +134,13 @@ function rpc_client:Call(func,...)
 	local context = {co = co}
 	peer.pending_call = peer.pending_call or {}
 	peer.pending_call[id_string]  = context	
-	local response = Sche.Wait()
-	if not response.ret then
-		return response.err,nil
+	local err,response = Sche.Wait()
+	if not response then
+		return err
+	elseif response.err then
+		return response.err 
 	else
-		return response.err,table.unpack(response.ret)
+		return nil,table.unpack(response.ret)
 	end
 end
 
@@ -153,7 +155,7 @@ local function OnRpcResponse(config,peer,res)
 	local context = peer.pending_call[id_string]
 	if context then
 		peer.pending_call[id_string] = nil	
-		Sche.WakeUp(context.co,res)
+		Sche.WakeUp(context.co,"ok",res)
 	else
 		SysLog(Log.ERROR,string.format("unknow rpc response %s",id_string))
 	end
