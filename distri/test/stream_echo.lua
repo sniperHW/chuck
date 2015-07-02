@@ -5,9 +5,9 @@ local signal = chuck.signal
 local signaler = signal.signaler(signal.SIGINT)
 local clone     = chuck.packet.clone
 
-local server = socket.stream.listen("127.0.0.1",8010,function (s,errno)
+local server = socket.stream.Listen("127.0.0.1",8010,function (s,errno)
 	if s then
-		if s:Ok(4096,socket.stream.rawdecoder,function (_,msg,errno)
+		if s:Ok(4096,socket.stream.decoder.rawpacket(),function (_,msg,errno)
 			if msg then
 				s:Send(clone(msg))
 			else

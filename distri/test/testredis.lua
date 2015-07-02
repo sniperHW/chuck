@@ -21,11 +21,11 @@ if client then
 		end)
 	end
 
-	local server = Socket.stream.listen("127.0.0.1",8010,function (s,errno)
+	local server = Socket.stream.Listen("127.0.0.1",8010,function (s,errno)
 		if not s then
 			return
 		end
-		local succ = s:Ok(4096,Socket.stream.rawdecoder,Task.Wrap(function (_,msg,errno)
+		local succ = s:Ok(4096,Socket.stream.decoder.rawpacket,Task.Wrap(function (_,msg,errno)
 			if msg then						
 				local cmd = string.format("hmget chaid:%d chainfo skills",1)	
 				local err,reply = client:Do(cmd)

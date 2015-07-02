@@ -121,10 +121,12 @@ end
 
 return {
 	stream = {
-		listen = stream_socket_listen,
-		connect = stream_socket_connect,
-		packetdecoder = chuck.decoder.connection.rpacket,
-		rawdecoder = chuck.decoder.connection.rawpacket,
-		httpdecoder = chuck.decoder.connection.http,
+		Listen = stream_socket_listen,
+		Connect = stream_socket_connect,
+		decoder = {
+			rpacket = chuck.decoder.connection.rpacket,
+			rawpacket = chuck.decoder.connection.rawpacket,
+			http = chuck.decoder.connection.http,
+		}
 	},
 }

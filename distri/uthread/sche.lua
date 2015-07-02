@@ -247,7 +247,7 @@ local function Do(task)
 					stack  = debug.traceback()
 		       	  end,table.unpack(task.arg))
 	then
-    		SysLog(Log.ERROR,string.format("error on [task:Do]:%s\n%s",errmsg,stack))
+    	SysLog(Log.ERROR,string.format("error on [task:Do]:%s\n%s",errmsg,stack))
 	end
 end
 
