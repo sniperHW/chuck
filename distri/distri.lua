@@ -20,7 +20,7 @@ function distri.Run()
 end
 
 function distri.RegTimer(ms,cb)
-	chuck.RegTimer(engine,ms,cb)
+	return chuck.RegTimer(engine,ms,cb)
 end
 
 function distri.Signal(sig,handler)

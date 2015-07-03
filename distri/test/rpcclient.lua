@@ -42,7 +42,7 @@ if Socket.stream.Connect("127.0.0.1",8010,function (s,errno)
 				while true do
 					local err,ret = rpcClient:Call("hello")
 					if ret ~= "world" then
-						print("err")
+						print(err)
 						break
 					end
 				end

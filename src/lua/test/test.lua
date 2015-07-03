@@ -32,7 +32,7 @@ function fun4(arg1,arg2,arg3,arg4)
 end
 
 function fun5()
-	return function () print("haha") end
+	return function () print("haha") return 199,200 end
 end
 
 local obj = {

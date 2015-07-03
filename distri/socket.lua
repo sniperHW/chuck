@@ -19,7 +19,7 @@ function stream_socket:new(fd)
 	local o = {}   
 	o.__index = stream_socket
 	o.__gc = function () 
-			print("stream_socket gc") 
+			--print("stream_socket gc") 
 			o:Close() 
 		end
 	setmetatable(o, o)
@@ -32,6 +32,10 @@ function stream_socket:Close(errno)
 		if self.pending_call then
 			--连接断开,如果有未决的rpc调用,通过失败
 			for k,v in pairs(self.pending_call) do
+				if v.co.timer then
+					chuck.RemTimer(v.co.timer)
+					v.co.timer = nil
+				end					
 				Sche.WakeUp(v.co,"socket close")
 			end
 		end

@@ -1,21 +1,10 @@
 CFLAGS = -g -Wall -fno-strict-aliasing 
-LDFLAGS = -lpthread -lrt -lm
+LDFLAGS = -lpthread
 SHARED  = -fPIC
 INCLUDE = -I../../
 DEFINE  =
-LUA     = jit
+LUA     = lua53
 LIB     =
-
-# Platform-specific overrides
-uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
-ifeq ($(uname_S),Linux)
-	LDFLAGS += -ldl
-	DEFINE += -D_LINUX
-endif
-
-ifeq ($(uname_S),FreeBSD)
-	DEFINE += -D_BSD
-endif
 
 ifeq ($(LUA),jit)
 	LIB += ../../../myluajit/LuaJIT-2.0.4/src/libluajit.a
@@ -24,7 +13,19 @@ ifeq ($(LUA),jit)
 endif
 
 ifeq ($(LUA),lua53)
-	LDFLAGS += -llua
+	LDFLAGS += -llua 
+endif
+
+# Platform-specific overrides
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+ifeq ($(uname_S),Linux)
+	LDFLAGS += -ldl -lrt -lm
+	DEFINE += -D_LINUX
+endif
+
+ifeq ($(uname_S),FreeBSD)
+	LDFLAGS += -lrt -lm
+	DEFINE += -D_BSD
 endif
 
 

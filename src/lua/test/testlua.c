@@ -60,11 +60,13 @@ int main(int argc,char **argv){
 	luaRef funRef;
 	err = LuaCall(L,"fun5",":r",&funRef);
 	if(err) printf("error on fun5:%s\n",err);
-	LuaCallRefFunc(funRef,NULL);	
+	int num = -1;
+	int num2 = -1;
+	LuaCallRefFunc(funRef,":ii",&num,&num2);
+	printf("%d,%d\n",num,num2);	
 	
 	
 	printf("------call lua obj function---------\n\n");	
-	int num;
 	err = LuaCall(L,"fun6",":ri",&tabRef,&num);
 	if(err) printf("error on fun6:%s\n",err);
 	printf("%d\n",num);

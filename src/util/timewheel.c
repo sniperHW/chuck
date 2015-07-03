@@ -119,7 +119,9 @@ static void fire(wheelmgr *m,uint64_t tick)
 		ret = t->callback(TEVENT_TIMEOUT,t->expire,t->ud);
 		t->status ^= INCB;
 		if(!(t->status & RELEASING) && ret >= 0){
-			if(ret > 0) t->timeout = ret;
+			if(ret > 0){
+				t->timeout = ret;
+			}
 			t->expire = tick + t->timeout;
 			_reg(m,t,tick,NULL);
 		}else{
@@ -256,10 +258,10 @@ static int32_t lua_timeout_callback(uint32_t _1,uint64_t _2,void *ud)
 {
 	luaRef     *cb = cast(luaRef*,ud);
 	const char *error;
-	int32_t     ret = -1;
+	lua_Integer ret = -1;
 	if((error = LuaCallRefFunc(*cb,":i",&ret)))
 		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);
-	return ret;
+	return cast(int32_t,ret);
 }
 
 

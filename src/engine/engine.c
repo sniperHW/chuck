@@ -57,8 +57,10 @@ static int32_t lua_engine_gc(lua_State *L){
 
 static int32_t lua_engine_run(lua_State *L){
 	engine *e    = lua_toengine(L,1);
-	if(lua_isnumber(L,2))
-		lua_pushinteger(L,engine_runonce(e,cast(uint32_t,lua_tointeger(L,2))));
+	if(lua_isnumber(L,2)){
+		uint32_t ms = cast(uint32_t,lua_tointeger(L,2));
+		lua_pushinteger(L,engine_runonce(e,ms));
+	}
 	else
 		lua_pushinteger(L,engine_run(e));
 	return 1;
@@ -72,8 +74,8 @@ static int32_t lua_engine_stop(lua_State *L){
 }
 
 static int32_t lua_timer_callback(uint32_t v,uint64_t _,void *ud){
-	luaRef *cb = cast(luaRef*,ud);
-	int32_t ret = -1;
+	luaRef *cb      =  cast(luaRef*,ud);
+	lua_Integer ret =  -1;
 	const char *error; 
 	if(v == TEVENT_TIMEOUT){
 		if((error = LuaCallRefFunc(*cb,":i",&ret))){
@@ -84,7 +86,7 @@ static int32_t lua_timer_callback(uint32_t v,uint64_t _,void *ud){
 		release_luaRef(cb);
 		free(cb);
 	}
-	return ret;
+	return cast(int32_t,ret);
 }
 
 static int32_t lua_engine_reg_timer(lua_State *L){

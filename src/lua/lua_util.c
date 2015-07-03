@@ -21,7 +21,7 @@ static __thread char lua_errmsg[4096];
 const char *luacall(lua_State *L,const char *fmt,...)
 {
 	va_list vl;
-	int32_t ret,narg,nres,i,size,base;
+	int32_t ret,narg,nres,i,size,base,top;
 	const char *errmsg = NULL;
 	lua_State *mL;
 #ifdef _MYLUAJIT
@@ -84,8 +84,9 @@ arg_end:
 		strncpy(lua_errmsg,lua_tostring(L,-1),4096);
 		return lua_errmsg;
 	}else if(nres){
-		i = 1;
-		for(;nres > 0; --nres,++i){
+		top = lua_gettop(L);
+		for(;nres > 0; --nres){
+			i = top - nres + 1;
 			switch(*fmt++){
 				case 'i':{
 					*va_arg(vl,lua_Integer*) = lua_tointeger(L,i);

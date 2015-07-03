@@ -1,7 +1,8 @@
 local chuck   =  require("chuck")
 local Log     =  chuck.log
 local SysLog  =  Log.SysLog
-local Sche    = require "distri.uthread.sche"
+local Sche    =  require "distri.uthread.sche"
+local engine = require("distri.engine")
 
 local function gen_rpc_identity()
 	local g_counter = 0
@@ -60,8 +61,15 @@ function rpc_server:ProcessRPC(peer,req)
 	if unserializer then
 		req = unserializer(req)
 	end
-
 	local identity = req.identity
+	
+	peer.rpc_record = peer.rpc_record or {0,0}
+	if not (identity.l > peer.rpc_record[2] or identity.h >  peer.rpc_record[1]) then
+		--请求重传,直接返回
+		return
+	end
+	peer.rpc_record[1] = identity.h
+	peer.rpc_record[2] = identity.l
 	local response = {identity = identity}
 	local funname  = req.f
 	local func 	   = self.service[funname]
@@ -133,8 +141,25 @@ function rpc_client:Call(func,...)
 	end
 	local context = {co = co}
 	peer.pending_call = peer.pending_call or {}
-	peer.pending_call[id_string]  = context	
+	peer.pending_call[id_string]  = context
+
+	local c = 3
+	co.timer = chuck.RegTimer(engine,1000,function ()
+		c = c - 1
+		if c == 0 then
+			Sche.WakeUp(context.co,"rpc timeout")
+			co.timer = nil
+			return -1
+		end
+		peer:Send(self.config.encoder(request))
+		if c == 2 then
+			return 2000
+		else
+			return 5000
+		end
+	end)
 	local err,response = Sche.Wait()
+	peer.pending_call[id_string] = nil
 	if not response then
 		return err
 	elseif response.err then
@@ -154,7 +179,10 @@ local function OnRPCResponse(config,peer,res)
 	local id_string = identity_to_string(res.identity)
 	local context = peer.pending_call[id_string]
 	if context then
-		peer.pending_call[id_string] = nil	
+		if context.co.timer then
+			chuck.RemTimer(context.co.timer)
+			context.co.timer = nil
+		end		
 		Sche.WakeUp(context.co,"ok",res)
 	else
 		SysLog(Log.ERROR,string.format("unknow rpc response %s",id_string))

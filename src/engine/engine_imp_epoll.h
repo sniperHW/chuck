@@ -155,7 +155,7 @@ int32_t engine_runonce(engine *e,uint32_t timeout)
 				break;	
 			}else{
 				h = cast(handle*,event->data.ptr);
-				h->on_events(h,event->events);;
+				h->on_events(h,event->events);
 			}
 		}
 		e->status ^= INLOOP;
