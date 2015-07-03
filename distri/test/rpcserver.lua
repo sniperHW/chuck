@@ -5,36 +5,28 @@ local Socket = require("distri.socket")
 local chuck  = require("chuck")
 local RPC    = require("distri.rpc")
 local Packet = chuck.packet
+local Config = require("distri.test.rpcconfig")
 
 local count  = 0
 
-local config = RPC.Config(
-function (data)                            --encoder
-	local wpk = Packet.wpacket(512)
-	wpk:WriteTab(data)
-	return wpk
-end,
-function (packet)                          --decoder
-	return packet:ReadTab()
-end)
-
-local rpcServer = RPC.Server(config)
+local rpcServer = RPC.Server(Config)
 rpcServer:RegService("hello",function ()
 	return "world"
 end)
 
 local server = Socket.stream.Listen("127.0.0.1",8010,function (s,errno)
-	if s then
-		s:Ok(4096,Socket.stream.decoder.rpacket(4096),function (_,msg,errno)
-			if msg then
-				rpcServer:ProcessRPC(s,msg)
-				count = count + 1
-			else
-				s:Close()
-				s = nil
-			end
-		end)
+	if not s then 
+		return
 	end
+	s:Ok(4096,Socket.stream.decoder.rpacket(4096),function (_,msg,errno)
+		if msg then
+			rpcServer:ProcessRPC(s,msg)
+			count = count + 1
+		else
+			s:Close(errno)
+			s = nil
+		end
+	end)
 end)
 
 if server then
