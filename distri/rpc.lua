@@ -21,13 +21,11 @@ end
 
 local rpc_config = {}
 
-function rpc_config:new(encoder,decoder,serializer,unserializer)
+function rpc_config.new(encoder,decoder,serializer,unserializer)
 	if not encoder or not decoder then
 		return nil
 	end
 	local o        = {}   
-	o.__index      = rpc_config
-	setmetatable(o, o)
 	o.decoder      = decoder        --将数据从packet中取出
 	o.encoder      = encoder        --使用特定封包格式将数据封装到packet中      
 	o.serializer   = serializer     --将lua table序列化成传输格式,可以为空
@@ -192,7 +190,7 @@ end
 
 return {
 	OnRPCResponse = OnRPCResponse,
-	Config        = function(...)    return rpc_config:new(...) end,
+	Config        = rpc_config.new,
 	Server        = function(config) return rpc_server:new(config) end,
 	Client        = function(config) return rpc_client:new(config) end,
 }
