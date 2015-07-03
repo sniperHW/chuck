@@ -115,13 +115,13 @@ local function stream_socket_connect_sync(host,port,timeout)
 		end
 	end
 
-	if stream_socket_connect(host,port,callback,timeout) then
-		if not ss then
-			waiting = true
-			Sche.Wait()
-		end
-		return ss
+	local errno = stream_socket_connect(host,port,callback,timeout)
+	if errno then return errno end
+	if not ss then
+		waiting = true
+		Sche.Wait()
 	end
+	return nil,ss
 end
 
 stream_socket_connect = function (host,port,callback,timeout)
@@ -150,9 +150,8 @@ stream_socket_connect = function (host,port,callback,timeout)
 		end)
 	else
 		close(fd)
-		return false
+		return err.EINPROGRESS
 	end
-	return true
 end
 
 

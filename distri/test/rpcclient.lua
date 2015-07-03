@@ -4,8 +4,8 @@ local Redis  = require("distri.redis")
 local Socket = require("distri.socket")
 local chuck  = require("chuck")
 local RPC    = require("distri.rpc")
-local Packet = chuck.packet
 local Sche  = require("distri.uthread.sche")
+local Packet = chuck.packet
 
 local config = RPC.Config(
 function (data)                           --encoder                        
@@ -21,7 +21,7 @@ local rpcClient = RPC.Client(config)
 
 
 Task.New(function ()
-	local s = Socket.stream.Connect("127.0.0.1",8010)
+	local err,s = Socket.stream.Connect("127.0.0.1",8010)
 	local function on_msg(_,msg,errno)
 		if msg then
 			RPC.OnRPCResponse(config,s,msg)
