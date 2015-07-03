@@ -19,37 +19,32 @@ end)
 
 local rpcClient = RPC.Client(config)
 
-local c = 0
-if Socket.stream.Connect("127.0.0.1",8010,function (s,errno)
-	if s then
-		if not s:Ok(4096,Socket.stream.decoder.rpacket(4096),
-					function (_,msg,errno)
-						if msg then
-							c = c + 1
-							RPC.OnRPCResponse(config,s,msg)
-						else
-							print("close")
-							s:Close()
-							s = nil
-						end
-					end) 
-		then
-			return
-		end
-		rpcClient:Connect(s)
-		for i = 1,100 do
-			Task.New(function ()
-				while true do
-					local err,ret = rpcClient:Call("hello")
-					if ret ~= "world" then
-						print(err)
-						break
-					end
-				end
-			end)
-		end
+
+Task.New(function ()
+	local s = Socket.stream.Connect("127.0.0.1",8010)
+	local function on_msg(_,msg,errno)
+		if msg then
+			RPC.OnRPCResponse(config,s,msg)
+		else
+			print("close")
+			s:Close()
+			s = nil
+		end		
 	end
-end) then
-	Distri.Signal(chuck.signal.SIGINT,Distri.Stop)
-	Distri.Run()
-end
+	if s and s:Ok(4096,Socket.stream.decoder.rpacket(4096),on_msg) then
+		rpcClient:Connect(s)
+		local main = function ()
+			while true do
+				local err,ret = rpcClient:Call("hello")
+				if ret ~= "world" then
+					print(err)
+					break
+				end
+			end	
+		end		
+		for i = 1,100 do Task.New(main) end
+	end
+end)
+
+Distri.Signal(chuck.signal.SIGINT,Distri.Stop)
+Distri.Run()

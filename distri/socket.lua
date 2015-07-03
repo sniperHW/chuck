@@ -99,9 +99,37 @@ local function stream_socket_listen(host,port,callback)
 	end
 end
 
-local function stream_socket_connect(host,port,callback,noblock,timeout)
+local stream_socket_connect
+
+local function stream_socket_connect_sync(host,port,timeout)
+	local co = Sche.Running()
+	if not co then
+		return "stream_socket_connect_sync should call under coroutine"
+	end
+	local ss
+	local waiting
+	local function callback(s,errno)
+		ss = s
+		if waiting then
+			Sche.WakeUp(co)
+		end
+	end
+
+	if stream_socket_connect(host,port,callback,timeout) then
+		if not ss then
+			waiting = true
+			Sche.Wait()
+		end
+		return ss
+	end
+end
+
+stream_socket_connect = function (host,port,callback,timeout)
+	if not callback then
+		return stream_socket_connect_sync(host,port,timeout)
+	end
 	local fd =  socket(AF_INET,SOCK_STREAM,IPPROTO_TCP)
-	if noblock then set_noblock(fd,1) end
+	set_noblock(fd,1)
 	local ret = connect(fd,host,port)
 	local function __callback(fd,errno)
 		local s
@@ -112,7 +140,6 @@ local function stream_socket_connect(host,port,callback,noblock,timeout)
 		end
 		callback(s,errno)
 	end 
-
 	if ret == 0 then
 		__callback(fd,0)
 	elseif ret == -err.EINPROGRESS then
@@ -131,8 +158,8 @@ end
 
 return {
 	stream = {
-		Listen = stream_socket_listen,
-		Connect = stream_socket_connect,
+		Listen      = stream_socket_listen,
+		Connect     = stream_socket_connect,
 		decoder = {
 			rpacket = chuck.decoder.connection.rpacket,
 			rawpacket = chuck.decoder.connection.rawpacket,

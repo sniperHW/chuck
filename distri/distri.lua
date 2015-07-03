@@ -1,7 +1,7 @@
 local engine = require("distri.engine")
 local Sche   = require("distri.uthread.sche")
 local chuck  = require("chuck")
-local signal = chuck.signal 
+local signal = chuck.signal
 
 local distri   = {}
 local signaler = {}
@@ -32,7 +32,7 @@ function distri.Signal(sig,handler)
 		end)
 		signaler[sig] = s
 	end
-	s[2] = handler	
+	s[2] = handler
 end
 
 function distri.Stop()

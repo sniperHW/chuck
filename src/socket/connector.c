@@ -111,7 +111,7 @@ static int32_t lua_connector_new(lua_State *L)
 	if(LUA_TNUMBER != lua_type(L,1))
 		return luaL_error(L,"arg1 should be number");
 	if(!lua_isnil(L,2) && LUA_TNUMBER != lua_type(L,2))
-		return luaL_error(L,"arg3 should be function");	
+		return luaL_error(L,"arg2 should be number");	
 
 
 	fd = lua_tonumber(L,1);
