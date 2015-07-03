@@ -1,3 +1,2 @@
-local engine = require("chuck").engine()
-return engine
+return require("chuck").engine()
 
