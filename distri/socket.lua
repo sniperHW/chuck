@@ -117,11 +117,10 @@ local function stream_socket_connect(host,port,callback,noblock,timeout)
 		__callback(fd,0)
 	elseif ret == -err.EINPROGRESS then
 		local connector = chuck.connector(fd,timeout)
-		connector:Add2Engine(engine,
-				            function(fd,errno)
-				               __callback(fd,errno)
-					           connector = nil 
-				             end)
+		connector:Add2Engine(engine,function(fd,errno)
+			__callback(fd,errno)
+			connector = nil 
+		end)
 	else
 		close(fd)
 		return false
