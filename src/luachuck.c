@@ -198,6 +198,8 @@ int32_t lua_systick(lua_State *L)
 int32_t luaopen_chuck(lua_State *L)
 {
 	
+	signal(SIGPIPE,SIG_IGN);
+
 	lua_newtable(L);
 	
 	reg_luaconnection(L);

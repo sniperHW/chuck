@@ -9,12 +9,12 @@ local Packet = chuck.packet
 local count  = 0
 
 local config = RPC.Config(
-function (data)
+function (data)                            --encoder
 	local wpk = Packet.wpacket(512)
 	wpk:WriteTab(data)
 	return wpk
 end,
-function (packet)
+function (packet)                          --decoder
 	return packet:ReadTab()
 end)
 
@@ -27,7 +27,7 @@ local server = Socket.stream.Listen("127.0.0.1",8010,function (s,errno)
 	if s then
 		s:Ok(4096,Socket.stream.decoder.rpacket(4096),function (_,msg,errno)
 			if msg then
-				rpcServer:ProcessCall(s,msg)
+				rpcServer:ProcessRPC(s,msg)
 				count = count + 1
 			else
 				s:Close()

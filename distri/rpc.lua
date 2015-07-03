@@ -54,7 +54,7 @@ function rpc_server:RegService(name,func)
 	self.service[name] = func
 end
 
-function rpc_server:ProcessCall(peer,req)
+function rpc_server:ProcessRPC(peer,req)
 	req = self.config.decoder(req)
 	local unserializer = self.config.unserializer
 	if unserializer then
@@ -145,7 +145,7 @@ function rpc_client:Call(func,...)
 end
 
 
-local function OnRpcResponse(config,peer,res)
+local function OnRPCResponse(config,peer,res)
 	res = config.decoder(res)
 	if config.unserializer then
 		res = config.unserializer(res)
@@ -163,8 +163,8 @@ end
 
 
 return {
-	OnRpcResponse = OnRpcResponse,
-	Config     = function(...)    return rpc_config:new(...) end,
-	Server     = function(config) return rpc_server:new(config) end,
-	Client     = function(config) return rpc_client:new(config) end,
+	OnRPCResponse = OnRPCResponse,
+	Config        = function(...)    return rpc_config:new(...) end,
+	Server        = function(config) return rpc_server:new(config) end,
+	Client        = function(config) return rpc_client:new(config) end,
 }

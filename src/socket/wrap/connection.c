@@ -507,7 +507,9 @@ static void lua_on_packet(connection *c,packet *p,int32_t err)
 	*/
 	st2.p = p ? clone_packet(p):NULL;
 	st2.base.Push = PushPk;	
-
+	if(st2.p == NULL){
+		printf("disconnected");
+	}
 	if((error = LuaCallRefFunc(c->lua_cb_packet,"ffi",&st1,&st2,err)))
 	{
 		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);
