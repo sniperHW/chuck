@@ -4,7 +4,6 @@ local Redis  = require("distri.redis")
 local Socket = require("distri.socket")
 local chuck  = require("chuck")
 local RPC    = require("distri.rpc")
-local Packet = chuck.packet
 local Config = require("distri.test.rpcconfig")
 
 local count  = 0

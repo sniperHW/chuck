@@ -5,7 +5,6 @@ local Socket = require("distri.socket")
 local chuck  = require("chuck")
 local RPC    = require("distri.rpc")
 local Sche   = require("distri.uthread.sche")
-local Packet = chuck.packet
 local Config = require("distri.test.rpcconfig")
 
 local rpcClient = RPC.Client(Config)
