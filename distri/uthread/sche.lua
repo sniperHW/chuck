@@ -121,17 +121,16 @@ local function Schedule(co,...)
 			add2Ready(co)
 		end		
 	else
-		sche.timer:Tick()
 		local yields = {}
 		co = readylist:Pop()
 		while co do
+			sche.timer:Tick()
 			co = co[1]
 			if switchTo(co) == stat_yield then
 				table.insert(yields,co)
 			end		
 			co = readylist:Pop()
-		end
-		sche.timer:Tick()	
+		end	
 		for k,v in pairs(yields) do
 			add2Ready(v)
 		end
@@ -142,12 +141,10 @@ end
 local function start_fun(co)
 	local stack,errmsg
 	if not xpcall(co.start_func,
-		       function (err)
+		function (err)
 			errmsg = err
 			stack  = debug.traceback()
-		       end,
-		       table.unpack(co.args)
-	) then
+		end,table.unpack(co.args)) then
     		SysLog(Log.ERROR,string.format("error on start_fun:%s\n%s",errmsg,stack))
 	end
 	sche.allcos[co.identity] = nil
@@ -163,7 +160,7 @@ end
 
 --产生一个coroutine在下次调用Schedule时执行
 local function Spawn(func,...)
-	local co = {index=0,timeout=0,identity=gen_identity(),start_func = func,args={...}}
+	local co = {identity=gen_identity(),start_func = func,args={...}}
 	co.coroutine = coroutine.create(start_fun)
 	sche.allcos[co.identity] = co
 	sche.co_count = sche.co_count + 1
@@ -173,7 +170,7 @@ end
 
 --产生一个coroutine立刻执行
 local function SpawnAndRun(func,...)
-	local co = {index=0,timeout=0,identity=gen_identity(),start_func = func,args={...}}
+	local co = {identity=gen_identity(),start_func = func,args={...}}
 	co.coroutine = coroutine.create(start_fun)
 	sche.allcos[co.identity] = co
 	sche.co_count = sche.co_count + 1	
@@ -245,11 +242,10 @@ end
 local function Do(task)
 	local stack,errmsg
 	if not xpcall(task.func,
-		          function (err)
-					errmsg = err
-					stack  = debug.traceback()
-		       	  end,table.unpack(task.arg))
-	then
+	   	function (err)
+			errmsg = err
+			stack  = debug.traceback()
+		end,table.unpack(task.arg)) then
     	SysLog(Log.ERROR,string.format("error on [task:Do]:%s\n%s",errmsg,stack))
 	end
 end

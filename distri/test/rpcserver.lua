@@ -17,7 +17,7 @@ local server = Socket.stream.Listen("127.0.0.1",8010,function (s,errno)
 	if not s then 
 		return
 	end
-	s:Ok(4096,Socket.stream.decoder.rpacket(4096),function (_,msg,errno)
+	s:Ok(65535,Socket.stream.decoder.rpacket(4096),function (_,msg,errno)
 		if msg then
 			rpcServer:ProcessRPC(s,msg)
 			count = count + 1

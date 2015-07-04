@@ -2,7 +2,9 @@ local chuck   =  require("chuck")
 local Log     =  chuck.log
 local SysLog  =  Log.SysLog
 local Sche    =  require "distri.uthread.sche"
-local engine = require("distri.engine")
+local engine  = require("distri.engine")
+
+local current_socket    --记录当前正在处理RPC的socket,在RPC函数中可以通过RPC.Socket获取
 
 local function gen_rpc_identity()
 	local g_counter = 0
@@ -74,12 +76,13 @@ function rpc_server:ProcessRPC(peer,req)
 	if not func then
 		response.err = funname .. " not found"
 	else	
+		current_socket = s
 		local stack,errmsg
-		local ret = {xpcall(func,
-							  function (err)
-							  	errmsg = err
-							  	stack  = debug.traceback()
-							  end,s,table.unpack(req.arg))}
+		local ret = {xpcall(func,function (err)
+						errmsg = err
+						stack  = debug.traceback()
+					end,table.unpack(req.arg))}
+		current_socket = nil
 		if ret[1] then
 			table.remove(ret,1)			
 			response.ret = ret
@@ -137,9 +140,8 @@ function rpc_client:Call(func,...)
 	if not peer:Send(self.config.encoder(request)) then
 		return "socket error"
 	end
-	local context = {co = co}
 	peer.pending_call = peer.pending_call or {}
-	peer.pending_call[id_string]  = context
+	peer.pending_call[id_string]  = co
 
 	local c = 3
 	co.timer = chuck.RegTimer(engine,1000,function ()
@@ -157,6 +159,10 @@ function rpc_client:Call(func,...)
 		end
 	end)
 	local err,response = Sche.Wait()
+	if co.timer then
+		chuck.RemTimer(co.timer)
+		co.timer = nil
+	end		
 	peer.pending_call[id_string] = nil
 	if not response then
 		return err
@@ -175,13 +181,9 @@ local function OnRPCResponse(config,peer,res)
 	end
 
 	local id_string = identity_to_string(res.identity)
-	local context = peer.pending_call[id_string]
-	if context then
-		if context.co.timer then
-			chuck.RemTimer(context.co.timer)
-			context.co.timer = nil
-		end		
-		Sche.WakeUp(context.co,"ok",res)
+	local co = peer.pending_call[id_string]
+	if co then	
+		Sche.WakeUp(co,"ok",res)
 	else
 		SysLog(Log.ERROR,string.format("unknow rpc response %s",id_string))
 	end
@@ -193,4 +195,5 @@ return {
 	Config        = rpc_config.new,
 	Server        = function(config) return rpc_server:new(config) end,
 	Client        = function(config) return rpc_client:new(config) end,
+	Socket        = current_socket
 }

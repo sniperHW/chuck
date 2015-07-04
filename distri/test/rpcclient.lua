@@ -20,7 +20,7 @@ Task.New(function ()
 			s = nil
 		end		
 	end
-	if s and s:Ok(4096,Socket.stream.decoder.rpacket(4096),on_msg) then
+	if s and s:Ok(65535,Socket.stream.decoder.rpacket(4096),on_msg) then
 		rpcClient:Connect(s)
 		local main = function ()
 			while true do
@@ -31,7 +31,7 @@ Task.New(function ()
 				end
 			end	
 		end		
-		for i = 1,500 do Task.New(main) end
+		for i = 1,1000 do Sche.Spawn(main) end
 	end
 end)
 
