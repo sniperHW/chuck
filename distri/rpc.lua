@@ -75,11 +75,11 @@ function rpc_server:ProcessRPC(peer,req)
 		response.err = funname .. " not found"
 	else	
 		local stack,errmsg
-		local ret = table.pack(xpcall(func,
-									  function (err)
-									  	errmsg = err
-									  	stack  = debug.traceback()
-									  end,s,table.unpack(req.arg)))
+		local ret = {xpcall(func,
+							  function (err)
+							  	errmsg = err
+							  	stack  = debug.traceback()
+							  end,s,table.unpack(req.arg))}
 		if ret[1] then
 			table.remove(ret,1)			
 			response.ret = ret

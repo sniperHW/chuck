@@ -31,7 +31,7 @@ Task.New(function ()
 				end
 			end	
 		end		
-		for i = 1,100 do Task.New(main) end
+		for i = 1,500 do Task.New(main) end
 	end
 end)
 
