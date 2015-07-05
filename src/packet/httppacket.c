@@ -1,7 +1,5 @@
 #include "httppacket.h"
 
-allocator* g_http_allocator = NULL;
-
 static packet*
 httppacket_clone(packet*);
 
@@ -21,7 +19,7 @@ void httppacket_dctor(void *_)
 
 httppacket *httppacket_new(bytebuffer *b)
 {
-	httppacket *p = cast(httppacket*,CALLOC(g_http_allocator,1,sizeof(*p)));
+	httppacket *p = calloc(1,sizeof(*p));
 	cast(packet*,p)->type = HTTPPACKET;
 	p->method     = -1;
 	if(b){
@@ -37,7 +35,7 @@ static packet *httppacket_clone(packet *_){
 	st_header *h,*hh;
 	listnode  *cur,*end;
 	httppacket *o = cast(httppacket*,_);
-	httppacket *p = cast(httppacket*,CALLOC(g_http_allocator,1,sizeof(*p)));
+	httppacket *p = calloc(1,sizeof(*p));
 	cast(packet*,p)->type = HTTPPACKET;
 	if(_->head){
 		cast(packet*,p)->head  = _->head;

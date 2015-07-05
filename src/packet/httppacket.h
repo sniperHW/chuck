@@ -3,11 +3,8 @@
 #include <stdarg.h>
 #include "comm.h"    
 #include "packet/packet.h"
-#include "mem/allocator.h"
 #include "util/endian.h"
 #include "util/string.h"
-
-extern allocator* g_http_allocator;
 
 typedef struct st_header{
 	listnode node;

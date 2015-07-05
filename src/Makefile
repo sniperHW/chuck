@@ -5,7 +5,7 @@ INCLUDE = -I./ -I../deps
 DEFINE    =
 LIBNAME = libchuck.a
 # if you want to use luajit,change it to jit
-LUA          = jit
+LUA          = lua53
 HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
 
 # Platform-specific overrides

@@ -20,10 +20,8 @@
 
 #include "comm.h"
 #include "packet/packet.h"
-#include "mem/allocator.h"
 #include "util/endian.h"
 
-extern allocator* g_rawpk_allocator;
 
 typedef struct
 {

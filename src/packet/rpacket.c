@@ -1,8 +1,6 @@
 #include "packet/rpacket.h"
 #include "packet/wpacket.h"
 
-allocator *g_rpk_allocator = NULL;
-
 static packet *rpacket_clone(packet*);
 
 packet *wpacket_makeread(packet*);
@@ -17,7 +15,7 @@ packet *rpacket_makewrite(packet*);
 
 rpacket *rpacket_new(bytebuffer *b,uint32_t start_pos)
 {
-	rpacket *r = cast(rpacket*,CALLOC(g_rpk_allocator,1,sizeof(*r)));
+	rpacket *r = calloc(1,sizeof(*r));
 	cast(packet*,r)->type = RPACKET;
 	if(b){
 		cast(packet*,r)->head = b;
