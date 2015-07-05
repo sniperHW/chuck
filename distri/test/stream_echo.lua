@@ -11,7 +11,7 @@ local server = socket.stream.Listen("127.0.0.1",8010,function (s,errno)
 			if msg then
 				s:Send(clone(msg))
 			else
-				s:Close()
+				s:Close(errno)
 				s = nil
 			end
 		end) then

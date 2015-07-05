@@ -10,9 +10,9 @@ end
 
 local sche = {
 	ready      = LinkQue.New(),
-	timer      =  chuck.TimingWheel(),
-	allcos      = {},
-	co_count = 0,
+	timer      = chuck.TimingWheel(),
+	allcos     = {},
+	co_count   = 0,
 	current    = nil,
 }
 

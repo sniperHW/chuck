@@ -16,7 +16,7 @@ Task.New(function ()
 			RPC.OnRPCResponse(Config,s,msg)
 		else
 			print("close")
-			s:Close()
+			s:Close(errno)
 			s = nil
 		end		
 	end

@@ -5,18 +5,12 @@ local signal = chuck.signal
 
 local distri   = {}
 local signaler = {}
-local stop
 
 function distri.Run()
-	stop = false
-	local ms = 1
-	while not stop and engine:Run(ms) do
-		if Sche.Schedule() > 0 then
-			ms = 0
-		else
-			ms = 5
-		end
-	end
+	chuck.RegTimer(engine,1,function()
+		Sche.Schedule()
+	end)
+	engine:Run()
 end
 
 function distri.RegTimer(ms,cb)
@@ -36,7 +30,7 @@ function distri.Signal(sig,handler)
 end
 
 function distri.Stop()
-	stop = true
+	engine:Stop()
 end
 
 return distri
