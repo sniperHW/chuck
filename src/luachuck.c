@@ -10,6 +10,11 @@
 #include "util/signaler.h"
 #include "util/timewheel.h"
 #include "util/log.h"
+#include "packet/wpacket.h"
+#include "packet/rpacket.h"
+#include "packet/httppacket.h"
+#include "packet/rawpacket.h"
+#include "mem/obj_allocator.h"
 
 
 #define SET_CONST(L,N) do{\
@@ -29,7 +34,7 @@ int bytecount = 0;
 
 void lua_regerrcode(lua_State *L)
 {
-
+	
 	lua_newtable(L);
 
 	SET_CONST(L,EPERM);
@@ -198,6 +203,11 @@ int32_t lua_systick(lua_State *L)
 int32_t luaopen_chuck(lua_State *L)
 {
 	
+	g_wpk_allocator   = objpool_new(sizeof(wpacket),1024);
+	g_rpk_allocator   = objpool_new(sizeof(rpacket),1024);
+	g_rawpk_allocator = objpool_new(sizeof(rawpacket),1024);	
+	g_http_allocator  = objpool_new(sizeof(httppacket),1024);	
+
 	signal(SIGPIPE,SIG_IGN);
 
 	lua_newtable(L);

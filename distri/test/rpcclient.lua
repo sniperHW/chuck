@@ -31,7 +31,7 @@ Task.New(function ()
 				end
 			end	
 		end		
-		for i = 1,1000 do Sche.Spawn(main) end
+		for i = 1,5000 do Sche.Spawn(main) end
 	end
 end)
 

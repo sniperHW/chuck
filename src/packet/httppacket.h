@@ -7,6 +7,8 @@
 #include "util/endian.h"
 #include "util/string.h"
 
+extern allocator* g_http_allocator;
+
 typedef struct st_header{
 	listnode node;
 	size_t   field;
