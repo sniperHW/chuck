@@ -23,7 +23,9 @@ function stream_socket:new(fd)
 			o:Close() 
 		end
 	setmetatable(o, o)
-	o.fd = fd	  
+	o.fd = fd
+	o.pending_call = {}
+	o.rpc_record   = {0,0}	  
 	return o
 end
 

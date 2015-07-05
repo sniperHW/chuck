@@ -8,14 +8,14 @@ local Sche   = require("distri.uthread.sche")
 local Config = require("distri.test.rpcconfig")
 
 local rpcClient = RPC.Client(Config)
+local OnRPCResponse = RPC.OnRPCResponse
 
 Task.New(function ()
 	local err,s = Socket.stream.Connect("127.0.0.1",8010)
 	local function on_msg(_,msg,errno)
 		if msg then
-			RPC.OnRPCResponse(Config,s,msg)
+			OnRPCResponse(Config,s,msg)
 		else
-			print("close")
 			s:Close(errno)
 			s = nil
 		end		

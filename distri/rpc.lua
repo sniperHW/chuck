@@ -6,19 +6,23 @@ local engine  = require("distri.engine")
 
 local current_socket    --记录当前正在处理RPC的socket,在RPC函数中可以通过RPC.Socket获取
 
+local WakeUp    = Sche.WakeUp
+local CurrentCo = Sche.Running
+local Wait      = Sche.Wait
+
 local function gen_rpc_identity()
 	local g_counter = 0
 	return function ()
 		g_counter = math.modf(g_counter + 1,0xffffffff)
-		return {h=os.time(),l=g_counter} 
+		return {h=os.time(),l=g_counter}
 	end	
 end
 
 gen_rpc_identity = gen_rpc_identity()
 
-local function identity_to_string(identity)
+--[[local function identity_to_string(identity)
 	return string.format("%d:%d",identity.h,identity.l)
-end
+end]]--
 
 
 local rpc_config = {}
@@ -56,21 +60,22 @@ function rpc_server:RegService(name,func)
 end
 
 function rpc_server:ProcessRPC(peer,req)
-	req = self.config.decoder(req)
-	local unserializer = self.config.unserializer
+	local config = self.config
+	req = config.decoder(req)
+	local unserializer = config.unserializer
 	if unserializer then
 		req = unserializer(req)
 	end
-	local identity = req.identity
+	local identity   = req.id
+	local rpc_record = peer.rpc_record
 	
-	peer.rpc_record = peer.rpc_record or {0,0}
-	if not (identity.l > peer.rpc_record[2] or identity.h >  peer.rpc_record[1]) then
+	if not (identity.l > rpc_record[2] or identity.h >  rpc_record[1]) then
 		--请求重传,直接返回
 		return
 	end
-	peer.rpc_record[1] = identity.h
-	peer.rpc_record[2] = identity.l
-	local response = {identity = identity}
+	rpc_record[1] = identity.h
+	rpc_record[2] = identity.l
+	local response = {id = identity}
 	local funname  = req.f
 	local func 	   = self.service[funname]
 	if not func then
@@ -91,7 +96,7 @@ function rpc_server:ProcessRPC(peer,req)
 			SysLog(Log.ERROR,string.format("error on [task:Do]:%s\n%s",errmsg,stack))
 		end
 	end
-	peer:Send(self.config.encoder(response))
+	peer:Send(config.encoder(response))
 end
 
 
@@ -118,7 +123,7 @@ function rpc_client:Connect(peer)
 end
 
 function rpc_client:Call(func,...)
-	local co = Sche.Running()
+	local co = CurrentCo()
 	if not co then
 		return "rpc_client:Call should call under coroutine"
 	end
@@ -126,44 +131,44 @@ function rpc_client:Call(func,...)
 	if not peer then
 		return "rpc_client not connect to peer"
 	end
-
+	local config = self.config
 	local request = {}
 	request.f = func
-	request.identity = gen_rpc_identity()
-	local id_string = identity_to_string(request.identity)
+	request.id = gen_rpc_identity()
+	--local id_string = identity_to_string(request.id)
 	request.arg = {...}
-	local serializer = self.config.serializer
+	local serializer = config.serializer
 	if serializer then
 		request = serializer(request)
 	end
 
-	if not peer:Send(self.config.encoder(request)) then
+	if not peer:Send(config.encoder(request)) then
 		return "socket error"
 	end
-	peer.pending_call = peer.pending_call or {}
-	peer.pending_call[id_string]  = co
+	local idx = request.id.l
+	peer.pending_call[idx] = co
 
 	local c = 3
 	co.timer = chuck.RegTimer(engine,1000,function ()
 		c = c - 1
 		if c == 0 then
-			Sche.WakeUp(context.co,"rpc timeout")
+			WakeUp(context.co,"rpc timeout")
 			co.timer = nil
 			return -1
 		end
-		peer:Send(self.config.encoder(request))
+		peer:Send(config.encoder(request))
 		if c == 2 then
 			return 2000
 		else
 			return 5000
 		end
 	end)
-	local err,response = Sche.Wait()
+	local err,response = Wait()
 	if co.timer then
 		chuck.RemTimer(co.timer)
 		co.timer = nil
 	end		
-	peer.pending_call[id_string] = nil
+	peer.pending_call[idx] = nil
 	if not response then
 		return err
 	elseif response.err then
@@ -179,16 +184,13 @@ local function OnRPCResponse(config,peer,res)
 	if config.unserializer then
 		res = config.unserializer(res)
 	end
-
-	local id_string = identity_to_string(res.identity)
-	local co = peer.pending_call[id_string]
+	local co = peer.pending_call[res.id.l]
 	if co then	
-		Sche.WakeUp(co,"ok",res)
+		WakeUp(co,"ok",res)
 	else
-		SysLog(Log.ERROR,string.format("unknow rpc response %s",id_string))
+		SysLog(Log.ERROR,string.format("unknow rpc response %d%d",res.id.h,res.id.l))
 	end
 end
-
 
 return {
 	OnRPCResponse = OnRPCResponse,
