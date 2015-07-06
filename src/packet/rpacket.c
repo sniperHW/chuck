@@ -23,7 +23,7 @@ rpacket *rpacket_new(bytebuffer *b,uint32_t start_pos)
 		refobj_inc(cast(refobj*,b));
 		buffer_reader_init(&r->reader,b,start_pos);
 		buffer_read(&r->reader,&r->data_remain,sizeof(r->data_remain));
-		r->data_remain = _ntoh16(r->data_remain);		
+		r->data_remain = ntoh(r->data_remain);		
 		cast(packet*,r)->len_packet = r->data_remain + SIZE_HEAD;
 	}
 	INIT_CONSTROUCTOR(r);
@@ -31,11 +31,15 @@ rpacket *rpacket_new(bytebuffer *b,uint32_t start_pos)
 }
 
 
-const void *rpacket_read_binary(rpacket *r,uint16_t *len)
+const void *rpacket_read_binary(rpacket *r,TYPE_HEAD *len)
 {
 	void    *addr = 0;
 	uint32_t copy_size;
-	uint16_t size = rpacket_read_uint16(r);
+#if HEAD_SIZE == uint16_t	
+	TYPE_HEAD size = rpacket_read_uint16(r);
+#else
+	TYPE_HEAD size = rpacket_read_uint32(r)
+#endif	
 	if(size == 0 || size > r->data_remain) return NULL;
 	if(len) *len = size;
 	if(reader_check_size(&r->reader,size)){
@@ -68,7 +72,7 @@ const void *rpacket_read_binary(rpacket *r,uint16_t *len)
 
 const char *rpacket_read_string(rpacket *r)
 {
-	uint16_t len;	
+	TYPE_HEAD len;	
 	char *str =  (char*)rpacket_read_binary(r,&len);
 	if(str && str[len-1] == '\0')
 		return str;	

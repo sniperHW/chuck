@@ -15,8 +15,16 @@
 #ifndef _SOCKET_WRAP_COMM_H
 #define _SOCKET_WRAP_COMM_H
 
+#ifndef MAX_WBAF
 #define MAX_WBAF 512
-#define MAX_SEND_SIZE (1024*16)
-#define MIN_RECV_BUFSIZE 1024
+#endif
 
+#ifndef MAX_SEND_SIZE    
+#define MAX_SEND_SIZE (1024*16)
+#endif
+
+#ifndef MIN_RECV_BUFSIZE  
+#define MIN_RECV_BUFSIZE 1024
+#endif
+    
 #endif    

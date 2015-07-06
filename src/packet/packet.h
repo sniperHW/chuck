@@ -30,6 +30,26 @@ enum{
 	PACKET_END,
 };
 
+#ifndef TYPE_HEAD
+#define TYPE_HEAD uint16_t
+#endif
+
+#define SIZE_HEAD sizeof(TYPE_HEAD)
+
+#if TYPE_HEAD == uint16_t 
+
+#define ntoh  _ntoh16
+#define hton  _hton16
+
+#elif TYPE_HEAD == uint32_t
+
+#define ntoh  _ntoh32
+#define hton  _hton32
+
+#else
+    #error "un support TYPE_HEAD!"
+#endif  
+
 typedef struct packet
 {
     listnode    node;   
@@ -38,18 +58,17 @@ typedef struct packet
     struct packet*  (*construct_read)(struct packet*);
     struct packet*  (*clone)(struct packet*);
     void            (*dctor)(void*);
+    uint64_t    sendtime;    
     uint32_t    len_packet;                                  //total size of packet in bytes        
-    uint32_t    spos:16;                                     //start pos in head 
-    uint32_t    type:16;
-    uint64_t    sendtime;      
+    TYPE_HEAD   spos;                                        //start pos in head 
+    uint8_t     type;
+      
 }packet;
 
-#define TYPE_HEAD uint16_t
 
-#define SIZE_HEAD sizeof(TYPE_HEAD)
-
+#ifndef MIN_BUFFER_SIZE
 #define MIN_BUFFER_SIZE 64
-
+#endif
 
 #define make_writepacket(p) cast(packet*,(p))->construct_write(cast(packet*,(p)))
 #define make_readpacket(p)  cast(packet*,(p))->construct_read(cast(packet*,(p)))

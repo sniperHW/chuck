@@ -15,7 +15,7 @@ packet *rpacket_makewrite(packet*);
 }
 
 
-wpacket *wpacket_new(uint16_t size)
+wpacket *wpacket_new(TYPE_HEAD size)
 {
 	bytebuffer *b;
 	wpacket    *w;

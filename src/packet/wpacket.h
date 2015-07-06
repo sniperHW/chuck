@@ -33,16 +33,16 @@ typedef struct
 }wpacket;
 
 
-wpacket *wpacket_new(uint16_t size);
+wpacket *wpacket_new(TYPE_HEAD size);
 
 
 static inline void wpacket_data_copy(wpacket *w,bytebuffer *buf)
 {
-    uint16_t copy_size;
+    TYPE_HEAD copy_size;
     char *ptr = buf->data;
     bytebuffer *from = cast(packet*,w)->head;
-    uint16_t    pos  = cast(packet*,w)->spos; 
-    uint16_t    size = cast(packet*,w)->len_packet; 
+    TYPE_HEAD   pos  = cast(packet*,w)->spos; 
+    TYPE_HEAD   size = cast(packet*,w)->len_packet; 
     do{
         copy_size = from->size - pos;
         if(copy_size > size) copy_size = size;
@@ -66,11 +66,11 @@ static inline void wpacket_copy_on_write(wpacket *w)
     cast(packet*,w)->head = newbuff;
     //set writer to the end
     buffer_writer_init(&w->writer,newbuff,cast(packet*,w)->len_packet);
-    w->len = cast(uint16_t*,newbuff->data);
+    w->len = cast(TYPE_HEAD*,newbuff->data);
 }
 
 
-static inline void wpacket_expand(wpacket *w,uint16_t size)
+static inline void wpacket_expand(wpacket *w,TYPE_HEAD size)
 {
     size = size_of_pow2(size);
     if(size < MIN_BUFFER_SIZE) size = MIN_BUFFER_SIZE;
@@ -78,11 +78,11 @@ static inline void wpacket_expand(wpacket *w,uint16_t size)
     buffer_writer_init(&w->writer,w->writer.cur->next,0);
 }
 
-static inline void wpacket_write(wpacket *w,char *in,uint16_t size)
+static inline void wpacket_write(wpacket *w,char *in,TYPE_HEAD size)
 {
-    uint16_t ret;
-    uint16_t packet_len = cast(packet*,w)->len_packet;
-    uint16_t new_size   = packet_len + size;
+    TYPE_HEAD ret;
+    TYPE_HEAD packet_len = cast(packet*,w)->len_packet;
+    TYPE_HEAD new_size   = packet_len + size;
     assert(new_size > packet_len);
     if(new_size < packet_len){
         //超过了包大小限制(64k)
@@ -92,7 +92,7 @@ static inline void wpacket_write(wpacket *w,char *in,uint16_t size)
     if(!w->writer.cur)
         wpacket_copy_on_write(w);
     do{
-        if(!w->writer.cur || 0 == (ret = cast(uint16_t,buffer_write(&w->writer,in,cast(uint32_t,size)))))
+        if(!w->writer.cur || 0 == (ret = cast(TYPE_HEAD,buffer_write(&w->writer,in,cast(uint32_t,size)))))
             wpacket_expand(w,size);
         else{
             in += ret;
@@ -100,7 +100,7 @@ static inline void wpacket_write(wpacket *w,char *in,uint16_t size)
         }
     }while(size);
     cast(packet*,w)->len_packet = new_size;
-    *w->len = _hton16(new_size - sizeof(*w->len)); 
+    *w->len = hton(new_size - SIZE_HEAD); 
 }
 
 static inline void wpacket_write_uint8(wpacket *w,uint8_t value)
@@ -131,10 +131,14 @@ static inline void wpacket_write_double(wpacket *w,uint64_t value)
     wpacket_write(w,cast(char*,&value),sizeof(value));
 }
 
-static inline void wpacket_write_binary(wpacket *w,const void *value,uint16_t size)
+static inline void wpacket_write_binary(wpacket *w,const void *value,TYPE_HEAD size)
 {
     assert(value);
+#if TYPE_HEAD == uint16_t
     wpacket_write_uint16(w,size);
+#else
+    wpacket_write_uint32(w,size);
+#endif    
     wpacket_write(w,cast(char*,value),size);
 }
 

@@ -216,7 +216,7 @@ static int32_t _read_double(lua_State *L)
 static int32_t _read_string(lua_State *L)
 {
 	rpacket    *rpk;
-	uint16_t   len;
+	TYPE_HEAD   len;
 	const char *data;
 	luapacket  *p = lua_topacket(L,1);
 	if(p->_packet->type != RPACKET)

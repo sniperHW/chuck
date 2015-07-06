@@ -175,7 +175,7 @@ static inline int _lua_unpack_number(rpacket *rpk,lua_State *L,int type)
 
 static inline int _lua_unpack_string(rpacket *rpk,lua_State *L)
 {
-	uint16_t len = 0;
+	TYPE_HEAD len = 0;
 	const char *data = rpacket_read_binary(rpk,&len);
 	if(!data) return -1;
 	lua_pushlstring(L,data,cast(size_t,len));
@@ -184,8 +184,8 @@ static inline int _lua_unpack_string(rpacket *rpk,lua_State *L)
 
 static int _lua_unpack_table(rpacket *rpk,lua_State *L)
 {
-	int size = rpacket_read_uint32(rpk);
-	int i = 0;
+	int32_t size = cast(int32_t,rpacket_read_uint32(rpk));
+	int32_t i = 0;
 	lua_newtable(L);
 	for(; i < size; ++i){
 		int key_type,value_type;
