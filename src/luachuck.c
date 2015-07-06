@@ -10,6 +10,7 @@
 #include "util/signaler.h"
 #include "util/timewheel.h"
 #include "util/log.h"
+#include "thread/thread.h"
 
 
 #define SET_CONST(L,N) do{\
@@ -183,12 +184,6 @@ void lua_regerrcode(lua_State *L)
 	SET_CONST(L,EHTTPPARSE);
 }
 
-int32_t lua_get_bytebuffer_count(lua_State *L)
-{
-	lua_pushinteger(L,bytecount);
-	return 1;
-}
-
 int32_t lua_systick(lua_State *L)
 {
 	lua_pushinteger(L,systick64());
@@ -208,8 +203,11 @@ int32_t luaopen_chuck(lua_State *L)
 	reg_luaengine(L);
 	reg_luatimewheel(L);
 
-	SET_FUNCTION(L,"buffercount",lua_get_bytebuffer_count);
 	SET_FUNCTION(L,"systick",lua_systick);
+
+	lua_pushstring(L,"cthread");
+	reg_luathread(L);
+	lua_settable(L,-3);
 
 	lua_pushstring(L,"packet");
 	reg_luapacket(L);

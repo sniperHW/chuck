@@ -25,22 +25,25 @@
 #include <assert.h>
 #include "comm.h"    
 #include "util/atomic.h"
-#include "util/exception.h"  
+#include "util/exception.h" 
+
+#define REFOBJ                              \
+        volatile uint32_t refcount;         \
+        uint32_t          pad1;             \
+        volatile uint32_t flag;             \
+        uint32_t          pad2;             \
+        union{                              \
+            struct{                         \
+                volatile uint32_t low32;    \
+                volatile uint32_t high32;   \
+            };                              \
+            volatile uint64_t identity;     \
+        };                                  \
+        void (*dctor)(void*)
   
 typedef struct
 {
-        volatile uint32_t refcount;
-        uint32_t          pad1;
-        volatile uint32_t flag;  
-        uint32_t          pad2;      
-        union{
-            struct{
-                volatile uint32_t low32; 
-                volatile uint32_t high32;       
-            };
-            volatile uint64_t identity;
-        };
-        void (*dctor)(void*);
+    REFOBJ;
 }refobj;
 
 void refobj_init(refobj *r,void (*dctor)(void*));

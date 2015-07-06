@@ -99,3 +99,57 @@ pid_t thread_id()
 	return tid;
 }
 
+#ifdef _CHUCKLUA
+void *thread_routine(void *arg)
+{
+	const char *file = cast(const char *,arg);
+	lua_State *L = luaL_newstate();
+	luaL_openlibs(L);
+	if (luaL_dofile(L,file)) {
+		const char * error = lua_tostring(L, -1);
+		lua_pop(L,1);
+		printf("%s\n",error);
+	}
+	return NULL;
+}
+
+int32_t lua_newcthread(lua_State *L)
+{
+	thread *t;
+	if(!lua_isstring(L,1))
+		return luaL_error(L,"invaild arg1");
+	t = thread_new(JOINABLE,thread_routine,cast(void*,lua_tostring(L,1)));
+	if(t)
+		lua_pushlightuserdata(L,t);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+int32_t lua_threadjoin(lua_State *L)
+{
+	thread *t = lua_touserdata(L,1);
+	if(t){
+		thread_join(t);
+		thread_del(t);
+	}
+	return 0;
+}
+
+#define SET_FUNCTION(L,NAME,FUNC) do{\
+	lua_pushstring(L,NAME);\
+	lua_pushcfunction(L,FUNC);\
+	lua_settable(L, -3);\
+}while(0)
+
+void reg_luathread(lua_State *L)
+{
+	lua_newtable(L);
+	SET_FUNCTION(L,"new",lua_newcthread);
+	SET_FUNCTION(L,"join",lua_threadjoin);
+}
+
+
+
+#endif
+

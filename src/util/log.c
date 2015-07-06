@@ -3,16 +3,17 @@
 #include "util/list.h"
 #include "util/dlist.h"
 #include "thread/thread.h"
+#include "util/atomic.h"
 #include "comm.h"
 
 static pthread_once_t 	g_log_key_once = PTHREAD_ONCE_INIT;
-static mutex                  *g_mtx_log_file_list = NULL;
-static dlist                        g_log_file_list = {};
-static thread    	            *g_log_thd = NULL;
+static mutex           *g_mtx_log_file_list = NULL;
+static dlist            g_log_file_list = {};
+static thread    	   *g_log_thd = NULL;
 static pid_t          	g_pid = -1;
-static uint32_t                 flush_interval = 1;  //flush every 1 second
-static volatile int32_t      stop = 0;
-int32_t                             g_loglev = LOG_INFO;
+static uint32_t         flush_interval = 1;  //flush every 1 second
+static volatile int32_t stop = 0;
+int32_t                 g_loglev = LOG_INFO;
 
 const char *log_lev_str[] = {
 	"INFO",
@@ -29,11 +30,12 @@ enum{
 };
 
 typedef struct logfile{
-	dlistnode node;
-	char         filename[256];
-	FILE       *file;
+	dlistnode  node;
+	volatile uint32_t refcount;
+	char       filename[256];
+	FILE      *file;
 	uint32_t   total_size;
-	int8_t       status;
+	int8_t     status;
 }logfile;
 
 struct log_item{
@@ -205,7 +207,7 @@ void _write_log(logfile *l,const char *content)
 	item->_logfile = l;
 	strncpy(item->content,content,content_len);	
 	logqueue_push(item);
-	printf("%s",content);
+	printf("%s\n",content);
 }
 			           
 static void log_once_routine()
@@ -246,6 +248,7 @@ void write_sys_log(const char *content)
 #ifdef _CHUCKLUA
 
 #include "lua/lua_util.h"
+#include "util/refobj.h"
 
 #define LUA_METATABLE "log_meta"
 
@@ -270,11 +273,28 @@ static void close_logfile(logfile *l)
 
 static int32_t lua_create_logfile(lua_State *L)
 {
-	logfile *l;
+	logfile    *l = NULL;
+	dlistnode  *n;
+	const char *filename;
 	struct lua_logfile *ll;
+	pthread_once(&g_log_key_once,log_once_routine);
 	if(lua_isstring(L,1)){
-		l = create_logfile(lua_tostring(L,1));
-		if(!l) return 0;
+		filename = lua_tostring(L,1);
+		mutex_lock(g_mtx_log_file_list);
+		n = dlist_begin(&g_log_file_list);
+		while(n != dlist_end(&g_log_file_list)){
+			if(strcmp(cast(logfile*,n)->filename,filename) == 0){
+				l = cast(logfile*,n);
+				ATOMIC_INCREASE_FETCH(&l->refcount);
+			}
+			n = n->next;
+		}	
+		mutex_unlock(g_mtx_log_file_list);
+		if(!l){
+			l = create_logfile(filename);
+			if(!l) return 0;
+			ATOMIC_INCREASE_FETCH(&l->refcount);
+		}
 		ll = cast(struct lua_logfile*,lua_newuserdata(L, sizeof(*ll)));
 		ll->l = l;
 		luaL_getmetatable(L, LUA_METATABLE);
@@ -304,7 +324,8 @@ struct lua_logfile *to_lua_logfile(lua_State *L, int index)
 static int32_t lua_logfile_gc(lua_State *L)
 {
 	struct lua_logfile *ll = to_lua_logfile(L,1);
-	close_logfile(ll->l);
+	if(ATOMIC_DECREASE_FETCH(&ll->l->refcount) == 0)
+		close_logfile(ll->l);
 	return 0;
 }
 

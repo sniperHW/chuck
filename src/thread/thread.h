@@ -42,4 +42,13 @@ void *thread_join(thread*);
 
 pid_t thread_id();
 
+#if _CHUCKLUA
+
+#include "lua/lua_util.h"
+
+void reg_luathread(lua_State *L);
+
+#endif
+
+
 #endif
