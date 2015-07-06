@@ -18,7 +18,7 @@
 #define _LOG_H
 
 #include <stdint.h>
-#include "comm.h"    
+#include "comm.h"
 #include "util/singleton.h"
 
 /*
@@ -28,7 +28,7 @@
 enum{
     LOG_INFO = 0,
     LOG_DEBUG,
-    LOG_WARN,	
+    LOG_WARN,
     LOG_ERROR,
     LOG_CRITICAL
 };
@@ -64,38 +64,38 @@ static inline void set_log_lev(int32_t loglev)
 
 //日志格式[INFO|ERROR]yyyy-mm-dd-hh:mm:ss.ms:content
 #define LOG(LOGFILE,LOGLEV,...)                                                                    \
-            do{                                                                                                          \
-                if(LOGLEV >= g_loglev){                                                                     \
-                    char xx___buf[MAX_LOG_SIZE];                                                     \
-                    int32_t size = write_prefix(xx___buf,LOGLEV);                              \
-                    snprintf(&xx___buf[size],MAX_LOG_SIZE-size,__VA_ARGS__);      \
-                    write_log(LOGFILE,xx___buf);                                                        \
-                }                                                                                                          \
+            do{                                                                                    \
+                if(LOGLEV >= g_loglev){                                                            \
+                    char xx___buf[MAX_LOG_SIZE];                                                   \
+                    int32_t size = write_prefix(xx___buf,LOGLEV);                                  \
+                    snprintf(&xx___buf[size],MAX_LOG_SIZE-size,__VA_ARGS__);                       \
+                    write_log(LOGFILE,xx___buf);                                                   \
+                }                                                                                  \
             }while(0)
 
-#define SYS_LOG(LOGLEV,...)                                                                          \
-            do{                                                                                                         \
-                if(LOGLEV >= g_loglev){                                                                    \
-                    char xx___buf[MAX_LOG_SIZE];                                                    \
-                    int32_t size = write_prefix(xx___buf,LOGLEV);                             \
-                    snprintf(&xx___buf[size],MAX_LOG_SIZE-size,__VA_ARGS__);     \
-                    write_sys_log(xx___buf);                                                               \
-                }                                                                                                         \
+#define SYS_LOG(LOGLEV,...)                                                                        \
+            do{                                                                                    \
+                if(LOGLEV >= g_loglev){                                                            \
+                    char xx___buf[MAX_LOG_SIZE];                                                   \
+                    int32_t size = write_prefix(xx___buf,LOGLEV);                                  \
+                    snprintf(&xx___buf[size],MAX_LOG_SIZE-size,__VA_ARGS__);                       \
+                    write_sys_log(xx___buf);                                                       \
+                }                                                                                  \
             }while(0)
 
 
-#define DEF_LOG(LOGNAME,LOGFILENAME)\
-        typedef struct{  logfile *_logfile;}LOGNAME;\
-        static inline LOGNAME *LOGNAME##create_function(){\
-        	LOGNAME *tmp = calloc(1,sizeof(*tmp));\
-        	tmp->_logfile = create_logfile(LOGFILENAME);\
-        	return tmp;\
-        }\
+#define DEF_LOG(LOGNAME,LOGFILENAME)                                                               \
+        typedef struct{  logfile *_logfile;}LOGNAME;                                               \
+        static inline LOGNAME *LOGNAME##create_function(){                                         \
+        	LOGNAME *tmp = calloc(1,sizeof(*tmp));                                                   \
+        	tmp->_logfile = create_logfile(LOGFILENAME);                                             \
+        	return tmp;                                                                              \
+        }                                                                                          \
         DECLARE_SINGLETON(LOGNAME)
 
 #define IMP_LOG(LOGNAME) IMPLEMENT_SINGLETON(LOGNAME,LOGNAME##create_function,NULL)
 
-#define GET_LOGFILE(LOGNAME) GET_INSTANCE(LOGNAME)->_logfile 
+#define GET_LOGFILE(LOGNAME) GET_INSTANCE(LOGNAME)->_logfile
 
 #ifdef _CHUCKLUA
 
@@ -103,7 +103,7 @@ typedef struct lua_State lua_State;
 
 void lua_reglog(lua_State *L);
 
-#endif          
+#endif
 
 
 #endif
