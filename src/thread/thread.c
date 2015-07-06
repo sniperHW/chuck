@@ -9,7 +9,7 @@
 
 __thread pid_t tid = 0;
 
-extern void clear_thdmailbox();
+//extern void clear_thdmailbox();
 
 
 static void child()
@@ -39,7 +39,7 @@ static void *start_routine(void *_)
 		condition_signal(starg->cond);
 	}
 	ret = routine(arg);
-	clear_thdmailbox();
+	//clear_thdmailbox();
 	return ret;
 }
 
