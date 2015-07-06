@@ -22,6 +22,7 @@
 #include "comm.h"    
 #include "packet/packet.h"
 #include "util/endian.h"
+#include "util/log.h"
 
 
 typedef struct
@@ -84,6 +85,8 @@ static inline void wpacket_write(wpacket *w,char *in,uint16_t size)
     uint16_t new_size   = packet_len + size;
     assert(new_size > packet_len);
     if(new_size < packet_len){
+        //超过了包大小限制(64k)
+        SYS_LOG(LOG_ERROR,"error on [%s:%d]:packet overflow\n",__FILE__,__LINE__);
         return;
     }
     if(!w->writer.cur)
