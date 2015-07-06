@@ -1,3 +1,4 @@
+/*
 #define __CORE__
 #include "thdmailbox.h"
 #include "thread/spinlock.h"
@@ -245,3 +246,4 @@ void clear_thdmailbox()
 		refobj_dec(&mailbox_->refbase);
 	}
 }
+*/

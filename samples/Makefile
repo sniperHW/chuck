@@ -32,7 +32,6 @@ source =  stream/connection/conn_echo_server.c\
 		  redis/redis_stress.c\
 		  sock4/proxyserver.c\
 		  signal.c\
-		  testmailbox.c\
 		  teststring.c
 
 all:
@@ -52,7 +51,6 @@ all:
 	$(CC) $(CFLAGS) -o bin/redisclient redisclient.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/redis_stress redis_stress.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/signal signal.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o bin/testmailbox testmailbox.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/proxyserver proxyserver.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)	
 	$(CC) $(CFLAGS) -o bin/httpserver httpserver.o ../src/libchuck.a ../deps/http-parser/libhttp_parser.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/teststring teststring.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)

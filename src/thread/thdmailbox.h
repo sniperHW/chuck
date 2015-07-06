@@ -1,4 +1,4 @@
-#ifndef _THDMAILBOX_H
+/*#ifndef _THDMAILBOX_H
 #define _THDMAILBOX_H
 
 #include "comm.h"
@@ -30,3 +30,4 @@ tmailbox query_mailbox(const char *name);
 int32_t send_mail(tmailbox,mail*);
 
 #endif
+*/
