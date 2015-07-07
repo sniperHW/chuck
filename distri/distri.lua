@@ -21,7 +21,7 @@ function distri.Signal(sig,handler)
 	local s = signaler[sig]
 	if not s then
 		s = {signal.signaler(sig),handler}
-		s[1]:Register(engine,function (signo)
+		local ret = s[1]:Register(engine,function (signo)
 			s[2](signo)
 		end)
 		signaler[sig] = s
@@ -30,6 +30,7 @@ function distri.Signal(sig,handler)
 end
 
 function distri.Stop()
+	print("distri.Stop")
 	engine:Stop()
 end
 

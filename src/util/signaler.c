@@ -64,6 +64,7 @@ static int32_t lua_signaler_gc(lua_State *L)
 
 static void luacallback(signaler *s,int32_t signum,void *ud)
 {
+    printf("on signal\n");
     const char *error;
     if((error = LuaCallRefFunc(s->luacallback,"i",signum))){
         SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error); 

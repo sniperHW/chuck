@@ -34,6 +34,7 @@ source =  util/exception.c\
 		  util/timerfd.c\
 		  util/signaler.c\
 		  util/string.c\
+		  util/lookup8.c\
 		  packet/wpacket.c\
 		  packet/rpacket.c\
 		  packet/packet.c\
@@ -54,6 +55,7 @@ source =  util/exception.c\
 		  engine/engine.c\
 		  lua/lua_util.c\
 		  lua/lua_util_packet.c\
+		  lua/val.c\
 		  db/redis/client.c\
 		  mem/obj_allocator.c	  
 

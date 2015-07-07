@@ -67,14 +67,13 @@ static void *start_routine(void *_)
 	}
 	ret = routine(arg);
 	tthread->destroy = 1;
-	refobj_dec(cast(refobj*,tthread));
 	return ret;
 }
 
 static void thread_dctor(void *ptr)
 {
 	mail* mail_;	
-	tmailbox_* mailbox = tthread->mailbox;
+	tmailbox_* mailbox = cast(thread*,ptr)->mailbox;
 	while((mail_ = (mail*)list_pop(&mailbox->private_queue)))
 		mail_del(mail_);	
 	while((mail_ = (mail*)list_pop(&mailbox->global_queue)))
@@ -201,7 +200,8 @@ void *thread_join(thread_t t)
 		return NULL;
 	}
 	pthread_join(thread_->threadid,&result);
-	refobj_dec(cast(refobj*,thread_));
+	refobj_dec(cast(refobj*,thread_));//对应cast2tthread的引用增加
+	refobj_dec(cast(refobj*,thread_));//对应_thread_new初始化时的1次计数
 	return result;
 }
 
@@ -287,20 +287,17 @@ int32_t  thread_process_mail(engine *e,void (*onmail)(mail *_mail))
 
 #ifdef _CHUCKLUA
 
-#include "lua/lua_util_packet.h"
-#include "packet/luapacket.h"
-#include "packet/wpacket.h"
-#include "packet/rpacket.h"
+#include "lua/val.h"
 
 typedef struct{
 	mail     base;
-	packet  *p;
+	TValue  *v;      
 }lua_mail;
 
 typedef struct{
 	luaPushFunctor base;
-	packet        *p;
-}stPushPk;
+	TValue        *v;
+}stPushMail;
 
 typedef struct{
 	luaPushFunctor base;
@@ -310,7 +307,7 @@ typedef struct{
 void lua_mail_dcotr(void *_)
 {
 	lua_mail *m = cast(lua_mail*,_);
-	packet_del(m->p);
+	TVal_release(m->v);
 }
 
 void lua_pushcthread(lua_State *L,thread_t *t)
@@ -322,15 +319,12 @@ void lua_pushcthread(lua_State *L,thread_t *t)
 	lua_rawseti(L,-2,2);	
 }
 
-static void PushPk(lua_State *L,luaPushFunctor *_)
+static void PushMail(lua_State *L,luaPushFunctor *_)
 {
-	stPushPk *self = (stPushPk*)_;
-	packet   *r;
-	if(self->p){
-		r = make_readpacket(self->p);
-		lua_unpack_table(cast(rpacket*,r),L);
-		packet_del(r);
-	}else
+	stPushMail *self = (stPushMail*)_;
+	if(self->v)
+		pushVal(L,self->v);
+	else
 		lua_pushnil(L);
 }
 
@@ -347,13 +341,12 @@ __thread luaRef mailcb = (luaRef){.L=NULL,.rindex=LUA_REFNIL};
 void lua_onmail(mail *_){
 	const char *error;
 	lua_mail *mail_ = cast(lua_mail*,_);
-	packet   *p     = mail_->p;
-	stPushCT  st1;
-	stPushPk  st2;	
-	st1.sender = _->sender;
+	stPushCT 	st1;
+	stPushMail  st2;	
+	st1.sender 	  = _->sender;
 	st1.base.Push = PushCT;		
-	st2.p = p;
-	st2.base.Push = PushPk;
+	st2.v = mail_->v;
+	st2.base.Push = PushMail;
 	if((error = LuaCallRefFunc(mailcb,"ff",&st1,&st2)))
 		SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);
 }
@@ -377,20 +370,12 @@ thread_t lua_tocthread(lua_State *L,int32_t i)
 
 int32_t lua_sendmail(lua_State *L)
 {
-	const char *error;
 	thread_t  t = lua_tocthread(L,1);
-	wpacket  *w;
 	lua_mail *m;
 	if(lua_istable(L,2)){
-		w = wpacket_new(512);
-		if((error = lua_pack_table(w,L,2))){
-			SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error);
-			packet_del(cast(packet*,w));
-			return 0;
-		}
-		m = calloc(1,sizeof(*m));
+		m    = calloc(1,sizeof(*m));
 		cast(mail*,m)->dctor = lua_mail_dcotr;
-		m->p     = cast(packet*,w);
+		m->v = toVal(L,2);
 		if(0 == thread_sendmail(t,cast(mail*,m))){
 			lua_pushboolean(L,1);
 			return 1;

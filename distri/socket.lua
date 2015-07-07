@@ -155,6 +155,7 @@ end
 
 return {
 	stream = {
+		New         = function (fd) return stream_socket:new(fd) end,
 		Listen      = stream_socket_listen,
 		Connect     = stream_socket_connect,
 		decoder = {
