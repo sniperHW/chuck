@@ -9,7 +9,7 @@
 static pthread_once_t 	g_log_key_once = PTHREAD_ONCE_INIT;
 static mutex           *g_mtx_log_file_list = NULL;
 static dlist            g_log_file_list = {};
-static thread    	   *g_log_thd = NULL;
+static thread_t    	    g_log_thd = (thread_t){.ptr=NULL,.identity=0};
 static pid_t          	g_pid = -1;
 static uint32_t         flush_interval = 1;  //flush every 1 second
 static volatile int32_t stop = 0;
@@ -193,9 +193,9 @@ static void *log_routine(void *arg)
 static void on_process_end()
 {
 	if(g_pid == getpid()){
-		if(g_log_thd){
+		if(is_vaild_refhandle(&g_log_thd)){
 			stop = 1;
-			thread_del(g_log_thd);
+			thread_join(g_log_thd);
 		}
 	}
 }
@@ -218,7 +218,7 @@ static void log_once_routine()
 	list_init(&logqueue.share_queue);
 	logqueue.mtx = mutex_new();
 	logqueue.cond = condition_new(logqueue.mtx);
-	g_log_thd = thread_new(JOINABLE,log_routine,NULL);	
+	g_log_thd = thread_new(log_routine,NULL);	
 	atexit(on_process_end);
 }
 

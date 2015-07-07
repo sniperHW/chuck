@@ -20,27 +20,34 @@
 #include <stdint.h>
 #include "comm.h"    
 #include "thread/sync.h"
+#include "util/refobj.h"
+#include "util/list.h"
 
-typedef struct
+typedef refhandle thread_t;
+
+typedef struct{
+    listnode  node;
+    thread_t  sender;
+    void (*dctor)(void*);
+}mail;
+
+static inline void mail_del(mail *mail_)
 {
-	pthread_t threadid;
-    int32_t   joinable;
-}thread;
+    if(mail_->dctor) 
+        mail_->dctor(mail_);
+    free(mail_);
+}
 
+thread_t thread_new(void *(*routine)(void*),void *ud);
 
-enum
-{
-	DETACH   = 1,
-	JOINABLE = 1 << 2,
-};
+void    *thread_join(thread_t);
 
-thread *thread_new(int32_t flag,void *(*routine)(void*),void *ud);
+pid_t    thread_id();
 
-void *thread_del(thread*);
+int32_t  thread_sendmail(thread_t,mail*);
 
-void *thread_join(thread*);
+int32_t  thread_process_mail(engine*,void (*onmail)(mail *_mail));
 
-pid_t thread_id();
 
 #if _CHUCKLUA
 

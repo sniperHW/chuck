@@ -6,9 +6,9 @@ volatile uint32_t g_ref_counter = 0;
 
 void refobj_init(refobj *r,void (*dctor)(void*))
 {
-	r->dctor = dctor;
-	r->high32 = systick32();
-	r->low32  = cast(uint32_t,(ATOMIC_INCREASE_FETCH(&g_ref_counter)));
+	r->dctor     = dctor;
+	r->high32    = cast(uint32_t,(ATOMIC_INCREASE_FETCH(&g_ref_counter) & 0x3FFFFFF));
+	r->low32     = systick32();
 	ATOMIC_INCREASE_FETCH(&r->refcount);
 }
 
