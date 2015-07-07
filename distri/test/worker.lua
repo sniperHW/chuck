@@ -3,6 +3,7 @@ local socket = require("distri.socket")
 local engine = require("distri.engine")
 local clone   = chuck.packet.clone
 local cthread = chuck.cthread
+local Distri = require("distri.distri")
 
 cthread.process_mail(engine,function (sender,mail)
 	local fd = table.unpack(mail)
@@ -21,4 +22,4 @@ cthread.process_mail(engine,function (sender,mail)
 	end	
 end)
 	
-engine:Run()
+Distri.Run()
