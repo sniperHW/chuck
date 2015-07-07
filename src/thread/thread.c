@@ -67,33 +67,23 @@ static void *start_routine(void *_)
 	}
 	ret = routine(arg);
 	tthread->destroy = 1;
-	refobj_dec(cast(refobj*,&tthread));
+	refobj_dec(cast(refobj*,tthread));
 	return ret;
 }
 
 static void thread_dctor(void *ptr)
 {
-	/*mail* mail_;	
-	uint16_t i;
-	tmailbox_* mailbox = cast(tmailbox_*,((char*)ptr - sizeof(handle)));
-	
-	LOCK(mailboxs_lock);
-	for(i = 0; i < MAX_THREADS;++i){
-		if(thread_mailboxs[i].mailbox_ == mailbox){
-			free(thread_mailboxs[i].name);
-			thread_mailboxs[i].name = NULL;
-			thread_mailboxs[i].mailbox_ = NULL;
-		}
-	}
-	UNLOCK(mailboxs_lock);
-
+	mail* mail_;	
+	tmailbox_* mailbox = tthread->mailbox;
 	while((mail_ = (mail*)list_pop(&mailbox->private_queue)))
 		mail_del(mail_);	
 	while((mail_ = (mail*)list_pop(&mailbox->global_queue)))
 		mail_del(mail_);				
 	close(((handle*)mailbox)->fd);
-	close(mailbox->notifyfd);	
-	free(mailbox);*/			
+	close(mailbox->notifyfd);
+	mutex_del(mailbox->mtx);
+	condition_del(mailbox->cond);		
+	free(mailbox);
 }
 
 #define MAX_EVENTS 512
@@ -272,7 +262,7 @@ int32_t  thread_sendmail(thread_t t,mail *mail_)
 		}
 		mutex_unlock(target_mailbox->mtx);
 	}
-	refobj_dec(cast(refobj*,&target_thread));//cast会调用refobj_inc,所以这里要调用refobj_dec
+	refobj_dec(cast(refobj*,target_thread));//cast会调用refobj_inc,所以这里要调用refobj_dec
 	return ret;
 }
 

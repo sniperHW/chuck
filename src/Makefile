@@ -43,7 +43,6 @@ source =  util/exception.c\
 		  packet/decoder.c\
 		  thread/thread.c\
 		  thread/spinlock.c\
-		  thread/thdmailbox.c\
 		  socket/socket.c\
 		  socket/acceptor.c\
 		  socket/connector.c\
