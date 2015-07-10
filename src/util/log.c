@@ -9,7 +9,7 @@
 static pthread_once_t 	g_log_key_once = PTHREAD_ONCE_INIT;
 static mutex           *g_mtx_log_file_list = NULL;
 static dlist            g_log_file_list = {};
-static thread_t    	    g_log_thd = (thread_t){.ptr=NULL,.identity=0};
+static thread_t    	    g_log_thd;
 static pid_t          	g_pid = -1;
 static uint32_t         flush_interval = 1;  //flush every 1 second
 static volatile int32_t stop = 0;
@@ -115,8 +115,7 @@ static void *log_routine(void *arg)
 	struct tm _tm;
 	struct logfile *l;
 	int32_t size;
-	dlistnode *n;		
-	g_pid = getpid();	
+	dlistnode *n;			
 	while(1){
 		item = logqueue_fetch(stop?0:100);
 		if(item){
@@ -193,10 +192,8 @@ static void *log_routine(void *arg)
 static void on_process_end()
 {
 	if(g_pid == getpid()){
-		if(is_vaild_refhandle(&g_log_thd)){
-			stop = 1;
-			thread_join(g_log_thd);
-		}
+		stop = 1;
+		thread_join(g_log_thd);
 	}
 }
 
@@ -212,6 +209,7 @@ void _write_log(logfile *l,const char *content)
 			           
 static void log_once_routine()
 {
+	g_pid = getpid();	
 	dlist_init(&g_log_file_list);
 	g_mtx_log_file_list = mutex_new();
 	list_init(&logqueue.private_queue);

@@ -57,7 +57,8 @@ source =  util/exception.c\
 		  lua/lua_util_packet.c\
 		  lua/val.c\
 		  db/redis/client.c\
-		  mem/obj_allocator.c	  
+		  mem/obj_allocator.c\
+		  util/daemon.c	  
 
 test-source = test/testexception.c\
 			  test/testthread.c\
