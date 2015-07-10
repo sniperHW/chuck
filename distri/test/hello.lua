@@ -4,6 +4,10 @@ local log    = chuck.log
 local l      = log.LogFile("hello")
 local engine = require("distri.engine")
 
+if not table.unpack then
+	table.unpack = unpack
+end
+
 l:Log(log.INFO,"child")
 
 cthread.process_mail(engine,function (sender,mail)

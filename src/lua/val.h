@@ -3,9 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <lua.h>  
-#include <lauxlib.h>  
-#include <lualib.h>
+#include "lua/lua_util.h"
 
 typedef int64_t Val_Integer;
 typedef double  Val_Number;
