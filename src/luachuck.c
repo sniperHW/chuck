@@ -11,6 +11,7 @@
 #include "util/timewheel.h"
 #include "util/log.h"
 #include "thread/thread.h"
+#include "util/daemon.h"
 
 
 #define SET_CONST(L,N) do{\
@@ -184,7 +185,91 @@ void lua_regerrcode(lua_State *L)
 	SET_CONST(L,EHTTPPARSE);
 }
 
-int32_t lua_systick(lua_State *L)
+/*fork a process and exec a new image immediate
+    the new process will run as daemon
+*/
+static int32_t lua_ForkExec(lua_State *L){
+	int32_t top = lua_gettop(L);
+	int32_t ret = -1;
+	char **argv = NULL;	
+	if(top > 0){
+		int size = top;
+		if(size){
+			argv = calloc(sizeof(*argv),size+1);
+			int i;
+			for(i = 1;i <= top; ++i){
+				if(!lua_isstring(L,i)) return luaL_error(L,"param should be string");
+				argv[i-1] = (char*)lua_tostring(L,i);
+			}
+			argv[size] = NULL;
+		}
+		char *exepath = argv[0];
+		pid_t pid;
+		if((pid = fork()) == 0 ){	
+			int i, fd0, fd1, fd2;
+			struct rlimit	rl;
+			struct sigaction	sa;
+			umask(0);
+			/*
+			 * Get maximum number of file descriptors.
+			 */
+			if (getrlimit(RLIMIT_NOFILE, &rl) < 0)
+				exit(0);			
+			setsid();
+			/*
+			 * Ensure future opens won't allocate controlling TTYs.
+			 */
+			sa.sa_handler = SIG_IGN;
+			sigemptyset(&sa.sa_mask);
+			sa.sa_flags = 0;
+			if (sigaction(SIGHUP, &sa, NULL) < 0)
+				exit(0);//err_quit("%s: can't ignore SIGHUP");
+			if ((pid = fork()) < 0)
+				exit(0);//err_quit("%s: can't fork", cmd);
+			else if (pid != 0) /* parent */
+				exit(0);		
+			/*
+			 * Close all open file descriptors.
+			 */
+			if (rl.rlim_max == RLIM_INFINITY)
+				rl.rlim_max = 1024;
+			for (i = 0; i < rl.rlim_max; i++)
+				close(i);
+			/*
+			 * Attach file descriptors 0, 1, and 2 to /dev/null.
+			 */
+			//fd0 = open("./error.txt",O_CREAT|O_RDWR);
+			fd0 = open("/dev/null", O_RDWR);
+			fd1 = dup(0);
+			fd2 = dup(0);
+			/*
+			 * Initialize the log file.
+			 */
+			//openlog(cmd, LOG_CONS, LOG_DAEMON);
+			if (fd0 != 0 || fd1 != 1 || fd2 != 2){
+				exit(1);
+			}	
+			if(execv(exepath,argv) < 0){
+				exit(-1);
+			}
+		}else if(pid > 0)
+			ret = 0;
+	}
+	if(argv) free(argv);	
+	lua_pushinteger(L,ret);
+	wait(NULL);
+	return 1;
+}
+
+static int32_t lua_Kill(lua_State *L){
+	if(lua_gettop(L) < 2 || (!lua_isnumber(L,1) && !lua_isnumber(L,2)))
+		return luaL_error(L,"need a integer param");
+	pid_t pid = (pid_t)lua_tointeger(L,1);
+	lua_pushinteger(L,kill(pid,lua_tointeger(L,2)));
+	return 1;
+}
+
+static int32_t lua_systick(lua_State *L)
 {
 	lua_pushinteger(L,systick64());
 	return 1;
@@ -236,6 +321,18 @@ int32_t luaopen_chuck(lua_State *L)
 	lua_pushstring(L,"log");
 	lua_reglog(L);
 	lua_settable(L,-3);
+
+	lua_pushstring(L,"daemon");
+	reg_luadaemon(L);
+	lua_settable(L,-3);
+
+	lua_pushstring(L,"process");
+	lua_newtable(L);
+	SET_FUNCTION(L,"fork",lua_ForkExec);
+	SET_FUNCTION(L,"kill",lua_Kill);
+	lua_settable(L,-3);
+
+
 		
 	return 1;
 }
