@@ -41,7 +41,7 @@ enum{
 	RELEASING = 1 << 1,
 };
 
-typedef struct timer{
+struct timer{
 	dlistnode     node;
 	uint32_t      timeout;
 	uint64_t      expire;
@@ -51,12 +51,12 @@ typedef struct timer{
 #ifdef _CHUCKLUA    
     luaRef        luacb;
 #endif	
-}timer;
+};
 
-typedef struct wheelmgr{
+struct wheelmgr{
 	wheel 		*wheels[wheel_day+1];
 	uint64_t     lasttime;
-}wheelmgr;
+};
 
 
 static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain)
