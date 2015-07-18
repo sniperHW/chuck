@@ -130,72 +130,21 @@ static inline void _engine_del(engine *e)
 	free(e->events);
 }
 
-#ifdef _CHUCKLUA
-static void engine_del_lua(engine *e);
-#endif
-
-
-int32_t engine_runonce(engine *e,uint32_t timeout)
+int32_t _engine_run(engine *e,int32_t timeout)
 {
 	int32_t ret = 0;
 	errno = 0;
-	int32_t i;
+	int32_t i,nfds;
 	handle *h;
 	struct timespec ts;
 	uint64_t msec;
-	msec = ms%1000;
-	ts.tv_nsec = (msec*1000*1000);
-	ts.tv_sec   = (ms/1000);	
-	int32_t nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd? 1 : 0, e->events,e->maxevents, &ts));	
-	if(nfds > 0){
-		e->status |= INLOOP;
-		for(i=0; i < nfds ; ++i)
-		{
-			struct kevent *event = &e->events[i];
-			if(event->udata == e->notifyfds[0]){
-				int32_t _;
-				while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
-				break;
-			}else if(event->udata == e->timermgr){
-				wheelmgr_tick(e->timermgr,systick64());
-			}else{
-				h = cast(handle*,event->udata);
-				h->on_events(h,event->filter);;
-			}
-		}
-		e->status ^= INLOOP;
-		if(e->status & CLOSING)
-			break;			
-		if(nfds == e->maxevents){
-			free(e->events);
-			e->maxevents <<= 2;
-			e->events = calloc(1,sizeof(*e->events)*e->maxevents);
-		}				
-	}else if(nfds < 0){
-		ret = -errno;
-		break;
-	}	
-	
-	if(e->status & CLOSING){
-		ret = -EENGCLOSE;
-#ifdef _CHUCKLUA
-		engine_del_lua(e);
-#else
-		engine_del(e);
-#endif
-	}	
-	return ret;	
-} 
-
-int32_t engine_run(engine *e)
-{
-	int32_t ret = 0;
-	for(;;){
-		errno = 0;
-		int32_t i;
-		handle *h;
-		int32_t nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd? 1 : 0, 
-										  e->events,e->maxevents, NULL));	
+	if(timeout >= 0){
+		msec = ms%1000;
+		ts.tv_nsec = (msec*1000*1000);
+		ts.tv_sec   = (ms/1000);
+	}		
+	do{
+		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd? 1 : 0, e->events,e->maxevents, timeout < 0 ?NULL:&ts));	
 		if(nfds > 0){
 			e->status |= INLOOP;
 			for(i=0; i < nfds ; ++i)
@@ -224,7 +173,7 @@ int32_t engine_run(engine *e)
 			ret = -errno;
 			break;
 		}	
-	}
+	}while(timeout < 0);
 loopend:	
 	if(e->status & CLOSING){
 		ret = -EENGCLOSE;
@@ -235,61 +184,4 @@ loopend:
 #endif
 	}	
 	return ret;
-}
-
-
-void engine_stop(engine *e)
-{
-	int32_t _;
-	TEMP_FAILURE_RETRY(write(e->notifyfds[1],&_,sizeof(_)));
-}
-
-
-#ifdef _CHUCKLUA
-
-static int32_t lua_engine_new(lua_State *L)
-{
-	engine *ep = cast(engine*,lua_newuserdata(L, sizeof(*ep)));
-	memset(ep,0,sizeof(*ep));
-	if(0 != engine_init(ep)){
-		free(ep);
-		lua_pushnil(L);
-		return 1;
-	}	
-	luaL_getmetatable(L, LUAENGINE_METATABLE);
-	lua_setmetatable(L, -2);
-	return 1;
-}
-
-
-static void engine_del_lua(engine *e)
-{
-	assert(e->threadid == thread_id());
-	if(e->status & INLOOP)
-		e->status |= CLOSING;
-	else{	
-		_engine_del(e);
-	}
-}
-#else
-
-engine *engine_new()
-{
-	engine *ep = calloc(1,sizeof(*ep));
-	if(0 != engine_init(ep)){
-		free(ep);
-		ep = NULL;
-	}
-	return ep;
-}
-
-void engine_del(engine *e)
-{
-	assert(e->threadid == thread_id());
-	if(e->status & INLOOP)
-		e->status |= CLOSING;
-	else{
-		_engine_del(e);
-		free(e);
-	}
 }

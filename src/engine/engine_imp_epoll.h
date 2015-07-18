@@ -132,60 +132,14 @@ static inline void _engine_del(engine *e)
 	free(e->events);
 }
 
-#ifdef _CHUCKLUA
-static void engine_del_lua(engine *e);
-#endif 
-
-
-int32_t engine_runonce(engine *e,uint32_t timeout)
-{
-	errno = 0;
-	int32_t i;
-	int32_t ret = 0;
-	handle *h;
-	int32_t nfds = TEMP_FAILURE_RETRY(epoll_wait(e->epfd,e->events,e->maxevents,timeout));
-	if(nfds > 0){
-		e->status |= INLOOP;
-		for(i=0; i < nfds ; ++i)
-		{
-			struct epoll_event *event = &e->events[i];
-			if(event->data.fd == e->notifyfds[0]){
-				int32_t _;
-				while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
-				break;	
-			}else{
-				h = cast(handle*,event->data.ptr);
-				h->on_events(h,event->events);
-			}
-		}
-		e->status ^= INLOOP;
-		if(nfds == e->maxevents){
-			free(e->events);
-			e->maxevents <<= 2;
-			e->events = calloc(1,sizeof(*e->events)*e->maxevents);
-		}				
-	}else if(nfds < 0){
-		ret = -errno;
-	}
-	if(e->status & CLOSING){
-		ret = -EENGCLOSE;
-#ifdef _CHUCKLUA
-		engine_del_lua(e);
-#else
-		engine_del(e);
-#endif
-	}
-	return ret;	
-}
-
-int32_t engine_run(engine *e)
+int32_t _engine_run(engine *e,int32_t timeout)
 {
 	int32_t ret = 0;
-	for(;;){
+	int32_t i,nfds;
+	handle *h;	
+	do{
 		errno = 0;
-		int32_t i;
-		handle *h;
-		int32_t nfds = TEMP_FAILURE_RETRY(epoll_wait(e->epfd,e->events,e->maxevents,-1));
+		nfds = TEMP_FAILURE_RETRY(epoll_wait(e->epfd,e->events,e->maxevents,timeout > 0 ? timeout:-1));
 		if(nfds > 0){
 			e->status |= INLOOP;
 			for(i=0; i < nfds ; ++i)
@@ -212,74 +166,15 @@ int32_t engine_run(engine *e)
 			ret = -errno;
 			break;
 		}	
-	}
+	}while(timeout < 0);
 loopend:	
 	if(e->status & CLOSING){
 		ret = -EENGCLOSE;
 #ifdef _CHUCKLUA
-			engine_del_lua(e);
+		engine_del_lua(e);
 #else
-			engine_del(e);
+		engine_del(e);
 #endif
 	}	
 	return ret;
 }
-
-
-void engine_stop(engine *e)
-{
-	int32_t _;
-	TEMP_FAILURE_RETRY(write(e->notifyfds[1],&_,sizeof(_)));
-}
-
-#ifdef _CHUCKLUA
-
-static int32_t lua_engine_new(lua_State *L)
-{
-	engine *ep = cast(engine*,lua_newuserdata(L, sizeof(*ep)));
-	memset(ep,0,sizeof(*ep));
-	if(0 != engine_init(ep)){
-		free(ep);
-		lua_pushnil(L);
-		return 1;
-	}	
-	luaL_getmetatable(L, LUAENGINE_METATABLE);
-	lua_setmetatable(L, -2);
-	return 1;
-}
-
-
-static void engine_del_lua(engine *e)
-{
-	assert(e->threadid == thread_id());
-	if(e->status & INLOOP)
-		e->status |= CLOSING;
-	else{	
-		_engine_del(e);
-	}
-}
-
-#else
-
-engine *engine_new()
-{
-	engine *ep = calloc(1,sizeof(*ep));
-	if(0 != engine_init(ep)){
-		free(ep);
-		ep = NULL;
-	}
-	return ep;
-}
-
-void engine_del(engine *e)
-{
-	assert(e->threadid == thread_id());
-	if(e->status & INLOOP)
-		e->status |= CLOSING;
-	else{
-		_engine_del(e);
-		free(e);
-	}
-}
-
-#endif

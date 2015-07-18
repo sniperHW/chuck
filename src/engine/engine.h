@@ -49,7 +49,7 @@ void engine_del(engine*);
 
 int32_t engine_run(engine*);
 
-int32_t engine_runonce(engine*,uint32_t timeout);
+int32_t engine_runonce(engine*,int32_t timeout);
 
 void    engine_stop(engine*);
 

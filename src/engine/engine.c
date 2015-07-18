@@ -9,6 +9,7 @@
 
 #ifdef _CHUCKLUA
 #define LUAENGINE_METATABLE "luaengine_metatable"
+static void engine_del_lua(engine *e);
 #endif
 
 extern int32_t pipe2(int pipefd[2], int flags);
@@ -42,7 +43,49 @@ int32_t engine_remove(handle *h){
 
 #endif
 
+int32_t engine_runonce(engine *e,int32_t timeout)
+{
+	return _engine_run(e,timeout);
+}
+
+int32_t engine_run(engine *e)
+{
+	return _engine_run(e,-1);
+}
+
+void engine_stop(engine *e)
+{
+	int32_t _;
+	TEMP_FAILURE_RETRY(write(e->notifyfds[1],&_,sizeof(_)));
+}
+
+
 #ifdef _CHUCKLUA
+
+static int32_t lua_engine_new(lua_State *L)
+{
+	engine *ep = cast(engine*,lua_newuserdata(L, sizeof(*ep)));
+	memset(ep,0,sizeof(*ep));
+	if(0 != engine_init(ep)){
+		free(ep);
+		lua_pushnil(L);
+		return 1;
+	}	
+	luaL_getmetatable(L, LUAENGINE_METATABLE);
+	lua_setmetatable(L, -2);
+	return 1;
+}
+
+
+static void engine_del_lua(engine *e)
+{
+	assert(e->threadid == thread_id());
+	if(e->status & INLOOP)
+		e->status |= CLOSING;
+	else{	
+		_engine_del(e);
+	}
+}
 
 
 engine *lua_toengine(lua_State *L, int index){
@@ -149,6 +192,29 @@ void reg_luaengine(lua_State *L){
 	SET_FUNCTION(L,"RegTimer",lua_engine_reg_timer);
 	SET_FUNCTION(L,"RemTimer",lua_remove_timer);
 
+}
+
+#else
+
+engine *engine_new()
+{
+	engine *ep = calloc(1,sizeof(*ep));
+	if(0 != engine_init(ep)){
+		free(ep);
+		ep = NULL;
+	}
+	return ep;
+}
+
+void engine_del(engine *e)
+{
+	assert(e->threadid == thread_id());
+	if(e->status & INLOOP)
+		e->status |= CLOSING;
+	else{
+		_engine_del(e);
+		free(e);
+	}
 }
 
 #endif
