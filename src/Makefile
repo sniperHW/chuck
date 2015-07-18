@@ -35,7 +35,6 @@ source =  util/exception.c\
 		  util/timewheel.c\
 		  util/log.c\
 		  util/refobj.c\
-		  util/timerfd.c\
 		  util/signaler.c\
 		  util/string.c\
 		  util/lookup8.c\
@@ -57,6 +56,7 @@ source =  util/exception.c\
 		  socket/wrap/connection.c\
 		  socket/wrap/datagram.c\
 		  engine/engine.c\
+		  engine/timerfd.c\
 		  lua/lua_util.c\
 		  lua/lua_util_packet.c\
 		  lua/val.c\
