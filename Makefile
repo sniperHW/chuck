@@ -1,8 +1,20 @@
+MAKE = 
+
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+ifeq ($(uname_S),Linux)
+	MAKE += make
+endif
+
+ifeq ($(uname_S),FreeBSD)
+	MAKE += gmake
+endif
+
+
 libchuck:
-	cd src;make libchuck-release
+	cd src;$(MAKE) libchuck-release
 
 chuck:
-	cd src;make chuck.so-debug;cp chuck.so ../
+	cd src;$(MAKE) chuck.so-debug;cp chuck.so ../
 
 examples:
-	cd samples;make
+	cd samples;$(MAKE)

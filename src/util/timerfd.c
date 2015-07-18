@@ -1,3 +1,4 @@
+#ifdef  _LINUX
 #define __CORE__
 #include <assert.h>
 #include <sys/timerfd.h>
@@ -65,3 +66,5 @@ void timerfd_del(timerfd *t)
 	close(cast(handle*,t)->fd);
 	free(t);
 }
+
+#endif

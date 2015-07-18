@@ -1,9 +1,11 @@
-CFLAGS   = -g -Wall -fno-strict-aliasing 
+CFLAGS  = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lrt -lm 
-DEPDIR   = 
+DEPDIR  = 
 INCLUDE = -I./ -I../deps
-DEFINE    =
+DEFINE  =
 LIBNAME = libchuck.a
+MAKE    =
+CC      = 
 # if you want to use luajit,change it to jit
 LUA          = lua53
 HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
@@ -11,11 +13,13 @@ HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),Linux)
+	CC += gcc
 	LDFLAGS += -ldl
 	DEFINE += -D_LINUX
 endif
 
 ifeq ($(uname_S),FreeBSD)
+	CC += clang
 	LDFLAGS += -lexecinfo
 	DEFINE += -D_BSD
 endif
@@ -66,7 +70,7 @@ test-source = test/testexception.c\
 			  test/testdecoder.c
 
 $(HTTP_PARSER):
-	cd ../deps/http-parser/;make package			  
+	cd ../deps/http-parser/;$(MAKE) package			  
 
 libchuck-release:$(source) $(HTTP_PARSER)
 	$(CC) -fPIC -O2 $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
