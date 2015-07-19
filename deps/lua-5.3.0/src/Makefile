@@ -6,7 +6,7 @@
 # Your platform. See PLATS for possible values.
 PLAT= none
 
-CC= gcc -std=gnu99
+CC=
 CFLAGS= -O2 -Wall -Wextra -DLUA_COMPAT_5_2 $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= -lm $(SYSLIBS) $(MYLIBS)
@@ -23,6 +23,19 @@ MYCFLAGS=
 MYLDFLAGS=
 MYLIBS=
 MYOBJS=
+
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+ifeq ($(uname_S),Linux)
+	CC += gcc -std=gnu99
+	LDFLAGS += -ldl
+	DEFINE += -D_LINUX
+endif
+
+ifeq ($(uname_S),FreeBSD)
+	CC += clang
+	LDFLAGS += -lexecinfo
+	DEFINE += -D_BSD
+endif
 
 # == END OF USER SETTINGS -- NO NEED TO CHANGE ANYTHING BELOW THIS LINE =======
 

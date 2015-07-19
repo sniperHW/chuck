@@ -7,18 +7,19 @@ LIBNAME = libchuck.a
 MAKE    =
 CC      = 
 # if you want to use luajit,change it to jit
-LUA          = lua53
+LUA         = lua53
 HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
-
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),Linux)
+	MAKE += make
 	CC += gcc
 	LDFLAGS += -ldl
 	DEFINE += -D_LINUX
 endif
 
 ifeq ($(uname_S),FreeBSD)
+	MAKE += gmake
 	CC += clang
 	LDFLAGS += -lexecinfo
 	DEFINE += -D_BSD
@@ -27,6 +28,8 @@ endif
 ifeq ($(LUA),jit)
 	INCLUDE += -I../deps/myluajit
 	DEFINE  += -D_MYLUAJIT
+else
+	INCLUDE += -I../deps/lua-5.3.0/src
 endif
 
 

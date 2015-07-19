@@ -21,7 +21,7 @@
 PLATFORM ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
 SONAME ?= libhttp_parser.so.2.3
 
-CC=gcc
+CC=
 AR=ar
 
 CPPFLAGS += -I.
@@ -41,6 +41,15 @@ LDFLAGS_LIB = $(LDFLAGS) -shared
 # TODO(bnoordhuis) The native SunOS linker expects -h rather than -soname...
 #LDFLAGS_LIB += -Wl,-soname=$(SONAME)
 #endif
+
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+ifeq ($(uname_S),Linux)
+	MAKE += make
+endif
+
+ifeq ($(uname_S),FreeBSD)
+	MAKE += gmake
+endif
 
 test: test_g test_fast
 	./test_g
