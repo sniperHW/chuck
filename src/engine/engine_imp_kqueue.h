@@ -28,6 +28,7 @@ int32_t event_add(engine *e,handle *h,int32_t events)
 int32_t event_remove(handle *h)
 {
 	struct kevent ke;
+	engine *e = h->e;
 	EV_SET(&ke, h->fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
 	kevent(e->kfd, &ke, 1, NULL, 0, NULL);
 	EV_SET(&ke, h->fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
@@ -41,6 +42,7 @@ int32_t event_remove(handle *h)
 int32_t event_enable(handle *h,int32_t events)
 {
 	struct kevent ke;
+	engine *e = h->e;
 	EV_SET(&ke, h->fd, events,EV_ENABLE, 0, 0, h);
 	errno = 0;
 	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL))
@@ -55,6 +57,7 @@ int32_t event_enable(handle *h,int32_t events)
 int32_t event_disable(handle *h,int32_t events)
 {
 	struct kevent ke;
+	engine *e = h->e;
 	EV_SET(&ke, h->fd, events,EV_DISABLE, 0, 0, h);
 	errno = 0;
 	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL))
@@ -76,7 +79,7 @@ timer *engine_regtimer(
 	if(!e->tfd){
 		e->tfd      = 1;
 		e->timermgr = wheelmgr_new();
-		EV_SET(&kq->change, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE, 0, 1, kq->timermgr);
+		EV_SET(&e->change, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE, 0, 1, e->timermgr);
 	}
 	return wheelmgr_register(e->timermgr,timeout,cb,ud,systick64());
 }

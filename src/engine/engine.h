@@ -24,8 +24,7 @@
 #include "util/dlist.h"  
 #include "timerfd.h"  
 
-#define engine_head timerfd   *tfd;             \
-                    wheelmgr  *timermgr;        \
+#define engine_head wheelmgr  *timermgr;        \
                     int32_t    notifyfds[2];    \
                     dlist      handles;         \
                     int32_t    status;          \
