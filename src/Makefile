@@ -59,7 +59,6 @@ source =  util/exception.c\
 		  socket/wrap/connection.c\
 		  socket/wrap/datagram.c\
 		  engine/engine.c\
-		  engine/timerfd.c\
 		  lua/lua_util.c\
 		  lua/lua_util_packet.c\
 		  lua/val.c\

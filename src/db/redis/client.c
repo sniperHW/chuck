@@ -28,7 +28,7 @@ typedef struct{
 #endif
 }reply_cb;
 
-typedef struct redis_conn{
+struct redis_conn{
     stream_socket_head;
     struct       		iovec wrecvbuf[1];
     char         		recvbuf[RECV_BUFFSIZE]; 
@@ -43,10 +43,7 @@ typedef struct redis_conn{
 #ifdef _CHUCKLUA    
     luaRef              lua_err_cb;
 #endif
-}redis_conn;
-
-
-
+};
 
 static inline void prepare_recv(redis_conn *c)
 {

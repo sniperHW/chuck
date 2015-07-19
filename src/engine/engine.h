@@ -22,7 +22,7 @@
 #include "util/timewheel.h"  
 #include "lua/lua_util.h"
 #include "util/dlist.h"  
-#include "timerfd.h"  
+//#include "timerfd.h"  
 
 #define engine_head wheelmgr  *timermgr;        \
                     int32_t    notifyfds[2];    \

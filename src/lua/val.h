@@ -31,9 +31,9 @@ typedef struct TValue TValue;
 		TVal    value;			\
 		int     tt
 
-typedef struct TValue{
+struct TValue{
 	TValueHead;
-}TValue;
+};
 
 typedef struct iter{
 	TValue *key;
