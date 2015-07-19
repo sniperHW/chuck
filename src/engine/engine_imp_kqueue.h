@@ -142,9 +142,9 @@ int32_t _engine_run(engine *e,int32_t timeout)
 	struct timespec ts;
 	uint64_t msec;
 	if(timeout >= 0){
-		msec = ms%1000;
+		msec = timeout%1000;
 		ts.tv_nsec = (msec*1000*1000);
-		ts.tv_sec   = (ms/1000);
+		ts.tv_sec   = (timeout/1000);
 	}		
 	do{
 		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd? 1 : 0, e->events,e->maxevents, timeout < 0 ?NULL:&ts));	

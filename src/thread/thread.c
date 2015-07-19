@@ -6,8 +6,16 @@
 #include "thread.h"
 #include "sync.h"
 
-#define gettidv1() syscall(__NR_gettid)  
-#define gettidv2() syscall(SYS_gettid)
+#ifdef _LINUX
+#define gettid() syscall(__NR_gettid)  
+#elif _BSD
+#define gettid() syscall(SYS_gettid)
+#else
+#error "un support platform!"		
+#endif
+
+
+
 extern int32_t pipe2(int pipefd[2], int flags);
 #define MAX_QUENESIZE 4096  
 
@@ -208,7 +216,7 @@ void *thread_join(thread_t t)
 pid_t thread_id()
 {
 	if(!tid){
-		tid = gettidv1();
+		tid = gettid();
 		pthread_atfork(NULL,NULL,child);
 	}
 	return tid;
