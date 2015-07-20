@@ -125,13 +125,13 @@ local function Schedule(co,...)
 		co = readylist:Pop()
 		sche.timer:Tick()
 		while co do
-			sche.timer:Tick()
 			co = co[1]
 			if switchTo(co) == stat_yield then
 				table.insert(yields,co)
 			end		
 			co = readylist:Pop()
-		end	
+		end
+		sche.timer:Tick()	
 		for k,v in pairs(yields) do
 			add2Ready(v)
 		end

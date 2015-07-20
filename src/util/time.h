@@ -39,7 +39,7 @@ static inline void _clock_gettime_boot(struct timespec *ts)
 #ifdef CLOCK_BOOTTIME        
         clock_gettime(CLOCK_BOOTTIME, ts);
 #else
-        clock_gettime(CLOCK_REALTIME, ts);
+        clock_gettime(CLOCK_MONOTONIC, ts);
 #endif
 #elif _BSD
         clock_gettime(CLOCK_UPTIME, ts); 
