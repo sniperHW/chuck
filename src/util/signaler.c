@@ -87,11 +87,15 @@ static int32_t lua_engine_add(lua_State *L)
 {
     signaler   *s = lua_tosignaler(L,1);
     engine     *e = lua_toengine(L,2);
+    int32_t    success = 0;
     if(s && e){
-        if(0 == imp_engine_add(e,cast(handle*,s),cast(generic_callback,luacallback)))
+        if(0 == imp_engine_add(e,cast(handle*,s),cast(generic_callback,luacallback))){
             s->luacallback = toluaRef(L,3);
+            success = 1;
+        }
     }
-    return 0;
+    lua_pushboolean(L,success);
+    return 1;
 }
 
 static int32_t lua_engine_remove(lua_State *L)

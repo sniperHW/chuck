@@ -44,10 +44,12 @@ LDFLAGS_LIB = $(LDFLAGS) -shared
 
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),Linux)
+	CC   += gcc
 	MAKE += make
 endif
 
 ifeq ($(uname_S),FreeBSD)
+	CC   += clang
 	MAKE += gmake
 endif
 

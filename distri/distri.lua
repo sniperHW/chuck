@@ -18,15 +18,19 @@ function distri.RegTimer(ms,cb)
 end
 
 function distri.Signal(sig,handler)
+	local success = false
 	local s = signaler[sig]
 	if not s then
 		s = {signal.signaler(sig),handler}
-		local ret = s[1]:Register(engine,function (signo)
+		success = s[1]:Register(engine,function (signo)
 			s[2](signo)
 		end)
-		signaler[sig] = s
+		if success then
+			signaler[sig] = s
+			s[2] = handler
+		end
 	end
-	s[2] = handler
+	return success
 end
 
 function distri.Stop()
