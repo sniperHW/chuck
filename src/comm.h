@@ -172,6 +172,7 @@ static inline uint32_t align_size(uint32_t size,uint32_t align)
 #endif
 
 #if 0
+//Linux
 #define EPERM           1 /* Operation not permitted */
 #define ENOENT          2 /* No such file or directory */
 #define ESRCH           3 /* No such process */
