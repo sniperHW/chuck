@@ -123,6 +123,7 @@ local function Schedule(co,...)
 	else
 		local yields = {}
 		co = readylist:Pop()
+		sche.timer:Tick()
 		while co do
 			sche.timer:Tick()
 			co = co[1]
