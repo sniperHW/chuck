@@ -9,7 +9,7 @@
 #ifdef _LINUX
 #define gettid() syscall(__NR_gettid)  
 #elif _BSD
-#define gettid() syscall(SYS_gettid)
+#define gettid() getpid()
 #else
 #error "un support platform!"		
 #endif
