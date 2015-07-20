@@ -1,10 +1,17 @@
 #define __CORE__
 #include <assert.h>
-#include <sys/signalfd.h>
 #include "util/signaler.h"
 #include "engine/engine.h"
 #include "util/log.h"    
 
+extern int32_t pipe2(int pipefd[2], int flags);
+
+#define MAX_SIGNALFD 256
+static  int32_t   lock = 0;
+static  signaler *signalers[MAX_SIGNALFD] = {NULL};
+
+#define LOCK() while (__sync_lock_test_and_set(&lock,1)) {}
+#define UNLOCK() __sync_lock_release(&lock);
 
 static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 {
@@ -20,34 +27,37 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 
 static void on_signal(handle *h,int32_t events)
 {
-    struct   signalfd_siginfo fdsi;
-    int32_t  ret;
+    int32_t  ret,_;
     int32_t  fd = h->fd;
     signaler *s = cast(signaler*,h);
-    ret = TEMP_FAILURE_RETRY(read(fd, &fdsi, sizeof(fdsi)));
-    if(ret != sizeof(fdsi))
+    ret = TEMP_FAILURE_RETRY(read(fd, &_, sizeof(_)));
+    if(ret != sizeof(_))
         return;    
-
     s->callback(s,s->signum,s->ud);
 }
 
 
-static int32_t signaler_init(int32_t signum)
-{
-    sigset_t  mask;  
-    sigemptyset(&mask);
-    sigaddset(&mask, signum);
-    
-    if(sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
-        return -errno;  
-
-    return signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);    
+static void sig(int32_t sig){
+    signaler *s;
+    LOCK();
+    s = signalers[sig];
+    if(s){
+        TEMP_FAILURE_RETRY(write(s->notifyfd,&sig,sizeof(sig)));
+    }
+    UNLOCK();
 }
 
+static int32_t signaler_init(int32_t signum,int32_t *fdpairs)
+{
+    if(pipe2(fdpairs,O_NONBLOCK|O_CLOEXEC) != 0)
+        return -1;
+    signal(signum,sig);
+    return 0;     
+}
 
 #ifdef _CHUCKLUA
 
-#define LUA_METATABLE "signer_mata"
+#define LUA_METATABLE "signaler_meta"
 
 static signaler *lua_tosignaler(lua_State *L, int index) 
 {
@@ -57,6 +67,9 @@ static signaler *lua_tosignaler(lua_State *L, int index)
 static int32_t lua_signaler_gc(lua_State *L)
 {
     signaler *s = lua_tosignaler(L,1);
+    LOCK();
+    signalers[s->signum] = NULL;
+    UNLOCK();    
     release_luaRef(&s->luacallback);
     close(cast(handle*,s)->fd);
     return 0;
@@ -64,7 +77,6 @@ static int32_t lua_signaler_gc(lua_State *L)
 
 static void luacallback(signaler *s,int32_t signum,void *ud)
 {
-    printf("on signal\n");
     const char *error;
     if((error = LuaCallRefFunc(s->luacallback,"i",signum))){
         SYS_LOG(LOG_ERROR,"error on [%s:%d]:%s\n",__FILE__,__LINE__,error); 
@@ -92,24 +104,34 @@ static int32_t lua_engine_remove(lua_State *L)
 
 static int32_t lua_signaler_new(lua_State *L)
 {
-    signaler *s;
-    int32_t signum = lua_tointeger(L,1);
-    int32_t fd = signaler_init(signum);
+    signaler *s = NULL;
+    int32_t   signum;
+    int32_t   fdpairs[2]; 
+
     if(LUA_TNUMBER != lua_type(L,1))
-        return luaL_error(L,"arg1 should be number");    
-    if(fd < 0){
-        lua_pushnil(L);
-        return 1;
-    }
-    
-    s = lua_newuserdata(L, sizeof(*s));
-    memset(s,0,sizeof(*s));
-    cast(handle*,s)->fd = fd;
-    s->signum = signum;
-    cast(handle*,s)->on_events = on_signal;
-    cast(handle*,s)->imp_engine_add = imp_engine_add;
-    luaL_getmetatable(L, LUA_METATABLE);
-    lua_setmetatable(L, -2);  
+        return luaL_error(L,"arg1 should be number");
+    signum = lua_tointeger(L,1);
+    LOCK();
+    do{
+        if(signalers[signum])
+            break;
+
+        if(0 != signaler_init(signum,fdpairs))
+            break;
+        s = lua_newuserdata(L, sizeof(*s));
+        memset(s,0,sizeof(*s));
+        cast(handle*,s)->fd = fdpairs[0];
+        s->notifyfd = fdpairs[1];    
+        s->signum = signum;
+
+        cast(handle*,s)->on_events = on_signal;
+        cast(handle*,s)->imp_engine_add = imp_engine_add;
+        luaL_getmetatable(L, LUA_METATABLE);
+        lua_setmetatable(L, -2);
+        signalers[signum] = s; 
+    }while(0);
+    UNLOCK();
+    if(!s) lua_pushnil(L);
     return 1;
 }
 
@@ -157,21 +179,32 @@ void reg_luasignaler(lua_State *L)
 
 signaler *signaler_new(int32_t signum,void *ud)
 {
-    signaler *s;
-    int32_t fd = signaler_init(signum);
-    if(fd < 0) return NULL;
-    
-    s = calloc(1,sizeof(*s));
-    cast(handle*,s)->fd = fd;
-    s->signum = signum;
-    s->ud = ud;
-    cast(handle*,s)->on_events = on_signal;
-    cast(handle*,s)->imp_engine_add = imp_engine_add;    
+    signaler *s = NULL;
+    int32_t   fdpairs[2];
+    LOCK();
+    do{
+        if(signalers[signum])
+            break;
+        if(0 != signaler_init(signum,fdpairs))
+            break;
+        s = calloc(1,sizeof(*s));
+        cast(handle*,s)->fd = fdpairs[0];
+        s->notifyfd = fdpairs[1];
+        s->signum = signum;
+        s->ud = ud;
+        cast(handle*,s)->on_events = on_signal;
+        cast(handle*,s)->imp_engine_add = imp_engine_add;
+        signalers[signum] = s; 
+    }while(0);
+    UNLOCK();
     return s;
 }
 
 void signaler_del(signaler *s)
 {
+    LOCK();
+    signalers[s->signum] = NULL;
+    UNLOCK();
     close(cast(handle*,s)->fd);
     free(s);
 }

@@ -24,7 +24,8 @@
 
 typedef struct signaler{
     handle  base;
-    int32_t signum;  
+    int32_t signum;
+    int32_t notifyfd;  
     void   *ud;
     void    (*callback)(struct signaler *,int32_t,void *ud);
 #ifdef _CHUCKLUA    
