@@ -7,7 +7,7 @@ signaler:Register(Http.engine,function ()
 	Http.Stop()
 end)
 
-local client    = Http.HttpClient("115.239.211.112")
+local client    = Http.HttpClient("www.baidu.com")
 if client then
 	local request = Http.HttpRequest("/")
 	client:Get(request,function (response)

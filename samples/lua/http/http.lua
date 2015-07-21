@@ -5,6 +5,7 @@ local packet   = chuck.packet
 local engine   = chuck.engine()
 local errno     = chuck.error
 
+
 chuck.RegTimer(engine,1000,function() 
 	collectgarbage("collect")
 end)
@@ -125,14 +126,32 @@ local function HttpServer(on_request)
 	return http_server:new(on_request)
 end
 
+local host2ip = {}
+
+local function getHostIp(host)
+	if host2ip[host] then
+		return host2ip[host][1]
+	else
+		local ips = socket_helper.gethostbyname_ipv4(host)
+		if ips then
+			host2ip[host] = ips 
+			return ips[1]
+		end
+	end
+end
 
 local httpclient = {}
 
 function httpclient:new(host,port)
+  local ip = getHostIp(host)
+  if not ip then
+  	return
+  end
   local o     = {}
   o.__index   = httpclient      
   setmetatable(o,o)
   o.host      = host
+  o.ip        = ip
   o.port      = port or 80
   o.requests  = {}  
   return o
@@ -214,7 +233,7 @@ function httpclient:request(method,request,on_response)
 			end
 
 			socket_helper.noblock(fd,1)
-			local ret = socket_helper.connect(fd,self.host,self.port)
+			local ret = socket_helper.connect(fd,self.ip,self.port)
 			if ret == 0 then
 				connect_callback(fd,0)
 			elseif ret == -errno.EINPROGRESS then
