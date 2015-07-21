@@ -10,7 +10,7 @@ end)
 local client    = Http.HttpClient("115.239.211.112")
 if client then
 	local request = Http.HttpRequest("/")
-	client:Post(request,function (response)
+	client:Get(request,function (response)
 		for k,v in pairs(response:Headers()) do
 			print(v[1] .. " : " .. v[2])
 		end

@@ -219,26 +219,27 @@ static inline int32_t http_decoder_expand(httpdecoder *d,uint32_t size)
    	return 0;
 }
 
+#define INIT_HTTP_BUFFERSIZE 4096
+
 static inline void http_decoder_update(decoder *_,bytebuffer *buff,uint32_t pos,uint32_t size)
 {
 	httpdecoder *d = cast(httpdecoder*,_);
 	buffer_reader reader;
 
 	if(!d->buff){
-		d->buff = bytebuffer_new(size < 1024 ? 1024 : size_of_pow2(size));
+		d->buff = bytebuffer_new(size < INIT_HTTP_BUFFERSIZE ? INIT_HTTP_BUFFERSIZE : size_of_pow2(size));
 	    d->pos  = 0;
     	d->size = 0;	
 	}
 
-	if(d->size - d->pos < size && !http_decoder_expand(d,d->size + size)){
+	if(d->buff->cap - d->buff->size < size && 0 != http_decoder_expand(d,d->buff->size + size)){
 		d->status = HTTP_TOOLARGE;
 		return;
 	}
 
 	buffer_reader_init(&reader,buff,pos);
-	buffer_read(&reader,&d->buff->data[d->size],size);
-	d->size      += size;
-	d->buff->size = d->size;
+	buffer_read(&reader,&d->buff->data[d->buff->size],size);
+	d->buff->size  += size;
 }
 
 static packet *http_unpack(decoder *_,int32_t *err)
@@ -250,7 +251,7 @@ static packet *http_unpack(decoder *_,int32_t *err)
 		if(err) *err = EHTTPPARSE;
 	}
 	else{
-		size   = d->size - d->pos;
+		size   = d->buff->size - d->pos;
 		nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->buff->data[d->pos]),size);		
 		if(nparsed > 0) d->pos += size;
 		if(nparsed != size){
@@ -274,9 +275,9 @@ void http_decoderdctor(struct decoder *_)
 decoder *http_decoder_new(uint32_t max_packet_size)
 {
 	httpdecoder *d     = calloc(1,sizeof(*d));
-	d->max_packet_size = max_packet_size < 1024 ? 1024:size_of_pow2(max_packet_size);
+	d->max_packet_size = max_packet_size < INIT_HTTP_BUFFERSIZE ? INIT_HTTP_BUFFERSIZE:size_of_pow2(max_packet_size);
 	d->unpack 		   = http_unpack;
-	d->buff            = bytebuffer_new(1024);
+	d->buff            = bytebuffer_new(INIT_HTTP_BUFFERSIZE);
 	d->decoder_update  = http_decoder_update;	
 	d->settings.on_message_begin = on_message_begin;
 	d->settings.on_url = on_url;
