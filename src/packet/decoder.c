@@ -185,9 +185,9 @@ static inline int on_headers_complete(http_parser *parser)
 static inline int on_body(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder      = cast2httpdecoder(parser);
-	cast(char*,at)[length]    = 0;
-	decoder->packet->body     = at - &decoder->buff->data[0];
-	decoder->packet->bodysize = length;
+	if(0 == decoder->packet->bodysize)
+		decoder->packet->body = at - &decoder->buff->data[0];
+	decoder->packet->bodysize += length;
 	return 0;		
 }
 

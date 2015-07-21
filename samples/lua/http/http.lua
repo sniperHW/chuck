@@ -100,7 +100,7 @@ function http_server:Listen(ip,port)
 	if 0 == socket_helper.listen(fd,ip,port) then
 		local acceptor = chuck.acceptor(fd)
 		acceptor:Add2Engine(engine,function (client)
-			local conn = chuck.connection(client,4096,decoder.connection.http(65535))
+			local conn = chuck.connection(client,4096,decoder.connection.http(65536))
 			conn:Add2Engine(engine,function (_,rpk,err)
 				if not conn then
 					return
@@ -209,7 +209,7 @@ function httpclient:request(method,request,on_response)
 					self.requests  = {}
 					socket_helper.close(fd)
 				else
-					self.conn = chuck.connection(fd,4096,decoder.connection.http(65535))
+					self.conn = chuck.connection(fd,4096,decoder.connection.http(6553600))
 					if self.conn then
 						self.conn:Add2Engine(engine,function (_,res,err)
 							OnResponse(res)
