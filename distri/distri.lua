@@ -17,6 +17,10 @@ function distri.RegTimer(ms,cb)
 	return chuck.RegTimer(engine,ms,cb)
 end
 
+function distri.RemTimer(t)
+	return chuck.RegTimer(t)
+end
+
 function distri.Signal(sig,handler)
 	local success = false
 	local s = signaler[sig]
