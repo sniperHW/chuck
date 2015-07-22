@@ -18,7 +18,7 @@ function distri.RegTimer(ms,cb)
 end
 
 function distri.RemTimer(t)
-	return chuck.RegTimer(t)
+	return chuck.RemTimer(t)
 end
 
 function distri.Signal(sig,handler)
