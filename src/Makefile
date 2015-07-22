@@ -9,6 +9,7 @@ CC      =
 # if you want to use luajit,change it to jit
 LUA         = lua53
 HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
+JEMALLOC    = ../deps/jemalloc/lib/libjemalloc_pic.a
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),Linux)
@@ -72,7 +73,10 @@ test-source = test/testexception.c\
 			  test/testdecoder.c
 
 $(HTTP_PARSER):
-	cd ../deps/http-parser/;$(MAKE) package			  
+	cd ../deps/http-parser/;$(MAKE) package
+
+$(JEMALLOC):				  
+	cd ../deps/jemalloc/;./configure;$(MAKE)
 
 libchuck-release:$(source) $(HTTP_PARSER)
 	$(CC) -fPIC -O2 $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
@@ -92,14 +96,14 @@ testcase:$(test-source)
 	$(CC) $(CFLAGS) -o testdecoder testdecoder.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	rm *.o
 
-chuck.so-debug:$(source) $(HTTP_PARSER)
+chuck.so-debug:$(source) $(HTTP_PARSER) $(JEMALLOC)
 	$(CC) -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG -D_CHUCKLUA
-	$(CC) $(CFLAGS) -shared -o chuck.so *.o -L../deps/http-parser -lhttp_parser -lpthread -ljemalloc -lrt -lm $(LDFLAGS)
+	$(CC) $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
 	rm *.o
 
-chuck.so-release:$(source) $(HTTP_PARSER)
+chuck.so-release:$(source) $(HTTP_PARSER) $(JEMALLOC)
 	$(CC) -O2 -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG -D_CHUCKLUA
-	$(CC) -O2 $(CFLAGS) -shared -o chuck.so *.o -L../deps/http-parser -lhttp_parser -lpthread -ljemalloc -lrt -lm $(LDFLAGS)
+	$(CC) -O2 $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
 	rm *.o	
 
 clean:
