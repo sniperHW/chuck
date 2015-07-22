@@ -139,6 +139,7 @@ static void fire(wheelmgr *m,uint64_t tick)
 
 void wheelmgr_tick(wheelmgr *m,uint64_t now)
 {
+	if(!m->lasttime) return;//没有注册过定时器
 	while(m->lasttime != now){
 		fire(m,++m->lasttime);
 	}
