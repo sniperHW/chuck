@@ -64,16 +64,30 @@ static int32_t parse_string(parse_tree *current,char **str)
 		        else
 		        	return REDIS_RETRY;
 		    }
-		    if(termi == '\n') break;
+		    if(termi == '\n'){
+		    	current->break_ = '\r';
+		    	break;
+		    }
 		    else current->break_ = '\n';
 	    }while(1);
 	}else{
-		while(current->want && (c = *(*str)++) != '\0'){
-			reply->str[current->pos++] = c;
-			--current->want;
-		}
-		if(c == '\0')
-			return REDIS_RETRY;		
+		do{
+			char termi = current->break_;
+			while((c = *(*str)++) != termi) {
+				if(c != '\0'){
+		        	reply->str[current->pos++] = c;
+				}
+		        else
+		        	return REDIS_RETRY;
+		    }
+		    if(termi == '\n'){
+		    	current->break_ = '\r';
+		    	break;
+		    }
+		    else current->break_ = '\n';
+	    }while(1);
+	    if(current->pos != current->want)
+	    	return REDIS_ERR;	
 	}
 	reply->str[current->pos] = 0;
 	return REDIS_OK;
@@ -90,7 +104,10 @@ static int32_t parse_integer(parse_tree *current,char **str)
 			}else
 				PARSE_NUM(integer);
 	    }				
-	    if(termi == '\n') break;
+	    if(termi == '\n'){
+	    	current->break_ = '\r';
+	    	break;
+	    }
 	    else current->break_ = '\n';
     }while(1);
 
@@ -112,7 +129,10 @@ static int32_t parse_breply(parse_tree *current,char **str)
 				}else
 					PARSE_NUM(len);	
 		    }
-		    if(termi == '\n') break;
+		    if(termi == '\n'){
+		    	current->break_ = '\r';
+		    	break;
+		    }
 		    else current->break_ = '\n';
 	    }while(1);   
 	    if(reply->type == REDIS_REPLY_NIL)
@@ -163,7 +183,10 @@ static int32_t parse_mbreply(parse_tree *current,char **str)
 			char c,termi = current->break_;
 			while((c = *(*str)++) != termi)
 				PARSE_NUM(elements);					
-		    if(termi == '\n') break;
+		    if(termi == '\n'){
+		    	current->break_ = '\r';
+		    	break;
+		    }
 		    else current->break_ = '\n';
 	    }while(1);	    
 	    current->want = reply->elements;
@@ -191,9 +214,6 @@ static int32_t parse_mbreply(parse_tree *current,char **str)
 #define IS_OP_CODE(CC)\
  (CC == '+'  || CC == '-'  || CC == ':'  || CC == '$'  || CC == '*')
 
-#define IS_LR_CR(CC) (CC == '\n' || CC == '\r') 
-
-
 static int32_t parse(parse_tree *current,char **str)
 {
 	int32_t ret = REDIS_RETRY;
@@ -207,7 +227,7 @@ static int32_t parse(parse_tree *current,char **str)
 		}
 		else if(c == '\0')
 			return REDIS_RETRY;
-		else if(!IS_LR_CR(c))
+		else
 			return REDIS_ERR;
 	}
 
