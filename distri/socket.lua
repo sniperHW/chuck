@@ -148,7 +148,7 @@ stream_socket_connect = function (host,port,callback,timeout)
 		end)
 	else
 		close(fd)
-		return err.EINPROGRESS
+		return ret
 	end
 end
 
