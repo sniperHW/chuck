@@ -91,6 +91,9 @@ function http_server:Listen(ip,port)
 	self.server = socket.stream.Listen(ip,port,function (s,errno)
 		if s then
 			s:Ok(http.recvbuff,httpdecoder(http.maxpacket),function (_,msg,errno)
+				if not s then
+					return
+				end
 				if msg then
 					local response = http_response:new()
 					response.connection = s
@@ -141,6 +144,17 @@ function http_client:new(host,port)
   return o
 end
 
+function http_client:Close()
+	if self.conn then
+		self.conn:Close()
+		self.conn = nil		
+		for k,v in pairs(self.requests) do
+			v[2](nil,0)
+		end
+		self.requests = {}		
+	end
+end
+
 function http_client:buildRequest(request)
 	local strRequest = string.format("%s %s HTTP/1.1\r\n",request.method,request.path)
 	strRequest = strRequest .. string.format("Host: %s \r\n",self.host)
@@ -167,11 +181,11 @@ function http_client:request(method,request,on_response)
 		end
   end
 
-  local function OnResponse(res)
+  local function OnResponse(res,errno)
   		if #self.requests > 0 then
 			local on_response = self.requests[1][2]
 			table.remove(self.requests,1)
-			on_response(res)
+			on_response(res,errno)
 		end  	
   end
 
@@ -180,15 +194,22 @@ function http_client:request(method,request,on_response)
 			local function connect_callback(s,errno)
 				if errno ~= 0 then
 					for k,v in pairs(self.requests) do
-						v[2](nil)
+						v[2](nil,errno)
 					end
 					self.requests  = {}
 				else
-					s:Ok(http.recvbuff,httpdecoder(http.maxpacket),function (_,res,err)
-							OnResponse(res)
-							if not self.KeepAlive then
-								self.conn:Close()
+					s:Ok(http.recvbuff,httpdecoder(http.maxpacket),function (_,res,errno)
+							if not self.conn then
+								return
+							end
+							OnResponse(res,errno)
+							if errno or not self.KeepAlive then							
+								self.conn:Close(errno)
 								self.conn = nil
+								for k,v in pairs(self.requests) do
+									v[2](nil,errno)
+								end
+								self.requests = {}									
 							end
 							--send another request if any
 							SendRequest()
