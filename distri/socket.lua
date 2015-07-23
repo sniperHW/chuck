@@ -49,6 +49,13 @@ function stream_socket:Close(errno)
 	self.on_close = nil
 end
 
+
+--[[
+	发送逻辑数据包
+	packet:逻辑包,目前支持rawpacket,wpacket
+	sendFinish:packet发送完成后回调
+]]
+
 function stream_socket:Send(packet,sendFinish)
 	if self.conn then
 		local ret = self.conn:Send(packet,sendFinish)
@@ -57,6 +64,13 @@ function stream_socket:Send(packet,sendFinish)
 		end
 	end
 end
+
+--[[完成数据连接建立,只有对socket对象调用Ok成功后才能进行正常的数据收发
+	recvbuff_size:底层接收缓冲大小
+	decoder:逻辑解包器,目前支持rawpacket,rpacket和httppacket
+	on_packet(msg,errno):数据包回调,如果成功接收数据包msg!=nil,如果出错msg=nil,errno~=nil
+	on_close:连接断开后回调     
+]]
 
 function stream_socket:Ok(recvbuff_size,decoder,on_packet,on_close)
 	local function __on_packet(_,packet,err)
@@ -69,12 +83,14 @@ function stream_socket:Ok(recvbuff_size,decoder,on_packet,on_close)
 	end
 end
 
+--设置接收超时,超时on_packet返回nil包和errno=ERVTIMEOUT
 function stream_socket:SetRecvTimeout(timeout)
 	if self.conn then
 		self.conn:SetRecvTimeout(timeout)
 	end
 end
 
+--设置发送超时,超时on_packet返回nil包和errno=ESNTIMEOUT
 function stream_socket:SetSendTimeout(timeout)
 	if self.conn then
 		self.conn:SetSendTimeout(timeout)
@@ -121,6 +137,12 @@ local function stream_socket_connect_sync(host,port,timeout)
 	end
 	return nil,ss
 end
+
+--[[
+	分为阻塞connect和非阻塞connect
+	要使用阻塞模式将callback参数设置成nil即可.阻塞connect只能在coroutine上下文下调用,只会阻塞当前coroutine.
+	callback(s,errno):成功时s为socket对象,如果失败s=nil,errno为错误码
+]]
 
 stream_socket_connect = function (host,port,callback,timeout)
 	if not callback then
