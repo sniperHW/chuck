@@ -176,7 +176,7 @@ wheelmgr *wheelmgr_new()
 
 void unregister_timer(timer *t)
 {
-	if(t->status &= RELEASING)
+	if(t->status & RELEASING)
 		return;
 	t->status |= RELEASING;
 	if(!(t->status & INCB)){
@@ -306,7 +306,7 @@ static int32_t lua_register_timer(lua_State *L)
 static int32_t lua_unregister_timer(lua_State *L)
 {
 	timer    *t = lua_totimer(L,1);
-	if(t->status &= RELEASING)
+	if(t->status & RELEASING)
 		return 0;
 	t->status |= RELEASING;
 	if(!(t->status & INCB)){
