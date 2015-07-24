@@ -247,6 +247,7 @@ static packet *http_unpack(decoder *_,int32_t *err)
 	httpdecoder *d = cast(httpdecoder*,_);
 	packet *ret    = NULL;
 	size_t  nparsed,size;
+	if(!d->buff) return NULL;
 	if(d->status == HTTP_TOOLARGE){
 		if(err) *err = EHTTPPARSE;
 	}
