@@ -26,7 +26,7 @@ end
 
 --删除定时器对象,如果在cb中return -1,定时器会被自动销毁不需要再手动调用RemTimer
 function distri.RemTimer(t)
-	return chuck.RemTimer(t)
+	return t:UnRegister()
 end
 
 --注册信号回调函数
