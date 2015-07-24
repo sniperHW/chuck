@@ -59,6 +59,15 @@ void engine_stop(engine *e)
 	TEMP_FAILURE_RETRY(write(e->notifyfds[1],&_,sizeof(_)));
 }
 
+timer *engine_regtimer(
+		engine *e,uint32_t timeout,
+		int32_t(*cb)(uint32_t,uint64_t,void*),
+		void *ud)
+{
+	if(!e->timermgr) engine_init_timer(e);
+	return wheelmgr_register(e->timermgr,timeout,cb,ud,systick64());
+}
+
 
 #ifdef _CHUCKLUA
 
@@ -116,7 +125,19 @@ static int32_t lua_engine_stop(lua_State *L){
 	return 0;
 }
 
-static int32_t lua_timer_callback(uint32_t v,uint64_t _,void *ud){
+void lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb);
+
+static int32_t lua_engine_reg_timer(lua_State *L){
+	engine    *e 	  = lua_toengine(L,1);
+	uint32_t  timeout = cast(uint32_t,lua_tointeger(L,2));
+	luaRef    cb      = toluaRef(L,3);
+	timeout = timeout > MAX_TIMEOUT ? MAX_TIMEOUT : timeout;
+	if(!e->timermgr) engine_init_timer(e);	
+	lua_timer_new(L,e->timermgr,timeout,&cb);
+	return 1; 
+}
+
+/*static int32_t lua_timer_callback(uint32_t v,uint64_t _,void *ud){
 	luaRef *cb      =  cast(luaRef*,ud);
 	lua_Integer ret =  -1;
 	const char *error; 
@@ -160,7 +181,7 @@ static int32_t lua_remove_timer(lua_State *L){
 	timer *t = lua_touserdata(L,1);
 	unregister_timer(t);
 	return 0;
-}
+}*/
 
 #define SET_FUNCTION(L,NAME,FUNC) do{\
 	lua_pushstring(L,NAME);\
@@ -190,8 +211,7 @@ void reg_luaengine(lua_State *L){
 
 	SET_FUNCTION(L,"engine",lua_engine_new);
 	SET_FUNCTION(L,"RegTimer",lua_engine_reg_timer);
-	SET_FUNCTION(L,"RemTimer",lua_remove_timer);
-
+	//SET_FUNCTION(L,"RemTimer",lua_remove_timer);
 }
 
 #else

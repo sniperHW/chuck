@@ -47,7 +47,7 @@ if 0 == socket_helper.listen(fd,ip,port) then
 	local server = chuck.acceptor(fd)
 	engine = chuck.engine()
 	server:Add2Engine(engine,on_new_client)
-	chuck.RegTimer(engine,1000,function() collectgarbage("collect") end)
+	local t = chuck.RegTimer(engine,1000,function() collectgarbage("collect") end)
 	signaler:Register(engine,sigint_handler)
 	engine:Run()
 end

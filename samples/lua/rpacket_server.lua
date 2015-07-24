@@ -54,7 +54,7 @@ if 0 == socket_helper.listen(fd,ip,port) then
 	local server = acceptor(fd)
 	engine = chuck.engine()
 	server:Add2Engine(engine,on_new_client)
-	chuck.RegTimer(engine,1000,function() 
+	local t = chuck.RegTimer(engine,1000,function() 
 		collectgarbage("collect")
 		print(packetcout)--chuck.get_bytebuffer_count())
 		packetcout = 0		

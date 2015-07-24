@@ -74,19 +74,13 @@ void timerfd_callback(void *ud)
 	wheelmgr_tick(mgr,systick64());
 }
 
-timer *engine_regtimer(
-		engine *e,uint32_t timeout,
-		int32_t(*cb)(uint32_t,uint64_t,void*),
-		void *ud)
-{
-	if(!e->tfd){
+void   engine_init_timer(engine *e){
+	if(!e->timermgr){
 		e->timermgr = wheelmgr_new();
 		e->tfd      = timerfd_new(1,e->timermgr);
 		engine_associate(e,e->tfd,timerfd_callback);
 	}
-	return wheelmgr_register(e->timermgr,timeout,cb,ud,systick64());
 }
-
 
 static int32_t engine_init(engine *e)
 {

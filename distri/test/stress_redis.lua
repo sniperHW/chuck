@@ -23,7 +23,7 @@ if client then
 	end
 
 	local last = chuck.systick()
-	Distri.RegTimer(1000,function ()
+	local t = Distri.RegTimer(1000,function ()
    		collectgarbage("collect") 
    		local now = chuck.systick()
    		print("hmget:" .. count*1000/(now-last) .. "/s " .. Sche.Pool.total .. " " .. Sche.Pool.block)

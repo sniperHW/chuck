@@ -38,7 +38,7 @@ if client then
 		client:Execute(cmd,gen_callback(query_cb,i))
 	end
 	local last = chuck.systick()
-	chuck.RegTimer(engine,1000,
+	local t = chuck.RegTimer(engine,1000,
 				   function() 
 				   		collectgarbage("collect") 
 				   		local now = chuck.systick()

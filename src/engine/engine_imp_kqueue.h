@@ -71,19 +71,14 @@ int32_t event_disable(handle *h,int32_t events)
 	return 0;
 }
 
-timer *engine_regtimer(
-		engine *e,uint32_t timeout,
-		int32_t(*cb)(uint32_t,uint64_t,void*),
-		void *ud)
-{
-	if(!e->tfd){
+
+void   engine_init_timer(engine *e){
+	if(!e->e->timermgr){
 		e->tfd      = 1;
 		e->timermgr = wheelmgr_new();
 		EV_SET(&e->change, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE, 0, 1, e->timermgr);
 	}
-	return wheelmgr_register(e->timermgr,timeout,cb,ud,systick64());
 }
-
 
 static int32_t engine_init(engine *e)
 {

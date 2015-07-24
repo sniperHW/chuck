@@ -54,7 +54,7 @@ for i = 1,1 do
 	end
 end
 
-chuck.RegTimer(engine,1000,function() 
+local t = chuck.RegTimer(engine,1000,function() 
 	collectgarbage("collect")
 end)
 

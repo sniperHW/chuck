@@ -268,7 +268,7 @@ static int32_t lua_timeout_callback(uint32_t _1,uint64_t _2,void *ud)
 }
 
 
-static void lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb)
+void lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb)
 {
 	timer *t     = cast(timer*,lua_newuserdata(L, sizeof(*t)));
 	uint64_t now = systick64();
