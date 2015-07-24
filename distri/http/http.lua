@@ -101,6 +101,7 @@ function http_server:Listen(ip,port)
 						return 
 					end
 				elseif s then
+					print("server close",errno)
 					s:Close(errno)
 					s = nil
 				end
@@ -203,7 +204,7 @@ function http_client:request(method,request,on_response)
 								return
 							end
 							OnResponse(res,errno)
-							if errno or not self.KeepAlive then							
+							if errno ~= 0 then							
 								self.conn:Close(errno)
 								self.conn = nil
 								for k,v in pairs(self.requests) do

@@ -285,6 +285,7 @@ void lua_regerrcode(lua_State *L)
 	SET_CONST(L,ESNTIMEOUT);
 	SET_CONST(L,EENGCLOSE);
 	SET_CONST(L,EHTTPPARSE);
+	SET_CONST(L,EHTTPTOOLARGE);
 }
 
 /*fork a process and exec a new image immediate

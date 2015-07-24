@@ -165,7 +165,7 @@ function rpc_client:Call(func,...)
 	end)
 	local err,response = Wait()
 	if co.timer then
-		chuck.RemTimer(co.timer)
+		co.timer:UnRegister()
 		co.timer = nil
 	end		
 	peer.pending_call[idx] = nil

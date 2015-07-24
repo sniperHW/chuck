@@ -327,6 +327,7 @@ enum{
     ESNTIMEOUT,                 /*send timeout*/
     EENGCLOSE,                  /*engile close*/
     EHTTPPARSE,                 /*http parse error*/
+    EHTTPTOOLARGE,              /*http packet too large*/
 };
     
 #endif

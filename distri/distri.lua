@@ -8,7 +8,7 @@ local signaler = {}
 
 --启动事件主循环
 function distri.Run()
-	chuck.RegTimer(engine,1,function()
+	local t = chuck.RegTimer(engine,1,function()
 		Sche.Schedule()
 	end)
 	engine:Run()

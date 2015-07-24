@@ -23,8 +23,7 @@
 #include "packet/httppacket.h"    
 #include "util/bytebuffer.h"
 #include "lua/lua_util.h"
-#include "http-parser/http_parser.h"
-#include "util/list.h"    
+#include "http-parser/http_parser.h"   
 
 /*enum {
     DERR_TOOLARGE  = -1,
@@ -51,9 +50,7 @@ typedef struct httpdecoder{
     http_parser          parser;
     http_parser_settings settings;
     httppacket          *packet;                              //当前正在处理的packet
-    int                  status;
-    list                 packetlist;                          //已经处理完的packet     
-    size_t               parsesize;   
+    int                  status;     
 }httpdecoder;
 
 

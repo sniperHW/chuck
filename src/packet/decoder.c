@@ -138,7 +138,6 @@ static inline int on_message_begin(http_parser *parser)
 {
 	httpdecoder *decoder = cast2httpdecoder(parser);
 	decoder->packet      = httppacket_new(decoder->buff);
-	decoder->parsesize   = 0;
 	return 0;
 }
 
@@ -147,7 +146,6 @@ static inline int on_url(http_parser *parser, const char *at, size_t length)
 	httpdecoder *decoder   = cast2httpdecoder(parser);
 	cast(char*,at)[length] = 0;
 	decoder->packet->url   = at - &decoder->buff->data[0];
-	decoder->parsesize    += length; 
 	return 0;
 }
 
@@ -156,7 +154,6 @@ static inline int on_status(http_parser *parser, const char *at, size_t length)
 	httpdecoder *decoder    = cast2httpdecoder(parser);
 	cast(char*,at)[length]  = 0;
 	decoder->packet->status = at - &decoder->buff->data[0];
-	decoder->parsesize    += length;
 	return 0;			
 }
 
@@ -164,7 +161,6 @@ static inline int on_header_field(http_parser *parser, const char *at, size_t le
 {
 	httpdecoder *decoder   = cast2httpdecoder(parser);
 	cast(char*,at)[length] = 0;
-	decoder->parsesize    += length;
 	return httppacket_on_header_field(decoder->packet,cast(char*,at),length);				
 }
 
@@ -172,7 +168,6 @@ static inline int on_header_value(http_parser *parser, const char *at, size_t le
 {
 	httpdecoder *decoder   = cast2httpdecoder(parser);
 	cast(char*,at)[length] = 0;
-	decoder->parsesize    += length;
 	return httppacket_on_header_value(decoder->packet,cast(char*,at),length);			
 }
 
@@ -189,13 +184,13 @@ static inline int on_body(http_parser *parser, const char *at, size_t length)
 	if(0 == decoder->packet->bodysize)
 		decoder->packet->body = at - &decoder->buff->data[0];
 	decoder->packet->bodysize += length;
-	decoder->parsesize        += length;
 	return 0;		
 }
 
 
 enum{
 	HTTP_TOOLARGE = 1,
+	HTTP_COMPLETE = 2,
 };
 
 static inline int32_t http_decoder_expand(httpdecoder *d,uint32_t size)
@@ -221,8 +216,7 @@ static inline void http_decoder_update(decoder *_,bytebuffer *buff,uint32_t pos,
 
 	if(!d->buff){
 		d->buff = bytebuffer_new(size < INIT_HTTP_BUFFERSIZE ? INIT_HTTP_BUFFERSIZE : size_of_pow2(size));
-	    d->pos  = 0;
-    	d->size = 0;	
+	    d->pos  = 0;	
 	}
 
 	if(d->buff->cap - d->buff->size < size && 0 != http_decoder_expand(d,d->buff->size + size)){
@@ -238,21 +232,9 @@ static inline void http_decoder_update(decoder *_,bytebuffer *buff,uint32_t pos,
 
 static inline int on_message_complete(http_parser *parser)
 {	
-	bytebuffer  *tmp;
 	httpdecoder *d = cast2httpdecoder(parser);
-	list_pushback(&d->packetlist,cast(listnode*,d->packet));
-	if(d->parsesize == d->buff->size - d->pos){
-		//数据正好被一个包消费完
-		bytebuffer_set(&d->buff,NULL);
-	}else{
-		tmp = d->buff;
-		d->buff = NULL;
-		http_decoder_update((decoder*)d,tmp,d->parsesize,tmp->size - d->parsesize);
-		bytebuffer_set(&tmp,NULL);
-	}
-	d->status = 0;
-	d->packet = NULL;
-	return 0;							
+	d->status = HTTP_COMPLETE;
+	return -1;//终止parser的执行							
 }
 
 static packet *http_unpack(decoder *_,int32_t *err)
@@ -260,21 +242,33 @@ static packet *http_unpack(decoder *_,int32_t *err)
 	httpdecoder *d = cast(httpdecoder*,_);
 	packet *ret    = NULL;
 	size_t  nparsed,size;
-	if(list_size(&d->packetlist) > 0) 
-		return cast(packet*,list_pop(&d->packetlist));
-	if(!d->buff) return NULL;
+	bytebuffer  *tmp;
+	if(!d->buff || d->pos >= d->buff->size) 
+		return NULL;
 	if(d->status == HTTP_TOOLARGE){
-		if(err) *err = EHTTPPARSE;
+		if(err) *err = EHTTPTOOLARGE;
 	}
 	else{
 		size   = d->buff->size - d->pos;
 		nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->buff->data[d->pos]),size);		
-		if(nparsed > 0) d->pos += size;
-		if(nparsed != size){
-			if(err) *err = EHTTPPARSE;								
+		if(nparsed > 0) d->pos += nparsed;		
+		if(d->status == HTTP_COMPLETE){
+			ret = cast(packet*,d->packet);
+			d->packet = NULL;
+			d->status = 0;
+			if(nparsed != size){
+				tmp = d->buff;
+				d->buff = NULL;
+				http_decoder_update((decoder*)d,tmp,d->pos,tmp->size - d->pos);
+				bytebuffer_set(&tmp,NULL);
+			}else{
+				bytebuffer_set(&d->buff,NULL);
+			}
+			//被on_message_complete终止状态,所以这里要重置
+			http_parser_init(&d->parser,HTTP_BOTH);
+		}else if(nparsed != size && err)
+			*err = EHTTPPARSE;								
 		}
-		if(list_size(&d->packetlist) > 0) 
-			return cast(packet*,list_pop(&d->packetlist));
 	}
 	return ret;
 }
@@ -283,9 +277,6 @@ void http_decoderdctor(struct decoder *_)
 {
 	httpdecoder *d = cast(httpdecoder*,_);
 	if(d->packet) packet_del(cast(packet*,d->packet));
-	while(list_size(&d->packetlist) > 0){ 
-		packet_del(cast(packet*,list_pop(&d->packetlist)));
-	}
 }
 
 decoder *http_decoder_new(uint32_t max_packet_size)
