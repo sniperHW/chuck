@@ -97,6 +97,10 @@ function stream_socket:SetSendTimeout(timeout)
 	end	
 end
 
+function stream_socket:Fd()
+	return self.fd
+end
+
 local function stream_socket_listen(host,port,callback)
 	local fd =  socket(AF_INET,SOCK_STREAM,IPPROTO_TCP)
 	addr_reuse(fd,1)
