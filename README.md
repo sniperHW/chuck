@@ -70,4 +70,4 @@ httpclient:
 		Distri.Run()	
 	end
 
-[for more detail see](doc/reference.md)
+[more detail](doc/reference.md)
