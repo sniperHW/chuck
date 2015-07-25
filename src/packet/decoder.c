@@ -268,7 +268,6 @@ static packet *http_unpack(decoder *_,int32_t *err)
 			http_parser_init(&d->parser,HTTP_BOTH);
 		}else if(nparsed != size && err)
 			*err = EHTTPPARSE;								
-		}
 	}
 	return ret;
 }

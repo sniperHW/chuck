@@ -39,11 +39,82 @@ typedef struct
 	pthread_t  threadid;
 	tmailbox_ *mailbox;
     int32_t    joinable;
+    pid_t      tid;
     volatile int8_t destroy;     
 }thread;
 
 __thread thread   *tthread = NULL;
 __thread thread_t  thread_handle;
+
+static inline thread *cast2tthread(thread_t t)
+{
+	return cast(thread*,cast2refobj(cast(refhandle,t)));
+}
+
+#ifdef _CHUCKLUA
+
+static  int32_t   lock = 0;
+static  list      all_threads;
+#define LOCK() while (__sync_lock_test_and_set(&lock,1)) {}
+#define UNLOCK() __sync_lock_release(&lock);
+
+typedef struct{
+	listnode node;
+	thread_t thd;
+}stThd;
+
+static inline void __insert(thread_t thd){
+	stThd *node = calloc(1,sizeof(*node));
+	node->thd = thd;
+	LOCK();
+	list_pushback(&all_threads,cast(listnode*,node));
+	UNLOCK();
+}
+
+static inline void __remove(thread_t thd){
+	stThd *node;
+	size_t size,i;
+	LOCK();
+	size = list_size(&all_threads);
+	for(i = 0; i < size; ++i){
+		node = cast(stThd*,list_pop(&all_threads));
+		if(node->thd.identity == thd.identity){
+			free(node);
+			break;
+		}else{
+			list_pushback(&all_threads,cast(listnode*,node));
+		}
+	}
+	UNLOCK();
+}
+
+static inline thread_t __findbytid(pid_t tid){
+	thread_t handle = (thread_t){.identity=0,.ptr=NULL};
+	thread  *t;
+	stThd   *node;
+	size_t   size,i;
+	LOCK();
+	size = list_size(&all_threads);
+	for(i = 0; i < size; ++i){
+		node = cast(stThd*,list_pop(&all_threads));
+		t = cast2tthread(node->thd);
+		if(!t){
+			free(node);
+		}else{
+			list_pushback(&all_threads,cast(listnode*,node));
+			if(t->tid != tid){
+				refobj_dec(cast(refobj*,t));
+			}else{
+				handle = node->thd;
+				break;
+			}
+		}
+	}
+	UNLOCK();
+	return handle;	
+}
+
+#endif
 
 static void child()
 {
@@ -66,7 +137,8 @@ static void *start_routine(void *_)
 	void *arg = starg->arg;
 	void*(*routine)(void*) = starg->routine;
 	tthread = starg->t;
-	thread_handle = cast(thread_t,get_refhandle(cast(refobj*,&tthread)));
+	thread_handle = cast(thread_t,get_refhandle(cast(refobj*,tthread)));
+	tthread->tid = gettid();
 	mutex_lock(starg->mtx);
 	if(!starg->running){
 		starg->running = 1;
@@ -170,6 +242,8 @@ thread_t thread_new(void *(*routine)(void*),void *ud)
 		tthread = _thread_new();
 		if(!tthread) return (thread_t){.ptr=NULL,.identity=0};
 		thread_handle = cast(thread_t,get_refhandle(cast(refobj*,tthread)));
+		tthread->tid   = gettid();
+		__insert(thread_handle);
 	}
 	
 	t = _thread_new();
@@ -194,11 +268,6 @@ thread_t thread_new(void *(*routine)(void*),void *ud)
 	return cast(thread_t,get_refhandle(cast(refobj*,t)));
 }
 
-static inline thread *cast2tthread(thread_t t)
-{
-	return cast(thread*,cast2refobj(cast(refhandle,t)));
-}
-
 void *thread_join(thread_t t)
 {
 	thread   *thread_   = cast2tthread(t);	
@@ -211,6 +280,19 @@ void *thread_join(thread_t t)
 	refobj_dec(cast(refobj*,thread_));//对应cast2tthread的引用增加
 	refobj_dec(cast(refobj*,thread_));//对应_thread_new初始化时的1次计数
 	return result;
+}
+
+
+pid_t thread_tid(thread_t t)
+{
+	pid_t    tid;
+	thread   *thread_   = cast2tthread(t);	
+	if(!thread_){
+		return 0;
+	}
+	tid = thread_->tid;
+	refobj_dec(cast(refobj*,thread_));
+	return tid;
 }
 
 pid_t thread_id()
@@ -279,8 +361,10 @@ int32_t  thread_process_mail(engine *e,void (*onmail)(mail *_mail))
 	if(!tthread){
 		//主线程
 		tthread = _thread_new();
-		if(!tthread) return -1;
-		thread_handle = cast(thread_t,get_refhandle(cast(refobj*,tthread)));		
+		if(!tthread) assert(0);
+		thread_handle = cast(thread_t,get_refhandle(cast(refobj*,tthread)));
+		tthread->tid   = gettid();
+		__insert(thread_handle);
 	}
 	if(cast(handle*,tthread->mailbox)->e)
 		return -EASSENG;
@@ -311,6 +395,7 @@ typedef struct{
 	luaPushFunctor base;
 	thread_t       sender;
 }stPushCT;
+
 
 void lua_mail_dcotr(void *_)
 {
@@ -407,6 +492,7 @@ int32_t lua_process_mail(lua_State *L)
 
 void *thread_routine(void *arg)
 {
+	__insert(thread_handle);
 	const char *file = cast(const char *,arg);
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L);
@@ -416,6 +502,7 @@ void *thread_routine(void *arg)
 		printf("%s\n",error);
 	}
 	if(mailcb.L) release_luaRef(&mailcb);
+	__remove(thread_handle);
 	return NULL;
 }
 
@@ -439,6 +526,55 @@ int32_t lua_threadjoin(lua_State *L)
 	return 0;
 }
 
+int32_t lua_tid(lua_State *L)
+{
+	thread_t t = lua_tocthread(L,1);
+	lua_pushinteger(L,thread_tid(t));
+	return 1;
+}
+
+int32_t lua_selftid(lua_State *L)
+{
+	lua_pushinteger(L,thread_id());
+	return 1;
+}
+
+//向除自己以外的所有线程广播消息
+int32_t lua_broadcast(lua_State *L)
+{
+	lua_mail *m;
+	stThd *node;
+	size_t size,i;	
+	if(lua_istable(L,1)){
+		LOCK();
+		size = list_size(&all_threads);
+		for(i = 0; i < size; ++i){
+			node = cast(stThd*,list_pop(&all_threads));
+			if(thread_handle.ptr != node->thd.ptr){			
+				m    = calloc(1,sizeof(*m));
+				cast(mail*,m)->dctor = lua_mail_dcotr;
+				m->v = toVal(L,1);
+				if(0 != thread_sendmail(node->thd,cast(mail*,m)))
+					mail_del(cast(mail*,m));
+			}
+			list_pushback(&all_threads,cast(listnode*,node));
+		}
+		UNLOCK();
+	}	
+	return 0;
+}
+
+int32_t lua_findbytid(lua_State *L)
+{
+	pid_t tid       = lua_tointeger(L,1);
+	thread_t handle = __findbytid(tid);
+	if(is_vaild_refhandle(cast(refhandle*,&handle))){
+		lua_pushcthread(L,&handle);
+		return 1;
+	}
+	return 0;
+}
+
 #define SET_FUNCTION(L,NAME,FUNC) do{\
 	lua_pushstring(L,NAME);\
 	lua_pushcfunction(L,FUNC);\
@@ -448,6 +584,10 @@ int32_t lua_threadjoin(lua_State *L)
 void reg_luathread(lua_State *L)
 {
 	lua_newtable(L);
+	SET_FUNCTION(L,"broadcast",lua_broadcast);
+	SET_FUNCTION(L,"findbytid",lua_findbytid);
+	SET_FUNCTION(L,"selftid",lua_selftid);
+	SET_FUNCTION(L,"tid",lua_tid);
 	SET_FUNCTION(L,"new",lua_newcthread);
 	SET_FUNCTION(L,"join",lua_threadjoin);
 	SET_FUNCTION(L,"sendmail",lua_sendmail);
