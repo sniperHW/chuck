@@ -281,7 +281,7 @@ void http_decoderdctor(struct decoder *_)
 decoder *http_decoder_new(uint32_t max_packet_size)
 {
 	httpdecoder *d     = calloc(1,sizeof(*d));
-	d->max_packet_size = max_packet_size < INIT_HTTP_BUFFERSIZE ? INIT_HTTP_BUFFERSIZE:size_of_pow2(max_packet_size);
+	d->max_packet_size = max_packet_size;
 	d->unpack 		   = http_unpack;
 	d->buff            = bytebuffer_new(INIT_HTTP_BUFFERSIZE);
 	d->decoder_update  = http_decoder_update;	
