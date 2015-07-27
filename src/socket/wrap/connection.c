@@ -67,14 +67,13 @@ static inline void prepare_recv(connection *c)
 	}
 	buf = c->next_recv_buf;
 	pos = c->next_recv_pos;
-	recv_size = c->recv_bufsize;
+	recv_size = 0;
 	do
 	{
 		free_buffer_size = buf->cap - pos;
-		free_buffer_size = recv_size > free_buffer_size ? free_buffer_size:recv_size;
 		c->wrecvbuf[i].iov_len = free_buffer_size;
 		c->wrecvbuf[i].iov_base = buf->data + pos;
-		recv_size -= free_buffer_size;
+		recv_size += free_buffer_size;
 		pos += free_buffer_size;
 		if(recv_size && pos >= buf->cap)
 		{
@@ -84,7 +83,7 @@ static inline void prepare_recv(connection *c)
 			buf = buf->next;
 		}
 		++i;
-	}while(recv_size);
+	}while(recv_size < c->recv_bufsize);
 	c->recv_overlap.iovec_count = i;
 	c->recv_overlap.iovec = c->wrecvbuf;
 }

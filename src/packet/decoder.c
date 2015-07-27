@@ -180,6 +180,7 @@ static inline int on_headers_complete(http_parser *parser)
 
 static inline int on_body(http_parser *parser, const char *at, size_t length)
 {
+	//printf("[[%s,%d]]\n",at,length);
 	httpdecoder *decoder      = cast2httpdecoder(parser);
 	if(0 == decoder->packet->bodysize)
 		decoder->packet->body = at - &decoder->buff->data[0];
@@ -211,6 +212,11 @@ static inline int32_t http_decoder_expand(httpdecoder *d,uint32_t size)
 
 static inline void http_decoder_update(decoder *_,bytebuffer *buff,uint32_t pos,uint32_t size)
 {
+
+	//char *b = calloc(1,size+1);
+	//memcpy(b,&buff->data[pos],size);
+	//printf("data:[%s],%d\n",b,pos);
+	//printf("data:[%s],%d,%d\n",&buff->data[pos],size,pos);
 	httpdecoder *d = cast(httpdecoder*,_);
 	buffer_reader reader;
 

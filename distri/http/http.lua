@@ -221,7 +221,6 @@ function http_client:request(method,request,on_response)
 				end
 			end
 	    	local errno = socket.stream.Connect(self.ip,self.port,connect_callback)
-	    	print("connect")
 	    	if errno then
 	    		return false
 	    	end
