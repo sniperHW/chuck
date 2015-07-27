@@ -1,4 +1,4 @@
-typedef struct engine{
+struct engine{
 	engine_head;
 	int32_t kfd;
 	struct kevent* events;
@@ -6,7 +6,7 @@ typedef struct engine{
 	int    tfd;
 	//for timer
    	struct kevent change;	
-}engine;
+};
 
 int32_t event_add(engine *e,handle *h,int32_t events)
 {	

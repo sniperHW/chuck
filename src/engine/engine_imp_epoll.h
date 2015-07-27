@@ -1,12 +1,12 @@
 #include "timerfd.h"
 
-typedef struct engine{
+struct engine{
 	engine_head;
 	timerfd   *tfd;
 	int32_t    epfd;
 	struct     epoll_event* events;
 	int32_t    maxevents;
-}engine;
+};
 
 
 int32_t event_mod(handle *h,int32_t events);
