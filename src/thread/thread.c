@@ -243,7 +243,9 @@ thread_t thread_new(void *(*routine)(void*),void *ud)
 		if(!tthread) return (thread_t){.ptr=NULL,.identity=0};
 		thread_handle = cast(thread_t,get_refhandle(cast(refobj*,tthread)));
 		tthread->tid   = gettid();
+#ifdef _CHUCKLUA		
 		__insert(thread_handle);
+#endif
 	}
 	
 	t = _thread_new();

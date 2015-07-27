@@ -99,7 +99,7 @@ static inline void set_log_lev(int32_t loglev)
 
 #ifdef _CHUCKLUA
 
-typedef struct lua_State lua_State;
+#include "lua/lua_util.h"
 
 void lua_reglog(lua_State *L);
 
