@@ -8,30 +8,29 @@
 
 typedef struct st_header{
 	listnode node;
-	size_t   field;
-	size_t   value;
+	string  *field;
+	string  *value;
 }st_header;
 
 typedef struct
 {
     packet          base;
-    int32_t         method;
-    size_t          url;
-    size_t          status;
-    bytebuffer     *body;
+    string         *url;
+    string         *status;
+    string         *body;
     list            headers;
+    int32_t         method;
+    st_header      *current;
 }httppacket;
 
-httppacket *httppacket_new(bytebuffer *b);
+httppacket *httppacket_new();
 
-int32_t httppacket_on_header_field(httppacket *p,char *at, size_t length);
+int32_t     httppacket_on_header_field(httppacket *p,char *at, size_t length);
 
-int32_t httppacket_on_header_value(httppacket *p,char *at, size_t length);
+int32_t     httppacket_on_header_value(httppacket *p,char *at, size_t length);
 
-int32_t httppacket_on_body(httppacket *p,char *at, size_t length);
+//int32_t     httppacket_on_body(httppacket *p,char *at, size_t length);
 
-void httppacket_on_buffer_expand(httppacket *p,bytebuffer *b);
-
-string *httppacket_get_header(httppacket *p,const char *field);
+//string     *httppacket_get_header(httppacket *p,const char *field);
 
 #endif

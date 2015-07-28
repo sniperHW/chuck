@@ -50,7 +50,9 @@ typedef struct httpdecoder{
     http_parser          parser;
     http_parser_settings settings;
     httppacket          *packet;                              //当前正在处理的packet
-    int                  status;     
+    int                  status;
+    size_t               header_size;
+    size_t               body_size;     
 }httpdecoder;
 
 

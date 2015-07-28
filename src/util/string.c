@@ -2,156 +2,100 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#include "string.h"
-#include "refobj.h"
-
-typedef struct
-{
-	refobj     ref;
-	char*      str;
-	uint32_t   len;
-	uint32_t   cap;
-}holder;
-
-
-static void holder_dctor(void *arg)
-{
-	holder *h = cast(holder*,arg);
-	free(cast(void*,h->str));
-	free(h);
-}
-
-static inline holder *holder_new(const char *str,uint32_t len)
-{
-	holder *h = calloc(1,sizeof(*h));
-	h->cap = size_of_pow2(len+1);
-	h->str = calloc(1,h->cap);
-	strncpy(h->str,str,len);
-	h->str[len] = 0;
-	h->len = len;
-	refobj_init(&h->ref,holder_dctor);
-	return h;
-}
-
-static inline void holder_append(holder *h,const char *str,uint32_t len)
-{
-	char    *tmp;
-	uint32_t total_len = h->len + len +1;
-	if(h->cap < total_len){
-		h->cap = size_of_pow2(total_len);
-		tmp = realloc(h->str,h->cap);
-		if(!tmp){
-			tmp = calloc(1,h->cap);
-			strcpy(tmp,h->str);
-			free(h->str);
-		}
-		h->str = tmp;
-	}
-	strcat(h->str,str);
-	h->len = total_len - 1;
-}
-
-
-static inline void holder_release(holder *h)
-{
-	if(h) refobj_dec(&h->ref);
-}
-
-static inline void holder_acquire(holder *h)
-{
-    if(h) refobj_inc(&h->ref);
-}
-
+#include "util/string.h"
+#include "util/refobj.h"
 
 #define MIN_STRING_LEN 64
 
-typedef struct string
-{
-	holder  *holder;
-	uint32_t len;
-	char     str[MIN_STRING_LEN];
-}string;
+struct string
+{	
+	REFOBJ;
+	char    *ptr;
+	size_t   cap;
+	size_t   len;
+	char     short_str[MIN_STRING_LEN];
+};
 
-
-string *string_new(const char *str)
+static inline void dctor(void *_)
 {
-	string  *_str;
-	uint32_t len;
-	if(!str) return NULL;
-	_str = calloc(1,sizeof(*_str));
-	len = strlen(str);
-	if(len + 1 <= MIN_STRING_LEN){
-		strcpy(_str->str,str);
-		_str->len = len;
-	}
-	else
-		_str->holder = holder_new(str,len);
-	return _str;
-}
-
-string *string_copy_new(string *oth)
-{
-	string *str = calloc(1,sizeof(*str));
-	if(!oth->holder){
-		strncpy(str->str,oth->str,oth->len);
-		str->len = oth->len;
-	}else{
-		holder_acquire(oth->holder);		
-		str->holder = oth->holder;
-	}
-	return str;
-}
-
-void string_del(string *s)
-{
-	if(s->holder){
-		holder_release(s->holder);
-	}
+	string *s = cast(string*,_);
+	if(s->ptr != s->short_str)
+		free(s->ptr);
 	free(s);
+}	
+
+string *string_new(const char *str,size_t len)
+{
+	string *s = calloc(1,sizeof(*s));
+	if(len < MIN_STRING_LEN){
+		s->ptr = s->short_str;
+		s->cap = MIN_STRING_LEN;
+	}else{
+		s->cap = size_of_pow2(len+1);
+		s->ptr = calloc(1,s->cap);
+	}
+	s->len = len;
+	memcpy(s->ptr,str,len);
+	refobj_init(cast(refobj*,s),dctor);
+	return s;
 }
+
+
+string *string_retain(string *s)
+{
+	if(s) refobj_inc(cast(refobj*,s));
+	return s;
+}
+
+void    string_release(string *s)
+{
+	if(s) refobj_dec(cast(refobj*,s));
+}
+
 
 const char *string_cstr(string *s)
 {
-	if(s->holder){
-		return s->holder->str;
-	}
-	return s->str;
+	return s->ptr;
 }
 
-int32_t  string_len(string *s)
+size_t string_len(string *s)
 {
-	if(s->holder){
-		return s->holder->len;
-	}
 	return s->len;
 }
 
-
-
-static void _string_append(string *s,const char *str)
+void   string_append(string *s,const char *str,size_t len)
 {
-	uint32_t len,total_len;
-	if(!s || !str) return;
-	len = strlen(str);
-	total_len = string_len(s) + len + 1;
-	if(s->holder)
-		holder_append(s->holder,str,len);	
-	else if(total_len <= MIN_STRING_LEN){
-		strcat(s->str,str);
-		s->len = total_len - 1;
+	char  *tmp;
+	size_t space_need = s->len + len + 1;
+	if(s->cap < space_need){
+		s->cap = size_of_pow2(space_need);
+		if(s->ptr != s->short_str){
+			tmp = realloc(s->ptr,s->cap);
+			if(!tmp){
+				tmp = calloc(1,s->cap);
+				memcpy(tmp,s->ptr,s->len);
+				free(s->ptr);
+			}
+		}else{
+			tmp = calloc(1,s->cap);
+			memcpy(tmp,s->ptr,s->len);
+		}
+		s->ptr = tmp;
 	}
-	else{
-		s->holder = holder_new(string_cstr(s),s->len);
-		holder_append(s->holder,str,len);
+	memcpy(s->ptr + s->len,str,len);
+	s->len += len;	
+}
+
+
+#ifdef _CHUCKLUA
+
+void   push_string(lua_State *L,string *s){
+	if(!s || s->len <= 0){
+		lua_pushnil(L);
+	}else{
+		lua_pushlstring(L,s->ptr,s->len);
 	}
 }
 
-void string_append(string *s,...)
-{
-	va_list vl;
-	const char *str = NULL;
-	va_start(vl,s);
-	while((str = va_arg(vl,const char *)))
-		_string_append(s,str);
-	va_end(vl);
-}
+#endif
+

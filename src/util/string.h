@@ -21,17 +21,25 @@
 
 typedef struct string string;
 
-string *string_new(const char *);
+string *string_new(const char *,size_t len);
 
-string *string_copy_new(string *);
+string *string_retain(string*);
 
-void string_del(string*);
+void    string_release(string*);
 
 const char *string_cstr(string*);
 
-int32_t string_len(string*);
+size_t string_len(string*);
     
-void string_append(string*,...);
+void   string_append(string*,const char *str,size_t len);
+
+
+#ifdef _CHUCKLUA
+#include "lua/lua_util.h"
+
+void   push_string(lua_State *L,string *s);
+
+#endif
 
 
 #endif

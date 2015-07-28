@@ -14,22 +14,21 @@ void httppacket_dctor(void *_)
 	st_header  *h;
 	httppacket *p = cast(httppacket*,_);
 	while((h = cast(st_header*,list_pop(&p->headers))))
-		free(h);
-	if(p->body){
-		bytebuffer_set(&p->body,NULL);
+	{
+		string_release(h->field);
+		string_release(h->value);
 	}
+	if(p->body) string_release(p->body);
+	if(p->url)  string_release(p->url);
+	if(p->status) string_release(p->status);
 }
 
-httppacket *httppacket_new(bytebuffer *b)
+httppacket *httppacket_new()
 {
 	httppacket *p = calloc(1,sizeof(*p));
 	cast(packet*,p)->type = HTTPPACKET;
 	p->method     = -1;
-	if(b){
-		cast(packet*,p)->head  = b;
-		cast(packet*,p)->dctor = httppacket_dctor;
-		refobj_inc(cast(refobj*,b));
-	}
+	cast(packet*,p)->dctor = httppacket_dctor;
 	INIT_CONSTROUCTOR(p);
 	return p;		
 }
@@ -40,72 +39,51 @@ static packet *httppacket_clone(packet *_){
 	httppacket *o = cast(httppacket*,_);
 	httppacket *p = calloc(1,sizeof(*p));
 	cast(packet*,p)->type = HTTPPACKET;
-	if(_->head){
-		cast(packet*,p)->head  = _->head;
-		cast(packet*,p)->dctor = httppacket_dctor;
-		p->method              = o->method;
-		p->url                 = o->url;
-		p->status              = o->status;
-		bytebuffer_set(&p->body,o->body);                
-		refobj_inc(cast(refobj*,_->head));
-		cur  = list_begin(&o->headers);
-		end  = list_end(&o->headers);
-		for(; cur != end;cur = cur->next){
-			h    = cast(st_header*,cur);
-			hh   = calloc(1,sizeof(*hh));
-			hh->field = h->field;
-			hh->value = h->value;
-			list_pushback(&p->headers,cast(listnode*,hh));
-		}
+	cast(packet*,p)->dctor = httppacket_dctor;
+	p->method              = o->method;
+	p->url                 = string_retain(o->url);
+	p->status              = string_retain(o->status);
+	p->body                = string_retain(o->body);
+	cur  = list_begin(&o->headers);
+	end  = list_end(&o->headers);
+	for(; cur != end;cur = cur->next){
+		h    = cast(st_header*,cur);
+		hh   = calloc(1,sizeof(*hh));
+		hh->field = string_retain(h->field);
+		hh->value = string_retain(h->value);
+		list_pushback(&p->headers,cast(listnode*,hh));
 	}
 	INIT_CONSTROUCTOR(p);
 	return cast(packet*,p);	
 }
 
-void httppacket_on_buffer_expand(httppacket *p,bytebuffer *b)
-{
-	bytebuffer_set(&cast(packet*,p)->head,b);
-}
-
 
 int32_t httppacket_on_header_field(httppacket *p,char *at, size_t length)
 {
-	st_header  *h = calloc(1,sizeof(*h));
-	h->field      = at - &cast(packet*,p)->head->data[0];
-	list_pushback(&p->headers,cast(listnode*,h));
+	if(!p->current){
+		p->current = calloc(1,sizeof(*p->current));
+		p->current->field = string_new(at,length);
+	}else
+		string_append(p->current->field,at,length);
 	return 0;
 }	
 
 int32_t httppacket_on_header_value(httppacket *p,char *at, size_t length)
 {
-	st_header *h = cast(st_header*,p->headers.tail);
-	char   *data = cast(packet*,p)->head->data;
-	h->value     = at - &data[0];
+	st_header *h;
+	if(p->current){
+		list_pushback(&p->headers,cast(listnode*,p->current));
+		p->current->value = string_new(at,length);
+		p->current = NULL;
+	}else{
+		h = cast(st_header*,p->headers.tail);
+		string_append(h->value,at,length);
+	}
 	return 0;
 }
 
-int32_t httppacket_on_body(httppacket *p,char *at, size_t length)
-{
-	uint32_t space,newsize;
-	bytebuffer *newbuff;
-	if(!p->body){
-		p->body = bytebuffer_new(length > 1024 ? size_of_pow2(length) : 1024);
-	}
-	space = p->body->cap - p->body->size;
-	if(space < length){
-		//expand
-		newsize = p->body->size + length;
-		newbuff = bytebuffer_new(newsize);
-   		memcpy(newbuff->data,p->body->data,p->body->size);
-   		newbuff->size = p->body->size;
-   		bytebuffer_set(&p->body,NULL);
-   		p->body = newbuff;		
-	}
-	memcpy(&p->body->data[p->body->size],at,length);
-	p->body->size += length;
-	return 0;
-}
 
+/*
 string *httppacket_get_header(httppacket *p,const char *field)
 {
 	st_header *h;
@@ -124,4 +102,4 @@ string *httppacket_get_header(httppacket *p,const char *field)
 		}
 	}
 	return ret;
-}
+}*/

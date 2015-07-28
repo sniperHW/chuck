@@ -146,7 +146,7 @@ static void fire(wheelmgr *m,uint64_t tick)
 void wheelmgr_tick(wheelmgr *m,uint64_t now)
 {
 	if(!m->lasttime) return;//没有注册过定时器
-	while(m->lasttime != now){
+	while(m->lasttime <= now){
 		fire(m,++m->lasttime);
 	}
 } 
@@ -156,10 +156,9 @@ timer *wheelmgr_register(wheelmgr *m,uint32_t timeout,
 				  void*ud,uint64_t now/*just for test*/)
 {
 	timer *t;
-	if(timeout == 0 || !callback)
-		return NULL;
+	if(!callback) return NULL;
 	t = calloc(1,sizeof(*t));
-	t->timeout = timeout > MAX_TIMEOUT ? MAX_TIMEOUT : timeout;
+	t->timeout = timeout > MAX_TIMEOUT ? MAX_TIMEOUT : (timeout > 0 ? timeout : 1);
 	t->callback = callback;
 	t->ud = ud;
 	if(!m->lasttime){
@@ -302,7 +301,7 @@ static int32_t lua_register_timer(lua_State *L)
 	if(!w)
 		lua_pushnil(L);
 	else{
-		timeout = timeout > MAX_TIMEOUT ? MAX_TIMEOUT : timeout; 
+		timeout = timeout > MAX_TIMEOUT ? MAX_TIMEOUT : (timeout > 0 ? timeout : 1); 
 		lua_timer_new(L,w,timeout,&cb);
 	}
 	return 1;

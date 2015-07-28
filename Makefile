@@ -18,3 +18,6 @@ chuck:
 
 examples:
 	cd samples;$(MAKE)
+
+parser:
+	gcc -g -o parser samples/testhttpparser.c ./deps/http-parser/libhttp_parser.a -I./deps

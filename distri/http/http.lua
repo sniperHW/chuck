@@ -136,12 +136,17 @@ function http_client:new(host,port)
   local ip = getHostIp(host)
   if not ip then return end
   local o     = {}
-  o.__index   = http_client      
+  o.__index   = http_client
+  --o.__gc      = function () 
+  --		print("http_client gc") 
+		--o:Close() 
+  --end        
   setmetatable(o,o)
   o.host      = host
   o.ip        = ip
   o.port      = port or 80
-  o.requests  = {}  
+  o.requests  = {}
+  o.pending_requests = {}  
   return o
 end
 
@@ -177,15 +182,19 @@ function http_client:request(method,request,on_response)
 
   local function SendRequest()
   		if #self.requests > 0 then
-			local request = self.requests[1][1]
+			local request = self.requests[1]
+			local on_response = request[2]
+			local request = request[1]
+			table.insert(self.pending_requests,on_response)
+			table.remove(self.requests,1)
 			self.conn:Send(httppacket(self:buildRequest(request)))
 		end
   end
 
   local function OnResponse(res,errno)
-  		if #self.requests > 0 then
-			local on_response = self.requests[1][2]
-			table.remove(self.requests,1)
+  		if #self.pending_requests > 0 then
+			local on_response = self.pending_requests[1]
+			table.remove(self.pending_requests,1)
 			on_response(res,errno)
 		end  	
   end
@@ -216,8 +225,10 @@ function http_client:request(method,request,on_response)
 							SendRequest()
 						end)
 					self.conn = s
+					s:SetRecvTimeout(5000)
 					--connected,send the first request
-					SendRequest()			
+					SendRequest()
+
 				end
 			end
 	    	local errno = socket.stream.Connect(self.ip,self.port,connect_callback)

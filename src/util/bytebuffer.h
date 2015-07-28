@@ -37,13 +37,13 @@ static inline void bytebuffer_dctor(void *_)
 	if(b->next)
 		refobj_dec(cast(refobj*,b->next));
     free(b);
-    //--bytecount;
+    --bytecount;
 }
 
 
 static inline bytebuffer *bytebuffer_new(uint32_t capacity)
 {
-	//++bytecount;
+	++bytecount;
 	uint32_t size = sizeof(bytebuffer) + capacity;
     bytebuffer *b = cast(bytebuffer*,malloc(size));
 	if(b){

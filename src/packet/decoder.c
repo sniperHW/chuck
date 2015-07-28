@@ -11,6 +11,7 @@ static inline void _decoder_update(decoder *d,bytebuffer *buff,uint32_t pos,uint
 	    d->size = 0;
     }
     d->size += size;
+   //printf("_decoder_update:%d,%d\n",size,d->size);
 }
 
 static packet *rpk_unpack(decoder *d,int32_t *err)
@@ -136,43 +137,49 @@ static inline httpdecoder *cast2httpdecoder(http_parser *parser)
 
 static inline int on_message_begin(http_parser *parser)
 {
+	//printf("on_message_begin\n");
 	httpdecoder *decoder = cast2httpdecoder(parser);
-	decoder->packet      = httppacket_new(decoder->buff);
+	decoder->packet      = httppacket_new();
 	return 0;
 }
 
 static inline int on_url(http_parser *parser, const char *at, size_t length)
 {	
 	httpdecoder *decoder   = cast2httpdecoder(parser);
-	cast(char*,at)[length] = 0;
-	decoder->packet->url   = at - &decoder->buff->data[0];
+	if(decoder->packet->url)
+		string_append(decoder->packet->url,at,length);
+	else
+		decoder->packet->url = string_new(at,length);
 	return 0;
 }
 
 static inline int on_status(http_parser *parser, const char *at, size_t length)
 {
-	httpdecoder *decoder    = cast2httpdecoder(parser);
-	cast(char*,at)[length]  = 0;
-	decoder->packet->status = at - &decoder->buff->data[0];
+	httpdecoder *decoder   = cast2httpdecoder(parser);
+	if(decoder->packet->status)
+		string_append(decoder->packet->status,at,length);
+	else
+		decoder->packet->status = string_new(at,length);
 	return 0;			
 }
 
 static inline int on_header_field(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder   = cast2httpdecoder(parser);
-	cast(char*,at)[length] = 0;
-	return httppacket_on_header_field(decoder->packet,cast(char*,at),length);				
+	httppacket_on_header_field(decoder->packet,cast(char*,at),length);
+	return 0;				
 }
 
 static inline int on_header_value(http_parser *parser, const char *at, size_t length)
 {
 	httpdecoder *decoder   = cast2httpdecoder(parser);
-	cast(char*,at)[length] = 0;
-	return httppacket_on_header_value(decoder->packet,cast(char*,at),length);			
+	httppacket_on_header_value(decoder->packet,cast(char*,at),length);
+	return 0;			
 }
 
 static inline int on_headers_complete(http_parser *parser)
 {	
+	//printf("on_headers_complete\n");
 	httpdecoder *decoder    = cast2httpdecoder(parser);
 	decoder->packet->method = parser->method;
 	return 0;		
@@ -180,9 +187,13 @@ static inline int on_headers_complete(http_parser *parser)
 
 static inline int on_body(http_parser *parser, const char *at, size_t length)
 {
+	//printf("on_body\n");
 	httpdecoder *decoder      = cast2httpdecoder(parser);
-	httppacket_on_body(decoder->packet,cast(char*,at),length);
-	return 0;		
+	if(decoder->packet->body)
+		string_append(decoder->packet->body,at,length);
+	else
+		decoder->packet->body = string_new(at,length);
+	return 0;
 }
 
 
@@ -191,46 +202,9 @@ enum{
 	HTTP_COMPLETE = 2,
 };
 
-static inline int32_t http_decoder_expand(httpdecoder *d,uint32_t size)
-{
-	bytebuffer *newbuff;
-	uint32_t newsize = size_of_pow2(size);
-	if(newsize < d->buff->cap || newsize > d->max_packet_size)
-		return -1;	
-    newbuff = bytebuffer_new(newsize);
-   	memcpy(newbuff->data,d->buff->data,d->buff->size);
-   	newbuff->size = d->buff->size;
-   	bytebuffer_set(&d->buff,newbuff);
-   	refobj_dec(cast(refobj*,newbuff));
-   	if(d->packet) httppacket_on_buffer_expand(d->packet,d->buff);
-   	return 0;
-}
-
-#define INIT_HTTP_BUFFERSIZE 4096
-
-static inline void http_decoder_update(decoder *_,bytebuffer *buff,uint32_t pos,uint32_t size)
-{
-	httpdecoder *d = cast(httpdecoder*,_);
-	buffer_reader reader;
-
-	if(!d->buff){
-		d->buff = bytebuffer_new(size < INIT_HTTP_BUFFERSIZE ? INIT_HTTP_BUFFERSIZE : size_of_pow2(size));
-	    d->pos  = 0;	
-	}
-
-	if(d->buff->cap - d->buff->size < size && 0 != http_decoder_expand(d,d->buff->size + size)){
-		d->status = HTTP_TOOLARGE;
-		return;
-	}
-
-	buffer_reader_init(&reader,buff,pos);
-	buffer_read(&reader,&d->buff->data[d->buff->size],size);
-	d->buff->size  += size;
-}
-
-
 static inline int on_message_complete(http_parser *parser)
 {	
+	//printf("on_message_complete\n");
 	httpdecoder *d = cast2httpdecoder(parser);
 	d->status = HTTP_COMPLETE;
 	return -1;//终止parser的执行							
@@ -241,35 +215,36 @@ static packet *http_unpack(decoder *_,int32_t *err)
 	httpdecoder *d = cast(httpdecoder*,_);
 	packet *ret    = NULL;
 	size_t  nparsed,size;
-	bytebuffer  *tmp;
-	if(!d->buff || d->pos >= d->buff->size) 
-		return NULL;
-	if(d->status == HTTP_TOOLARGE){
-		if(err) *err = EHTTPTOOLARGE;
-	}
-	else{
-		size   = d->buff->size - d->pos;
-		nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->buff->data[d->pos]),size);		
-		if(nparsed > 0) d->pos += nparsed;		
+	do{
+		size = d->buff->size - d->pos;
+		nparsed = http_parser_execute(&d->parser,&d->settings,cast(char*,&d->buff->data[d->pos]),size);
+		if(nparsed > 0){
+			d->pos  += nparsed;
+			d->size -= nparsed;
+		}	
+		if(d->pos >= d->buff->cap)
+		{
+			bytebuffer_set(&d->buff,d->buff->next);
+			d->pos = 0;
+		}
 		if(d->status == HTTP_COMPLETE){
 			ret = cast(packet*,d->packet);
 			d->packet = NULL;
 			d->status = 0;
-			if(nparsed != size){
-				tmp = d->buff;
-				d->buff = NULL;
-				http_decoder_update((decoder*)d,tmp,d->pos,tmp->size - d->pos);
-				bytebuffer_set(&tmp,NULL);
-			}else{
-				bytebuffer_set(&d->buff,NULL);
-			}
 			//被on_message_complete终止状态,所以这里要重置
 			http_parser_init(&d->parser,HTTP_BOTH);
-		}else if(nparsed != size && err)
-			*err = EHTTPPARSE;								
-	}
+			//printf("d->size:%d,%d\n",d->size,nparsed);
+			break;
+		}else if(nparsed != size && err){
+			*err = EHTTPPARSE;
+			break;		
+		}
+		//printf("d->size:%d,%d\n",d->size,nparsed);
+	}while(d->size);
 	return ret;
 }
+
+
 
 void http_decoderdctor(struct decoder *_) 
 {
@@ -282,8 +257,7 @@ decoder *http_decoder_new(uint32_t max_packet_size)
 	httpdecoder *d     = calloc(1,sizeof(*d));
 	d->max_packet_size = max_packet_size;
 	d->unpack 		   = http_unpack;
-	d->buff            = bytebuffer_new(INIT_HTTP_BUFFERSIZE);
-	d->decoder_update  = http_decoder_update;	
+	d->decoder_update  = _decoder_update;	
 	d->settings.on_message_begin = on_message_begin;
 	d->settings.on_url = on_url;
 	d->settings.on_status = on_status;
