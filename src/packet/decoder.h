@@ -52,7 +52,9 @@ typedef struct httpdecoder{
     httppacket          *packet;                              //当前正在处理的packet
     int                  status;
     size_t               header_size;
-    size_t               body_size;     
+    size_t               body_size;
+    size_t               max_header;
+    size_t               max_body;     
 }httpdecoder;
 
 
@@ -62,7 +64,7 @@ decoder *conn_raw_decoder_new();
 
 decoder *dgram_raw_decoder_new();
 
-decoder *http_decoder_new(uint32_t max_packet_size);
+decoder *http_decoder_new(uint32_t max_header,uint32_t max_body);
 
 void decoder_del(decoder*);
 

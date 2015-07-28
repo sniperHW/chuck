@@ -8,7 +8,8 @@ local socket_helper = chuck.socket_helper
 
 local http = {
 	recvbuff  = 4096,        --套接口接收缓冲大小
-	maxpacket = 1024*128,    --最大http包大小
+	maxheader = 4096,
+	maxbody   = 1024*128,    --最大http包大小
 }
 
 local http_response = {}
@@ -90,7 +91,7 @@ end
 function http_server:Listen(ip,port)
 	self.server = socket.stream.Listen(ip,port,function (s,errno)
 		if s then
-			s:Ok(http.recvbuff,httpdecoder(http.maxpacket),function (_,msg,errno)
+			s:Ok(http.recvbuff,httpdecoder(http.maxheader,http.maxbody),function (_,msg,errno)
 				if not s then
 					return
 				end

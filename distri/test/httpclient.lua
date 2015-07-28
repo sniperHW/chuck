@@ -24,7 +24,6 @@ for i = 1,100 do
 end
 
 local t = Distri.RegTimer(1000,function()
-	print("bytecount:" .. Chuck.bytecount())
 	collectgarbage("collect")	
 end)	
 

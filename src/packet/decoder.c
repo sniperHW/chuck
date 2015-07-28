@@ -11,7 +11,6 @@ static inline void _decoder_update(decoder *d,bytebuffer *buff,uint32_t pos,uint
 	    d->size = 0;
     }
     d->size += size;
-   //printf("_decoder_update:%d,%d\n",size,d->size);
 }
 
 static packet *rpk_unpack(decoder *d,int32_t *err)
@@ -130,6 +129,12 @@ decoder *dgram_raw_decoder_new()
 	return d;	
 }
 
+enum{
+	HTTP_HEADER_TOOLARGE = 1,
+	HTTP_BODY_TOOLARGE = 2,
+	HTTP_COMPLETE = 3,
+};
+
 static inline httpdecoder *cast2httpdecoder(http_parser *parser)
 {
 	return cast(httpdecoder*,((char*)parser - sizeof(decoder)));
@@ -137,7 +142,6 @@ static inline httpdecoder *cast2httpdecoder(http_parser *parser)
 
 static inline int on_message_begin(http_parser *parser)
 {
-	//printf("on_message_begin\n");
 	httpdecoder *decoder = cast2httpdecoder(parser);
 	decoder->packet      = httppacket_new();
 	return 0;
@@ -167,6 +171,11 @@ static inline int on_header_field(http_parser *parser, const char *at, size_t le
 {
 	httpdecoder *decoder   = cast2httpdecoder(parser);
 	httppacket_on_header_field(decoder->packet,cast(char*,at),length);
+	decoder->header_size += length;
+	if(decoder->header_size >= decoder->max_header){
+		decoder->status = HTTP_HEADER_TOOLARGE;
+		return -1;
+	}
 	return 0;				
 }
 
@@ -174,12 +183,15 @@ static inline int on_header_value(http_parser *parser, const char *at, size_t le
 {
 	httpdecoder *decoder   = cast2httpdecoder(parser);
 	httppacket_on_header_value(decoder->packet,cast(char*,at),length);
+	if(decoder->header_size >= decoder->max_header){
+		decoder->status = HTTP_HEADER_TOOLARGE;
+		return -1;
+	}
 	return 0;			
 }
 
 static inline int on_headers_complete(http_parser *parser)
 {	
-	//printf("on_headers_complete\n");
 	httpdecoder *decoder    = cast2httpdecoder(parser);
 	decoder->packet->method = parser->method;
 	return 0;		
@@ -187,24 +199,22 @@ static inline int on_headers_complete(http_parser *parser)
 
 static inline int on_body(http_parser *parser, const char *at, size_t length)
 {
-	//printf("on_body\n");
 	httpdecoder *decoder      = cast2httpdecoder(parser);
 	if(decoder->packet->body)
 		string_append(decoder->packet->body,at,length);
 	else
 		decoder->packet->body = string_new(at,length);
+	decoder->body_size += length;
+	if(decoder->body_size >= decoder->max_body){
+		decoder->status = HTTP_BODY_TOOLARGE;
+		return -1;
+	}
 	return 0;
 }
 
 
-enum{
-	HTTP_TOOLARGE = 1,
-	HTTP_COMPLETE = 2,
-};
-
 static inline int on_message_complete(http_parser *parser)
 {	
-	//printf("on_message_complete\n");
 	httpdecoder *d = cast2httpdecoder(parser);
 	d->status = HTTP_COMPLETE;
 	return -1;//终止parser的执行							
@@ -229,17 +239,22 @@ static packet *http_unpack(decoder *_,int32_t *err)
 		}
 		if(d->status == HTTP_COMPLETE){
 			ret = cast(packet*,d->packet);
-			d->packet = NULL;
-			d->status = 0;
+			d->packet      = NULL;
+			d->status      = 0;
+			d->body_size   = 0;
+			d->header_size = 0;
 			//被on_message_complete终止状态,所以这里要重置
 			http_parser_init(&d->parser,HTTP_BOTH);
-			//printf("d->size:%d,%d\n",d->size,nparsed);
 			break;
-		}else if(nparsed != size && err){
-			*err = EHTTPPARSE;
+		}else if(nparsed != size){
+			if(err){
+				if(d->status == HTTP_HEADER_TOOLARGE || d->status == HTTP_BODY_TOOLARGE)
+					*err = EPKTOOLARGE;
+				else
+					*err = EHTTPPARSE;
+			}
 			break;		
 		}
-		//printf("d->size:%d,%d\n",d->size,nparsed);
 	}while(d->size);
 	return ret;
 }
@@ -252,10 +267,11 @@ void http_decoderdctor(struct decoder *_)
 	if(d->packet) packet_del(cast(packet*,d->packet));
 }
 
-decoder *http_decoder_new(uint32_t max_packet_size)
+decoder *http_decoder_new(uint32_t max_header,uint32_t max_body)
 {
 	httpdecoder *d     = calloc(1,sizeof(*d));
-	d->max_packet_size = max_packet_size;
+	d->max_header      = (size_t)max_header;
+	d->max_body        = (size_t)max_body;
 	d->unpack 		   = http_unpack;
 	d->decoder_update  = _decoder_update;	
 	d->settings.on_message_begin = on_message_begin;
@@ -302,9 +318,13 @@ int32_t lua_rpacket_decoder_new(lua_State *L)
 
 int32_t lua_http_decoder_new(lua_State *L)
 {
-	if(LUA_TNUMBER != lua_type(L,1))
-		return luaL_error(L,"arg1 should be number");
-	lua_pushlightuserdata(L,http_decoder_new(lua_tonumber(L,1)));
+	uint32_t max_body;
+	uint32_t max_header;
+	if(LUA_TNUMBER != lua_type(L,1) || LUA_TNUMBER != lua_type(L,2))
+		return luaL_error(L,"arg1 and agr2 should be number");
+	max_header = lua_tonumber(L,1);
+	max_body = lua_tonumber(L,2); 
+	lua_pushlightuserdata(L,http_decoder_new(max_header,max_body));
 	return 1;
 }
 

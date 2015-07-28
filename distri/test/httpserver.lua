@@ -9,7 +9,6 @@ end):Listen("0.0.0.0",8010)
 
 if server then
 	local t = Distri.RegTimer(1000,function()
-		print("bytecount:" .. Chuck.bytecount())
 		collectgarbage("collect")	
 	end)		
 	Distri.Signal(Chuck.signal.SIGINT,Distri.Stop)

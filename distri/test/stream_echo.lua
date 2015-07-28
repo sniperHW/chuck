@@ -25,7 +25,7 @@ if server then
 	signaler:Register(engine,function ()
 		engine:Stop()
 	end)
-	local t = chuck.RegTimer(engine,1000,function() 
+	local t = chuck.RegTimer(engine,1,function() 
 		collectgarbage("collect")	
 	end)	
 	engine:Run()

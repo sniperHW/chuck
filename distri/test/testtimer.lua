@@ -2,7 +2,7 @@ local Distri = require("distri.distri")
 local Chuck  = require("chuck")
 
 function regT()
-	local t = Distri.RegTimer(math.random(1,100),function()
+	local t = Distri.RegTimer(1,function()
 		t:UnRegister()
 		t = nil
 		regT()	
