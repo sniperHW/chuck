@@ -26,8 +26,7 @@
 	lua_settable(L, -3);\
 }while(0)
 
-int bytecount = 0;
-
+//int bytecount = 0;
 
 void lua_regerrcode(lua_State *L)
 {
@@ -378,6 +377,13 @@ static int32_t lua_systick(lua_State *L)
 	return 1;
 }
 
+
+static int32_t lua_bytecount(lua_State *L)
+{
+	lua_pushinteger(L,bytecount);
+	return 1;
+}
+
 int32_t luaopen_chuck(lua_State *L)
 {
 	
@@ -391,6 +397,8 @@ int32_t luaopen_chuck(lua_State *L)
 	reg_luaengine(L);
 	reg_luatimewheel(L);
 
+	
+	//SET_FUNCTION(L,"bytecount",lua_bytecount);
 	SET_FUNCTION(L,"systick",lua_systick);
 
 	lua_pushstring(L,"cthread");

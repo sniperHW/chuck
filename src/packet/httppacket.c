@@ -15,6 +15,9 @@ void httppacket_dctor(void *_)
 	httppacket *p = cast(httppacket*,_);
 	while((h = cast(st_header*,list_pop(&p->headers))))
 		free(h);
+	if(p->body){
+		bytebuffer_set(&p->body,NULL);
+	}
 }
 
 httppacket *httppacket_new(bytebuffer *b)
@@ -43,8 +46,7 @@ static packet *httppacket_clone(packet *_){
 		p->method              = o->method;
 		p->url                 = o->url;
 		p->status              = o->status;
-		p->body                = o->body;
-		p->bodysize            = o->bodysize;
+		bytebuffer_set(&p->body,o->body);                
 		refobj_inc(cast(refobj*,_->head));
 		cur  = list_begin(&o->headers);
 		end  = list_end(&o->headers);
@@ -79,6 +81,28 @@ int32_t httppacket_on_header_value(httppacket *p,char *at, size_t length)
 	st_header *h = cast(st_header*,p->headers.tail);
 	char   *data = cast(packet*,p)->head->data;
 	h->value     = at - &data[0];
+	return 0;
+}
+
+int32_t httppacket_on_body(httppacket *p,char *at, size_t length)
+{
+	uint32_t space,newsize;
+	bytebuffer *newbuff;
+	if(!p->body){
+		p->body = bytebuffer_new(length > 1024 ? size_of_pow2(length) : 1024);
+	}
+	space = p->body->cap - p->body->size;
+	if(space < length){
+		//expand
+		newsize = p->body->size + length;
+		newbuff = bytebuffer_new(newsize);
+   		memcpy(newbuff->data,p->body->data,p->body->size);
+   		newbuff->size = p->body->size;
+   		bytebuffer_set(&p->body,NULL);
+   		p->body = newbuff;		
+	}
+	memcpy(&p->body->data[p->body->size],at,length);
+	p->body->size += length;
 	return 0;
 }
 

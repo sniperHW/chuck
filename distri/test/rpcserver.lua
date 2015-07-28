@@ -33,7 +33,7 @@ if server then
 	local t = Distri.RegTimer(1000,function ()
    		collectgarbage("collect") 
    		local now = chuck.systick()
-   		print("rpc call:" .. count*1000/(now-last) .. "/s")
+   		print("rpc call:" .. count*1000/(now-last) .. "/s ")
    		last = now
    		count = 0 
 	end)

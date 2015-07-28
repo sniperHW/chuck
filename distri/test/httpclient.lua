@@ -5,41 +5,24 @@ local Socket = require("distri.socket")
 local cjson = require("cjson")
 
 local c  = 0
-local data
-
-for i = 1,100 do
-	local client    = Http.Client("www.baidu.com")--"s1.jctt.mmgame.mobi")
-	if client then
-		local request = Http.Request("/")--"/index.php/ajaxgateway/index/stadium/getUserServerPvp")
-		client:Get(request,function (response,errno)
-			if response then
-				--for k,v in pairs(response:Headers()) do
-				--	print(v[1] .. " : " .. v[2])
-				--end
-				--print("----------------------start--------------------------------")
-				--print(response:Content())
-				--cjson.decode(response:Content())
-				--print(response:Content())
-				c = c + 1
-				print(c)
-				if not data then
-					data = response:Content()
-				else
-					if data == response:Content() then
-						print("ok")
-					else
-						print("error")
-					end
-				end
-				--print(response:Content())
-				--print("----------------------end--------------------------------")				
-				--print(#response:Content(),i)
-			else
-				print("request error:" .. errno)
-			end
-		end)
-	end	
+local function on_response(response,errno)
+	if response then
+		c = c + 1
+		print(c)
+		--local client = Http.Client("www.baidu.com")
+		--client:Get(Http.Request("/"),on_response)
+	else
+		print("request error")
+	end
 end
+
+local client1 = Http.Client("www.baidu.com")
+client1:Get(Http.Request("/"),on_response)
+
+local t = Distri.RegTimer(1000,function()
+	collectgarbage("collect")	
+end)	
+
 Distri.Signal(Chuck.signal.SIGINT,Distri.Stop)
 Distri.Run()
 

@@ -18,8 +18,7 @@ typedef struct
     int32_t         method;
     size_t          url;
     size_t          status;
-    size_t          body;
-    size_t          bodysize;
+    bytebuffer     *body;
     list            headers;
 }httppacket;
 
@@ -28,6 +27,8 @@ httppacket *httppacket_new(bytebuffer *b);
 int32_t httppacket_on_header_field(httppacket *p,char *at, size_t length);
 
 int32_t httppacket_on_header_value(httppacket *p,char *at, size_t length);
+
+int32_t httppacket_on_body(httppacket *p,char *at, size_t length);
 
 void httppacket_on_buffer_expand(httppacket *p,bytebuffer *b);
 

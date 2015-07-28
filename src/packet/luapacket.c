@@ -437,14 +437,13 @@ static int32_t lua_http_header_field(lua_State *L)
 static int32_t lua_http_content(lua_State *L)
 {
 	httppacket *hpk;
-	char       *data;
 	luapacket *p = lua_topacket(L,1);
 	if(!p->_packet || p->_packet->type != HTTPPACKET)
 		return luaL_error(L,"invaild opration");
-	data = p->_packet->head->data;
 	hpk  = cast(httppacket*,p->_packet);
 	if(hpk->body)
-		lua_pushlstring(L,&data[hpk->body],hpk->bodysize);
+		lua_pushlstring(L,hpk->body->data,hpk->body->size);
+		//lua_pushlstring(L,&data[hpk->body],hpk->bodysize);
 	else
 		lua_pushnil(L);
 	return 1;
