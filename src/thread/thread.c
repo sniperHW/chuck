@@ -366,7 +366,9 @@ int32_t  thread_process_mail(engine *e,void (*onmail)(mail *_mail))
 		if(!tthread) assert(0);
 		thread_handle = cast(thread_t,get_refhandle(cast(refobj*,tthread)));
 		tthread->tid   = gettid();
+#ifdef _CHUCKLUA		
 		__insert(thread_handle);
+#endif
 	}
 	if(cast(handle*,tthread->mailbox)->e)
 		return -EASSENG;

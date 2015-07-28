@@ -4,6 +4,7 @@
 #include "time.h"
 #include "dlist.h"
 #include "log.h"
+#include "exception.h"
 
 
 enum{
@@ -75,6 +76,10 @@ static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain)
 
 static inline void _reg(wheelmgr *m,timer *t,uint64_t tick,wheel *w)
 {
+	if(t->expire <= tick){
+		printf("t->expire:%ld,tick:%ld,now:%ld,timeout:%ld\n",t->expire,tick,systick64(),t->timeout);
+		show_call_stack();
+	}
 	assert(t->expire > tick);
 	if(t->expire > tick)
 		add2wheel(m,w?w:m->wheels[wheel_sec],t,t->expire - tick);
@@ -122,6 +127,7 @@ static void fire(wheelmgr *m,uint64_t tick)
 			if(ret > 0){
 				t->timeout = ret;
 			}
+			assert(tick + t->timeout >= tick);
 			t->expire = tick + t->timeout;
 			_reg(m,t,tick,NULL);
 		}else{
@@ -152,7 +158,6 @@ timer *wheelmgr_register(wheelmgr *m,uint32_t timeout,
 	timer *t;
 	if(timeout == 0 || !callback)
 		return NULL;
-	now = now == 0 ? systick64():now;
 	t = calloc(1,sizeof(*t));
 	t->timeout = timeout > MAX_TIMEOUT ? MAX_TIMEOUT : timeout;
 	t->callback = callback;
@@ -160,6 +165,7 @@ timer *wheelmgr_register(wheelmgr *m,uint32_t timeout,
 	if(!m->lasttime){
 		m->lasttime = now;
 	}
+	assert(now + t->timeout >= now);
 	t->expire = now + t->timeout;
 	_reg(m,t,m->lasttime,NULL);
 	return t;
@@ -280,6 +286,7 @@ void lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb)
 	if(!m->lasttime){
 		m->lasttime = now;
 	}
+	assert(now + t->timeout >= now);
 	t->expire = now + t->timeout;
 	_reg(m,t,m->lasttime,NULL);
 	luaL_getmetatable(L, TIMER_METATABLE);

@@ -92,34 +92,41 @@ static inline void clear_callstack(exception_frame *frame)
 		list_pushback(&epst->csf_pool,list_pop(&frame->call_stack));
 }
 
+
+void   show_call_stack();
+
 static inline void print_call_stack(exception_frame *frame)
 {
-    char buf[MAX_LOG_SIZE];
-    char *ptr = buf;
-    int32_t size = 0;
-    listnode *node = list_begin(&frame->call_stack);
-    int32_t f = 0;
-    callstack_frame *cf;
-    if(!frame)return;
-    if(frame->exception == except_segv_fault)
-	    size += snprintf(ptr,MAX_LOG_SIZE,
-                         " exception\n %s (invaild access addr:%p)\n",
-                         exception_description(frame->exception),
-                         frame->addr);
-    else
-	    size += snprintf(ptr,MAX_LOG_SIZE,
-                         " exception\n %s\n",
-                         exception_description(frame->exception));
-    ptr = buf+size;
-    while(node != NULL && size < MAX_LOG_SIZE)
-    {
-        cf = (callstack_frame*)node;
-        size += snprintf(ptr,MAX_LOG_SIZE-size,"        % 2d: %s",++f,cf->info);
+    if(frame){
+        char buf[MAX_LOG_SIZE];
+        char *ptr = buf;
+        int32_t size = 0;
+        listnode *node = list_begin(&frame->call_stack);
+        int32_t f = 0;
+        callstack_frame *cf;
+        if(!frame)return;
+        if(frame->exception == except_segv_fault)
+    	    size += snprintf(ptr,MAX_LOG_SIZE,
+                             " exception\n %s (invaild access addr:%p)\n",
+                             exception_description(frame->exception),
+                             frame->addr);
+        else
+    	    size += snprintf(ptr,MAX_LOG_SIZE,
+                             " exception\n %s\n",
+                             exception_description(frame->exception));
         ptr = buf+size;
-        node = node->next;
+        while(node != NULL && size < MAX_LOG_SIZE)
+        {
+            cf = (callstack_frame*)node;
+            size += snprintf(ptr,MAX_LOG_SIZE-size,"        % 2d: %s",++f,cf->info);
+            ptr = buf+size;
+            node = node->next;
+        }
+        printf("%s",buf);
+        SYS_LOG(LOG_ERROR,"%s",buf);
+    }else{
+        show_call_stack();
     }
-    printf("%s",buf);
-    SYS_LOG(LOG_ERROR,"%s",buf);
 }
 
 #define PRINT_CALL_STACK print_call_stack(&frame)

@@ -1,7 +1,6 @@
 #include "engine/engine.h"
 #include "socket/socket_helper.h"
 #include "util/time.h"
-#include "util/timerfd.h"
 
 typedef struct {
 	iorequest base;

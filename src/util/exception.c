@@ -231,3 +231,41 @@ void exception_throw(int32_t code,const char *file,
 		exit(0);
 	}
 }
+
+void   show_call_stack()
+{
+	void*                   bt[64];
+	char**                  strings;
+	char                    *str1,*str2;
+	size_t                  sz;
+	int32_t                 i,f;
+	int32_t 				size = 0;	
+	char 					logbuf[MAX_LOG_SIZE],addr[128],buf[1024];
+	char 					*ptr = logbuf;		
+	int                     len;
+	sz = backtrace(bt, 64);
+	strings = backtrace_symbols(bt, sz);
+	ptr = logbuf + size;	    		    		
+	f = 0;   			
+	for(i = 1; i < sz; ++i){
+		str1 = strstr(strings[i],"[");
+		str2 = strstr(str1,"]");
+		do{
+			if(str1 && str2 && str2 - str1 < 128){
+				len = str2 - str1 - 1;
+				strncpy(addr,str1+1,len);
+				addr[len] = '\0';	
+				if(0 == addr2line(addr,buf,1024)){
+	        		size += snprintf(ptr,MAX_LOG_SIZE-size,"    % 2d: %s %s\n",++f,strings[i],buf);
+	        		break;
+				}
+			}
+    		size += snprintf(ptr,MAX_LOG_SIZE-size,"    % 2d: %s\n",++f,strings[i]);						
+		}while(0);
+		ptr = logbuf + size;
+		if(strstr(strings[i],"main+"))
+			break;
+	}
+	SYS_LOG(LOG_ERROR,"\n%s",logbuf);
+	free(strings);	
+}

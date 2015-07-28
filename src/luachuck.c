@@ -378,11 +378,11 @@ static int32_t lua_systick(lua_State *L)
 }
 
 
-static int32_t lua_bytecount(lua_State *L)
+/*static int32_t lua_bytecount(lua_State *L)
 {
 	lua_pushinteger(L,bytecount);
 	return 1;
-}
+}*/
 
 int32_t luaopen_chuck(lua_State *L)
 {
