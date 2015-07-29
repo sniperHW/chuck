@@ -14,6 +14,8 @@ local server = socket.stream.Listen("127.0.0.1",8010,function (s,errno)
 				s:Close(errno)
 				s = nil
 			end
+		end,function ()
+			print("client disconnect\n")
 		end) then
 			s:Send(chuck.packet.rawpacket('[3,"wellcome"]\n'))
 			s:SetRecvTimeout(5000)
