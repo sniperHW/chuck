@@ -33,6 +33,33 @@ function client:Close(err)
 	end
 end
 
+function client:Get(key)
+	return self:Do(string.format("get %s",key))
+end
+
+function client:Set(key,val)
+	return self:Do(string.format("set %s %s",key,val))
+end
+
+function client:Hmget(key,fields)
+	local cmd = "hmget key"
+	for k,v in pairs(fields) do
+		cmd = cmd .. " " .. v
+	end
+	return self:Do(cmd)
+end
+
+function client:Hmset(key,fields,values)
+	if #fields ~= #values then
+		return "fields didn't match values"
+	end
+	local cmd = "hmset key"
+	for i = 1,#fields do
+		cmd = cmd .. " " .. fields[i] .. " " .. values[i]
+	end
+	return self:Do(cmd)
+end
+
 function client:Do(cmd)
 	local co = Sche.Running()
 	

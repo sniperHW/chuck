@@ -10,11 +10,10 @@ local err,client = Redis.Connect("127.0.0.1",6379)
 
 if client then
 	for i = 1,1000 do
-		Task.New(function ()
-			local cmd = string.format("hmset chaid:%d chainfo %s skills %s",i,
-									  "fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
-									  "fasfasdfasdfasfasdfasdfasdfcvavasdfasdf")		
-			local err,reply = client:Do(cmd)
+		Task.New(function ()		
+			local err,reply = client:Hmset(string.format("chaid:%d",i),{"chainfo","skills"},
+										   {"fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
+										   	"fasfasdfasdfasfasdfasdfasdfcvavasdfasdf"})
 			if reply then
 				print(i,reply)
 			end
@@ -27,8 +26,7 @@ if client then
 		end
 		local succ = s:Ok(4096,Socket.stream.decoder.rawpacket,Task.Wrap(function (_,msg,errno)
 			if msg then						
-				local cmd = string.format("hmget chaid:%d chainfo skills",1)	
-				local err,reply = client:Do(cmd)
+				local err,reply = client:Hmget(string.format("chaid:%d",i),{"chainfo","skills"})
 				local result = ""
 				if reply then
 					for k,v in pairs(reply) do

@@ -209,7 +209,7 @@ function http_client:request(method,request,on_response)
 					end
 					self.requests  = {}
 				else
-					s:Ok(http.recvbuff,httpdecoder(http.maxpacket),function (_,res,errno)
+					s:Ok(http.recvbuff,httpdecoder(http.maxheader,http.maxbody),function (_,res,errno)
 							if not self.conn then
 								return
 							end
