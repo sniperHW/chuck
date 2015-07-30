@@ -1,11 +1,9 @@
 #include <assert.h>
 #include <stdio.h>
-#include "timewheel.h"
-#include "time.h"
-#include "dlist.h"
-#include "log.h"
-#include "exception.h"
-
+#include "util/time.h"
+#include "util/timewheel.h"
+#include "util/dlist.h"
+#include "util/log.h"
 
 enum{
 	wheel_sec = 0,  
@@ -22,18 +20,24 @@ typedef struct {
 #define wheel_size(T) (T==wheel_sec?1000:T==wheel_hour?3600:T==wheel_day?24:0)
 #define precision(T) (T==wheel_sec?1:T==wheel_hour?1000:T==wheel_day?3600:0)
 
+#ifdef TEST_REWINDING    //测试时间回绕
+# define CAL_EXPIRE(T,MS) (((T) + (MS)) % (1000*3600*24))
+# define INC_LASTTICK(T)  ((T) = ((T) + 1) % (1000*3600*24))
+#else
+# define CAL_EXPIRE(T,MS) ((T) + (MS))
+# define INC_LASTTICK(T)  (++(T))
+#endif
+
 static wheel *wheel_new(uint8_t type)
 {
 	wheel   *w;
 	uint16_t size,i;
-	if(type >  wheel_day)
-		return NULL;
-	w = calloc(1,sizeof(*w)*wheel_size(type)*sizeof(dlist));	
+	if(type >  wheel_day) return NULL;
+	w       = calloc(1,sizeof(*w)*wheel_size(type)*sizeof(dlist));	
 	w->type = type;
-	w->cur = 0;
-	size = cast(uint16_t,wheel_size(type));
-	for(i = 0; i < size; ++i)
-		dlist_init(&w->items[i]);
+	w->cur  = 0;
+	size    = cast(uint16_t,wheel_size(type));
+	for(i = 0; i < size; ++i) dlist_init(&w->items[i]);
 	return w;	
 }
 
@@ -47,7 +51,7 @@ struct timer{
 	uint32_t      timeout;
 	uint64_t      expire;
 	int32_t       status;
-	int32_t       (*callback)(uint32_t,uint64_t,void*); 
+	timer_cb      cb; 
 	void         *ud;
 #ifdef _CHUCKLUA    
     luaRef        luacb;
@@ -56,118 +60,111 @@ struct timer{
 
 struct wheelmgr{
 	wheel 		*wheels[wheel_day+1];
-	uint64_t     lasttime;
+	uint64_t    *ptrtick;
+	uint64_t     lasttick;
 };
 
 
-static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain)
+//将timer插入到合适的链表中
+static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain) 
 {
 	uint16_t i;
 	uint64_t slots = wheel_size(w->type) - w->cur;
-	if(w->type == wheel_day || slots > remain){
+	if(w->type == wheel_day || slots > remain) {
 		i = (w->cur + remain)%(wheel_size(w->type));
 		dlist_pushback(&w->items[i],(dlistnode*)t);		
-	}else{
+	}else {
+		//插入到上一级时间轮中
 		remain -= slots;
 		remain /= wheel_size(w->type);
 		return add2wheel(m,m->wheels[w->type+1],t,remain);		
 	}
 }
 
-static inline void _reg(wheelmgr *m,timer *t,uint64_t tick,wheel *w)
+
+static inline uint64_t cal_remain(uint64_t now,uint64_t expire) 
 {
-	if(t->expire <= tick){
-		printf("t->expire:%ld,tick:%ld,now:%ld,timeout:%ld\n",t->expire,tick,systick64(),t->timeout);
-		show_call_stack();
-	}
-	assert(t->expire > tick);
-	if(t->expire > tick)
-		add2wheel(m,w?w:m->wheels[wheel_sec],t,t->expire - tick);
+	if(now >= expire) return now - expire;
+	else              return expire - now;
 }
+
+
+static inline void _reg(wheelmgr *m,timer *t,uint64_t tick,wheel *w) 
+{
+	add2wheel(m,w?w:m->wheels[wheel_sec],t,cal_remain(tick,t->expire));
+}
+
 
 //将本级超时的定时器推到下级时间轮中
-static inline void down(wheelmgr *m,timer *t,uint64_t tick,wheel *w)
+
+static inline void down(wheelmgr *m,timer *t,uint64_t tick,wheel *w) 
 {
 	uint64_t remain;
-	assert(w->cur == 0);
-	assert(t->expire >= tick);
-	if(t->expire >= tick){
-		remain = (t->expire - tick) - wheel_size(w->type-1);
-		remain /= precision(w->type);
-		dlist_pushback(&w->items[w->cur + remain],(dlistnode*)t);		
-	}	
+	uint64_t slots;
+	remain = cal_remain(tick,t->expire) - wheel_size(w->type-1);
+	remain /= precision(w->type);		
+	slots   = (w->cur + remain) % wheel_size(w->type);
+	dlist_pushback(&w->items[slots],(dlistnode*)t);		
 }
 
-//处理上一级时间轮
-static inline void tickup(wheelmgr *m,wheel *w,uint64_t tick)
+static void fire(wheelmgr *m,wheel *w,uint64_t tick) 
 {
-	timer *t;
-	dlist *items = &w->items[w->cur];
-	while((t = cast(timer*,dlist_pop(items))))
-		down(m,t,tick,m->wheels[w->type-1]);
-	w->cur = (w->cur+1)%wheel_size(w->type);			
-	if(w->cur == 0 && w->type != wheel_day)
-		tickup(m,m->wheels[w->type+1],tick);
-}
-
-static void fire(wheelmgr *m,uint64_t tick)
-{
-	int32_t ret;
-	timer *t;
-	dlist *items;
-	wheel *w = m->wheels[wheel_sec];			
-	if((w->cur = (w->cur+1)%wheel_size(wheel_sec)) == 0)
-		tickup(m,m->wheels[wheel_hour],tick);
-	items = &w->items[w->cur];		
-	while((t = cast(timer*,dlist_pop(items)))){
-		t->status |= INCB;
-		ret = t->callback(TEVENT_TIMEOUT,t->expire,t->ud);
-		t->status ^= INCB;
-		if(!(t->status & RELEASING) && ret >= 0){
-			if(ret > 0){
-				t->timeout = ret;
-			}
-			assert(tick + t->timeout >= tick);
-			t->expire = tick + t->timeout;
-			_reg(m,t,tick,NULL);
-		}else{
-			if(ret > 0){
-				//todo: log
-			}
+	int32_t    ret;
+	timer     *t;
+	dlist     *items;			
+	if(w->type == wheel_sec) {
+		w->cur     = (w->cur+1)%wheel_size(w->type);
+		items = &w->items[w->cur];		
+		while((t = cast(timer*,dlist_pop(items)))) {
+			t->status |= INCB;
+			ret = t->cb(TEVENT_TIMEOUT,t->expire,t->ud);
+			t->status ^= INCB;
+			if(!(t->status & RELEASING) && ret >= 0) {
+				if(ret > 0) t->timeout = ret;
+				t->expire = CAL_EXPIRE(tick,t->timeout);
+				_reg(m,t,tick,NULL);
+			}else{
 #if _CHUCKLUA
-			release_luaRef(&t->luacb);
+				release_luaRef(&t->luacb);
 #else			
-			free(t);
+				free(t);
 #endif
-		}
+			}
+		}		
+	}else {
+		items      = &w->items[w->cur];		
+		w->cur     = (w->cur+1)%wheel_size(w->type);		
+		while((t = cast(timer*,dlist_pop(items))))
+			down(m,t,tick,m->wheels[w->type-1]);
 	}
+	if(w->cur ==  0 && w->type < wheel_day)
+		fire(m,m->wheels[w->type+1],tick);
 }
 
 void wheelmgr_tick(wheelmgr *m,uint64_t now)
 {
-	if(!m->lasttime) return;//没有注册过定时器
-	while(m->lasttime < now){
-		fire(m,++m->lasttime);
+	if(!m->ptrtick) return;//没有注册过定时器
+	while(m->lasttick != now) {
+		INC_LASTTICK(m->lasttick);
+		fire(m,m->wheels[wheel_sec],m->lasttick);
 	}
 } 
 
-timer *wheelmgr_register(wheelmgr *m,uint32_t timeout,
-				  int32_t(*callback)(uint32_t,uint64_t,void*),
-				  void*ud,uint64_t now/*just for test*/)
+timer *wheelmgr_register(wheelmgr *m,uint32_t ms,timer_cb cb,void*ud,uint64_t now)
 {
 	timer *t;
-	if(!callback) return NULL;
+	if(!cb) return NULL;
 	t = calloc(1,sizeof(*t));
-	t->timeout = timeout > MAX_TIMEOUT ? MAX_TIMEOUT : (timeout > 0 ? timeout : 1);
-	t->callback = callback;
+	t->timeout = ms > MAX_TIMEOUT ? MAX_TIMEOUT : (ms > 0 ? ms : 1);
+	t->cb = cb;
 	t->ud = ud;
-	if(!m->lasttime){
-		m->lasttime = now;
+	if(!m->ptrtick){
+		m->ptrtick  = &m->lasttick;
+		m->lasttick = now;
 	}
-	assert(now + t->timeout >= now);
-	t->expire = now + t->timeout;
-	_reg(m,t,m->lasttime,NULL);
-	return t;
+	t->expire = CAL_EXPIRE(now,t->timeout);
+	_reg(m,t,m->lasttick,NULL);
+	return t;	
 }
 
 wheelmgr *wheelmgr_new()
@@ -186,7 +183,7 @@ void unregister_timer(timer *t)
 	t->status |= RELEASING;
 	if(!(t->status & INCB)){
 		dlist_remove(cast(dlistnode*,t));
-		t->callback(TEVENT_DESTROY,t->expire,t->ud);
+		t->cb(TEVENT_DESTROY,t->expire,t->ud);
 		free(t);
 	}
 }
@@ -202,7 +199,7 @@ void wheelmgr_del(wheelmgr *m)
 		for(j = 0; j < size; ++j){
 			items = &m->wheels[i]->items[j];
 			while((t = cast(timer*,dlist_pop(items)))){
-				t->callback(TEVENT_DESTROY,t->expire,t->ud);
+				t->cb(TEVENT_DESTROY,t->expire,t->ud);
 				free(t);				
 			}
 		}
@@ -278,16 +275,16 @@ void lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb)
 	timer *t     = cast(timer*,lua_newuserdata(L, sizeof(*t)));
 	uint64_t now = systick64();
 	memset(t,0,sizeof(*t));
-	t->timeout  = timeout;
-	t->callback = lua_timeout_callback;
-	t->luacb = *cb;
+	t->timeout   = timeout;
+	t->cb        = lua_timeout_callback;
+	t->luacb     = *cb;
 	t->ud = cast(void*,&t->luacb);	
-	if(!m->lasttime){
-		m->lasttime = now;
+	if(!m->ptrtick){
+		m->ptrtick  = &m->lasttick;
+		m->lasttick = now;
 	}
-	assert(now + t->timeout >= now);
-	t->expire = now + t->timeout;
-	_reg(m,t,m->lasttime,NULL);
+	t->expire = CAL_EXPIRE(now,t->timeout);
+	_reg(m,t,m->lasttick,NULL);
 	luaL_getmetatable(L, TIMER_METATABLE);
 	lua_setmetatable(L, -2);			
 }
@@ -306,7 +303,6 @@ static int32_t lua_register_timer(lua_State *L)
 	}
 	return 1;
 }
-
 
 
 static int32_t lua_unregister_timer(lua_State *L)

@@ -32,13 +32,13 @@ enum{
 	TEVENT_DESTROY,
 };
 
+typedef int32_t (*timer_cb)(uint32_t event,uint64_t tick,void*ud);
+
 wheelmgr *wheelmgr_new();
 
 void wheelmgr_del(wheelmgr*);
 
-timer *wheelmgr_register(wheelmgr*,uint32_t ms,
-                         int32_t(*cb)(uint32_t,uint64_t,void*),
-                         void *ud,uint64_t now);
+timer *wheelmgr_register(wheelmgr*,uint32_t ms,timer_cb cb,void *ud,uint64_t now);
 
 void unregister_timer(timer*);
 

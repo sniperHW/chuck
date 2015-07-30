@@ -87,9 +87,9 @@ static inline void set_log_lev(int32_t loglev)
 #define DEF_LOG(LOGNAME,LOGFILENAME)                                                               \
         typedef struct{  logfile *_logfile;}LOGNAME;                                               \
         static inline LOGNAME *LOGNAME##create_function(){                                         \
-        	LOGNAME *tmp = calloc(1,sizeof(*tmp));                                                   \
-        	tmp->_logfile = create_logfile(LOGFILENAME);                                             \
-        	return tmp;                                                                              \
+        	LOGNAME *tmp = calloc(1,sizeof(*tmp));                                                 \
+        	tmp->_logfile = create_logfile(LOGFILENAME);                                           \
+        	return tmp;                                                                            \
         }                                                                                          \
         DECLARE_SINGLETON(LOGNAME)
 

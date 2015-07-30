@@ -595,7 +595,7 @@ void reg_luaconnection(lua_State *L)
 
 void connection_dctor(void *_)
 {
-	_connection_dctor(cast(connection*,c));
+	_connection_dctor(cast(connection*,_));
 	free(_);
 }
 
