@@ -5,21 +5,49 @@
 #include <signal.h>
 #include <execinfo.h>
 #include <unistd.h>
-#include "exception.h"
-#include "log.h"
+#include "util/exception.h"
+#include "util/log.h"
 
-int32_t 
-setup_sigsegv();
+static const char *segfault   = "segfault";
+static const char *sigbug     = "sigbug";
+static const char *sigfpe     = "sigfpe";
 
-static __thread exception_perthd_st *__perthread_exception_st = NULL;
+static __thread chk_expn_thd *_exception_st = NULL;
 
-static void signal_segv(int32_t signum,siginfo_t* info,void*ptr)
-{
-	exception_throw(except_segv_fault,__FILE__,__FUNCTION__,__LINE__,info);
+static void _log_stack(int32_t logLev,int32_t start,char *str);
+
+static void exception_throw(chk_expn_frame *frame,const char *exception,siginfo_t* info) {
+	int32_t sig = 0;
+	char    buff[256];
+	if(!frame) {
+		//非rethrow,打印日志
+        if(exception == segfault)
+    	    snprintf(buff,256," [exception:%s <invaild access addr:%p>]\n",
+                             segfault,info->si_addr);
+        else
+    	    snprintf(buff,256," [exception:%s]\n",exception);		
+		_log_stack(LOG_ERROR,3,buff);
+		frame = chk_exp_top();
+	}
+	if(frame) {
+		frame->exception = exception;
+		frame->is_process = 0;
+		if(exception == segfault) sig = SIGSEGV;
+		else if(exception == sigbug) sig = SIGBUS;
+		else if(exception == sigfpe) sig = SIGFPE;  
+		siglongjmp(frame->jumpbuffer,sig);
+	}else {
+		//没有try,直接终止进程
+		exit(0);
+	}		
 }
 
-int32_t setup_sigsegv()
-{
+
+static void signal_segv(int32_t signum,siginfo_t* info,void*ptr) {
+	exception_throw(NULL,segfault,info);
+}
+
+int32_t setup_sigsegv() {
 	struct sigaction action;
 	memset(&action, 0, sizeof(action));
 	action.sa_sigaction = signal_segv;
@@ -31,13 +59,11 @@ int32_t setup_sigsegv()
 	return 1;
 }
 
-static void signal_sigbus(int32_t signum,siginfo_t* info,void*ptr)
-{
-	THROW(except_sigbus);
+static void signal_sigbus(int32_t signum,siginfo_t* info,void*ptr) {
+	exception_throw(NULL,sigbug,info);
 }
 
-int32_t setup_sigbus()
-{
+int32_t setup_sigbus() {
 	struct sigaction action;
 	memset(&action, 0, sizeof(action));
 	action.sa_sigaction = signal_sigbus;
@@ -49,13 +75,11 @@ int32_t setup_sigbus()
 	return 1;
 }
 
-static void signal_sigfpe(int signum,siginfo_t* info,void*ptr)
-{
-	THROW(except_arith);
+static void signal_sigfpe(int signum,siginfo_t* info,void*ptr) {
+	exception_throw(NULL,sigfpe,info);
 }
 
-int32_t setup_sigfpe()
-{
+int32_t setup_sigfpe() {
 	struct sigaction action;
 	memset(&action, 0, sizeof(action));
 	action.sa_sigaction = signal_sigfpe;
@@ -69,50 +93,39 @@ int32_t setup_sigfpe()
 
 static void reset_perthread_exception_st()
 {
-	if(__perthread_exception_st){
-		while(list_size(&__perthread_exception_st->csf_pool))
-			free(list_pop(&__perthread_exception_st->csf_pool));
-		free(__perthread_exception_st);
-		__perthread_exception_st = NULL;
+	if(_exception_st) {
+		free(_exception_st);
+		_exception_st = NULL;
 	}
 }
 
 
-exception_perthd_st *__get_perthread_exception_st()
-{
-	int32_t i;
-    if(!__perthread_exception_st){
-        __perthread_exception_st = calloc(1,sizeof(*__perthread_exception_st));
-		list_init(&__perthread_exception_st->expstack);	
-		list_init(&__perthread_exception_st->csf_pool);
-		for(i = 0;i < 256; ++i)
-			list_pushfront(&__perthread_exception_st->csf_pool,
-						   (listnode*)calloc(1,sizeof(callstack_frame)));
+chk_expn_thd *chk_exp_get_thread_expn() {
+    if(!_exception_st) {
+        _exception_st = calloc(1,sizeof(*_exception_st));
+		list_init(&_exception_st->expstack);	
 		setup_sigsegv();
 		setup_sigbus();
 		setup_sigfpe();
 		pthread_atfork(NULL,NULL,reset_perthread_exception_st);        
     }
-    return __perthread_exception_st;
+    return _exception_st;
+}
+
+void chk_exp_throw(const char *exp) {
+	exception_throw(NULL,exp,NULL);
+}
+
+void chk_exp_rethrow(chk_expn_frame *frame) {
+	exception_throw(frame,frame->exception,NULL);
+}
+
+void chk_exp_log_stack() {
+	_log_stack(LOG_DEBUG,2," [call_stack]\n");
 }
 
 
-static inline callstack_frame *get_csf(list *pool)
-{
-	int32_t i;
-	callstack_frame *call_frame;
-	if(!list_size(pool))
-	{
-		for(i = 0;i < 256; ++i){
-			call_frame = calloc(1,sizeof(*call_frame));
-			list_pushfront(pool,&call_frame->node);
-		}
-	}
-	return  cast(callstack_frame*,list_pop(pool));
-}
-
-static int32_t addr2line(const char *addr,char *output,int32_t size)
-{		
+static int32_t addr2line(char *addr,char *output,int32_t size) {		
 	char path[256]={0};
 	char cmd[1024]={0};
 	FILE *pipe;
@@ -132,140 +145,39 @@ static int32_t addr2line(const char *addr,char *output,int32_t size)
 	return 0;
 }
 
-void exception_throw(int32_t code,const char *file,
-				const char *func,int32_t line,
-				siginfo_t* info)
-{
-	void*                   bt[64];
-	char**                  strings;
-	char                    *str1,*str2;
-	size_t                  sz;
-	int32_t                 i,f;
-	int32_t                 sig = 0;
-	int32_t 				size = 0;	
-	char 					logbuf[MAX_LOG_SIZE],addr[128],buf[1024];
-	char 					*ptr = logbuf;		
-	int                     len;
-	exception_perthd_st		*epst;
-	callstack_frame			*call_frame;
-	exception_frame			*frame = expstack_top();
-	if(frame)
-	{
-		frame->exception = code;
-		frame->line = line;
-		frame->is_process = 0;
-		if(info)frame->addr = info->si_addr;
-		sz = backtrace(bt, 64);
-		strings = backtrace_symbols(bt, sz);
-		epst = __get_perthread_exception_st();
-		if(code == except_segv_fault || code == except_sigbus || code == except_arith) 
-			i = 3;
-		else
-			i = 1;
-		for(; i < sz; ++i){
-			if(strstr(strings[i],"exception_throw"))
-				continue;
-			call_frame = get_csf(&epst->csf_pool);
-			str1 = strstr(strings[i],"[");
-			str2 = strstr(str1,"]");
-			
-			do{
-				if(str1 && str2 && str2 - str1 < 128){
-					len = str2 - str1 - 1;
-					strncpy(addr,str1+1,len);
-					addr[len] = '\0';
-					if(0 == addr2line(addr,buf,1024)){
-						snprintf(call_frame->info,1024,"%s %s\n",strings[i],buf);
-						break;
-					}
-				}
-				snprintf(call_frame->info,1024,"%s\n",strings[i]);
-			}while(0);
-			
-			list_pushback(&frame->call_stack,&call_frame->node);
-			if(strstr(strings[i],"main+"))
-				break;
+static inline int32_t getaddr(char *in,char *out,size_t size) {
+	int32_t b,i;
+	for(i = b = 0;i < size - 1;in++)
+		switch(*in) {
+			case '[':{if(!b){b = 1; break;} else return 0;}
+			case ']':{if(b){*out++ = 0;return 1;}return 0;}
+			default:{if(b){*out++ = *in;++i;}break;}
 		}
-		free(strings);
-		if(code == except_segv_fault) sig = SIGSEGV;
-		else if(code == except_sigbus) sig = SIGBUS;
-		else if(code == except_arith) sig = SIGFPE;  
-		siglongjmp(frame->jumpbuffer,sig);
-	}
-	else
-	{
-		sz = backtrace(bt, 64);
-		strings = backtrace_symbols(bt, sz);
-		if(code == except_segv_fault)
-    		size += snprintf(ptr,MAX_LOG_SIZE," %s [invaild access addr:%p]\n",
-    						 exception_description(code),info?info->si_addr:NULL);
-		else
-    		size += snprintf(ptr,MAX_LOG_SIZE," %s\n",exception_description(code));
-		ptr = logbuf + size;	    		    		
- 		f = 0;   			
-		if(code == except_segv_fault || code == except_sigbus || code == except_arith) 
-			i = 3;
-		else
-			i = 1;
-		for(; i < sz; ++i){
-			str1 = strstr(strings[i],"[");
-			str2 = strstr(str1,"]");
-			do{
-				if(str1 && str2 && str2 - str1 < 128){
-					len = str2 - str1 - 1;
-					strncpy(addr,str1+1,len);
-					addr[len] = '\0';	
-					if(0 == addr2line(addr,buf,1024)){
-		        		size += snprintf(ptr,MAX_LOG_SIZE-size,"    % 2d: %s %s\n",++f,strings[i],buf);
-		        		break;
-					}
-				}
-        		size += snprintf(ptr,MAX_LOG_SIZE-size,"    % 2d: %s\n",++f,strings[i]);						
-			}while(0);
-			ptr = logbuf + size;
-			if(strstr(strings[i],"main+"))
-				break;
-		}
-		SYS_LOG(LOG_ERROR,"%s",logbuf);
-		free(strings);
-		exit(0);
-	}
+	return 0;
 }
 
-void   show_call_stack()
-{
+static void _log_stack(int32_t logLev,int32_t start,char *str) {
 	void*                   bt[64];
 	char**                  strings;
-	char                    *str1,*str2;
 	size_t                  sz;
 	int32_t                 i,f;
 	int32_t 				size = 0;	
-	char 					logbuf[MAX_LOG_SIZE],addr[128],buf[1024];
-	char 					*ptr = logbuf;		
-	int                     len;
-	sz = backtrace(bt, 64);
+	char 					logbuf[MAX_LOG_SIZE];
+	char                    addr[32],buf[1024];
+	char 				   *ptr;		
+	sz      = backtrace(bt, 64);
 	strings = backtrace_symbols(bt, sz);
-	ptr = logbuf + size;	    		    		
-	f = 0;   			
-	for(i = 1; i < sz; ++i){
-		str1 = strstr(strings[i],"[");
-		str2 = strstr(str1,"]");
-		do{
-			if(str1 && str2 && str2 - str1 < 128){
-				len = str2 - str1 - 1;
-				strncpy(addr,str1+1,len);
-				addr[len] = '\0';	
-				if(0 == addr2line(addr,buf,1024)){
-	        		size += snprintf(ptr,MAX_LOG_SIZE-size,"    % 2d: %s %s\n",++f,strings[i],buf);
-	        		break;
-				}
-			}
-    		size += snprintf(ptr,MAX_LOG_SIZE-size,"    % 2d: %s\n",++f,strings[i]);						
-		}while(0);
-		ptr = logbuf + size;
-		if(strstr(strings[i],"main+"))
-			break;
+	size   += snprintf(logbuf,MAX_LOG_SIZE,"%s",str);	    		    			
+	for(i = start,f = 0; i < sz; ++i) {
+		if(strstr(strings[i],"main+")) break;
+		ptr  = logbuf + size;
+		if(getaddr(strings[i],addr,32) && !addr2line(addr,buf,1024))
+			size += snprintf(ptr,MAX_LOG_SIZE-size,
+				"\t% 2d: %s %s\n",++f,strings[i],buf);
+		else
+			size += snprintf(ptr,MAX_LOG_SIZE-size,
+				"\t% 2d: %s\n",++f,strings[i]);		
 	}
-	SYS_LOG(LOG_ERROR,"\n%s",logbuf);
+	SYS_LOG(logLev,"%s",logbuf);
 	free(strings);	
 }

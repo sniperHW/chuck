@@ -1,203 +1,101 @@
-/*
-    Copyright (C) <2014>  <sniperHW@163.com>
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/	
-#ifndef _EXCEPT_H
-#define _EXCEPT_H
+#ifndef _CHK_EXCEPT_H
+#define _CHK_EXCEPT_H
 #include <setjmp.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
 #include <pthread.h>
-#include <signal.h>
-#include "comm.h"    
+#include <signal.h>  
 #include "util/list.h"
 #include "util/log.h"
 
-#define MAX_EXCEPTION 4096
+#ifndef  cast
+# define  cast(T,P) ((T)(P))
+#endif
 
-//system define exception
-enum{         
-    except_segv_fault = 0,       
-    except_sigbus,           
-    except_arith,
-    system_except_end,                      
+typedef struct chk_expn_frame      chk_expn_frame;         //异常帧
+typedef struct chk_expn_thd        chk_expn_thd;           //线程异常记录
+
+
+struct chk_expn_frame {
+    listnode       entry;
+    sigjmp_buf     jumpbuffer;
+    int8_t         is_process;
+    const char    *exception;     
+    const char    *file;
+    const char    *func;   
 };
 
-//user define exception
-enum{
-    testexception3 = system_except_end,
+struct chk_expn_thd {
+    list  expstack;  
 };
 
-static const char* exceptions[MAX_EXCEPTION] = {
-    "except_segv_fault",
-    "except_sigbus",
-    "except_arith",
-    "testexception3",
-    NULL,
-};
+//获得当前线程的chk_expn_thd
+chk_expn_thd *chk_exp_get_thread_expn();
 
-static inline const char *exception_description(int expno)
-{
-    if(expno >= MAX_EXCEPTION) return "unknow exception";
-    if(exceptions[expno] == NULL) return "unknow exception";
-    return exceptions[expno];
+//日志记录调用栈
+void chk_exp_log_stack();
+
+void chk_exp_throw(const char *exp);
+
+void chk_exp_rethrow(chk_expn_frame *frame);
+
+static inline list *chk_exp_stack() {
+    return &chk_exp_get_thread_expn()->expstack;
 }
 
-typedef struct
-{
-    listnode node;
-    char  info[1024];
-}callstack_frame;
-
-typedef struct
-{
-    listnode     node;
-    sigjmp_buf   jumpbuffer;
-    uint32_t     exception;
-    int32_t      line; 
-    const char   *file;
-    const char   *func;
-    void         *addr;
-    int8_t       is_process;
-    list         call_stack;
-	
-}exception_frame;
-
-typedef struct
-{
-	list  expstack;
-	list  csf_pool;   
-}exception_perthd_st;
-
-exception_perthd_st *__get_perthread_exception_st();
-
-static inline void clear_callstack(exception_frame *frame)
-{
-    exception_perthd_st *epst = __get_perthread_exception_st();
-	while(list_size(&frame->call_stack) != 0)
-		list_pushback(&epst->csf_pool,list_pop(&frame->call_stack));
+static inline void chk_exp_push(chk_expn_frame *frame) {
+    list_pushfront(chk_exp_stack(),cast(listnode*,frame));
 }
 
-
-void   show_call_stack();
-
-static inline void print_call_stack(exception_frame *frame)
-{
-    if(frame){
-        char buf[MAX_LOG_SIZE];
-        char *ptr = buf;
-        int32_t size = 0;
-        listnode *node = list_begin(&frame->call_stack);
-        int32_t f = 0;
-        callstack_frame *cf;
-        if(!frame)return;
-        if(frame->exception == except_segv_fault)
-    	    size += snprintf(ptr,MAX_LOG_SIZE,
-                             " exception\n %s (invaild access addr:%p)\n",
-                             exception_description(frame->exception),
-                             frame->addr);
-        else
-    	    size += snprintf(ptr,MAX_LOG_SIZE,
-                             " exception\n %s\n",
-                             exception_description(frame->exception));
-        ptr = buf+size;
-        while(node != NULL && size < MAX_LOG_SIZE)
-        {
-            cf = (callstack_frame*)node;
-            size += snprintf(ptr,MAX_LOG_SIZE-size,"        % 2d: %s",++f,cf->info);
-            ptr = buf+size;
-            node = node->next;
-        }
-        printf("%s",buf);
-        SYS_LOG(LOG_ERROR,"%s",buf);
-    }else{
-        show_call_stack();
-    }
+static inline chk_expn_frame *chk_exp_pop() {
+    return cast(chk_expn_frame*,list_pop(chk_exp_stack()));
 }
 
-#define PRINT_CALL_STACK print_call_stack(&frame)
-
-
-static inline list *get_current_thd_exceptionstack()
-{
-	return &__get_perthread_exception_st()->expstack;
+static inline chk_expn_frame *chk_exp_top() {
+    return cast(chk_expn_frame*,list_begin(chk_exp_stack()));
 }
 
-static inline void expstack_push(exception_frame *frame)
-{
-    list *expstack = get_current_thd_exceptionstack();
-	list_pushfront(expstack,&frame->node);
-}
+#define TRY                                                         \
+    do{                                                             \
+        chk_expn_frame  frame;                                      \
+        frame.entry = (listnode){0};                                \
+        frame.file = __FILE__;                                      \
+        frame.func = __FUNCTION__;                                  \
+        frame.exception = "";                                       \
+        frame.is_process = 1;                                       \
+        chk_exp_push(&frame);                                       \
+        int savesigs= SIGSEGV | SIGBUS | SIGFPE;                    \
+        if(sigsetjmp(frame.jumpbuffer,savesigs) == 0)
+    
+#define THROW(EXP)                                                  \
+    chk_exp_throw(EXP,__FILE__,__FUNCTION__)
 
-static inline exception_frame *expstack_pop()
-{
-    list *expstack = get_current_thd_exceptionstack();
-    return cast(exception_frame*,list_pop(expstack));
-}
+#define CATCH(EXP)                                                  \
+    else if(!frame.is_process &&                                    \
+            0 == strcmp(frame.exception,EXP) &&                     \
+            ({frame.is_process=1;frame.is_process;}))
 
-static inline exception_frame *expstack_top()
-{
-    list *expstack = get_current_thd_exceptionstack();
-    return cast(exception_frame*,list_begin(expstack));
-}
+#define CATCH_ALL                                                   \
+    else if(!frame.is_process &&                                    \
+            ({frame.is_process=1;frame.is_process;}))
 
-extern void exception_throw(int32_t code,const char *file,
-                            const char *func,int32_t line,siginfo_t* info);
+#define ENDTRY                                                      \
+        if(!frame.is_process) chk_exp_rethrow(&frame);              \
+        else chk_exp_pop();                                         \
+    }while(0);
+ 
 
-#define TRY do{\
-	exception_frame  frame;\
-    frame.node.next = NULL;\
-    frame.file = __FILE__;\
-    frame.func = __FUNCTION__;\
-    frame.exception = 0;\
-    frame.is_process = 1;\
-    list_init(&frame.call_stack);\
-    expstack_push(&frame);\
-    int savesigs= SIGSEGV | SIGBUS | SIGFPE;\
-	if(sigsetjmp(frame.jumpbuffer,savesigs) == 0)
-	
-#define THROW(EXP) exception_throw(EXP,__FILE__,__FUNCTION__,__LINE__,NULL)
-
-#define CATCH(EXP) else if(!frame.is_process && frame.exception == EXP?\
-                        frame.is_process=1,frame.is_process:frame.is_process)
-
-#define CATCH_ALL else if(!frame.is_process?\
-                        frame.is_process=1,frame.is_process:frame.is_process)
-
-#define ENDTRY if(!frame.is_process)\
-                    exception_throw(frame.exception,frame.file,frame.func,frame.line,NULL);\
-               else {\
-                    exception_frame *frame = expstack_pop();\
-                    clear_callstack(frame);\
-                }\
-			}while(0);					
-
-#define RETURN  do{exception_frame *top;\
-                    while((top = expstack_top())!=NULL){\
-                        if(strcmp(top->file,__FILE__) == 0 && strcmp(top->func,__FUNCTION__) == 0)\
-                        {\
-                            exception_frame *frame = expstack_pop();\
-                            clear_callstack(frame);\
-                        }else\
-                        break;\
-                    };\
-                }while(0);return			
-
-#define EXPNO frame.exception
-
+#define RETURN                                                      \
+  do{                                                               \
+    chk_expn_frame *top;                                            \
+    while((top = chk_exp_top())!=NULL) {                            \
+        if(0 == strcmp(top->file,__FILE__) &&                       \
+           0 == strcmp(top->func == __FUNCTION__)) {                \
+            chk_exp_pop();                                          \
+        }else break;                                                \
+    };                                                              \
+   }while(0);return         
 
 #endif
