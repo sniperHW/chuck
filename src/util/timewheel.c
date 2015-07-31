@@ -137,7 +137,7 @@ static void fire(wheelmgr *m,wheel *w,uint64_t tick)
 		while((t = cast(timer*,dlist_pop(items))))
 			down(m,t,tick,m->wheels[w->type-1]);
 	}
-	if(w->cur ==  0 && w->type < wheel_day)
+	if(w->cur + 1 ==  wheel_size(w->type) && w->type < wheel_day)
 		fire(m,m->wheels[w->type+1],tick);
 }
 
