@@ -47,12 +47,12 @@ logfile *create_logfile(const char *filename);
 /*  don't use this 3 functions directly
 *   used the marcos below instead
 */
-void write_log(logfile*,const char *context);
+void write_log(logfile*,int32_t loglev,const char *context);
 
 //写入系统日志,默认文件名由SYSLOG_NAME定义
-void write_sys_log(const char *content);
+void write_sys_log(int32_t loglev,const char *content);
 
-int32_t write_prefix(char *buf,uint8_t loglev);
+int32_t write_prefix(char *buf,int32_t loglev);
 
 static inline void set_log_lev(int32_t loglev)
 {
@@ -69,7 +69,7 @@ static inline void set_log_lev(int32_t loglev)
                     char xx___buf[MAX_LOG_SIZE];                                                   \
                     int32_t size = write_prefix(xx___buf,LOGLEV);                                  \
                     snprintf(&xx___buf[size],MAX_LOG_SIZE-size,__VA_ARGS__);                       \
-                    write_log(LOGFILE,xx___buf);                                                   \
+                    write_log(LOGFILE,LOGLEV,xx___buf);                                            \
                 }                                                                                  \
             }while(0)
 
@@ -79,7 +79,7 @@ static inline void set_log_lev(int32_t loglev)
                     char xx___buf[MAX_LOG_SIZE];                                                   \
                     int32_t size = write_prefix(xx___buf,LOGLEV);                                  \
                     snprintf(&xx___buf[size],MAX_LOG_SIZE-size,__VA_ARGS__);                       \
-                    write_sys_log(xx___buf);                                                       \
+                    write_sys_log(LOGLEV,xx___buf);                                                \
                 }                                                                                  \
             }while(0)
 

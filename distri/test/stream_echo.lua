@@ -4,6 +4,7 @@ local engine = require("distri.engine")
 local signal = chuck.signal
 local signaler = signal.signaler(signal.SIGINT)
 local clone     = chuck.packet.clone
+local log    = chuck.log
 
 local server = socket.stream.Listen("127.0.0.1",8010,function (s,errno)
 	if s then
@@ -24,6 +25,7 @@ local server = socket.stream.Listen("127.0.0.1",8010,function (s,errno)
 end)
 
 if server then
+	log.SysLog(log.ERROR,"server start")	
 	signaler:Register(engine,function ()
 		engine:Stop()
 	end)

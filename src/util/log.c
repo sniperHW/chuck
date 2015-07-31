@@ -40,6 +40,7 @@ typedef struct logfile{
 
 struct log_item{
 	listnode node;
+	int32_t  loglev;
 	logfile *_logfile;
 	char     content[0];
 };
@@ -88,13 +89,13 @@ struct log_item *logqueue_fetch(uint32_t ms)
 DEF_LOG(sys_log,SYSLOG_NAME);
 IMP_LOG(sys_log);
 
-int32_t write_prefix(char *buf,uint8_t loglev)
+int32_t write_prefix(char *buf,int32_t loglev)
 {
 	struct timespec tv;
 	struct tm _tm;
-    	clock_gettime (CLOCK_REALTIME, &tv);	
+    clock_gettime (CLOCK_REALTIME, &tv);	
 	localtime_r(&tv.tv_sec, &_tm);
-	return sprintf(buf,"[%s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u]:",
+	return sprintf(buf,"[%8s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u]:",
 				   log_lev_str[loglev],
 				   _tm.tm_year+1900,
 				   _tm.tm_mon+1,
@@ -104,6 +105,17 @@ int32_t write_prefix(char *buf,uint8_t loglev)
 				   _tm.tm_sec,
 				   cast(int32_t,tv.tv_nsec/1000000),
 				   cast(uint32_t,thread_id()));
+}
+
+static void  write_console(int32_t loglev,char *content) {
+	switch(loglev) {
+		case LOG_INFO     : printf("%s\n",content); break;
+		case LOG_DEBUG    : printf("\033[1;32;40m%s\033[0m\n",content); break;
+		case LOG_WARN     : printf("\033[1;33;40m%s\033[0m\n",content); break;
+		case LOG_ERROR    : printf("\033[1;35;40m%s\033[0m\n",content); break;
+		case LOG_CRITICAL : printf("\033[5;31;40m%s\033[0m\n",content); break;
+		default           : break;		
+ 	}
 }
 
 static void *log_routine(void *arg)
@@ -151,6 +163,7 @@ static void *log_routine(void *arg)
 				item->_logfile->file = fopen(filename,"w+");
 			}
 			if(item->_logfile && item->_logfile->file){
+				write_console(item->loglev,item->content);
 				fprintf(item->_logfile->file,"%s\n",item->content);
 				item->_logfile->total_size += strlen(item->content);
 				item->_logfile->status |= CHANGE;
@@ -197,14 +210,14 @@ static void on_process_end()
 	}
 }
 
-void _write_log(logfile *l,const char *content)
+void _write_log(logfile *l,int32_t loglev,const char *content)
 {
 	uint32_t content_len = strlen(content)+1;
 	struct log_item *item = calloc(1,sizeof(*item) + content_len);
 	item->_logfile = l;
+	item->loglev   = loglev;
 	strncpy(item->content,content,content_len);	
 	logqueue_push(item);
-	printf("%s\n",content);
 }
 			           
 static void log_once_routine()
@@ -232,14 +245,14 @@ logfile *create_logfile(const char *filename)
 	return l;
 }
 
-void write_log(logfile* l,const char *content)
+void write_log(logfile* l,int32_t loglev,const char *content)
 {
-	_write_log(l,content);
+	_write_log(l,loglev,content);
 }
 
-void write_sys_log(const char *content)
+void write_sys_log(int32_t loglev,const char *content)
 {
-	_write_log(GET_LOGFILE(sys_log),content);
+	_write_log(GET_LOGFILE(sys_log),loglev,content);
 }
 
 
