@@ -214,7 +214,7 @@ function http_client:request(method,request,on_response)
 								return
 							end
 							OnResponse(res,errno)
-							if errno ~= 0 then							
+							if errno ~= 0 and self.conn then							
 								self.conn:Close(errno)
 								self.conn = nil
 								for k,v in pairs(self.requests) do
