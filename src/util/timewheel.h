@@ -42,7 +42,12 @@ timer *wheelmgr_register(wheelmgr*,uint32_t ms,timer_cb cb,void *ud,uint64_t now
 
 void unregister_timer(timer*);
 
-void wheelmgr_tick(wheelmgr*,uint64_t now); 
+void wheelmgr_tick(wheelmgr*,uint64_t now);
+
+//just for test
+uint64_t timer_expire(timer*); 
+
+uint32_t timer_timeout(timer*);
 
 #ifdef _CHUCKLUA
 

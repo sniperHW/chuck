@@ -1,4 +1,4 @@
-CFLAGS = -g -O2 -Wall -fno-strict-aliasing 
+CFLAGS = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lrt -llua -lm -ljemalloc ./../deps/http-parser/libhttp_parser.a
 DEPDIR  = 
 INCLUDE = -I../src -I./../deps
@@ -17,7 +17,6 @@ ifeq ($(uname_S),FreeBSD)
 endif
 
 source =  stream/connection/conn_echo_server.c\
-		  stream/connection/httpserver.c\
 		  stream/connection/conn_broad_server.c\
 		  stream/connection/conn_broad_client.c\
 		  stream/tcp_echoserver.c\
@@ -32,7 +31,7 @@ source =  stream/connection/conn_echo_server.c\
 		  redis/redis_stress.c\
 		  sock4/proxyserver.c\
 		  signal.c\
-		  teststring.c
+		  testtimer.c
 
 all:
 	@if [ ! -d "bin" ]; then mkdir bin; fi	
@@ -52,6 +51,5 @@ all:
 	$(CC) $(CFLAGS) -o bin/redis_stress redis_stress.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/signal signal.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	$(CC) $(CFLAGS) -o bin/proxyserver proxyserver.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)	
-	$(CC) $(CFLAGS) -o bin/httpserver httpserver.o ../src/libchuck.a ../deps/http-parser/libhttp_parser.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o bin/teststring teststring.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
+	$(CC) $(CFLAGS) -o bin/testtimer testtimer.o ../src/libchuck.a $(INCLUDE) $(LDFLAGS) $(DEFINE)
 	rm *.o		  

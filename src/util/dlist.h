@@ -136,6 +136,14 @@ static inline void dlist_check_remove(dlist *dl,dblnk_check _check,void *ud)
     }
 }
 
+static inline void dlist_move(dlist *dest,dlist *src) {
+    dest->head.next = src->head.next;
+    dest->head.next->pre = &dest->head;
+    dest->tail.pre = src->tail.pre;
+    dest->tail.pre->next = &dest->tail;
+    dlist_init(src);
+}
+
 #define dlist_foreach(DLIST,IT)\
  for((IT)=dlist_begin((DLIST)); (IT) != dlist_end((DLIST)); (IT) = (IT)->next)
 

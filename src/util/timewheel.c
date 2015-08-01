@@ -14,16 +14,18 @@ enum{
 typedef struct {
 	uint8_t  type;
 	uint16_t cur;
-	dlist    items[0]; 
+	dlist    timer_list[0]; 
 }wheel;
 
 #define wheel_size(T) (T==wheel_sec?1000:T==wheel_hour?3600:T==wheel_day?24:0)
 #define precision(T) (T==wheel_sec?1:T==wheel_hour?1000:T==wheel_day?3600:0)
 
 #ifdef TEST_REWINDING    //测试时间回绕
-# define CAL_EXPIRE(T,MS) (((T) + (MS)) % (1000*3600*24))
-# define INC_LASTTICK(T)  ((T) = ((T) + 1) % (1000*3600*24))
+# define REWINDING_TIME   (1000*3600*24)
+# define CAL_EXPIRE(T,MS) (((T) + (MS)) % REWINDING_TIME)
+# define INC_LASTTICK(T)  ((T) = ((T) + 1) % REWINDING_TIME)
 #else
+# define REWINDING_TIME   0xFFFFFFFFFFFFFFFF
 # define CAL_EXPIRE(T,MS) ((T) + (MS))
 # define INC_LASTTICK(T)  (++(T))
 #endif
@@ -37,7 +39,7 @@ static wheel *wheel_new(uint8_t type)
 	w->type = type;
 	w->cur  = 0;
 	size    = cast(uint16_t,wheel_size(type));
-	for(i = 0; i < size; ++i) dlist_init(&w->items[i]);
+	for(i = 0; i < size; ++i) dlist_init(&w->timer_list[i]);
 	return w;	
 }
 
@@ -64,80 +66,63 @@ struct wheelmgr{
 	uint64_t     lasttick;
 };
 
-
 //将timer插入到合适的链表中
-static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain) 
-{
+static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain) {
 	uint16_t i;
-	uint64_t slots = wheel_size(w->type) - w->cur;
-	if(w->type == wheel_day || slots > remain) {
-		i = (w->cur + remain)%(wheel_size(w->type));
-		dlist_pushback(&w->items[i],(dlistnode*)t);		
+	uint64_t wsize = wheel_size(w->type);
+	if(w->type == wheel_day || wsize >= remain) {
+		i = (w->cur + remain)%wsize;
+		dlist_pushback(&w->timer_list[i],cast(dlistnode*,t));		
 	}else {
 		//插入到上一级时间轮中
-		remain -= slots;
-		remain /= wheel_size(w->type);
+		remain /= wsize;
 		return add2wheel(m,m->wheels[w->type+1],t,remain);		
 	}
 }
 
 
-static inline uint64_t cal_remain(uint64_t now,uint64_t expire) 
-{
-	if(now >= expire) return now - expire;
-	else              return expire - now;
+static inline uint64_t cal_remain(uint64_t now,uint64_t expire) {
+	if(now >= expire)
+		//出现时间回绕
+		return (REWINDING_TIME - now) + expire;
+	else return expire - now;
 }
 
-
-static inline void _reg(wheelmgr *m,timer *t,uint64_t tick,wheel *w) 
-{
+static inline void _reg(wheelmgr *m,timer *t,uint64_t tick,wheel *w) {
 	add2wheel(m,w?w:m->wheels[wheel_sec],t,cal_remain(tick,t->expire));
 }
 
-
-//将本级超时的定时器推到下级时间轮中
-
-static inline void down(wheelmgr *m,timer *t,uint64_t tick,wheel *w) 
-{
-	uint64_t remain;
-	uint64_t slots;
-	remain = cal_remain(tick,t->expire) - wheel_size(w->type-1);
-	remain /= precision(w->type);		
-	slots   = (w->cur + remain) % wheel_size(w->type);
-	dlist_pushback(&w->items[slots],(dlistnode*)t);		
-}
-
-static void fire(wheelmgr *m,wheel *w,uint64_t tick) 
-{
+static void fire(wheelmgr *m,wheel *w,uint64_t tick) {
 	int32_t    ret;
-	timer     *t;
-	dlist     *items;			
-	if(w->type == wheel_sec) {
-		w->cur     = (w->cur+1)%wheel_size(w->type);
-		items = &w->items[w->cur];		
-		while((t = cast(timer*,dlist_pop(items)))) {
-			t->status |= INCB;
-			ret = t->cb(TEVENT_TIMEOUT,t->expire,t->ud);
-			t->status ^= INCB;
-			if(!(t->status & RELEASING) && ret >= 0) {
-				if(ret > 0) t->timeout = ret;
-				t->expire = CAL_EXPIRE(tick,t->timeout);
-				_reg(m,t,tick,NULL);
-			}else{
+	timer 	  *t;
+	dlist      timer_list;	
+	w->cur = (w->cur+1)%wheel_size(w->type);
+	if(!dlist_empty(&w->timer_list[w->cur])) {
+		dlist_init(&timer_list);
+		dlist_move(&timer_list,&w->timer_list[w->cur]);				
+		if(w->type == wheel_sec) {		
+			while((t = cast(timer*,dlist_pop(&timer_list)))) {
+				t->status |= INCB;
+				ret = t->cb(TEVENT_TIMEOUT,tick,t->ud);
+				t->status ^= INCB;
+				if(!(t->status & RELEASING) && ret >= 0) {
+					if(ret > 0) t->timeout = ret;
+					t->expire = CAL_EXPIRE(tick,t->timeout);
+					_reg(m,t,tick,NULL);
+				}else {
 #if _CHUCKLUA
-				release_luaRef(&t->luacb);
+						release_luaRef(&t->luacb);
 #else			
-				free(t);
-#endif
-			}
-		}		
-	}else {
-		items      = &w->items[w->cur];		
-		w->cur     = (w->cur+1)%wheel_size(w->type);		
-		while((t = cast(timer*,dlist_pop(items))))
-			down(m,t,tick,m->wheels[w->type-1]);
+						free(t);
+#endif					
+				}
+			}		
+		}else {		
+			while((t = cast(timer*,dlist_pop(&timer_list))))
+				_reg(m,t,tick,NULL);
+		}
 	}
-	if(w->cur + 1 ==  wheel_size(w->type) && w->type < wheel_day)
+	if(w->cur + 1 == wheel_size(w->type) && w->type < wheel_day)
 		fire(m,m->wheels[w->type+1],tick);
 }
 
@@ -197,7 +182,7 @@ void wheelmgr_del(wheelmgr *m)
 	for(i = 0; i < wheel_day+1; ++i){
 		size = wheel_size(m->wheels[i]->type);
 		for(j = 0; j < size; ++j){
-			items = &m->wheels[i]->items[j];
+			items = &m->wheels[i]->timer_list[j];
 			while((t = cast(timer*,dlist_pop(items)))){
 				t->cb(TEVENT_DESTROY,t->expire,t->ud);
 				free(t);				
@@ -206,6 +191,14 @@ void wheelmgr_del(wheelmgr *m)
 		free(m->wheels[i]);
 	}
 	free(m);	
+}
+
+uint64_t timer_expire(timer *t) {
+	return t->expire; 
+}
+
+uint32_t timer_timeout(timer *t) {
+	return t->timeout;
 }
 
 
@@ -249,7 +242,7 @@ static int32_t lua_wheelmgr_gc(lua_State *L)
 	for(i = 0; i < wheel_day+1; ++i){
 		size = wheel_size(w->wheels[i]->type);
 		for(j = 0; j < size; ++j){
-			items = &w->wheels[i]->items[j];
+			items = &w->wheels[i]->timer_list[j];
 			while((t = cast(timer*,dlist_pop(items)))){
 				release_luaRef(&t->luacb);				
 			}
