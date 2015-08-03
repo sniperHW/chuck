@@ -339,7 +339,6 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 
 static int32_t _connection_send(connection *c,packet *p,stSendFshCb *stcb)
 {
-	int32_t ret;
 	if(p->type != WPACKET && p->type != RAWPACKET){
 		packet_del(p);
 		return -EINVIPK;
@@ -348,10 +347,7 @@ static int32_t _connection_send(connection *c,packet *p,stSendFshCb *stcb)
 	if(stcb) list_pushback(&c->send_finish_cb,(listnode*)stcb);
 	if(1 == list_pushback(&c->send_list,(listnode*)p)){
 		prepare_send(c);
-		ret = Send(c,IO_NOW);
-		if(ret < 0 && ret == -EAGAIN) return -EAGAIN;
-		else if(ret > 0) update_send_list(c,ret);
-		return ret;
+		return Send(c,IO_POST);
 	}
 	return -EAGAIN;	
 }
