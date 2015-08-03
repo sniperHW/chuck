@@ -19,23 +19,25 @@ if client then
 		end
 	end
 
-	local function query_cb(conn,reply,id)
+	local function pop_cb(conn,reply,id)
 		count = count + 1
-		local cmd = string.format("hmget chaid:%d chainfo skills",id)
-		client:Execute(cmd,gen_callback(query_cb,id))		
+		local cmd = string.format("LPUSH list %d",reply)
+		client:Execute(cmd)
+		cmd = string.format("lpop list")
+		client:Execute(cmd,gen_callback(pop_cb))				
+		--local cmd = string.format("hmget chaid:%d chainfo skills",id)
+	    --client:Execute(cmd,gen_callback(query_cb,id))		
 	end
 
 
 	for i = 1,1000 do
-		local cmd = string.format("hmset chaid:%d chainfo %s skills %s",i,
-								  "fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
-								  "fasfasdfasdfasfasdfasdfasdfcvavasdfasdf")
+		local cmd = string.format("LPUSH list %d",i)
 		client:Execute(cmd)
 	end
 
-	for i = 1,1000 do
-		local cmd = string.format("hmget chaid:%d chainfo skills",i)
-		client:Execute(cmd,gen_callback(query_cb,i))
+	for i = 1,2 do
+		local cmd = string.format("lpop list")
+		client:Execute(cmd,gen_callback(pop_cb))
 	end
 	local last = chuck.systick()
 	local t = chuck.RegTimer(engine,1000,
