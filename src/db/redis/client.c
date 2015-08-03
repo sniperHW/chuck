@@ -13,6 +13,8 @@
 
 #define RECV_BUFFSIZE 1024*16
 
+uint64_t  redis_count = 0;
+
 enum{
 	PENDING_RECV   = SOCKET_END << 1,
 };
@@ -254,11 +256,9 @@ int32_t _redis_execute(redis_conn *conn,const char *str)
 	p = build_request(str);
 	if(1 == list_pushback(&conn->send_list,(listnode*)p)){
 		prepare_send(conn);
-		ret = Send(conn,IO_NOW);
-		if(ret > 0)
-			update_send_list(conn,ret);
+		ret = Send(conn,IO_POST);
 	}
-	if(ret == -EAGAIN || ret > 0)
+	if(ret == -EAGAIN)
 		return 0;
 	return ret;	
 }
