@@ -113,6 +113,7 @@ static void fire(wheelmgr *m,wheel *w,uint64_t tick) {
 #if _CHUCKLUA
 						release_luaRef(&t->luacb);
 #else			
+						t->cb(TEVENT_DESTROY,t->expire,t->ud);
 						free(t);
 #endif					
 				}
