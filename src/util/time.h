@@ -34,18 +34,7 @@ static __thread struct _clock *__t_clock = NULL;
 
 static inline void _clock_gettime_boot(struct timespec *ts)
 {
-        if(unlikely(!ts)) return;
-#ifdef _LINUX
-#ifdef CLOCK_BOOTTIME        
-        clock_gettime(CLOCK_BOOTTIME, ts);
-#else
-        clock_gettime(CLOCK_MONOTONIC, ts);
-#endif
-#elif _BSD
-        clock_gettime(CLOCK_UPTIME, ts); 
-#else
-        #error "un support platform!"         
-#endif 
+    if(likely(ts)) clock_gettime(CLOCK_MONOTONIC_RAW, ts);
 }
 
 #define NN_CLOCK_PRECISION 1000000
