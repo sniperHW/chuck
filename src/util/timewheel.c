@@ -37,7 +37,7 @@ static wheel *wheel_new(uint8_t type)
 	if(type >  wheel_day) return NULL;
 	w       = calloc(1,sizeof(*w)*wheel_size(type)*sizeof(dlist));	
 	w->type = type;
-	w->cur  = 0;
+	w->cur  = type == wheel_sec ? -1:0;
 	size    = cast(uint16_t,wheel_size(type));
 	for(i = 0; i < size; ++i) dlist_init(&w->timer_list[i]);
 	return w;	
@@ -75,6 +75,7 @@ static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain) {
 		dlist_pushback(&w->timer_list[i],cast(dlistnode*,t));		
 	}else {
 		//插入到上一级时间轮中
+		remain -= 1;
 		remain /= wsize;
 		return add2wheel(m,m->wheels[w->type+1],t,remain);		
 	}
