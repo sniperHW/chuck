@@ -260,7 +260,7 @@ static inline void update_send_list(connection *c,int32_t _bytestransfer)
 				if(cast(packet*,w)->spos >= cast(packet*,w)->head->size)
 				{
 					cast(packet*,w)->spos = 0;
-					cast(packet*,w)->head = cast(packet*,w)->head->next;
+					bytebuffer_set(&cast(packet*,w)->head,cast(packet*,w)->head->next);
 				}
 			}while(bytes);
 		}
