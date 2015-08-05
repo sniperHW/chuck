@@ -73,7 +73,7 @@ static inline void prepare_recv(connection *c)
 		c->wrecvbuf[i].iov_base = buf->data + pos;
 		recv_size += free_buffer_size;
 		pos += free_buffer_size;
-		if(recv_size && pos >= buf->cap)
+		if(recv_size < c->recv_bufsize && pos >= buf->cap)
 		{
 			pos = 0;
 			if(!buf->next) buf->next = bytebuffer_new(c->recv_bufsize);
