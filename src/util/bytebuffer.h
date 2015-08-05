@@ -47,6 +47,7 @@ static inline bytebuffer *bytebuffer_new(uint32_t capacity)
 	uint32_t size = sizeof(bytebuffer) + capacity;
     bytebuffer *b = cast(bytebuffer*,malloc(size));
 	if(b){
+		b->next = NULL;
 		memset(b,0,sizeof(*b));
 		b->cap = capacity;
 		refobj_init(cast(refobj*,b),bytebuffer_dctor);
