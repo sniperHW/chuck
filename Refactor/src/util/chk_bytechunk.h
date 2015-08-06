@@ -118,12 +118,10 @@ static inline chk_bytechunk *chk_bytechunk_write(chk_bytechunk *b,char *in,
 
 static inline chk_bytebuffer *chk_bytebuffer_new(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
     chk_bytebuffer *buffer = calloc(1,sizeof(*buffer));
-    if(b) {
-        buffer->head     = chk_bytechunk_retain(b);
-        buffer->spos     = spos;
-        buffer->datasize = datasize;
-    } else 
-        buffer->head     = chk_bytechunk_new(NULL,datasize);
+    if(b) buffer->head     = chk_bytechunk_retain(b);
+    else  buffer->head     = chk_bytechunk_new(NULL,datasize);
+    buffer->spos           = spos;
+    buffer->datasize       = datasize;
     return buffer;
 }
 

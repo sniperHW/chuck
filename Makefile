@@ -11,7 +11,7 @@ endif
 
 
 libchuck:
-	cd src;$(MAKE) libchuck-debug
+	cd src;$(MAKE) libchuck-release
 
 chuck:
 	cd src;$(MAKE) chuck.so-debug;cp chuck.so ../

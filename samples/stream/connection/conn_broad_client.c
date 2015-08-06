@@ -2,16 +2,34 @@
 #include "packet/wpacket.h"
 #include "packet/rpacket.h"
 
+uint32_t   packet_count = 0;
+
+engine    *e;
+
+
+int32_t timer_callback(uint32_t event,uint64_t _,void *ud){
+	if(event == TEVENT_TIMEOUT){
+		connection *c = (connection*)ud;
+		packet *p = (packet*)wpacket_new(64);
+		wpacket_write_uint64((wpacket*)p,(uint64_t)c);
+		wpacket_write_string((wpacket*)p,"hello world\n");
+		connection_send(c,p,NULL);
+	}
+	return 0;
+}
 
 static void on_packet(connection *c,packet *p,int32_t error){
 	if(p){
-		rpacket *rpk = (rpacket*)p;
-		uint64_t id = rpacket_peek_uint64(rpk);
-		if(id == (uint64_t)c){
-			connection_send(c,make_writepacket(p),NULL);
-		}
+		//rpacket *rpk = (rpacket*)p;
+		//uint64_t id = rpacket_peek_uint64(rpk);
+		//printf("%lld\n",id);
+		//if(id == (uint64_t)c){
+		//	packet_count++;
+		//	connection_send(c,make_writepacket(p),NULL);
+		//}
 	}else{
 		//error or peer close
+		unregister_timer((timer*)c->ud_ptr);
 		connection_close(c);
 	}
 }
@@ -22,10 +40,12 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 		engine *e = (engine*)ud;
 		connection *c = connection_new(fd,65535,rpacket_decoder_new(1024));
 		engine_associate(e,(handle*)c,on_packet);
-		packet *p = (packet*)wpacket_new(64);
-		wpacket_write_uint64((wpacket*)p,(uint64_t)c);
-		wpacket_write_string((wpacket*)p,"hello world\n");
-		connection_send(c,p,NULL);		
+		timer *t = engine_regtimer(e,20,timer_callback,c);
+		c->ud_ptr = t;
+		//packet *p = (packet*)wpacket_new(64);
+		//wpacket_write_uint64((wpacket*)p,(uint64_t)c);
+		//wpacket_write_string((wpacket*)p,"hello world\n");
+		//connection_send(c,p,NULL);		
 	}else{
 		printf("connect error\n");
 	}
@@ -34,7 +54,7 @@ static void on_connected(int32_t fd,int32_t err,void *ud){
 
 int main(int argc,char **argv){
 	signal(SIGPIPE,SIG_IGN);
-	engine *e = engine_new();
+	e = engine_new();
 	sockaddr_ server;
 	easy_sockaddr_ip4(&server,argv[1],atoi(argv[2]));
 	uint32_t size = atoi(argv[3]);
@@ -53,6 +73,7 @@ int main(int argc,char **argv){
 			printf("connect to %s %d error\n",argv[1],atoi(argv[2]));
 		}
 	}
+	//engine_regtimer(e,1000,timer_callback,NULL);
 	engine_run(e);
 	return 0;
 }

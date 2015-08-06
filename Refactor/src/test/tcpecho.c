@@ -26,8 +26,9 @@ void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t er
 }
 
 int main(char argc,char **argv) {
-	loop = chk_loop_new();
+	signal(SIGPIPE,SIG_IGN);
 	chk_sockaddr server;
+	loop = chk_loop_new();
 	if(0 != easy_sockaddr_ip4(&server,argv[1],atoi(argv[2]))) {
 		printf("invaild address:%s\n",argv[1]);
 	}

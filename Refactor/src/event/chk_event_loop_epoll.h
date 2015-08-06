@@ -129,6 +129,7 @@ static inline void loop_destroy(chk_event_loop *e) {
 int32_t _loop_run(chk_event_loop *e,int32_t ms) {
 	int32_t ret = 0;
 	int32_t i,nfds,ticktimer;
+	int64_t _;
 	chk_handle *h;	
 	do {
 		ticktimer = 0;
@@ -143,6 +144,7 @@ int32_t _loop_run(chk_event_loop *e,int32_t ms) {
 					while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
 					goto loopend;	
 				}else if(event->data.fd == e->tfd) {
+					TEMP_FAILURE_RETRY(read(e->tfd,&_,sizeof(_))); 
 					ticktimer = 1;//优先处理其它事件,定时器事件最后处理
 				}else {
 					h = cast(chk_handle*,event->data.ptr);
@@ -174,20 +176,17 @@ loopend:
 chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb cb,void *ud) {
 	struct  itimerspec spec;
     struct  timespec now;
-    int32_t sec,ms;  
     int64_t nosec;
 	struct  epoll_event ev = {0};   
 	if(e->tfd < 0) {
     	e->tfd = timerfd_create(CLOCK_MONOTONIC,TFD_CLOEXEC|TFD_NONBLOCK);
 	    if(e->tfd < 0) return NULL;
-	    clock_gettime(CLOCK_MONOTONIC, &now);
-	    sec = timeout/1000;
-	    ms = timeout%1000;    
-	    nosec = (now.tv_sec + sec)*1000*1000*1000 + now.tv_nsec + ms*1000*1000;
-	    spec.it_value.tv_sec = nosec/(1000*1000*1000);
-	    spec.it_value.tv_nsec = nosec%(1000*1000*1000);
-	    spec.it_interval.tv_sec = sec;
-	    spec.it_interval.tv_nsec = ms*1000*1000;    
+	    clock_gettime(CLOCK_MONOTONIC, &now);      
+    	nosec = (now.tv_sec)*1000*1000*1000 + now.tv_nsec + 1*1000*1000;
+    	spec.it_value.tv_sec = nosec/(1000*1000*1000);
+        spec.it_value.tv_nsec = nosec%(1000*1000*1000);
+        spec.it_interval.tv_sec = 0;
+        spec.it_interval.tv_nsec = 1*1000*1000;  
 	    
 	    if(0 != timerfd_settime(e->tfd,TFD_TIMER_ABSTIME,&spec,0)) {
 	        close(e->tfd);
@@ -195,7 +194,7 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 	        return NULL;		
 		}
 		ev.data.fd = e->tfd;
-		ev.events  = CHK_EVENT_READ;
+		ev.events  = EPOLLIN;
 		if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,e->tfd,&ev)) {
 	        close(e->tfd);
 	        e->tfd = -1;

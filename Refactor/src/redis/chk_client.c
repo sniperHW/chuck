@@ -73,9 +73,10 @@ static int32_t parse_string(parse_tree *current,char **str,char *end) {
 		reply->str = current->tmp_buff;
 	do {
 		char termi = current->break_;	
-		for(c=**str;*str != end && c != termi; ++(*str))
+		for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 			reply->str[current->pos++] = c;
 		if(*str == end) return REDIS_RETRY;
+		++(*str);
 	    if(termi == '\n'){
 	    	current->break_ = '\r';
 	    	break;
@@ -92,11 +93,12 @@ static int32_t parse_integer(parse_tree *current,char **str,char *end) {
 	redisReply *reply = current->reply;	
 	do{
 		char c,termi = current->break_;
-		for(c=**str;*str != end && c != termi; ++(*str)) {
+		for(c=**str;*str != end && c != termi; ++(*str),c=**str) {
 			if(c == '1') current->want = -1;
 			else if(!PARSE_NUM(integer)) return REDIS_ERR;
 		}
-		if(*str == end) return REDIS_RETRY;					
+		if(*str == end) return REDIS_RETRY;
+		++(*str);					
 	    if(termi == '\n'){
 	    	current->break_ = '\r';
 	    	break;
@@ -113,11 +115,12 @@ static int32_t parse_breply(parse_tree *current,char **str,char *end) {
 	if(!current->want) {
 		do{
 			char c,termi = current->break_;
-			for(c=**str;*str != end && c != termi; ++(*str)) {
+			for(c=**str;*str != end && c != termi; ++(*str),c=**str) {
 				if(c == '-') reply->type = REDIS_REPLY_NIL;
 				else if(!PARSE_NUM(len)) return REDIS_ERR;
 			}
-			if(*str == end) return REDIS_RETRY;	
+			if(*str == end) return REDIS_RETRY;
+			++(*str);	
 		    if(termi == '\n'){
 		    	current->break_ = '\r';
 		    	break;
@@ -165,9 +168,10 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 	if(!current->want) {
 		do{
 			char c,termi = current->break_;				
-			for(c=**str;*str != end && c != termi; ++(*str))
+			for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 				if(!PARSE_NUM(elements)) return REDIS_ERR;
-			if(*str == end) return REDIS_RETRY;		    
+			if(*str == end) return REDIS_RETRY;
+			++(*str);		    
 		    if(termi == '\n'){
 		    	current->break_ = '\r';
 		    	break;
@@ -177,7 +181,7 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 	    current->want = reply->elements;
 	}
 
-	if(!current->childs){
+	if(!current->childs) {
 		current->childs = calloc(current->want,sizeof(*current->childs));
 		reply->element = calloc(current->want,sizeof(*reply->element));
 		for(i = 0; i < current->want; ++i){
@@ -378,23 +382,31 @@ static void data_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
 			free(stcb);
 			parse_tree_del(c->tree);
 			c->tree   = NULL;
+			size      = (uint32_t)(begin - (chunk->data + pos));
 			pos      += size;
 			datasize -= size;
 			if(c->status & CLIENT_CLOSE) {
 				destroy_redisclient(c,0);
 				return;
 			}
-			if(datasize) chunk = chunk->next;
+			if(datasize && pos >= chunk->cap) {
+				pos = 0;
+				chunk = chunk->next;
+			}
 		}else if(parse_ret == REDIS_ERR){
-			event     = CHK_ERDSPASERR;
-		}else
+			event = CHK_ERDSPASERR;
 			break;
+		}else {
+			pos       = 0;
+			datasize -= size;
+			chunk     = chunk->next;
+		}
 	}
 	if(event != 0) chk_redis_close(c,event);
 }
 
 static	chk_stream_socket_option option = {
-	.recv_buffer_size = 65536,
+	.recv_buffer_size = 1024*16,
 	.recv_timeout = 0,
 	.send_timeout = 0,
 	.decoder = NULL,
@@ -425,7 +437,7 @@ int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,
 	c->cntcb  = cntcb;
 	c->ud     = ud;
 	c->loop   = loop;
-    return chk_connect(fd,addr,NULL,loop,connect_callback,c,-1);
+    return chk_connect(fd,addr,NULL,loop,connect_callback,c,0);
 }
 
 void    chk_redis_close(chk_redisclient *c,int32_t err) {

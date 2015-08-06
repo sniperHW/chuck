@@ -58,7 +58,10 @@ echobrocast:test/echobrocast.c $(LIBNAME)
 	$(CC) -g -o test/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
 
 testconnect:test/testconnect.c $(LIBNAME)
-	$(CC) -g -o test/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)				
+	$(CC) -g -o test/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
+
+testredis:test/testredis.c $(LIBNAME)
+	$(CC) -O2 -g -o test/testredis test/testredis.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)						
 
 testlua:test/testlua.c $(LIBNAME)
 	$(CC) -g -o test/testlua test/testlua.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS) -llua -lm -ldl

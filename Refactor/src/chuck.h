@@ -21,6 +21,7 @@
 #include "socket/chk_stream_socket.h"
 #include "event/chk_event_loop.h"
 #include "lua/chk_lua.h"
+#include "redis/chk_client.h"
 
 
 #endif

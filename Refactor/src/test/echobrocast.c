@@ -97,8 +97,13 @@ void data_event_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
 			}
 		}		
 	}else {
-		for(i = 0;i < client_count; ++i) if(clients[i] == s) clients[i] = NULL;		
-		--client_count;
+		for(i = 0;i < 1000; ++i){
+			if(clients[i] == s) {
+				--client_count;
+				clients[i] = NULL;
+				break;
+			}
+		}		
 		chk_stream_socket_close(s);
 	}
 }
@@ -106,7 +111,7 @@ void data_event_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
 void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
 	int i;
 	chk_stream_socket_option option = {
-		.recv_buffer_size = 65536,
+		.recv_buffer_size = 1024*16,
 		.recv_timeout = 0,
 		.send_timeout = 0,
 		.decoder = (chk_decoder*)_decoder_new(4096),
@@ -129,6 +134,7 @@ int32_t on_timeout_cb(uint64_t tick,void*ud) {
 }
 
 int main(char argc,char **argv) {
+	signal(SIGPIPE,SIG_IGN);
 	loop = chk_loop_new();
 	chk_sockaddr server;
 	if(0 != easy_sockaddr_ip4(&server,argv[1],atoi(argv[2]))) {
@@ -138,7 +144,7 @@ int main(char argc,char **argv) {
 	easy_addr_reuse(fd,1);
 	if(0 == easy_listen(fd,&server)){
 		chk_acceptor *a = chk_acceptor_new(fd,NULL);
-		chk_loop_add_handle(loop,(chk_handle*)a,(chk_event_callback)accept_cb);
+		assert(0 == chk_loop_add_handle(loop,(chk_handle*)a,(chk_event_callback)accept_cb));
 		chk_loop_addtimer(loop,1000,on_timeout_cb,NULL);
 		chk_loop_run(loop);
 	}else{
