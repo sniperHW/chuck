@@ -22,6 +22,13 @@ enum{
 
 typedef struct parse_tree parse_tree;
 
+typedef struct token token;
+
+typedef struct pending_reply pending_reply;
+
+__thread token    *array_token;
+__thread uint32_t  array_token_size = 0; 
+
 struct parse_tree {
 	redisReply         *reply;
 	parse_tree        **childs;
@@ -32,17 +39,16 @@ struct parse_tree {
 	char   				tmp_buff[SIZE_TMP_BUFF]; 	 	
 };
 
-typedef struct {
-	chk_list_entry entry;
+struct token {
 	char          *buff;
 	size_t         size;
-}word;
+};
 
-typedef struct {
+struct pending_reply {
 	chk_list_entry entry;
 	void   (*cb)(chk_redisclient*,redisReply*,void *ud);
 	void    *ud;
-}pending_reply;
+};
 
 struct chk_redisclient {
 	int32_t                  status;
@@ -273,40 +279,66 @@ static inline void u2s(uint32_t num,char **ptr) {
 }
 
 //for request
-static chk_bytebuffer *convert(chk_list *l,size_t space) {
+static chk_bytebuffer *convert(uint32_t size,size_t space) {
 	static char *end = "\r\n";
 	chk_bytebuffer *buff;
 	chk_bytechunk  *chunk;
 	char *ptr,*ptr1;
-	word *w;
-	size_t i;		
-	space += (digitcount(chk_list_size(l)) + 3);//plus head *,tail \r\n
+	token *w;
+	size_t i;
+	uint32_t idx = 0;		
+	space += (digitcount(size) + 3);//plus head *,tail \r\n
 	buff   =  chk_bytebuffer_new(NULL,0,space);
 	chunk  =  buff->head;
 	ptr1 = chunk->data;
 	*ptr1++ = '*';
-	u2s(chk_list_size(l),&ptr1);
+	u2s(size,&ptr1);
 	for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
-	while(NULL != (w = (word*)chk_list_pop(l))){
+	for(; idx < size; ++idx) {
+		w = &array_token[idx];
 		*ptr1++ = '$';
 		u2s((uint32_t)w->size,&ptr1);
 		for(ptr=end;*ptr;)*ptr1++ = *ptr++;		
 		for(i = 0; i < w->size;) *ptr1++ = w->buff[i++];
 		for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
-		free(w);
 	}
 	return buff;
 }
 
+static int32_t expand_array_token() {
+	static uint32_t initsize = 64;
+	int32_t  ret = 0;
+	uint32_t newsize;
+	token   *tmp;
+	if(!array_token) {
+		array_token = calloc(initsize,sizeof(*array_token));
+		if(array_token) array_token_size = initsize;
+		else ret = -1;
+	} else {
+		newsize = array_token_size << 1;
+		tmp = realloc(array_token,newsize*sizeof(*array_token));
+		if(!tmp) ret = -1;
+		array_token      = tmp;
+		array_token_size = newsize;
+	}
+	return ret;
+}
+
+static token *gettoken(uint32_t idx) {
+	assert(idx > 0);
+	if(idx > array_token_size) {
+		if(0 != expand_array_token()) return NULL;
+	}
+	return &array_token[idx-1];
+}
 
 static chk_bytebuffer *build_request(const char *cmd) {
-	chk_list l;
 	size_t len   = strlen(cmd);
-	word  *w = NULL;
+	token *w = NULL;
 	size_t i,j,space;
+	uint32_t idx  = 0;
 	char   quote  = 0;
 	char   c;
-	chk_list_init(&l);
 	i = j = space = 0;
 	for(; i < len; ++i) {
 		c = cmd[i];
@@ -319,15 +351,15 @@ static chk_bytebuffer *build_request(const char *cmd) {
 
 		if(c != ' ') {
 			if(!w){ 
-				w = calloc(1,sizeof(*w));
+				w = gettoken(++idx);
+				if(!w) return NULL;
 				w->buff = (char*)&cmd[i];
 			}
 		}else if(!quote && w){
 			//word finish
 			w->size = &cmd[i] - w->buff;
 			space += digitcount((uint32_t)w->size) + 3;//plus head $,tail \r\n
-			space += w->size + 2;//plus tail \r\n
-			chk_list_pushback(&l,(chk_list_entry*)w);	
+			space += w->size + 2;//plus tail \r\n	
 			w = NULL;
 			--i;
 		}
@@ -336,9 +368,8 @@ static chk_bytebuffer *build_request(const char *cmd) {
 		w->size = &cmd[i] - w->buff;
 		space += digitcount((uint32_t)w->size) + 3;//plus head $,tail \r\n
 		space += w->size + 2;//plus tail \r\n
-		chk_list_pushback(&l,(chk_list_entry*)w);
 	}
-	return convert(&l,space);
+	return convert(idx,space);
 }
 
 static redisReply  dis_reply = {
@@ -451,16 +482,20 @@ void    chk_redis_close(chk_redisclient *c,int32_t err) {
 int32_t chk_redis_execute(chk_redisclient *c,const char *str,chk_redis_reply_cb cb,void *ud) {
 	pending_reply  *repobj;
 	chk_bytebuffer *buffer;
-	if(c->status & CLIENT_CLOSE) return -1;
-	buffer = build_request(str);
-	if(0 != chk_stream_socket_send(c->sock,buffer))
-		return -1;
-	repobj = calloc(1,sizeof(*repobj));
-	if(cb) {
-		repobj->cb = cb;
-		repobj->ud = ud;
-	}	
-	chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
-	return 0;
+	int32_t         ret = -1;
+	do {
+		if(c->status & CLIENT_CLOSE) break;
+		buffer = build_request(str);
+		if(!buffer) break;
+		if(0 != chk_stream_socket_send(c->sock,buffer)) break;
+		repobj = calloc(1,sizeof(*repobj));
+		if(cb) {
+			repobj->cb = cb;
+			repobj->ud = ud;
+		}	
+		chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
+		ret = 0;
+	}while(0);
+	return ret;
 }
 
