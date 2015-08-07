@@ -3,7 +3,20 @@
 
 #include "event/chk_event.h"
 
+/**
+ * 建立监听 
+ * @param fd 文件描述符
+ * @param server 监听地址
+ */
+
 int32_t easy_listen(int32_t fd,chk_sockaddr *server);
+
+/**
+ * 建立连接
+ * @param fd 文件描述符
+ * @param server 监听地址
+ * @param local 本地地址 
+ */
 
 int32_t easy_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local);
 

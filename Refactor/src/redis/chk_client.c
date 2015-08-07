@@ -278,6 +278,33 @@ static inline void u2s(uint32_t num,char **ptr) {
 	}while(num/=10);	
 }
 
+static inline int32_t expand_array_token() {
+	static uint32_t initsize = 64;
+	int32_t  ret = 0;
+	uint32_t newsize;
+	token   *tmp;
+	if(!array_token) {
+		array_token = calloc(initsize,sizeof(*array_token));
+		if(array_token) array_token_size = initsize;
+		else ret = -1;
+	} else {
+		newsize = array_token_size << 1;
+		tmp = realloc(array_token,newsize*sizeof(*array_token));
+		if(!tmp) ret = -1;
+		array_token      = tmp;
+		array_token_size = newsize;
+	}
+	return ret;
+}
+
+static inline token *gettoken(uint32_t idx) {
+	assert(idx > 0);
+	if(idx > array_token_size) {
+		if(0 != expand_array_token()) return NULL;
+	}
+	return &array_token[idx-1];
+}
+
 //for request
 static chk_bytebuffer *convert(uint32_t size,size_t space) {
 	static char *end = "\r\n";
@@ -305,33 +332,7 @@ static chk_bytebuffer *convert(uint32_t size,size_t space) {
 	return buff;
 }
 
-static int32_t expand_array_token() {
-	static uint32_t initsize = 64;
-	int32_t  ret = 0;
-	uint32_t newsize;
-	token   *tmp;
-	if(!array_token) {
-		array_token = calloc(initsize,sizeof(*array_token));
-		if(array_token) array_token_size = initsize;
-		else ret = -1;
-	} else {
-		newsize = array_token_size << 1;
-		tmp = realloc(array_token,newsize*sizeof(*array_token));
-		if(!tmp) ret = -1;
-		array_token      = tmp;
-		array_token_size = newsize;
-	}
-	return ret;
-}
-
-static token *gettoken(uint32_t idx) {
-	assert(idx > 0);
-	if(idx > array_token_size) {
-		if(0 != expand_array_token()) return NULL;
-	}
-	return &array_token[idx-1];
-}
-
+//转换redis请求并写入到buffer中
 static chk_bytebuffer *build_request(const char *cmd) {
 	size_t len   = strlen(cmd);
 	token *w = NULL;
@@ -356,7 +357,7 @@ static chk_bytebuffer *build_request(const char *cmd) {
 				w->buff = (char*)&cmd[i];
 			}
 		}else if(!quote && w){
-			//word finish
+			//token finish
 			w->size = &cmd[i] - w->buff;
 			space += digitcount((uint32_t)w->size) + 3;//plus head $,tail \r\n
 			space += w->size + 2;//plus tail \r\n	

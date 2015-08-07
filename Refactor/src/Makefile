@@ -1,4 +1,4 @@
-CFLAGS  = -g -Wall -fno-strict-aliasing 
+CFLAGS  = -g -O2 -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lrt -lm -ljemalloc
 DEPDIR  = 
 INCLUDE = -I./ -I../deps
@@ -40,31 +40,31 @@ $(LIBNAME):$(source)
 	rm *.o
 
 testlog:test/testlog.c $(LIBNAME)
-	$(CC) -g -o test/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
 
 testexception:test/testexception.c $(LIBNAME)
-	$(CC) -g -o test/testexception test/testexception.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/testexception test/testexception.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
 
 testpacket:test/testpacket.c $(LIBNAME)
-	$(CC) -g -o test/testpacket test/testpacket.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/testpacket test/testpacket.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
 
 testtimer:test/testtimer.c $(LIBNAME)
-	$(CC) -g -o test/testtimer test/testtimer.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/testtimer test/testtimer.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
 
 tcpecho:test/tcpecho.c $(LIBNAME)
-	$(CC) -g -o test/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
 
 echobrocast:test/echobrocast.c $(LIBNAME)
-	$(CC) -g -o test/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
 
 testconnect:test/testconnect.c $(LIBNAME)
-	$(CC) -g -o test/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
 
 testredis:test/testredis.c $(LIBNAME)
-	$(CC) -O2 -g -o test/testredis test/testredis.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)						
+	$(CC) $(CFLAGS) -o test/testredis test/testredis.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)						
 
 testlua:test/testlua.c $(LIBNAME)
-	$(CC) -g -o test/testlua test/testlua.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS) -llua -lm -ldl
+	$(CC) $(CFLAGS) -o test/testlua test/testlua.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS) -llua -lm -ldl
 
 clean:
 	rm *.o

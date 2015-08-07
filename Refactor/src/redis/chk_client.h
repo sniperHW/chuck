@@ -38,12 +38,35 @@ struct redisReply {
     redisReply **element; /* elements vector for REDIS_REPLY_ARRAY */
 };
 
-int32_t chk_redis_connect(chk_event_loop*,chk_sockaddr *addr,
+/**
+ * 连接redis服务器
+ * @param e 事件处理循环
+ * @param addr 服务器地址结构
+ * @param cntcb 连接回调
+ * @param ud 传递给连接回调的用户数据
+ * @param dcntcb 连接关闭回调
+ */
+
+int32_t chk_redis_connect(chk_event_loop *e,chk_sockaddr *addr,
                           chk_redis_connect_cb cntcb,void *ud,
                           chk_redis_disconnect_cb dcntcb);
 
-void    chk_redis_close(chk_redisclient*,int32_t err);
+/**
+ * 关闭redis连接,当连接结构销毁时回调dcntcb
+ * @param c redis连接
+ * @param err 错误码
+ */
 
-int32_t chk_redis_execute(chk_redisclient*,const char *str,chk_redis_reply_cb,void *ud);
+void chk_redis_close(chk_redisclient *c,int32_t err);
+
+/**
+ * 执行redis命令
+ * @param c redis连接
+ * @param str redis命令字符串
+ * @param cb 请求执行回调(成功/出错)
+ * @param ud 传递给cb的用户数据
+ */
+
+int32_t chk_redis_execute(chk_redisclient*,const char *str,chk_redis_reply_cb cb,void *ud);
 
 #endif    

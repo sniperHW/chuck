@@ -9,21 +9,35 @@
 typedef struct chk_decoder chk_decoder;
 
 struct chk_decoder {
-	/*
-	*  接收到数据之后调用update
-	*  b:接受到的chunk链表
-	*  spos:数据开始下标
-	*  size:数据大小
-	*/
-	void (*update)(chk_decoder*,chk_bytechunk *b,uint32_t spos,uint32_t size);
 	
-	/*
-	*如果解包完成返回一个bytebuffer
-	*/
-	chk_bytebuffer *(*unpack)(chk_decoder*,int32_t *err);
-	void (*dctor)(chk_decoder*);
+	/**
+	 * 接收到网络数据之后更新解包器信息 
+	 * @param d 解包器
+	 * @param b 接收到的数据块链表头(数据可能被存放在多个chunk中形成链表)
+	 * @param spos 接收到的数据在b中的起始下标 
+	 * @param size 接收到的数据大小
+	 */
+
+	void (*update)(chk_decoder *d,chk_bytechunk *b,uint32_t spos,uint32_t size);
+	
+	/**
+	 * 解包,如果解出返回一个包含数据包的buffer 
+	 * @param d 解包器
+	 * @param err 解包错误码 
+	 */
+	chk_bytebuffer *(*unpack)(chk_decoder *d,int32_t *err);
+
+	/**
+	 * 解包器清理函数(如果解包器销毁时有特殊清理动作必须提供此函数)
+	 * @param d 解包器
+	 */	
+	void (*dctor)(chk_decoder *d);
 };
 
+/**
+ * 销毁解包器
+ * @param d 解包器
+ */	
 static inline void chk_decoder_del(chk_decoder *d) {
 	if(d->dctor) d->dctor(d);
 	free(d);
