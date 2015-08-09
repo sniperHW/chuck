@@ -189,14 +189,13 @@ static void process_read(chk_stream_socket *s) {
 	chk_decoder *decoder;
 	chk_bytebuffer *b;
 	for(;;) {
-		if(0 == (bc = prepare_recv(s,&recv_buff_size)))
-			break;
+		if(0 == (bc = prepare_recv(s,&recv_buff_size))) break;
 		errno = 0;
 		bytes = TEMP_FAILURE_RETRY(readv(s->fd,&s->wrecvbuf[0],bc));
 		if(bytes > 0) {
 			decoder = s->option.decoder;
 			decoder->update(decoder,s->next_recv_buf,s->next_recv_pos,bytes);
-			do {
+			for(;;) {
 				unpackerr = 0;
 				if((b = decoder->unpack(decoder,&unpackerr))) {
 					s->cb(s,0,b);
@@ -207,7 +206,7 @@ static void process_read(chk_stream_socket *s) {
 					if(unpackerr) s->cb(s,unpackerr,NULL);
 					break;
 				}
-			}while(1);
+			};
 			if(!(s->status & SOCKET_CLOSE || s->status & SOCKET_HCLOSE))
 				update_next_recv_pos(s,bytes);
 			if(bytes != recv_buff_size) break;
@@ -236,8 +235,7 @@ static int32_t process_write(chk_stream_socket *s) {
 	int32_t  bc,bytes,ret = 0;
 	uint32_t send_buff_size;
 	for(;;) {
-		if(0 == (bc = prepare_send(s,&send_buff_size)))
-			return 0;
+		if(0 == (bc = prepare_send(s,&send_buff_size))) return 0;
 		errno = 0;
 		if((bytes = TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc))) > 0)
 			update_send_list(s,bytes);
