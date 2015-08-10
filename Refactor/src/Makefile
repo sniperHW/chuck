@@ -1,5 +1,5 @@
 CFLAGS  = -g -O2 -Wall -fno-strict-aliasing 
-LDFLAGS = -lpthread -lrt -lm -ljemalloc
+LDFLAGS = -lpthread -lrt -lm
 DEPDIR  = 
 INCLUDE = -I./ -I../deps
 DEFINE  =
@@ -56,6 +56,9 @@ tcpecho:test/tcpecho.c $(LIBNAME)
 
 echobrocast:test/echobrocast.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)
+
+echoclient:test/echoclient.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/echoclient test/echoclient.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)	
 
 testconnect:test/testconnect.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) -D_DEBUG $(LDFLAGS)

@@ -22,6 +22,9 @@ typedef struct chk_bytechunk  chk_bytechunk;
 
 typedef struct chk_bytebuffer chk_bytebuffer;
 
+extern uint32_t chunkcount;
+extern uint32_t buffercount;
+
 struct chk_bytechunk {
 	uint32_t        refcount;
 	uint32_t        cap;
@@ -51,6 +54,7 @@ static inline chk_bytechunk *chk_bytechunk_new(void *ptr,uint32_t len) {
 		if(ptr) memcpy(b->data,ptr,len);
 		b->cap = len;
 		b->refcount = 1;
+        ++chunkcount;
 	}
 	return b;
 }
@@ -67,6 +71,7 @@ static inline void chk_bytechunk_release(chk_bytechunk *b) {
 	if(0 >= chh_atomic_decrease_fetch(&b->refcount)) {
         assert(b->refcount == 0);
         if(b->next) chk_bytechunk_release(b->next);
+        --chunkcount;
         free(b);    
     }
 }
@@ -122,12 +127,14 @@ static inline chk_bytebuffer *chk_bytebuffer_new(chk_bytechunk *b,uint32_t spos,
     else  buffer->head     = chk_bytechunk_new(NULL,datasize);
     buffer->spos           = spos;
     buffer->datasize       = datasize;
+    ++buffercount;
     return buffer;
 }
 
 static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *o) {
     chk_bytebuffer *buffer = NULL;
     if(o) {
+        ++buffercount;
         buffer = calloc(1,sizeof(*buffer));
         buffer->head     = chk_bytechunk_retain(o->head);
         buffer->spos     = o->spos;
@@ -138,6 +145,7 @@ static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *o) {
 
 static inline void chk_bytebuffer_del(chk_bytebuffer *b) {
     if(b->head) chk_bytechunk_release(b->head);
+    --buffercount;
     free(b);
 }
 

@@ -20,4 +20,6 @@ chk_timer      *chk_loop_addtimer(chk_event_loop*,uint32_t timeout,chk_timeout_c
 
 int32_t         chk_loop_add_handle(chk_event_loop*,chk_handle*,chk_event_callback);
 
+void            chk_loop_remove_handle(chk_handle*);
+
 #endif

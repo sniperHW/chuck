@@ -1,8 +1,10 @@
 #include <assert.h>
-#include "event/chk_event_loop.h"
 #include "thread/chk_thread.h"
 
 #define _CORE_
+
+#include "event/chk_event_loop.h"
+
 #define _chk_loop				 	 \
 	 chk_timermgr  *timermgr;        \
      int32_t        notifyfds[2];    \
@@ -60,5 +62,9 @@ void chk_loop_del(chk_event_loop *e) {
 
 int32_t chk_loop_run(chk_event_loop *e) {
 	return _loop_run(e,-1);
+}
+
+void chk_loop_remove_handle(chk_handle *h) {
+	chk_events_remove(h);
 }
 

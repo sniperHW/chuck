@@ -25,7 +25,7 @@ void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t er
 	chk_loop_add_handle(loop,(chk_handle*)s,(chk_event_callback)data_event_cb);
 }
 
-int main(char argc,char **argv) {
+int main(int argc,char **argv) {
 	signal(SIGPIPE,SIG_IGN);
 	chk_sockaddr server;
 	loop = chk_loop_new();

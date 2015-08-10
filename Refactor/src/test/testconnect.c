@@ -8,7 +8,7 @@ void connect_callback(int32_t fd,int32_t err,void *ud) {
 	}
 }
 
-int main(char argc,char **argv) {
+int main(int argc,char **argv) {
 	int i,c;
 	chk_sockaddr server;
 	int32_t fd;	

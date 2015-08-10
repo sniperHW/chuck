@@ -130,41 +130,37 @@ static int32_t addr2line(char *addr,char *output,int32_t size) {
 	char cmd[1024]={0};
 	FILE *pipe;
 	int  i,j;
-	if(0 >= readlink("/proc/self/exe", path, 256)){
+	if(0 >= readlink("/proc/self/exe", path, 256))
 		return -1;
-	}	
 	snprintf(cmd,1024,"addr2line -fCse %s %s", path, addr);
 	pipe = popen(cmd, "r");
 	if(!pipe) return -1;
 	i = fread(output,1,size-1,pipe);	
 	pclose(pipe);
 	output[i] = '\0';
-	for(j=0; j<=i; ++j){ 
-		if(output[j] == '\n') output[j] = ' ';	
-	}
+	for(j=0; j<=i; ++j) if(output[j] == '\n') output[j] = ' ';	
 	return 0;
 }
 
 static inline int32_t getaddr(char *in,char *out,size_t size) {
 	int32_t b,i;
-	for(i = b = 0;i < size - 1;in++)
-		switch(*in) {
-			case '[':{if(!b){b = 1; break;} else return 0;}
-			case ']':{if(b){*out++ = 0;return 1;}return 0;}
-			default:{if(b){*out++ = *in;++i;}break;}
-		}
+	for(i = b = 0;i < size - 1;in++) switch(*in) {
+		case '[':{if(!b){b = 1; break;} else return 0;}
+		case ']':{if(b){*out++ = 0;return 1;}return 0;}
+		default:{if(b){*out++ = *in;++i;}break;}
+	}
 	return 0;
 }
 
 static void _log_stack(int32_t logLev,int32_t start,char *str) {
-	void*                   bt[64];
-	char**                  strings;
-	size_t                  sz;
-	int32_t                 i,f;
-	int32_t 				size = 0;	
-	char 					logbuf[CHK_MAX_LOG_SIZE];
-	char                    addr[32],buf[1024];
-	char 				   *ptr;		
+	void     *bt[64];
+	char    **strings;
+	char 	 *ptr;	
+	size_t    sz;
+	int32_t   i,f;
+	int32_t   size = 0;	
+	char 	  logbuf[CHK_MAX_LOG_SIZE];
+	char      addr[32],buf[1024];		
 	sz      = backtrace(bt, 64);
 	strings = backtrace_symbols(bt, sz);
 	size   += snprintf(logbuf,CHK_MAX_LOG_SIZE,"%s",str);	    		    			

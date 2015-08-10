@@ -6,18 +6,22 @@
 #include "util/chk_error.h"
 #include "event/chk_event_loop.h"
 
-#define MAX_WBAF          512
-#define MAX_SEND_SIZE     1024*16
+#define MAX_WBAF          1024
+#define MAX_SEND_SIZE     1024*64
 
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
 #endif
 
+uint32_t chunkcount  = 0;
+uint32_t buffercount = 0;
+
 //status
 enum{
 	SOCKET_CLOSE     = 1 << 1,  //完全关闭
 	SOCKET_HCLOSE    = 1 << 2,  //读关闭,写等剩余包发完关闭
-	SOCKET_INLOOP    = 1 << 3,
+	SOCKET_PEERCLOSE = 1 << 3,  //对端关闭
+	SOCKET_INLOOP    = 1 << 4,
 };
 
 struct chk_stream_socket {
@@ -87,7 +91,7 @@ static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 			chk_bytebuffer_del(b);
 		}else {
 			//只完成一个buffer中部分数据的发送
-			do {
+			for(;bytes;) {
 				head = b->head;
 				size = head->cap - b->spos;
 				size = size > bytes ? bytes:size;
@@ -100,7 +104,7 @@ static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 					b->head = chk_bytechunk_retain(head->next);
 					chk_bytechunk_release(head);
 				}
-			}while(bytes);
+			};
 		}
 	}
 }
@@ -161,7 +165,7 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 static inline void update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 	uint32_t       size;
 	chk_bytechunk *head;
-	do {
+	for(;bytes;) {
 		head = s->next_recv_buf;
 		size = head->cap - s->next_recv_pos;
 		size = size > bytes ? bytes:size;
@@ -175,7 +179,7 @@ static inline void update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 			s->next_recv_buf = chk_bytechunk_retain(head->next);
 			chk_bytechunk_release(head);					
 		}
-	}while(bytes);
+	};
 }
 
 static void process_read(chk_stream_socket *s) {
@@ -188,7 +192,7 @@ static void process_read(chk_stream_socket *s) {
 	if(bytes > 0 ) {
 		decoder = s->option.decoder;
 		decoder->update(decoder,s->next_recv_buf,s->next_recv_pos,bytes);
-		do {
+		for(;;) {
 			unpackerr = 0;
 			if((b = decoder->unpack(decoder,&unpackerr))) {
 				s->cb(s,0,b);
@@ -199,10 +203,13 @@ static void process_read(chk_stream_socket *s) {
 				if(unpackerr) s->cb(s,unpackerr,NULL);
 				break;
 			}
-		}while(1);
+		};
 		if(!(s->status & SOCKET_CLOSE || s->status & SOCKET_HCLOSE))
 			update_next_recv_pos(s,bytes);
-	}else s->cb(s,errno,NULL);
+	}else {
+		s->status |= SOCKET_PEERCLOSE;
+		s->cb(s,errno,NULL);
+	}
 }
 
 
@@ -306,7 +313,7 @@ void chk_stream_socket_close(chk_stream_socket *s) {
 	if((s->status & SOCKET_CLOSE) || (s->status & SOCKET_HCLOSE)) 
 		return;
 	
-	if(!chk_list_empty(&s->send_list) && s->loop) {
+	if(!(s->status & SOCKET_PEERCLOSE) && !chk_list_empty(&s->send_list) && s->loop) {
 		s->status |= SOCKET_HCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
 		shutdown(s->fd,SHUT_RD);
@@ -322,8 +329,10 @@ void chk_stream_socket_close(chk_stream_socket *s) {
 
 int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
 	int32_t ret = 0;
+	int32_t status = s->status;
 	do {
-		if((s->status & SOCKET_CLOSE) || (s->status & SOCKET_HCLOSE)) {
+		if((status & SOCKET_CLOSE) || (status & SOCKET_HCLOSE) || 
+		   (status & SOCKET_PEERCLOSE)) {
 			chk_bytebuffer_del(b);	
 			ret = -1;
 			break;

@@ -1,4 +1,4 @@
-#define __CORE__
+#define _CORE_
 #include <assert.h>
 #include "socket/chk_connector.h"
 #include "event/chk_event_loop.h"

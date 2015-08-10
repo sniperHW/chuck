@@ -1,4 +1,4 @@
-#define __CORE__
+#define _CORE_
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>

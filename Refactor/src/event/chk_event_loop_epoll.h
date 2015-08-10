@@ -2,7 +2,6 @@
 
 #include <sys/timerfd.h>
 
-
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
 #endif
@@ -18,7 +17,7 @@ struct chk_event_loop {
 static int32_t events_mod(chk_handle *h,int32_t events);
 
 int32_t chk_events_add(chk_event_loop *e,chk_handle *h,int32_t events) {
-	assert((events & EPOLLET) == 0);
+	//assert((events & EPOLLET) == 0);
 	struct epoll_event ev = {0};
 	ev.data.ptr = h;
 	ev.events = events;
@@ -48,7 +47,7 @@ int32_t chk_events_remove(chk_handle *h) {
 }
 
 int32_t events_mod(chk_handle *h,int32_t events) {
-	assert((events & EPOLLET) == 0);
+	//assert((events & EPOLLET) == 0);
 	chk_event_loop *e = h->loop;	
 	struct epoll_event ev = {0};
 	ev.data.ptr = h;

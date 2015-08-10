@@ -27,32 +27,6 @@
 #include    <stdint.h>
 #include    "util/chk_list.h"
 
-#ifdef _LINUX
-
-#	include    <sys/epoll.h>
-
-enum{
-    CHK_EVENT_READ   =  EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP,
-    CHK_EVENT_WRITE  =  EPOLLOUT,
-    CHK_EVENT_ECLOSE = 0xffffffff,//engine close    
-};
-
-#elif _BSD
-
-#	include    <sys/event.h>
-
-enum{
-    CHK_EVENT_READ   =  EVFILT_READ,
-    CHK_EVENT_WRITE  =  EVFILT_WRITE,
-    CHK_EVENT_ECLOSE = 0xffffffff,//engine close         
-};
-
-#else
-
-#	error "un support platform!"   
-
-#endif
-
 typedef struct chk_event_loop chk_event_loop;
 
 typedef struct chk_sockaddr chk_sockaddr;
@@ -69,22 +43,52 @@ struct chk_sockaddr {
     }; 
 };
 
-#define _chk_handle															\
-	chk_dlist_entry entry;													\
-	int             fd;														\
-	union {                                 								\
-        int32_t     events;                									\
-        struct {                             								\
-            int16_t set_read;               								\
-            int16_t set_write;              								\
-        };                                  								\
-    };  																	\
-    chk_event_loop *loop;													\
-    int32_t (*handle_add)(chk_event_loop*,chk_handle*,chk_event_callback);	\
-    void    (*on_events)(chk_handle*,int32_t events)					
+
+
+#ifdef _CORE_
+
+#ifdef _LINUX
+
+#   include    <sys/epoll.h>
+
+enum{
+    CHK_EVENT_READ   =  EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP,
+    CHK_EVENT_WRITE  =  EPOLLOUT,
+    CHK_EVENT_ECLOSE = 0xffffffff,//engine close    
+};
+
+#elif _BSD
+
+#   include    <sys/event.h>
+
+enum{
+    CHK_EVENT_READ   =  EVFILT_READ,
+    CHK_EVENT_WRITE  =  EVFILT_WRITE,
+    CHK_EVENT_ECLOSE = 0xffffffff,//engine close         
+};
+
+#else
+
+#   error "un support platform!"   
+
+#endif
+
+#define _chk_handle                                                         \
+    chk_dlist_entry entry;                                                  \
+    int             fd;                                                     \
+    union {                                                                 \
+        int32_t     events;                                                 \
+        struct {                                                            \
+            int16_t set_read;                                               \
+            int16_t set_write;                                              \
+        };                                                                  \
+    };                                                                      \
+    chk_event_loop *loop;                                                   \
+    int32_t (*handle_add)(chk_event_loop*,chk_handle*,chk_event_callback);  \
+    void    (*on_events)(chk_handle*,int32_t events)                    
 
 struct chk_handle {
-	_chk_handle;
+    _chk_handle;
 };
 
 #ifndef TEMP_FAILURE_RETRY
@@ -93,7 +97,7 @@ struct chk_handle {
     do __result = (long int)(expression);\
     while(__result == -1L&& errno == EINTR);\
     __result;})
-#endif
+#endif    
 
 int32_t chk_events_add(chk_event_loop*,chk_handle*,int32_t events);
 
@@ -122,5 +126,7 @@ static inline int32_t chk_enable_write(chk_handle *h) {
 static inline int32_t chk_disable_write(chk_handle *h) {
     return chk_events_disable(h,CHK_EVENT_WRITE);         
 }
+
+#endif
 
 #endif
