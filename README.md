@@ -71,3 +71,9 @@ httpclient:
 	end
 
 [more detail](doc/reference.md)
+
+#customer
+
+
+![](img/20150811163353.jpg)
+福州市欢乐互动科技有限公司
