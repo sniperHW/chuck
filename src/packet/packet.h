@@ -60,7 +60,7 @@ typedef struct packet
     void            (*dctor)(void*);
     uint64_t    sendtime;    
     uint32_t    len_packet;                                  //total size of packet in bytes        
-    TYPE_HEAD   spos;                                        //start pos in head 
+    uint32_t    spos;                                        //start pos in head 
     uint8_t     type;
       
 }packet;
