@@ -175,7 +175,7 @@ void execute_callback(redis_conn *c,reply_cb *stcb);
 
 void execute_callback(redis_conn *c,reply_cb *stcb)
 {
-	stcb->cb(c,c->tree->reply,stcb->ud);
+	if(stcb->cb) stcb->cb(c,c->tree->reply,stcb->ud);
 }
 
 #endif

@@ -55,22 +55,28 @@ static int32_t parse_string(parse_tree *current,char **str)
 	char c;
 	if(!reply->str)
 		reply->str = current->tmp_buff;
-	do{
-		char termi = current->break_;
-		while((c = *(*str)++) != termi) {
-			if(c != '\0')
-	        	reply->str[current->pos++] = c;
-	        else
-	        	return REDIS_RETRY;
-	    }
-	    if(termi == '\n'){
-	    	current->break_ = '\r';
-	    	break;
-	    }
-	    else current->break_ = '\n';
-    }while(1);
-    if(current->want && current->pos != current->want)
-    	return REDIS_ERR;	
+	if(current->want) {
+			while(current->want) {
+				if((c = *(*str)++) == '\0') return REDIS_RETRY;
+				reply->str[current->pos++] = c;
+				--current->want;
+			}
+	}else {
+		do{
+			char termi = current->break_;
+			while((c = *(*str)++) != termi) {
+				if(c != '\0')
+		        	reply->str[current->pos++] = c;
+		        else
+		        	return REDIS_RETRY;
+		    }
+		    if(termi == '\n'){
+		    	current->break_ = '\r';
+		    	break;
+		    }
+		    else current->break_ = '\n';
+	    }while(1);	
+	}
 	reply->str[current->pos] = 0;
 	return REDIS_OK;
 }
@@ -119,7 +125,7 @@ static int32_t parse_breply(parse_tree *current,char **str)
 	    }while(1);   
 	    if(reply->type == REDIS_REPLY_NIL)
 	    	return REDIS_OK;	    
-	    current->want = reply->len;
+	    current->want = reply->len + 2;//加上\r\n
 	}
 
 	if(!reply->str){
