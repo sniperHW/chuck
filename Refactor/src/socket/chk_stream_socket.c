@@ -269,23 +269,6 @@ int32_t chk_stream_socket_flush(chk_stream_socket *s) {
 	return chk_stream_socket_send(s,NULL);
 }
 
-int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
-	int32_t ret = 0;
-	int32_t status = s->status;
-	do {
-		if((status & SOCKET_CLOSE) || (status & SOCKET_HCLOSE) || 
-		   (status & SOCKET_PEERCLOSE)) {
-			chk_bytebuffer_del(b);	
-			ret = -1;
-			break;
-		}
-		chk_list_pushback(&s->send_list,cast(chk_list_entry*,b));
-		if(!chk_is_write_enable(cast(chk_handle*,s))) 
-			chk_enable_write(cast(chk_handle*,s));
-	}while(0);
-	return ret;	
-}
-
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
@@ -431,6 +414,23 @@ static void process_read(chk_stream_socket *s) {
 		s->status |= SOCKET_PEERCLOSE;
 		s->cb(s,errno,NULL);
 	}
+}
+
+int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
+	int32_t ret = 0;
+	int32_t status = s->status;
+	do {
+		if((status & SOCKET_CLOSE) || (status & SOCKET_HCLOSE) || 
+		   (status & SOCKET_PEERCLOSE)) {
+			chk_bytebuffer_del(b);	
+			ret = -1;
+			break;
+		}
+		chk_list_pushback(&s->send_list,cast(chk_list_entry*,b));
+		if(!chk_is_write_enable(cast(chk_handle*,s))) 
+			chk_enable_write(cast(chk_handle*,s));
+	}while(0);
+	return ret;	
 }
 
 #endif

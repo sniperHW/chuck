@@ -77,30 +77,34 @@ static int32_t parse_string(parse_tree *current,char **str,char *end) {
 	char c;
 	if(!reply->str)
 		reply->str = current->tmp_buff;
-	do {
-		char termi = current->break_;	
-		for(c=**str;*str != end && c != termi; ++(*str),c=**str)
-			reply->str[current->pos++] = c;
-		if(*str == end) return REDIS_RETRY;
-		++(*str);
-	    if(termi == '\n'){
-	    	current->break_ = '\r';
-	    	break;
+	if(current->want) {
+		//带了长度的string
+		for(c=**str;*str != end && current->want; ++(*str),c=**str,--current->want)
+			if(current->want > 2) reply->str[current->pos++] = c;//结尾的/r/n不需要
+	}else {
+		for(;;) {
+			char termi = current->break_;	
+			for(c=**str;*str != end && c != termi; ++(*str),c=**str)
+				reply->str[current->pos++] = c;
+			if(*str == end) return REDIS_RETRY;
+			++(*str);
+		    if(termi == '\n'){
+		    	current->break_ = '\r';
+		    	break;
+		    }
+		    else current->break_ = '\n';
 	    }
-	    else current->break_ = '\n';
-    }while(1);
-    if(current->want && current->pos != current->want)
-    	return REDIS_ERR;	
+	}
 	reply->str[current->pos] = 0;
 	return REDIS_OK;
 }
 
 static int32_t parse_integer(parse_tree *current,char **str,char *end) {
 	redisReply *reply = current->reply;	
-	do{
+	for(;;) {
 		char c,termi = current->break_;
 		for(c=**str;*str != end && c != termi; ++(*str),c=**str) {
-			if(c == '1') current->want = -1;
+			if(c == '-') current->want = -1;
 			else if(!PARSE_NUM(integer)) return REDIS_ERR;
 		}
 		if(*str == end) return REDIS_RETRY;
@@ -110,8 +114,7 @@ static int32_t parse_integer(parse_tree *current,char **str,char *end) {
 	    	break;
 	    }
 	    else current->break_ = '\n';
-    }while(1);
-
+    }
     reply->integer *= current->want;    
     return REDIS_OK;
 }
@@ -119,7 +122,7 @@ static int32_t parse_integer(parse_tree *current,char **str,char *end) {
 static int32_t parse_breply(parse_tree *current,char **str,char *end) {
 	redisReply *reply = current->reply;
 	if(!current->want) {
-		do{
+		for(;;) {
 			char c,termi = current->break_;
 			for(c=**str;*str != end && c != termi; ++(*str),c=**str) {
 				if(c == '-') reply->type = REDIS_REPLY_NIL;
@@ -132,10 +135,10 @@ static int32_t parse_breply(parse_tree *current,char **str,char *end) {
 		    	break;
 		    }
 		    else current->break_ = '\n';
-	    }while(1);   
+	    };   
 	    if(reply->type == REDIS_REPLY_NIL)
 	    	return REDIS_OK;	    
-	    current->want = reply->len;
+	    current->want = reply->len + 2;//加上\r\n
 	}
 
 	if(!reply->str) {
@@ -172,7 +175,7 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 	size_t  i;
 	int32_t ret;
 	if(!current->want) {
-		do{
+		for(;;) {
 			char c,termi = current->break_;				
 			for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 				if(!PARSE_NUM(elements)) return REDIS_ERR;
@@ -183,7 +186,7 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 		    	break;
 		    }
 		    else current->break_ = '\n';
-	    }while(1);	    
+	    };	    
 	    current->want = reply->elements;
 	}
 
