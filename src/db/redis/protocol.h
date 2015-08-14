@@ -58,7 +58,7 @@ static int32_t parse_string(parse_tree *current,char **str)
 	if(current->want) {
 			while(current->want) {
 				if((c = *(*str)++) == '\0') return REDIS_RETRY;
-				reply->str[current->pos++] = c;
+				if(current->want > 2) reply->str[current->pos++] = c;//结尾的/r/n不需要
 				--current->want;
 			}
 	}else {
