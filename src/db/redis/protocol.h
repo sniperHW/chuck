@@ -25,7 +25,7 @@
 #include "db/redis/client.h"
 
 
-#define SIZE_TMP_BUFF 512 //size must enough for status/error string
+#define SIZE_TMP_BUFF 1024 //size must enough for status/error string
 
 typedef struct parse_tree{
 	redisReply         *reply;
@@ -75,8 +75,10 @@ static int32_t parse_string(parse_tree *current,char **str)
 		    	break;
 		    }
 		    else current->break_ = '\n';
-	    }while(1);	
+	    }while(1);
+	    reply->len = current->pos;	
 	}
+	assert(reply->len == current->pos);
 	reply->str[current->pos] = 0;
 	return REDIS_OK;
 }
@@ -155,6 +157,7 @@ static void parse_tree_del(parse_tree *tree)
 		free(tree->childs);
 		free(tree->reply->element);
 	}
+	if(tree->reply->str != tree->tmp_buff) free(tree->reply->str);
 	free(tree->reply);
 	free(tree);
 }
