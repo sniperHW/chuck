@@ -18,7 +18,7 @@ uint32_t buffercount = 0;
 
 //status
 enum{
-	SOCKET_CLOSE     = 1 << 1,  //完全关闭
+	SOCKET_CLOSE     = 1 << 1,  //连接完全关闭,对象可以被销毁
 	SOCKET_HCLOSE    = 1 << 2,  //读关闭,写等剩余包发完关闭
 	SOCKET_PEERCLOSE = 1 << 3,  //对端关闭
 	SOCKET_INLOOP    = 1 << 4,
@@ -288,7 +288,7 @@ static int32_t process_write(chk_stream_socket *s) {
 	for(;;) {
 		if(0 == (bc = prepare_send(s,&send_buff_size))) return 0;
 		errno = 0;
-		if((bytes = TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc))) > 0)
+		if((bytes = TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc))) > 0) {
 			update_send_list(s,bytes);
 			if(bytes != send_buff_size) break;
 			if(chk_list_empty(&s->send_list)) {
@@ -298,9 +298,15 @@ static int32_t process_write(chk_stream_socket *s) {
 			 	}
 				break;
 			}	
-		else {
+		}else {
 			if(errno != EAGAIN) {
-				if(s->status & SOCKET_HCLOSE) s->status |= SOCKET_CLOSE;
+				if(s->status & SOCKET_HCLOSE) 
+					s->status |= SOCKET_CLOSE;
+				else {
+					s->status |= SOCKET_PEERCLOSE;
+					chk_disable_write(cast(chk_handle*,s));
+					s->cb(s,errno,NULL);
+				}
 				ret = -1;
 			}
 			break;
@@ -339,6 +345,7 @@ static void process_read(chk_stream_socket *s) {
 		}else {
 			if(errno != EAGAIN) {
 				s->status |= SOCKET_PEERCLOSE;
+				chk_disable_read(cast(chk_handle*,s));
 				s->cb(s,errno,NULL);
 			}
 			return;
@@ -368,7 +375,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 static void process_write(chk_stream_socket *s) {
 	int32_t bc,bytes;
 	bc = prepare_send(s);
-	if((bytes = TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc))) > 0)
+	if((bytes = TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc))) > 0) {
 		update_send_list(s,bytes);
 		//没有数据需要发送了,停止写监听
 		if(chk_list_empty(&s->send_list)) {
@@ -377,12 +384,15 @@ static void process_write(chk_stream_socket *s) {
 			else
 		 		chk_disable_write(cast(chk_handle*,s));
 		}	
-	else {
+	}else {
 		assert(errno != EAGAIN);
 		if(s->status & SOCKET_HCLOSE)
 			s->status |= SOCKET_CLOSE;
-		else
+		else {
+			s->status |= SOCKET_PEERCLOSE;
 			chk_disable_write(cast(chk_handle*,s));
+			s->cb(s,errno,NULL);
+		}
 	}
 }
 
@@ -412,6 +422,7 @@ static void process_read(chk_stream_socket *s) {
 			update_next_recv_pos(s,bytes);
 	}else {
 		s->status |= SOCKET_PEERCLOSE;
+		chk_disable_read(cast(chk_handle*,s));
 		s->cb(s,errno,NULL);
 	}
 }

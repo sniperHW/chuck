@@ -118,7 +118,7 @@ static void *log_routine(void *arg) {
 	struct tm        _tm;			
 	time_t           next_fulsh = time(NULL) + flush_interval;
 
-	while(1) {
+	for(;;) {
 		if((entry = logqueue_fetch(stop?0:100))) {
 			if(!entry->_logfile->file || entry->_logfile->total_size > CHK_MAX_FILE_SIZE) {
 				if(entry->_logfile->file) {
