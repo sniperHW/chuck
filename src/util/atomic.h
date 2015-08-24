@@ -18,17 +18,13 @@
 #define _ATOMIC_H
 #include <stdint.h>
 
-#define COMPARE_AND_SWAP(PTR,OLD,NEW)\
-	({int __result;\
-	  do __result = __sync_val_compare_and_swap(PTR,OLD,NEW) == OLD?1:0;\
-	  while(0);\
-	  __result;})
+#define COMPARE_AND_SWAP(PTR,OLD,NEW) __sync_bool_compare_and_swap((PTR),(OLD),(NEW))
 
-#define ATOMIC_INCREASE_FETCH(PTR) __sync_add_and_fetch(PTR,1)
-#define ATOMIC_DECREASE_FETCH(PTR) __sync_sub_and_fetch(PTR,1)
+#define ATOMIC_INCREASE_FETCH(PTR) __sync_add_and_fetch((PTR),1)
+#define ATOMIC_DECREASE_FETCH(PTR) __sync_sub_and_fetch((PTR),1)
 
-#define ATOMIC_FETCH_INCREASE(PTR) __sync_fetch_and_add(PTR,1)
-#define ATOMIC_FETCH_DECREASE(PTR) __sync_fetch_and_sub(PTR,1)
+#define ATOMIC_FETCH_INCREASE(PTR) __sync_fetch_and_add((PTR),1)
+#define ATOMIC_FETCH_DECREASE(PTR) __sync_fetch_and_sub((PTR),1)
 
 
 #define FENCE __sync_synchronize
