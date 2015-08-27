@@ -35,7 +35,7 @@ static wheel *wheel_new(uint8_t type)
 	wheel   *w;
 	uint16_t size,i;
 	if(type >  wheel_day) return NULL;
-	w       = calloc(1,sizeof(*w)*wheel_size(type)*sizeof(dlist));	
+	w       = calloc(1,sizeof(*w)+(wheel_size(type)*sizeof(dlist)));	
 	w->type = type;
 	w->cur  = type == wheel_sec ? -1:0;
 	size    = cast(uint16_t,wheel_size(type));
