@@ -73,4 +73,5 @@ void  chk_stream_socket_pause(chk_stream_socket *s);
  */
 
 void  chk_stream_socket_resume(chk_stream_socket *s);
+
 #endif

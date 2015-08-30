@@ -229,6 +229,7 @@ void *chk_stream_socket_getUd(chk_stream_socket *s) {
 	return s->ud;
 }
 
+
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
