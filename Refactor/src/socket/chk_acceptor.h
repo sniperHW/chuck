@@ -13,14 +13,14 @@ typedef void (*chk_acceptor_cb)(chk_acceptor*,int32_t fd,chk_sockaddr*,void *ud,
  * @param a 接受器
  */
 
-int32_t chk_acceptor_enable(chk_acceptor *a);
+int32_t chk_acceptor_resume(chk_acceptor *a);
 
 /**
  * 暂停acceptor的执行
  * @param a 接受器
  */
 
-int32_t chk_acceptor_disable(chk_acceptor *a);
+int32_t chk_acceptor_pause(chk_acceptor *a);
 
 
 /**

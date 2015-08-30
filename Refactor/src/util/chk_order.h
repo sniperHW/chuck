@@ -1,5 +1,5 @@
-#ifndef _CHK_ENDIAN_H
-#define _CHK_ENDIAN_H
+#ifndef _CHK_ORDER_H
+#define _CHK_ORDER_H
 
 #include <stdint.h>
 #include <arpa/inet.h>

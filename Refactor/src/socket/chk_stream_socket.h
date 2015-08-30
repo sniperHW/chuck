@@ -60,5 +60,17 @@ void chk_stream_socket_setUd(chk_stream_socket *s,void*ud);
 
 void *chk_stream_socket_getUd(chk_stream_socket *s);
 
+/**
+ * 暂停事件处理(移除读写监听)
+ * @param s stream_socket
+ */
 
+void  chk_stream_socket_pause(chk_stream_socket *s);
+
+/**
+ * 恢复事件处理
+ * @param s stream_socket
+ */
+
+void  chk_stream_socket_resume(chk_stream_socket *s);
 #endif

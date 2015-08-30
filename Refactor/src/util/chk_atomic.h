@@ -1,7 +1,7 @@
 #ifndef _CHK_ATOMIC_H
 #define _CHK_ATOMIC_H
 
-#define chk_compare_and_swap(PTR,OLD,NEW) __sync_bool_compare_and_swap((PTR),(OLD),(NEW))																})	
+#define chk_compare_and_swap(PTR,OLD,NEW) __sync_bool_compare_and_swap((PTR),(OLD),(NEW))
 
 #define chk_atomic_increase_fetch(PTR) __sync_add_and_fetch((PTR),1)
 

@@ -62,11 +62,11 @@ static void process_accept(chk_handle *h,int32_t events) {
 	}while(fd >= 0 && chk_is_read_enable(h));	      
 }
 
-int32_t chk_acceptor_enable(chk_acceptor *a) {
+int32_t chk_acceptor_resume(chk_acceptor *a) {
 	return chk_enable_read(cast(chk_handle*,a));
 }
 
-int32_t acceptor_disable(chk_acceptor *a) {
+int32_t chk_acceptor_pause(chk_acceptor *a) {
 	return chk_disable_read(cast(chk_handle*,a));
 }
 
