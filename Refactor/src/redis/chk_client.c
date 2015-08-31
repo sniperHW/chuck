@@ -81,6 +81,7 @@ static int32_t parse_string(parse_tree *current,char **str,char *end) {
 		//带了长度的string
 		for(c=**str;*str != end && current->want; ++(*str),c=**str,--current->want)
 			if(current->want > 2) reply->str[current->pos++] = c;//结尾的/r/n不需要
+		if(current->want) return REDIS_RETRY;
 	}else {
 		for(;;) {
 			char termi = current->break_;	
@@ -218,18 +219,11 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 static int32_t parse(parse_tree *current,char **str,char *end) {
 	int32_t ret = REDIS_RETRY;
 	redisReply *reply = current->reply;		
-	while(!current->type) {
+	if(!current->type) {
 		char c = *(*str)++;
-		if(IS_OP_CODE(c)){
-			current->type = c;
-			break;
-		}
-		else if(*str == end)
-			return REDIS_RETRY;
-		else
-			return REDIS_ERR;
+		if(IS_OP_CODE(c)) current->type = c;
+		else return REDIS_ERR;
 	}
-
 	switch(current->type) {
 		case '+':{
 			reply->type = REDIS_REPLY_STATUS;
