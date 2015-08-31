@@ -182,7 +182,8 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 		for(;;) {
 			char c,termi = current->break_;				
 			for(c=**str;*str != end && c != termi; ++(*str),c=**str)
-				if(!PARSE_NUM(elements)) return REDIS_ERR;
+				if(c == '-') reply->type = REDIS_REPLY_NIL;
+				else if(!PARSE_NUM(elements)) return REDIS_ERR;
 			if(*str == end) return REDIS_RETRY;
 			++(*str);		    
 		    if(termi == '\n'){
@@ -194,7 +195,7 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 	    current->want = reply->elements;
 	}
 
-	if(!current->childs) {
+	if(current->want > 0 && !current->childs) {
 		current->childs = calloc(current->want,sizeof(*current->childs));
 		reply->element = calloc(current->want,sizeof(*reply->element));
 		for(i = 0; i < current->want; ++i){
