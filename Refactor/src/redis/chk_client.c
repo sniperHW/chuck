@@ -27,7 +27,8 @@ typedef struct token token;
 typedef struct pending_reply pending_reply;
 
 __thread token    *array_token;
-__thread uint32_t  array_token_size = 0; 
+__thread uint32_t  array_token_size = 0;
+__thread uint32_t  initsize = 64;//initsize for array_token
 
 struct parse_tree {
 	redisReply         *reply;
@@ -269,7 +270,6 @@ static inline void u2s(uint32_t num,char **ptr) {
 }
 
 static inline int32_t expand_array_token() {
-	static uint32_t initsize = 64;
 	int32_t  ret = 0;
 	uint32_t newsize;
 	token   *tmp;
@@ -289,9 +289,8 @@ static inline int32_t expand_array_token() {
 
 static inline token *gettoken(uint32_t idx) {
 	assert(idx > 0);
-	if(idx > array_token_size) {
-		if(0 != expand_array_token()) return NULL;
-	}
+	if(idx > array_token_size && 0 != expand_array_token())
+		return NULL;
 	return &array_token[idx-1];
 }
 
@@ -333,13 +332,9 @@ static chk_bytebuffer *build_request(const char *cmd) {
 	i = j = space = 0;
 	for(; i < len; ++i) {
 		c = cmd[i];
-		if(c == '\"' || c == '\''){
-			if(!quote)
-				quote = c;
-			else if(c == quote)
-				quote = 0;
-		}
-
+		if(c == '\"' || c == '\'')
+			if(!quote) quote = c;
+			else if(c == quote) quote = 0;
 		if(c != ' ') {
 			if(!w){ 
 				w = gettoken(++idx);
