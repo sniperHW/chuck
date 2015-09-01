@@ -73,26 +73,22 @@ do{         												\
 }while(0);ret;                                             })
 
 static int32_t parse_string(parse_tree *current,char **str,char *end) {
+	char c,termi;
 	redisReply *reply = current->reply;
-	char c;
-	if(!reply->str)
-		reply->str = current->tmp_buff;
+	if(!reply->str) reply->str = current->tmp_buff;
 	if(current->want) {
 		//带了长度的string
 		for(c=**str;*str != end && current->want; ++(*str),c=**str,--current->want)
-			if(current->want > 2) reply->str[current->pos++] = c;//结尾的/r/n不需要
+			if(current->want > 2) reply->str[current->pos++] = c;//结尾的\r\n不需要
 		if(current->want) return REDIS_RETRY;
 	}else {
 		for(;;) {
-			char termi = current->break_;	
+			termi = current->break_;	
 			for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 				reply->str[current->pos++] = c;
 			if(*str == end) return REDIS_RETRY;
 			++(*str);
-		    if(termi == '\n'){
-		    	current->break_ = '\r';
-		    	break;
-		    }
+		    if(termi == '\n') break;
 		    else current->break_ = '\n';
 	    }
 	    reply->len = current->pos;
@@ -103,19 +99,16 @@ static int32_t parse_string(parse_tree *current,char **str,char *end) {
 }
 
 static int32_t parse_integer(parse_tree *current,char **str,char *end) {
+	char c,termi;
 	redisReply *reply = current->reply;	
 	for(;;) {
-		char c,termi = current->break_;
-		for(c=**str;*str != end && c != termi; ++(*str),c=**str) {
+		termi = current->break_;
+		for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 			if(c == '-') current->want = -1;
 			else if(!PARSE_NUM(integer)) return REDIS_ERR;
-		}
 		if(*str == end) return REDIS_RETRY;
 		++(*str);					
-	    if(termi == '\n'){
-	    	current->break_ = '\r';
-	    	break;
-	    }
+	    if(termi == '\n') break;
 	    else current->break_ = '\n';
     }
     reply->integer *= current->want;    
@@ -123,31 +116,28 @@ static int32_t parse_integer(parse_tree *current,char **str,char *end) {
 }
 
 static int32_t parse_breply(parse_tree *current,char **str,char *end) {
+	char c,termi;
 	redisReply *reply = current->reply;
 	if(!current->want) {
 		for(;;) {
-			char c,termi = current->break_;
-			for(c=**str;*str != end && c != termi; ++(*str),c=**str) {
+			termi = current->break_;
+			for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 				if(c == '-') reply->type = REDIS_REPLY_NIL;
 				else if(!PARSE_NUM(len)) return REDIS_ERR;
-			}
 			if(*str == end) return REDIS_RETRY;
 			++(*str);	
-		    if(termi == '\n'){
+		    if(termi == '\n') {
 		    	current->break_ = '\r';
 		    	break;
 		    }
 		    else current->break_ = '\n';
 	    };   
-	    if(reply->type == REDIS_REPLY_NIL)
-	    	return REDIS_OK;	    
+	    if(reply->type == REDIS_REPLY_NIL) return REDIS_OK;	    
 	    current->want = reply->len + 2;//加上\r\n
 	}
 
-	if(!reply->str) {
-		if(reply->len + 1 > SIZE_TMP_BUFF)
-			reply->str = calloc(1,reply->len + 1);
-	}
+	if(!reply->str && reply->len + 1 > SIZE_TMP_BUFF)
+		reply->str = calloc(1,reply->len + 1);
 	return parse_string(current,str,end);  
 }
 
@@ -175,12 +165,13 @@ static void parse_tree_del(parse_tree *tree) {
 static int32_t parse(parse_tree *current,char **str,char *end);
 
 static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
-	redisReply *reply = current->reply;
 	size_t  i;
 	int32_t ret;
+	char    c,termi;
+	redisReply *reply = current->reply;
 	if(!current->want) {
 		for(;;) {
-			char c,termi = current->break_;				
+			termi = current->break_;				
 			for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 				if(c == '-') reply->type = REDIS_REPLY_NIL;
 				else if(!PARSE_NUM(elements)) return REDIS_ERR;
@@ -205,10 +196,8 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 	}
 
 	for(;current->pos < current->want; ++current->pos) {
-		if((*str) == end) 
-			return REDIS_RETRY;
-		ret = parse(current->childs[current->pos],str,end);
-		if(ret != 0)
+		if((*str) == end) return REDIS_RETRY;
+		if(REDIS_OK != (ret = parse(current->childs[current->pos],str,end))) 
 			return ret;
 	}
 	return REDIS_OK;	
@@ -374,7 +363,7 @@ static chk_bytebuffer *build_request(const char *cmd) {
 	return convert(idx,space);
 }
 
-static redisReply  dis_reply = {
+static redisReply  connection_lose = {
 	.type = REDIS_REPLY_ERROR,
 	.str  = "client disconnected",
 	.len  = 19,
@@ -384,7 +373,7 @@ static void destroy_redisclient(chk_redisclient *c,int32_t err) {
 	pending_reply *stcb;
 	if(c->tree) parse_tree_del(c->tree);
 	while((stcb = cast(pending_reply*,chk_list_pop(&c->waitreplys)))) {
-		stcb->cb(c,&dis_reply,stcb->ud);
+		stcb->cb(c,&connection_lose,stcb->ud);
 		free(stcb);
 	}
 	if(c->dcntcb) c->dcntcb(c,err);
@@ -405,7 +394,7 @@ static void data_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
 		size  = size > datasize ? datasize : size;
 		if(!c->tree) c->tree = parse_tree_new();
 		parse_ret = parse(c->tree,&begin,begin + size);
-		if(parse_ret == REDIS_OK) {
+		if(REDIS_OK == parse_ret) {
 			stcb = cast(pending_reply*,chk_list_pop(&c->waitreplys));
 			if(stcb->cb) {
 				c->status |= CLIENT_INCB;					

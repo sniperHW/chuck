@@ -4,7 +4,7 @@
 #include "util/chk_atomic.h"
 #include "util/chk_bitset.h"
 #include "util/chk_bytechunk.h"
-#include "util/chk_endian.h"
+#include "util/chk_order.h"
 #include "util/chk_error.h"
 #include "util/chk_exception.h"
 #include "util/chk_list.h"
