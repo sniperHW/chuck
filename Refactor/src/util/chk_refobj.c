@@ -1,5 +1,5 @@
+#include <time.h>
 #include "util/chk_refobj.h"
-#include "util/chk_time.h"
 #include "util/chk_util.h"
 
 #ifndef  cast
@@ -10,10 +10,14 @@ chk_refhandle chk_invaild_refhandle;
 
 volatile uint32_t g_ref_counter = 0;
 
+static   time_t   g_start_timestamp = 0;
+
 void chk_refobj_init(chk_refobj *r,void (*dctor)(void*)) {
-	r->dctor     = dctor;
-	r->high32    = cast(uint32_t,(chk_atomic_increase_fetch(&g_ref_counter) & 0x3FFFFFF));
-	r->low32     = chk_systick32();
+	time_t   now = time(NULL);
+    chk_compare_and_swap(&g_start_timestamp,0,now);
+    r->dctor     = dctor;
+	r->identity  = (now - g_start_timestamp) << 30;  
+    r->identity += chk_atomic_increase_fetch(&g_ref_counter) & 0x3FFFFFF;
 	chk_atomic_increase_fetch(&r->refcount);
 }
 

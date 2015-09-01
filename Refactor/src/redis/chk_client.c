@@ -332,9 +332,10 @@ static chk_bytebuffer *build_request(const char *cmd) {
 	i = j = space = 0;
 	for(; i < len; ++i) {
 		c = cmd[i];
-		if(c == '\"' || c == '\'')
+		if(c == '\"' || c == '\''){
 			if(!quote) quote = c;
 			else if(c == quote) quote = 0;
+		}
 		if(c != ' ') {
 			if(!w){ 
 				w = gettoken(++idx);

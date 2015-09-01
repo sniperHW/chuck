@@ -32,13 +32,7 @@
         uint32_t          pad1;             \
         volatile uint32_t flag;             \
         uint32_t          pad2;             \
-        union{                              \
-            struct{                         \
-                volatile uint32_t low32;    \
-                volatile uint32_t high32;   \
-            };                              \
-            volatile uint64_t identity;     \
-        };                                  \
+        volatile uint64_t identity;         \
         void (*dctor)(void*)
   
 typedef struct

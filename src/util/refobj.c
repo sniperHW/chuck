@@ -1,14 +1,17 @@
 #include "util/refobj.h"
-#include "util/time.h"
 #include "comm.h"
 
 volatile uint32_t g_ref_counter = 0;
 
+static   time_t   g_start_timestamp = 0;
+
 void refobj_init(refobj *r,void (*dctor)(void*))
 {
+    time_t   now = time(NULL);
+    COMPARE_AND_SWAP(&g_start_timestamp,0,now); 
 	r->dctor     = dctor;
-	r->high32    = cast(uint32_t,(ATOMIC_INCREASE_FETCH(&g_ref_counter) & 0x3FFFFFF));
-	r->low32     = systick32();
+    r->identity  = (now - g_start_timestamp) << 30;  
+    r->identity += ATOMIC_INCREASE_FETCH(&g_ref_counter) & 0x3FFFFFF;
 	ATOMIC_INCREASE_FETCH(&r->refcount);
 }
 

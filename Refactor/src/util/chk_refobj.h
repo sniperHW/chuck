@@ -28,14 +28,8 @@ struct chk_refobj {
     volatile uint32_t refcount;
     uint32_t          pad1;             
     volatile uint32_t flag;             
-    uint32_t          pad2;             
-    union{                              
-        struct{                         
-            volatile uint32_t low32;    
-            volatile uint32_t high32;   
-        };                              
-        volatile uint64_t identity;     
-    };                                  
+    uint32_t          pad2;                                      
+    volatile uint64_t identity;                                    
     void (*dctor)(void*);
 };
 
