@@ -99,7 +99,6 @@ static void reset_perthread_exception_st()
 	}
 }
 
-
 chk_expn_thd *chk_exp_get_thread_expn() {
     if(!_exception_st) {
         _exception_st = calloc(1,sizeof(*_exception_st));
@@ -124,16 +123,77 @@ void chk_exp_log_stack() {
 	_log_stack(LOG_DEBUG,2," [call_stack]\n");
 }
 
+static inline void *getaddr(char *in) {
+	int32_t  b,i,size = 32;
+	char     buf[32];
+	char     *out = buf;
+	void     *addr = NULL;
+	for(i = b = 0;i < size - 1;in++)
+		switch(*in) {
+			case '[':{if(!b){b = 1; break;} else return NULL;}
+			case ']':{
+				if(b){
+					*out++ = 0;
+					sscanf(buf,"%LX",(long long unsigned int *)&addr);
+					return addr;
+				}
+				return NULL;
+			}
+			default:{if(b){*out++ = *in;++i;}break;}
+		}
+	return NULL;
+}
 
-static int32_t addr2line(char *addr,char *output,int32_t size) {		
-	char path[256]={0};
-	char cmd[1024]={0};
+static void *getsoaddr(char *path,void *addr) {
+	FILE   *pipe;
+	void   *soaddr = NULL;
+	char    buff[1024]={0};
+	int32_t i =0;
+	char *ptr = path + strlen(path);
+	for(;ptr != path;--ptr) if((*ptr) == '/'){ ++ptr;break;}
+	snprintf(buff,1024,"pmap -x %d",getpid());
+	pipe = popen(buff, "r");
+	if(!pipe) return NULL;
+	for(; i < 1024; ++i){
+		if(1 != fread(&buff[i],1,1,pipe)){
+			pclose(pipe);
+			return NULL;
+		}else if(buff[i] == '\n'){
+			buff[i] = 0;
+			if(strstr(buff,ptr)){
+				for(i=0;buff[i] != ' ';++i);
+				buff[i] = 0;
+				sscanf(&buff[0],"%LX",(long long unsigned int *)&soaddr);
+				*(uint64_t*)&soaddr = addr - soaddr;
+				break;	
+			}
+			i = -1;
+		}
+	}
+	pclose(pipe);
+	return soaddr;
+}
+
+static int32_t getdetail(char *str,char *output,int32_t size)
+{
+	void *addr;
+	char  path[256]={0};
+	char  cmd[1024]={0};
 	FILE *pipe;
-	int  i,j;
-	if(0 >= readlink("/proc/self/exe", path, 256)){
-		return -1;
-	}	
-	snprintf(cmd,1024,"addr2line -fCse %s %s", path, addr);
+	int   i,j;
+	char *so = strstr(str,".so");
+	if(so){
+		strncpy(path,str,(so-str)+3);
+		if(!(addr = getaddr(str))) return -1;
+		if(!(addr = getsoaddr(path,addr))) return -1;
+	}
+	else{
+		if(0 >= readlink("/proc/self/exe", path, 256))
+			return -1;
+		else if(!(addr = getaddr(str))) return -1;
+	}
+
+	snprintf(cmd,1024,"addr2line -fCse %s %Lx", path, (long long unsigned int)addr);
 	pipe = popen(cmd, "r");
 	if(!pipe) return -1;
 	i = fread(output,1,size-1,pipe);	
@@ -145,17 +205,6 @@ static int32_t addr2line(char *addr,char *output,int32_t size) {
 	return 0;
 }
 
-static inline int32_t getaddr(char *in,char *out,size_t size) {
-	int32_t b,i;
-	for(i = b = 0;i < size - 1;in++)
-		switch(*in) {
-			case '[':{if(!b){b = 1; break;} else return 0;}
-			case ']':{if(b){*out++ = 0;return 1;}return 0;}
-			default:{if(b){*out++ = *in;++i;}break;}
-		}
-	return 0;
-}
-
 static void _log_stack(int32_t logLev,int32_t start,char *str) {
 	void*                   bt[64];
 	char**                  strings;
@@ -163,7 +212,7 @@ static void _log_stack(int32_t logLev,int32_t start,char *str) {
 	int32_t                 i,f;
 	int32_t 				size = 0;	
 	char 					logbuf[MAX_LOG_SIZE];
-	char                    addr[32],buf[1024];
+	char                    buf[1024];
 	char 				   *ptr;		
 	sz      = backtrace(bt, 64);
 	strings = backtrace_symbols(bt, sz);
@@ -171,7 +220,7 @@ static void _log_stack(int32_t logLev,int32_t start,char *str) {
 	for(i = start,f = 0; i < sz; ++i) {
 		if(strstr(strings[i],"main+")) break;
 		ptr  = logbuf + size;
-		if(getaddr(strings[i],addr,32) && !addr2line(addr,buf,1024))
+		if(0 == getdetail(strings[i],buf,1024))
 			size += snprintf(ptr,MAX_LOG_SIZE-size,
 				"\t% 2d: %s %s\n",++f,strings[i],buf);
 		else
