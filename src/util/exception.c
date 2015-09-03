@@ -143,7 +143,7 @@ static inline void *getaddr(char *in) {
 			case ']':{
 				if(b){
 					*out++ = 0;
-					sscanf(buf,"%LX",(long long unsigned int *)&addr);
+					sscanf(buf,"%p",&addr);
 					return addr;
 				}
 				return NULL;
@@ -172,7 +172,7 @@ static void *getsoaddr(char *path,void *addr) {
 			if(strstr(buff,ptr)){
 				for(i=0;buff[i] != ' ';++i);
 				buff[i] = 0;
-				sscanf(&buff[0],"%LX",(long long unsigned int *)&soaddr);
+				sscanf(&buff[0],"%p",&soaddr);
 				*(uint64_t*)&soaddr = addr - soaddr;
 				break;	
 			}
@@ -201,7 +201,7 @@ static int32_t getdetail(char *str,char *output,int32_t size) {
 		else if(!(addr = getaddr(str))) return -1;
 	}
 
-	snprintf(cmd,1024,"addr2line -fCse %s %Lx", path, (long long unsigned int)addr);
+	snprintf(cmd,1024,"addr2line -fCse %s %p", path,addr);
 	pipe = popen(cmd, "r");
 	if(!pipe) return -1;
 	i = fread(output,1,size-1,pipe);	

@@ -54,8 +54,20 @@ struct{
 }logqueue;
 
 
+static void  write_console(int32_t loglev,char *content) {
+	switch(loglev) {
+		case LOG_INFO     : printf("%s\n",content); break;
+		case LOG_DEBUG    : printf("\033[1;32;40m%s\033[0m\n",content); break;
+		case LOG_WARN     : printf("\033[1;33;40m%s\033[0m\n",content); break;
+		case LOG_ERROR    : printf("\033[1;35;40m%s\033[0m\n",content); break;
+		case LOG_CRITICAL : printf("\033[5;31;40m%s\033[0m\n",content); break;
+		default           : break;		
+ 	}
+}
+
 void logqueue_push(struct log_item *item)
 {
+	write_console(item->loglev,item->content);
 	mutex_lock(logqueue.mtx);
 	list_pushback(&logqueue.share_queue,(listnode*)item);
 	if(logqueue.wait && list_size(&logqueue.share_queue) == 1){
@@ -107,17 +119,6 @@ int32_t write_prefix(char *buf,int32_t loglev)
 				   cast(uint32_t,thread_id()));
 }
 
-static void  write_console(int32_t loglev,char *content) {
-	switch(loglev) {
-		case LOG_INFO     : printf("%s\n",content); break;
-		case LOG_DEBUG    : printf("\033[1;32;40m%s\033[0m\n",content); break;
-		case LOG_WARN     : printf("\033[1;33;40m%s\033[0m\n",content); break;
-		case LOG_ERROR    : printf("\033[1;35;40m%s\033[0m\n",content); break;
-		case LOG_CRITICAL : printf("\033[5;31;40m%s\033[0m\n",content); break;
-		default           : break;		
- 	}
-}
-
 static void *log_routine(void *arg)
 {
 	time_t next_fulsh = time(NULL) + flush_interval;
@@ -163,7 +164,6 @@ static void *log_routine(void *arg)
 				item->_logfile->file = fopen(filename,"w+");
 			}
 			if(item->_logfile && item->_logfile->file){
-				write_console(item->loglev,item->content);
 				fprintf(item->_logfile->file,"%s\n",item->content);
 				item->_logfile->total_size += strlen(item->content);
 				item->_logfile->status |= CHANGE;
