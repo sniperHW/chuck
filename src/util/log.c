@@ -7,13 +7,17 @@
 #include "comm.h"
 
 static pthread_once_t 	g_log_key_once = PTHREAD_ONCE_INIT;
-static mutex           *g_mtx_log_file_list = NULL;
 static dlist            g_log_file_list = {};
 static thread_t    	    g_log_thd;
 static pid_t          	g_pid = -1;
 static uint32_t         flush_interval = 1;  //flush every 1 second
 static volatile int32_t stop = 0;
+static int32_t   		lock = 0;
 int32_t                 g_loglev = LOG_INFO;
+
+#define LOCK() while (__sync_lock_test_and_set(&lock,1)) {}
+#define UNLOCK() __sync_lock_release(&lock);
+
 
 const char *log_lev_str[] = {
 	"INFO",
@@ -173,7 +177,7 @@ static void *log_routine(void *arg)
 		else if(stop) break;
 		if(time(NULL) >= next_fulsh){
 			l = NULL;	
-			mutex_lock(g_mtx_log_file_list);
+			LOCK();
 			dlist_foreach(&g_log_file_list,n){
 				l = cast(struct logfile *,n);
 				if(l->file && l->status & CHANGE){
@@ -181,13 +185,13 @@ static void *log_routine(void *arg)
 					l->status ^= CHANGE;
 				}
 			}
-			mutex_unlock(g_mtx_log_file_list); 
+			UNLOCK();
 			next_fulsh = time(NULL) + flush_interval;
 		}
 	}
 
 	//向所有打开的日志文件写入"log close success"
-	mutex_lock(g_mtx_log_file_list);
+	LOCK();
 	dlist_foreach(&g_log_file_list,n){
 		l = cast(struct logfile*,n);
 		if(l->file){
@@ -198,7 +202,7 @@ static void *log_routine(void *arg)
 			fclose(l->file);			
 		}
 	}	
-	mutex_unlock(g_mtx_log_file_list);
+	UNLOCK();
 	return NULL;
 }
 
@@ -224,7 +228,6 @@ static void log_once_routine()
 {
 	g_pid = getpid();	
 	dlist_init(&g_log_file_list);
-	g_mtx_log_file_list = mutex_new();
 	list_init(&logqueue.private_queue);
 	list_init(&logqueue.share_queue);
 	logqueue.mtx = mutex_new();
@@ -239,9 +242,9 @@ logfile *create_logfile(const char *filename)
 	pthread_once(&g_log_key_once,log_once_routine);
 	l = calloc(1,sizeof(*l));
 	strncpy(l->filename,filename,256);
-	mutex_lock(g_mtx_log_file_list);
+	LOCK();
 	dlist_pushback(&g_log_file_list,cast(dlistnode*,l));
-	mutex_unlock(g_mtx_log_file_list);	
+	UNLOCK();	
 	return l;
 }
 
@@ -270,7 +273,7 @@ struct lua_logfile{
 static void close_logfile(logfile *l)
 {
 	struct log_item *item;
-	mutex_lock(g_mtx_log_file_list);
+	LOCK();
 	if(!(l->status & CLOSING)){
 		l->status |= CLOSING;
 		dlist_remove(cast(dlistnode*,l));
@@ -279,7 +282,7 @@ static void close_logfile(logfile *l)
 		strcpy(item->content,"close");	
 		logqueue_push(item);		
 	}	
-	mutex_unlock(g_mtx_log_file_list);
+	UNLOCK();
 } 
 
 static int32_t lua_create_logfile(lua_State *L)
@@ -291,7 +294,7 @@ static int32_t lua_create_logfile(lua_State *L)
 	pthread_once(&g_log_key_once,log_once_routine);
 	if(lua_isstring(L,1)){
 		filename = lua_tostring(L,1);
-		mutex_lock(g_mtx_log_file_list);
+		LOCK();
 		n = dlist_begin(&g_log_file_list);
 		while(n != dlist_end(&g_log_file_list)){
 			if(strcmp(cast(logfile*,n)->filename,filename) == 0){
@@ -300,7 +303,7 @@ static int32_t lua_create_logfile(lua_State *L)
 			}
 			n = n->next;
 		}	
-		mutex_unlock(g_mtx_log_file_list);
+		UNLOCK();
 		if(!l){
 			l = create_logfile(filename);
 			if(!l) return 0;

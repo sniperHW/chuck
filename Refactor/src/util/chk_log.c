@@ -16,9 +16,12 @@ static pid_t          	g_pid               = -1;
 static uint32_t         flush_interval      = 1;  //flush every 1 second
 int32_t                 g_loglev            = LOG_INFO;
 static volatile int32_t stop                = 0;
-static chk_mutex        g_mtx_log_file_list;
+static int32_t   		lock 				= 0;
 static chk_dlist        g_log_file_list;
 static chk_thread      *g_log_thd;
+
+#define LOCK() while (__sync_lock_test_and_set(&lock,1)) {}
+#define UNLOCK() __sync_lock_release(&lock);
 
 const char *log_lev_str[] = {
 	"INFO",
@@ -152,18 +155,18 @@ static void *log_routine(void *arg) {
 
 		if(time(NULL) >= next_fulsh) {
 			l = NULL;	
-			chk_mutex_lock(&g_mtx_log_file_list);
+			LOCK();
 			chk_dlist_foreach(&g_log_file_list,n) {
 				l = cast(chk_logfile *,n);
 				if(l->file) fflush(l->file);
 			}
-			chk_mutex_unlock(&g_mtx_log_file_list); 
+			UNLOCK();
 			next_fulsh = time(NULL) + flush_interval;
 		}		
 	}
 
 	//向所有打开的日志文件写入"log close success"
-	chk_mutex_lock(&g_mtx_log_file_list);
+	LOCK();
 	chk_dlist_foreach(&g_log_file_list,n) {
 		l = cast(chk_logfile*,n);
 		if(l->file) {
@@ -175,7 +178,7 @@ static void *log_routine(void *arg) {
 			write_console(LOG_INFO,buf);			
 		}
 	}	
-	chk_mutex_unlock(&g_mtx_log_file_list);
+	UNLOCK();
 	return NULL;
 }
 
@@ -199,7 +202,6 @@ static void log_once_routine() {
 	chk_dlist_init(&g_log_file_list);
 	chk_list_init(&logqueue.private_queue);
 	chk_list_init(&logqueue.share_queue);
-	chk_mutex_init(&g_mtx_log_file_list);
 	chk_mutex_init(&logqueue.mtx);
 	chk_condition_init(&logqueue.cond,&logqueue.mtx);
 	g_log_thd = chk_thread_new(log_routine,NULL);	
@@ -211,9 +213,9 @@ chk_logfile *chk_create_logfile(const char *filename) {
 	pthread_once(&g_log_key_once,log_once_routine);
 	l = calloc(1,sizeof(*l));
 	strncpy(l->filename,filename,256);
-	chk_mutex_lock(&g_mtx_log_file_list);
+	LOCK();
 	chk_dlist_pushback(&g_log_file_list,cast(chk_dlist_entry*,l));
-	chk_mutex_unlock(&g_mtx_log_file_list);	
+	UNLOCK();	
 	return l;
 }
 
