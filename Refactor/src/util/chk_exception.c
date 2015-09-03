@@ -14,29 +14,37 @@ static const char *sigfpe     = "sigfpe";
 
 static __thread chk_expn_thd *_exception_st = NULL;
 
-static void _log_stack(int32_t logLev,int32_t start,char *str);
+static void _log_stack(int32_t logLev,int32_t start,const char *prefix,void **bt);
+
+void chk_exp_log_exption_stack() {
+	char    buff[256];
+	chk_expn_thd *expthd = chk_exp_get_thread_expn();
+	if(!expthd->sz) return;
+    if(expthd->exception == segfault)
+    	snprintf(buff,256," [exception:%s <invaild access addr:%p>]",
+                 segfault,expthd->addr);
+    else
+    	snprintf(buff,256," [exception:%s]",expthd->exception);	
+	_log_stack(LOG_ERROR,3,buff,expthd->bt);
+}
 
 static void exception_throw(chk_expn_frame *frame,const char *exception,siginfo_t* info) {
 	int32_t sig = 0;
-	char    buff[256];
+	chk_expn_thd *expthd = chk_exp_get_thread_expn();
 	if(!frame) {
-		//非rethrow,打印日志
-        if(exception == segfault)
-    	    snprintf(buff,256," [exception:%s <invaild access addr:%p>]\n",
-                             segfault,info->si_addr);
-        else
-    	    snprintf(buff,256," [exception:%s]\n",exception);		
-		_log_stack(LOG_ERROR,3,buff);
+		expthd->sz = backtrace(expthd->bt, LOG_STACK_SIZE);
+		expthd->exception = exception;
+		expthd->addr = info->si_addr;
 		frame = chk_exp_top();
 	}
 	if(frame) {
-		frame->exception = exception;
 		frame->is_process = 0;
 		if(exception == segfault) sig = SIGSEGV;
 		else if(exception == sigbug) sig = SIGBUS;
 		else if(exception == sigfpe) sig = SIGFPE;  
 		siglongjmp(frame->jumpbuffer,sig);
 	}else {
+		chk_exp_log_exption_stack();
 		//没有try,直接终止进程
 		exit(0);
 	}		
@@ -117,13 +125,33 @@ void chk_exp_throw(const char *exp) {
 }
 
 void chk_exp_rethrow(chk_expn_frame *frame) {
-	exception_throw(frame,frame->exception,NULL);
+	exception_throw(frame,chk_exp_get_thread_expn()->exception,NULL);
 }
 
-void chk_exp_log_stack() {
-	_log_stack(LOG_DEBUG,2," [call_stack]\n");
+void chk_exp_log_call_stack(const char *discription) {
+	_log_stack(LOG_DEBUG,2,discription,NULL);
 }
 
+static inline void *getaddr(char *in) {
+	int32_t  b,i,size = 32;
+	char     buf[32];
+	char     *out = buf;
+	void     *addr = NULL;
+	for(i = b = 0;i < size - 1;in++)
+		switch(*in) {
+			case '[':{if(!b){b = 1; break;} else return NULL;}
+			case ']':{
+				if(b){
+					*out++ = 0;
+					sscanf(buf,"%LX",(long long unsigned int *)&addr);
+					return addr;
+				}
+				return NULL;
+			}
+			default:{if(b){*out++ = *in;++i;}break;}
+		}
+	return NULL;
+}
 
 static void *getsoaddr(char *path,void *addr) {
 	FILE   *pipe;
@@ -183,26 +211,32 @@ static int32_t getdetail(char *str,char *output,int32_t size) {
 	return 0;
 }
 
-static void _log_stack(int32_t logLev,int32_t start,char *str) {
-	void*                   bt[64];
+static void _log_stack(int32_t logLev,int32_t start,const char *prefix,void **bt) {
 	char**                  strings;
 	size_t                  sz;
 	int32_t                 i,f;
 	int32_t 				size = 0;	
-	char 					logbuf[MAX_LOG_SIZE];
+	char 					logbuf[CHK_MAX_LOG_SIZE];
 	char                    buf[1024];
-	char 				   *ptr;		
-	sz      = backtrace(bt, 64);
-	strings = backtrace_symbols(bt, sz);
-	size   += snprintf(logbuf,MAX_LOG_SIZE,"%s",str);	    		    			
+	char 				   *ptr;
+	void                   *_bt[LOG_STACK_SIZE];
+
+	if(bt){
+		sz      = chk_exp_get_thread_expn()->sz;
+		strings = backtrace_symbols(bt, sz);
+	}else{
+		sz      = backtrace(_bt, LOG_STACK_SIZE);
+		strings = backtrace_symbols(_bt, sz);
+	}
+	if(prefix) size += snprintf(logbuf,CHK_MAX_LOG_SIZE,"%s\n",prefix);	    		    			
 	for(i = start,f = 0; i < sz; ++i) {
 		if(strstr(strings[i],"main+")) break;
 		ptr  = logbuf + size;
 		if(0 == getdetail(strings[i],buf,1024))
-			size += snprintf(ptr,MAX_LOG_SIZE-size,
+			size += snprintf(ptr,CHK_MAX_LOG_SIZE-size,
 				"\t% 2d: %s %s\n",++f,strings[i],buf);
 		else
-			size += snprintf(ptr,MAX_LOG_SIZE-size,
+			size += snprintf(ptr,CHK_MAX_LOG_SIZE-size,
 				"\t% 2d: %s\n",++f,strings[i]);		
 	}
 	CHK_SYSLOG(logLev,"%s",logbuf);

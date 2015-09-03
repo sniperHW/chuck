@@ -14,6 +14,8 @@
 # define  cast(T,P) ((T)(P))
 #endif
 
+#define LOG_STACK_SIZE 64
+
 typedef struct chk_expn_frame      chk_expn_frame;         //异常帧
 
 typedef struct chk_expn_thd        chk_expn_thd;           //线程异常记录
@@ -22,21 +24,27 @@ typedef struct chk_expn_thd        chk_expn_thd;           //线程异常记录
 struct chk_expn_frame {
     chk_list_entry entry;
     sigjmp_buf     jumpbuffer;
-    int8_t         is_process;
-    const char    *exception;     
+    int8_t         is_process;    
     const char    *file;
     const char    *func;   
 };
 
 struct chk_expn_thd {
-	chk_list  expstack;  
+	chk_list    expstack;
+    const char *exception;
+    void       *addr;
+    size_t      sz; 
+    void       *bt[LOG_STACK_SIZE];          //用于记录异常时的调用栈信息  
 };
 
 //获得当前线程的chk_expn_thd
 chk_expn_thd *chk_exp_get_thread_expn();
 
 //日志记录调用栈
-void chk_exp_log_stack();
+void chk_exp_log_call_stack(const char *discription);
+
+//日志记录异常调用栈
+void chk_exp_log_exption_stack();
 
 void chk_exp_throw(const char *exp);
 
@@ -61,17 +69,19 @@ static inline chk_expn_frame *chk_exp_top() {
 #define TRY                                                         \
     do{                                                             \
     	chk_expn_frame  frame;                                      \
+        chk_expn_thd   *expn_thd = chk_exp_get_thread_expn();       \
         frame.entry = (chk_list_entry){0};                          \
         frame.file = __FILE__;                                      \
         frame.func = __FUNCTION__;                                  \
-        frame.exception = "";                                       \
+        expn_thd->sz = 0;                                           \
+        expn_thd->exception = NULL;                                 \
         frame.is_process = 1;                                       \
         chk_exp_push(&frame);                                       \
         int savesigs= SIGSEGV | SIGBUS | SIGFPE;                    \
     	if(sigsetjmp(frame.jumpbuffer,savesigs) == 0)
 	
 #define THROW(EXP)                                                  \
-    chk_exp_throw(EXP,__FILE__,__FUNCTION__)
+    chk_exp_throw(EXP)
 
 #define CATCH(EXP)                                                  \
     else if(!frame.is_process &&                                    \
