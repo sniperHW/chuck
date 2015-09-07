@@ -45,4 +45,7 @@ void chk_acceptor_del(chk_acceptor *a);
 
 void *chk_acceptor_getud(chk_acceptor *a);
 
+
+chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb,void *ud);
+
 #endif

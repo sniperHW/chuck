@@ -60,22 +60,13 @@ int32_t on_timeout_cb(uint64_t tick,void*ud) {
 
 int main(int argc,char **argv) {
 	signal(SIGPIPE,SIG_IGN);
-	loop = chk_loop_new();
-	chk_sockaddr server;
-	if(0 != easy_sockaddr_ip4(&server,argv[1],atoi(argv[2]))) {
-		printf("invaild address:%s\n",argv[1]);
-	}
-	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-	easy_addr_reuse(fd,1);
-	if(0 == easy_listen(fd,&server)){
-		chk_acceptor *a = chk_acceptor_new(fd,NULL);
-		assert(0 == chk_loop_add_handle(loop,(chk_handle*)a,(chk_event_callback)accept_cb));
+	loop = chk_loop_new();	
+	if(!chk_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),accept_cb,NULL))
+		printf("server start error\n");
+	else {
 		chk_loop_addtimer(loop,1000,on_timeout_cb,NULL);
 		chk_loop_run(loop);
-	}else{
-		close(fd);
-		printf("server start error\n");
-	}	
+	}		
 	return 0;
 }
 

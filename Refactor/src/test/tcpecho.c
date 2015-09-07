@@ -27,20 +27,8 @@ void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t er
 
 int main(int argc,char **argv) {
 	signal(SIGPIPE,SIG_IGN);
-	chk_sockaddr server;
 	loop = chk_loop_new();
-	if(0 != easy_sockaddr_ip4(&server,argv[1],atoi(argv[2]))) {
-		printf("invaild address:%s\n",argv[1]);
-	}
-	int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-	easy_addr_reuse(fd,1);
-	if(0 == easy_listen(fd,&server)){
-		chk_acceptor *a = chk_acceptor_new(fd,NULL);
-		chk_loop_add_handle(loop,(chk_handle*)a,(chk_event_callback)accept_cb);
-		chk_loop_run(loop);
-	}else{
-		close(fd);
+	if(!chk_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),accept_cb,NULL))
 		printf("server start error\n");
-	}	
 	return 0;
 }
