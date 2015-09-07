@@ -1,9 +1,8 @@
 #define _CORE_
 #include <assert.h>
-#include "socket/chk_stream_socket.h"
-#include "util/chk_bytechunk.h"
-#include "socket/chk_socket_helper.h"
 #include "util/chk_error.h"
+#include "socket/chk_socket_helper.h"
+#include "socket/chk_stream_socket.h"
 #include "event/chk_event_loop.h"
 
 #define MAX_WBAF          1024

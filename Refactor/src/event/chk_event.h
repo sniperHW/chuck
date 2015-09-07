@@ -29,20 +29,9 @@
 
 typedef struct chk_event_loop chk_event_loop;
 
-typedef struct chk_sockaddr chk_sockaddr;
-
 typedef struct chk_handle   chk_handle;
 
 typedef void *(*chk_event_callback)(void*);
-
-struct chk_sockaddr {
-    union{
-        struct sockaddr_in  in;   //for ipv4 
-        struct sockaddr_in6 in6;  //for ipv6
-        struct sockaddr_un  un;   //for unix domain
-    }; 
-};
-
 
 
 #ifdef _CORE_

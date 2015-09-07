@@ -2,7 +2,8 @@
 #define _CHK_REDIS_CLIENT_H
 
 #include <stdint.h>
-#include "event/chk_event_loop.h"  
+#include "event/chk_event_loop.h"
+#include "socket/chk_socket_helper.h"  
 
 
 #define REDIS_REPLY_STRING  1

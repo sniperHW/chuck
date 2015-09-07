@@ -3,6 +3,14 @@
 
 #include "event/chk_event.h"
 
+typedef struct {
+    union{
+        struct sockaddr_in  in;   //for ipv4 
+        struct sockaddr_in6 in6;  //for ipv6
+        struct sockaddr_un  un;   //for unix domain
+    }; 
+}chk_sockaddr;
+
 /**
  * 建立监听 
  * @param fd 文件描述符

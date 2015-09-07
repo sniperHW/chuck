@@ -2,7 +2,6 @@
 #include <assert.h>
 #include "socket/chk_connector.h"
 #include "event/chk_event_loop.h"
-#include "socket/chk_socket_helper.h"
 #include "util/chk_log.h"
 #include "util/chk_error.h"
 

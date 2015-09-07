@@ -1,7 +1,7 @@
 #ifndef _CHK_ACCEPTOR_H
 #define _CHK_ACCEPTOR_H
 
-#include "event/chk_event.h"
+#include "socket/chk_socket_helper.h"
 
 
 typedef struct chk_acceptor chk_acceptor;

@@ -2,7 +2,7 @@
 #define _CHK_CONNECTOR_H
 
 #include <stdint.h>
-#include "event/chk_event.h"
+#include "socket/chk_socket_helper.h"
 
 typedef void (*connect_cb)(int32_t fd,int32_t err,void *ud);
 
