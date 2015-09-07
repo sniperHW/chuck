@@ -376,7 +376,7 @@ static void destroy_redisclient(chk_redisclient *c,int32_t err) {
 	free(c);
 }
 
-static void data_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
+static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	char *begin;
 	uint32_t         datasize = data->datasize;
 	uint32_t         size,pos;
@@ -412,7 +412,7 @@ static void data_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
 				chunk = chunk->next;
 			}
 		}else if(parse_ret == REDIS_ERR){
-			event = CHK_ERDSPASERR;
+			error = CHK_ERDSPASERR;
 			break;
 		}else {
 			pos       = 0;
@@ -420,7 +420,7 @@ static void data_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
 			chunk     = chunk->next;
 		}
 	}
-	if(event != 0) chk_redis_close(c,event);
+	if(error != 0) chk_redis_close(c,error);
 }
 
 static	chk_stream_socket_option option = {
@@ -430,7 +430,7 @@ static	chk_stream_socket_option option = {
 	.decoder = NULL,
 };
 
-static void connect_callback(int32_t fd,int32_t err,void *ud) {
+static void connect_callback(int32_t fd,void *ud,int32_t err) {
 	chk_redisclient *c = cast(chk_redisclient*,ud);
 	if(fd) {
 		c->sock = chk_stream_socket_new(fd,&option);

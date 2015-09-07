@@ -11,7 +11,7 @@ chk_stream_socket_option option = {
 };
 
 
-void data_event_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
+void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	if(data) {
 		chk_stream_socket_send(s,chk_bytebuffer_clone(data));
 	}else {

@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "socket/chk_socket_helper.h"
 
-typedef void (*connect_cb)(int32_t fd,int32_t err,void *ud);
+typedef void (*connect_cb)(int32_t fd,void *ud,int32_t err);
 
 /**
  * 建立到远端的连接

@@ -5,7 +5,7 @@
 chk_event_loop *loop;
 uint32_t   packet_count = 0;
 
-void data_event_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
+void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	chk_timer *t;
 	if(!data) {		
 		t = (chk_timer*)chk_stream_socket_getUd(s);
@@ -29,7 +29,7 @@ int32_t on_timeout_cb(uint64_t tick,void*ud) {
 	return 0; 
 }
 
-void connect_callback(int32_t fd,int32_t err,void *ud) {
+void connect_callback(int32_t fd,void *ud,int32_t err) {
 	chk_stream_socket_option option = {
 		.recv_buffer_size = 1024*64,
 		.recv_timeout = 0,

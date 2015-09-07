@@ -9,7 +9,7 @@ chk_stream_socket *clients[1000] ={0};
 int        client_count = 0;
 uint32_t   packet_count = 0;
 
-void data_event_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
+void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	int i;
 	if(data) {
 		//将数据包广播到所有连接

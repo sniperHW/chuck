@@ -74,7 +74,7 @@ static int32_t lua_listen_ip4(lua_State *L) {
 }
 
 
-static void dail_ip4_cb(int32_t fd,int32_t err,void *ud) {
+static void dail_ip4_cb(int32_t fd,void *ud,int32_t err) {
 	chk_luaRef *cb = (chk_luaRef*)ud;
 	const char *error; 
 	if(NULL != (error = chk_Lua_PCallRef(*cb,"ii",fd,err))) {
@@ -172,7 +172,7 @@ static void Push_Buffer(chk_luaPushFunctor *_,lua_State *L) {
 }
 */
 
-static void data_cb(chk_stream_socket *s,int32_t event,chk_bytebuffer *data) {
+static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	/*chk_luaRef   *cb = (chk_luaRef*)chk_stream_socket_getUd(s);
 	const char   *error; 
 	if(NULL != (error = chk_Lua_PCallRef(*cb,"ii",fd,err)))

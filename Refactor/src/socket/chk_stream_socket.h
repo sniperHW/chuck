@@ -13,7 +13,7 @@ typedef struct chk_stream_socket chk_stream_socket;
 
 typedef struct chk_stream_socket_option chk_stream_socket_option;
 
-typedef void (*chk_stream_socket_cb)(chk_stream_socket*,int32_t err,chk_bytebuffer*);
+typedef void (*chk_stream_socket_cb)(chk_stream_socket*,chk_bytebuffer*,int32_t error);
 
 struct chk_stream_socket_option {
 	uint32_t     recv_buffer_size;       //接收缓冲大小

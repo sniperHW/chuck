@@ -265,7 +265,7 @@ static void process_write(chk_stream_socket *s) {
 		else {
 			s->status |= SOCKET_PEERCLOSE;
 			chk_disable_write(cast(chk_handle*,s));
-			s->cb(s,errno,NULL);
+			s->cb(s,NULL,errno);
 		}
 	}
 }
@@ -283,12 +283,12 @@ static void process_read(chk_stream_socket *s) {
 		for(;;) {
 			unpackerr = 0;
 			if((b = decoder->unpack(decoder,&unpackerr))) {
-				s->cb(s,0,b);
+				s->cb(s,b,0);
 				chk_bytebuffer_del(b);
 				if(s->status & SOCKET_CLOSE || s->status & SOCKET_HCLOSE) 
 					break;
 			}else {
-				if(unpackerr) s->cb(s,unpackerr,NULL);
+				if(unpackerr) s->cb(s,NULL,unpackerr);
 				break;
 			}
 		};
@@ -297,7 +297,7 @@ static void process_read(chk_stream_socket *s) {
 	}else {
 		s->status |= SOCKET_PEERCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
-		s->cb(s,errno,NULL);
+		s->cb(s,NULL,errno);
 	}
 }
 
@@ -324,7 +324,7 @@ static void on_events(chk_handle *h,int32_t events) {
 		return;
 	if(events == CHK_EVENT_ECLOSE) {
 		//通知loop关闭
-		s->cb(s,CHK_ELOOPCLOSE,NULL);
+		s->cb(s,NULL,CHK_ELOOPCLOSE);
 		return;
 	}
 	do {
