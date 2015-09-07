@@ -41,8 +41,7 @@ static int32_t lua_listen_ip4(lua_State *L) {
 	lua_event_loop *event_loop;
 	chk_acceptor   *a; 
 	if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) {
-		lua_pushinteger(L,fd);
-		return 1;
+		return 0;
 	}
 
 	event_loop = lua_checkeventloop(L,1);
