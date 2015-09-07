@@ -77,7 +77,8 @@ int32_t chk_is_write_enable(chk_handle*h) {
 }
 
 
-static int32_t loop_init(chk_event_loop *e) {
+int32_t chk_loop_init(chk_event_loop *e) {
+	assert(e);
 	struct epoll_event ev = {0};
 	int32_t epfd = epoll_create1(EPOLL_CLOEXEC);
 	if(epfd < 0) return errno;
@@ -106,9 +107,9 @@ static int32_t loop_init(chk_event_loop *e) {
 	return 0;
 }
 
-static inline void loop_destroy(chk_event_loop *e) {
+void chk_loop_finalize(chk_event_loop *e) {
+	assert(e);
 	chk_handle *h;
-
 	if(e->tfd) {
 		close(e->tfd);
 		chk_timermgr_del(e->timermgr);
@@ -167,12 +168,14 @@ int32_t _loop_run(chk_event_loop *e,int32_t ms) {
 
 loopend:	
 	if(e->status & CLOSING) {
-		loop_destroy(e);
+		chk_loop_finalize(e);
 	}	
 	return ret;
 }
 
-chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb cb,void *ud) {
+chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,
+		chk_timeout_cb cb,void *ud,chk_timer_ud_cleaner ud_cleaner) {
+	chk_timer *timer;
 	struct  itimerspec spec;
     struct  timespec now;
     int64_t nosec;
@@ -201,7 +204,9 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 		}
 		e->timermgr = chk_timermgr_new();
 	}
-	return chk_timer_register(e->timermgr,timeout,cb,ud,chk_systick64()); 
+	timer = chk_timer_register(e->timermgr,timeout,cb,ud,chk_systick64());
+	if(timer && ud_cleaner) chk_timer_set_ud_cleaner(timer,ud_cleaner);
+	return timer; 
 }
 
 #endif

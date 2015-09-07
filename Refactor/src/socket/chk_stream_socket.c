@@ -36,6 +36,7 @@ struct chk_stream_socket {
     chk_list             send_list;             //待发送的包
     chk_timer           *timer;                 //用于最后的发送处理
     chk_stream_socket_cb cb;
+    uint8_t              create_by_new;
 };
 
 /*
@@ -191,7 +192,7 @@ static void release_socket(chk_stream_socket *s) {
 	while((b = cast(chk_bytebuffer*,chk_list_pop(&s->send_list))))
 		chk_bytebuffer_del(b);
 	close(s->fd);
-	free(s);
+	if(s->create_by_new) free(s);
 }
 
 int32_t last_timer_cb(uint64_t tick,void*ud) {
@@ -212,7 +213,7 @@ void chk_stream_socket_close(chk_stream_socket *s) {
 		chk_disable_read(cast(chk_handle*,s));
 		shutdown(s->fd,SHUT_RD);
 		//数据还没发送完,设置5秒超时等待数据发送
-		s->timer = chk_loop_addtimer(s->loop,5000,last_timer_cb,s);
+		s->timer = chk_loop_addtimer(s->loop,5000,last_timer_cb,s,NULL);
 	}else {
 		s->status |= SOCKET_CLOSE;		
 		if(!(s->status & SOCKET_INLOOP)){
@@ -343,15 +344,22 @@ static void on_events(chk_handle *h,int32_t events) {
 	}
 }
 
-chk_stream_socket *chk_stream_socket_new(int32_t fd,chk_stream_socket_option *op) {
-	chk_stream_socket *s = calloc(1,sizeof(*s));
+void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *op) {
+	assert(s);
 	easy_close_on_exec(fd);
 	s->fd = fd;
 	s->on_events = on_events;
 	s->handle_add = loop_add;
 	s->option = *op;
+	s->create_by_new = 0;
 	if(!s->option.decoder) 
-		s->option.decoder = cast(chk_decoder*,default_decoder_new());
+		s->option.decoder = cast(chk_decoder*,default_decoder_new());	
+}
+
+chk_stream_socket *chk_stream_socket_new(int32_t fd,chk_stream_socket_option *op) {
+	chk_stream_socket *s = calloc(1,sizeof(*s));
+	chk_stream_socket_init(s,fd,op);
+	s->create_by_new = 1;
 	return s;
 }
 

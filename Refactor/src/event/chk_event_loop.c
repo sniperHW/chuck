@@ -29,7 +29,7 @@ enum {
 #endif
 
 int32_t chk_loop_run_once(chk_event_loop *e,uint32_t ms) {
-	return _loop_run(e,(uint32_t)ms);
+	return _loop_run(e,(int32_t)ms);
 }
 
 int32_t chk_loop_add_handle(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
@@ -43,7 +43,7 @@ void chk_loop_end(chk_event_loop *e) {
 
 chk_event_loop *chk_loop_new() {
 	chk_event_loop *ep = calloc(1,sizeof(*ep));
-	if(0 != loop_init(ep)) {
+	if(0 != chk_loop_init(ep)) {
 		free(ep);
 		ep = NULL;
 	}
@@ -55,7 +55,7 @@ void chk_loop_del(chk_event_loop *e) {
 	if(e->status & INLOOP)
 		e->status |= CLOSING;
 	else {
-		loop_destroy(e);
+		chk_loop_finalize(e);
 		free(e);
 	}
 }

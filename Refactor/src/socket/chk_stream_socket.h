@@ -22,6 +22,8 @@ struct chk_stream_socket_option {
 	chk_decoder *decoder;
 };
 
+void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *option);
+
 /**
  * 创建stream_socket
  * @param fd 文件描述符

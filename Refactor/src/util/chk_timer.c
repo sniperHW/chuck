@@ -131,11 +131,31 @@ static void fire(chk_timermgr *m,wheel *w,uint64_t tick) {
 		fire(m,m->wheels[w->type+1],tick);
 }
 
+void chk_timermgr_init(chk_timermgr *m) {
+	assert(m);
+	uint16_t i;
+	for(i = 0; i <= wheel_day; ++i) m->wheels[i] = wheel_new(i);
+}
+
+void chk_timermgr_finalize(chk_timermgr *m) {
+	assert(m);
+	uint16_t    i,j,size;
+	chk_dlist  *tlist;
+	chk_timer  *t;
+	for(i = 0; i <= wheel_day; ++i) {
+		size = wheel_size[m->wheels[i]->type];
+		for(j = 0; j < size; ++j) {
+			tlist = &m->wheels[i]->tlist[j];
+			while((t = cast(chk_timer*,chk_dlist_pop(tlist))))
+				_destroy_timer(t);				
+		}
+		free(m->wheels[i]);
+	}	
+}
+
 chk_timermgr *chk_timermgr_new() {
-	uint16_t      i;
 	chk_timermgr *m = calloc(1,sizeof(*m));
-	for(i = 0; i <= wheel_day; ++i)
-		m->wheels[i] = wheel_new(i);
+	chk_timermgr_init(m);
 	return m;
 }
 
@@ -176,18 +196,7 @@ void chk_timer_unregister(chk_timer *t) {
 }
 
 void chk_timermgr_del(chk_timermgr *m) {
-	uint16_t    i,j,size;
-	chk_dlist  *tlist;
-	chk_timer  *t;
-	for(i = 0; i <= wheel_day; ++i) {
-		size = wheel_size[m->wheels[i]->type];
-		for(j = 0; j < size; ++j) {
-			tlist = &m->wheels[i]->tlist[j];
-			while((t = cast(chk_timer*,chk_dlist_pop(tlist))))
-				_destroy_timer(t);				
-		}
-		free(m->wheels[i]);
-	}
+	chk_timermgr_finalize(m);
 	free(m);	
 }
 

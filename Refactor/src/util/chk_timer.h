@@ -19,6 +19,12 @@ typedef int32_t (*chk_timeout_cb)(uint64_t tick,void*ud);
 typedef void    (*chk_timer_ud_cleaner)(void*);
 
 
+
+void chk_timermgr_init(chk_timermgr *);
+
+void chk_timermgr_finalize(chk_timermgr *);
+
+
 /**
  * 创建定时管理器
  */

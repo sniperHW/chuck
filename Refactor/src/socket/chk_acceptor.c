@@ -70,18 +70,30 @@ int32_t chk_acceptor_pause(chk_acceptor *a) {
 	return chk_disable_read(cast(chk_handle*,a));
 }
 
-chk_acceptor *chk_acceptor_new(int32_t fd,void *ud) {
-	chk_acceptor *a = calloc(1,sizeof(*a));
+int32_t chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud) {
+	assert(a);
 	a->ud = ud;
 	a->fd = fd;
 	a->on_events  = process_accept;
 	a->handle_add = loop_add;
 	easy_close_on_exec(fd);
+	return 0;
+}
+
+void chk_acceptor_finalize(chk_acceptor *a) {
+	assert(a);
+	chk_events_remove(cast(chk_handle*,a));
+	close(a->fd);
+}
+
+chk_acceptor *chk_acceptor_new(int32_t fd,void *ud) {
+	chk_acceptor *a = calloc(1,sizeof(*a));
+	chk_acceptor_init(a,fd,ud);
 	return a;
 }
 
 void chk_acceptor_del(chk_acceptor *a) {
-	chk_events_remove(cast(chk_handle*,a));
-	close(a->fd);
+	chk_acceptor_finalize(a);
 	free(a);
 }
+
