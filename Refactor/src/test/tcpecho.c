@@ -12,11 +12,11 @@ chk_stream_socket_option option = {
 
 
 void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
-	if(data) {
+	if(data)
 		chk_stream_socket_send(s,chk_bytebuffer_clone(data));
-	}else {
+	else
 		chk_stream_socket_close(s);
-	}
+	
 }
 
 void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
