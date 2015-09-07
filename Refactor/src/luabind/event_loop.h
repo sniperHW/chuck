@@ -23,12 +23,6 @@ static int32_t lua_new_event_loop(lua_State *L) {
 	return 1;
 }
 
-/*
-chk_timer      *chk_loop_addtimer(chk_event_loop*,uint32_t timeout,chk_timeout_cb,void *ud);
-
-int32_t         chk_loop_add_handle(chk_event_loop*,chk_handle*,chk_event_callback);
-*/
-
 static int32_t lua_event_loop_run(lua_State *L) {
 	chk_event_loop *event_loop;
 	int32_t         ms,ret;
@@ -50,9 +44,52 @@ static int32_t lua_event_loop_end(lua_State *L) {
 }
 
 static int32_t lua_event_loop_addtimer(lua_State *L) {
-	lua_event_loop *event_loop;
-	int32_t         ms,ret;
+	chk_event_loop *event_loop;
+	uint32_t       	ms,ret;
+	chk_timer      *timer;
+	chk_luaRef     *cb;
+	chk_event_loop *event_loop = lua_checkeventloop(L,1);
+	ms = (uint32_t)luaL_optinteger(L,2,1);
+	if(!lua_isfunction(L,3)) 
+		return luaL_error(L,"argument 3 of event_loop_addtimer must be lua function"); 
+	cb = calloc(sizeof(*cb));
+	*cb = chk_toluaRef(L,3);
+	timer = chk_loop_addtimer(event_loop,ms,lua_timeout_cb,cb);
+	if(!timer) {
+		timer_ud_cleaner((void*)cb);
+		return 0;
+	}
+	chk_timer_set_ud_cleaner(timer,timer_ud_cleaner);
+	lua_pushlightuserdata(L,(void*)timer);
+	return 1;
 }
+
+static void register_event_loop(lua_State *L) {
+	luaL_Reg event_loop_mt[] = {
+		{"__gc", lua_event_loop_gc},
+		{NULL, NULL}
+	};
+
+	luaL_Reg event_loop_methods[] = {
+		{"Run",    lua_event_loop_run},
+		{"End",    lua_event_loop_end},
+		{"RegTimer",lua_event_loop_addtimer},
+		{NULL,     NULL}
+	};
+
+	luaL_newmetatable(L, EVENT_LOOP_METATABLE);
+	luaL_setfuncs(L, event_loop_mt, 0);
+
+	luaL_newlib(L, event_loop_methods);
+	lua_setfield(L, -2, "__index");
+	lua_pop(L, 1);
+
+	lua_newtable(L);
+	SET_FUNCTION(L,"New",lua_new_event_loop);
+}
+
+
+
 
 
 

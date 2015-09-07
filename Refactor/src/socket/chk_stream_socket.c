@@ -213,7 +213,7 @@ void chk_stream_socket_close(chk_stream_socket *s) {
 		chk_disable_read(cast(chk_handle*,s));
 		shutdown(s->fd,SHUT_RD);
 		//数据还没发送完,设置5秒超时等待数据发送
-		s->timer = chk_loop_addtimer(s->loop,5000,last_timer_cb,s,NULL);
+		s->timer = chk_loop_addtimer(s->loop,5000,last_timer_cb,s);
 	}else {
 		s->status |= SOCKET_CLOSE;		
 		if(!(s->status & SOCKET_INLOOP)){

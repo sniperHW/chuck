@@ -23,9 +23,9 @@ int32_t chk_acceptor_resume(chk_acceptor *a);
 int32_t chk_acceptor_pause(chk_acceptor *a);
 
 
-int32_t chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud);
+void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud);
 
-void    chk_acceptor_finalize(chk_acceptor *a);
+void chk_acceptor_finalize(chk_acceptor *a);
 
 /**
  * 创建一个接受器
@@ -42,5 +42,7 @@ chk_acceptor *chk_acceptor_new(int32_t fd,void *ud);
 
 void chk_acceptor_del(chk_acceptor *a); 
 
+
+void *chk_acceptor_getud(chk_acceptor *a);
 
 #endif

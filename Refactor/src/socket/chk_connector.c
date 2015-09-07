@@ -36,7 +36,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	if(ret == 0) {
 		c->cb = cast(connect_cb,cb);
 		if(c->timeout) {
-			c->t = chk_loop_addtimer(e,c->timeout,connect_timeout,c,NULL);
+			c->t = chk_loop_addtimer(e,c->timeout,connect_timeout,c);
 		}			
 	}
 	return ret;

@@ -173,9 +173,7 @@ loopend:
 	return ret;
 }
 
-chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,
-		chk_timeout_cb cb,void *ud,chk_timer_ud_cleaner ud_cleaner) {
-	chk_timer *timer;
+chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb cb,void *ud) {
 	struct  itimerspec spec;
     struct  timespec now;
     int64_t nosec;
@@ -204,9 +202,7 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,
 		}
 		e->timermgr = chk_timermgr_new();
 	}
-	timer = chk_timer_register(e->timermgr,timeout,cb,ud,chk_systick64());
-	if(timer && ud_cleaner) chk_timer_set_ud_cleaner(timer,ud_cleaner);
-	return timer; 
+	return chk_timer_register(e->timermgr,timeout,cb,ud,chk_systick64()); 
 }
 
 #endif
