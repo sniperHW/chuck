@@ -107,14 +107,16 @@ static void reset_perthread_exception_st()
 	}
 }
 
+__attribute__((constructor(103))) static void chk_sig_init() {
+	setup_sigsegv();
+	setup_sigbus();
+	setup_sigfpe();
+}
 
 chk_expn_thd *chk_exp_get_thread_expn() {
     if(!_exception_st) {
         _exception_st = calloc(1,sizeof(*_exception_st));
 		chk_list_init(&_exception_st->expstack);	
-		setup_sigsegv();
-		setup_sigbus();
-		setup_sigfpe();
 		pthread_atfork(NULL,NULL,reset_perthread_exception_st);        
     }
     return _exception_st;
