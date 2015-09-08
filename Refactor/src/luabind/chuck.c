@@ -16,3 +16,21 @@
 #include "event_loop.h"
 #include "socket.h"
 #include "redis.h"
+
+
+#define REGISTER_MODULE(L,N,F) do {	\
+	lua_pushstring(L,N);			\
+	F(L);							\
+	lua_settable(L,-3);				\
+}while(0)
+
+int32_t luaopen_chuck(lua_State *L)
+{
+	signal(SIGPIPE,SIG_IGN);
+	lua_newtable(L);
+	REGISTER_MODULE(L,"timer",register_timer);
+	REGISTER_MODULE(L,"event_loop",register_event_loop);
+	REGISTER_MODULE(L,"socket",register_socket);
+	REGISTER_MODULE(L,"redis",register_redis);
+	return 1;
+}
