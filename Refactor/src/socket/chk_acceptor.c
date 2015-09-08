@@ -11,12 +11,6 @@
 #endif
 
 
-struct chk_acceptor{
-    _chk_handle;
-    void           *ud;      
-    chk_acceptor_cb cb;
-};
-
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	assert(e && h && cb);

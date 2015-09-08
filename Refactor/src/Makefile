@@ -33,10 +33,14 @@ source =  util/chk_log.c\
 		  redis/chk_client.c\
 		  thread/chk_thread.c
 
-
 $(LIBNAME):$(source)
 	$(CC) -fPIC $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
+	rm *.o
+
+chuck.so:$(source)
+	$(CC) -fPIC $(CFLAGS) -c luabind/chuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
+	$(CC) $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
 	rm *.o
 
 testlog:test/testlog.c $(LIBNAME)

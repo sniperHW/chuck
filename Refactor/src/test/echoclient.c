@@ -32,8 +32,6 @@ int32_t on_timeout_cb(uint64_t tick,void*ud) {
 void connect_callback(int32_t fd,void *ud,int32_t err) {
 	chk_stream_socket_option option = {
 		.recv_buffer_size = 1024*64,
-		.recv_timeout = 0,
-		.send_timeout = 0,
 		.decoder = (chk_decoder*)_decoder_new(4096),
 	};
 	if(fd) {

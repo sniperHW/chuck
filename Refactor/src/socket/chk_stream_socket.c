@@ -5,9 +5,6 @@
 #include "socket/chk_stream_socket.h"
 #include "event/chk_event_loop.h"
 
-#define MAX_WBAF          1024
-#define MAX_SEND_SIZE     1024*64
-
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
 #endif
@@ -21,21 +18,6 @@ enum{
 	SOCKET_HCLOSE    = 1 << 2,  //读关闭,写等剩余包发完关闭
 	SOCKET_PEERCLOSE = 1 << 3,  //对端关闭
 	SOCKET_INLOOP    = 1 << 4,
-};
-
-struct chk_stream_socket {
-	_chk_handle;
-	chk_stream_socket_option option;
-	struct iovec         wsendbuf[MAX_WBAF];
-    struct iovec         wrecvbuf[2];
-    uint32_t             status;
-    uint32_t             next_recv_pos;
-    chk_bytechunk       *next_recv_buf;
-    void                *ud;        
-    chk_list             send_list;             //待发送的包
-    chk_timer           *timer;                 //用于最后的发送处理
-    chk_stream_socket_cb cb;
-    uint8_t              create_by_new;
 };
 
 /*
@@ -190,7 +172,7 @@ static void release_socket(chk_stream_socket *s) {
 	if(s->timer) chk_timer_unregister(s->timer);
 	while((b = cast(chk_bytebuffer*,chk_list_pop(&s->send_list))))
 		chk_bytebuffer_del(b);
-	close(s->fd);
+	if(s->fd >= 0) close(s->fd);
 	if(s->create_by_new) free(s);
 }
 

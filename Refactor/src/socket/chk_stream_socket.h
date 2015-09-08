@@ -7,7 +7,12 @@
 
 #include "event/chk_event.h"
 #include "util/chk_bytechunk.h"
+#include "util/chk_timer.h"
 #include "socket/chk_decoder.h"
+
+#define MAX_WBAF          1024
+
+#define MAX_SEND_SIZE     1024*64
 
 typedef struct chk_stream_socket chk_stream_socket;
 
@@ -17,9 +22,22 @@ typedef void (*chk_stream_socket_cb)(chk_stream_socket*,chk_bytebuffer*,int32_t 
 
 struct chk_stream_socket_option {
 	uint32_t     recv_buffer_size;       //接收缓冲大小
-	uint32_t     recv_timeout;           //接收超时
-	uint32_t     send_timeout;           //发送超时
 	chk_decoder *decoder;
+};
+
+struct chk_stream_socket {
+	_chk_handle;
+	chk_stream_socket_option option;
+	struct iovec         wsendbuf[MAX_WBAF];
+    struct iovec         wrecvbuf[2];
+    uint32_t             status;
+    uint32_t             next_recv_pos;
+    chk_bytechunk       *next_recv_buf;
+    void                *ud;        
+    chk_list             send_list;             //待发送的包
+    chk_timer           *timer;                 //用于最后的发送处理
+    chk_stream_socket_cb cb;
+    uint8_t              create_by_new;
 };
 
 void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *option);

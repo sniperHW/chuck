@@ -36,8 +36,6 @@ void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t er
 	int i;
 	chk_stream_socket_option option = {
 		.recv_buffer_size = 1024*16,
-		.recv_timeout = 0,
-		.send_timeout = 0,
 		.decoder = (chk_decoder*)_decoder_new(4096),
 	};
 	++client_count;		

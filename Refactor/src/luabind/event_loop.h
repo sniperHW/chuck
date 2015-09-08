@@ -44,8 +44,7 @@ static int32_t lua_event_loop_end(lua_State *L) {
 }
 
 static int32_t lua_event_loop_addtimer(lua_State *L) {
-	chk_event_loop *event_loop;
-	uint32_t       	ms,ret;
+	uint32_t       	ms;
 	lua_timer      *luatimer;
 	chk_luaRef      cb;
 	chk_event_loop *event_loop = lua_checkeventloop(L,1);
@@ -53,10 +52,10 @@ static int32_t lua_event_loop_addtimer(lua_State *L) {
 	if(!lua_isfunction(L,3)) 
 		return luaL_error(L,"argument 3 of event_loop_addtimer must be lua function"); 
 	cb = chk_toluaRef(L,3);
-	luatimer = (lua_timer*)lua_newuserdata(L, sizeof(*t));
+	luatimer = (lua_timer*)lua_newuserdata(L, sizeof(*luatimer));
 	luatimer->cb = cb;
 	luatimer->timer = chk_loop_addtimer(event_loop,ms,lua_timeout_cb,luatimer);
-	if(luatimer.timer) chk_timer_set_ud_cleaner(luatimer.timer,timer_ud_cleaner);
+	if(luatimer->timer) chk_timer_set_ud_cleaner(luatimer->timer,timer_ud_cleaner);
 	else chk_luaRef_release(&luatimer->cb);
 	luaL_getmetatable(L, TIMER_METATABLE);
 	lua_setmetatable(L, -2);	

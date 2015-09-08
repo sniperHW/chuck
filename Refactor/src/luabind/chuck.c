@@ -1,3 +1,4 @@
+#define _CORE_
 #include "../chuck.h"
 
 #define SET_CONST(L,N) do{\

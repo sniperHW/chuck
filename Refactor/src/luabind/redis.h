@@ -45,7 +45,7 @@ static void lua_redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
 	if(c){
 		pusher.c = c;
 		pusher.Push = PushRedis;
-		error = chk_Lua_PCallRef(*cb,"fi",(chk_luaPushFunctor*)&pusher,err));	
+		error = chk_Lua_PCallRef(*cb,"fi",(chk_luaPushFunctor*)&pusher,err);	
 	}else error = chk_Lua_PCallRef(*cb,"pi",NULL,err);
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on lua_redis_connect_cb %s",error);				
 	chk_luaRef_release(cb);
@@ -82,7 +82,12 @@ static int32_t lua_redis_connect_ip4(lua_State *L) {
 	event_loop = lua_checkeventloop(L,1);
 	ip = luaL_checkstring(L,2);
 	port = (int16_t)luaL_checkinteger(L,3);
-	if(0 != easy_sockaddr_ip4(&server,ip,port) return luaL_error(L,"redis_connect_ip4 invaild address or port");
+	
+	if(0 != easy_sockaddr_ip4(&server,ip,port)) {
+		lua_pushstring(L,"redis_connect_ip4 invaild address or port");
+		return 1;
+	}
+
 	cb  = calloc(1,sizeof(*cb));
 	*cb = chk_toluaRef(L,4);
 	if(0 != chk_redis_connect(event_loop,&server,lua_redis_connect_cb,cb)){
@@ -121,12 +126,13 @@ static void PushReply(chk_luaPushFunctor *_,lua_State *L) {
 
 void lua_redis_reply_cb(chk_redisclient *_,redisReply *reply,void *ud) {
 	chk_luaRef *cb = (chk_luaRef*)ud;
+	const char *error = NULL;
 	ReplyPusher pusher;
 	if(reply){
 		pusher.reply = reply;
 		pusher.Push = PushReply;
-		error = chk_Lua_PCallRef(*cb,"f",(chk_luaPushFunctor*)&pusher));	
-	}else error = chk_Lua_PCallRef(*cb,"p",NULL));
+		error = chk_Lua_PCallRef(*cb,"f",(chk_luaPushFunctor*)&pusher);	
+	}else error = chk_Lua_PCallRef(*cb,"p",NULL);
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on redis_reply_cb %s",error);	
 	chk_luaRef_release(cb);
 	free(cb);
@@ -138,7 +144,7 @@ static int32_t lua_redis_execute(lua_State *L) {
 	const char *query_str = luaL_optstring(L,2,"");
 	if(lua_isfunction(L,3)) {
 		cb = calloc(1,sizeof(*cb));
-		cb = chk_toluaRef(L,3);
+		*cb = chk_toluaRef(L,3);
 	}
 	if(0 != chk_redis_execute(client->client,query_str,lua_redis_reply_cb,cb)) {
 		chk_luaRef_release(cb);

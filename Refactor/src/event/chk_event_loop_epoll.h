@@ -6,14 +6,6 @@
 # define  cast(T,P) ((T)(P))
 #endif
 
-struct chk_event_loop {
-	_chk_loop;
-	int32_t    tfd;
-	int32_t    epfd;
-	struct     epoll_event* events;
-	int32_t    maxevents;
-};
-
 static int32_t events_mod(chk_handle *h,int32_t events);
 
 int32_t chk_events_add(chk_event_loop *e,chk_handle *h,int32_t events) {

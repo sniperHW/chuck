@@ -1,14 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include "util/chk_timer.h"
-#include "util/chk_list.h"
 #include "util/chk_util.h"
-
-enum{
-	wheel_sec = 0,  
-	wheel_hour,     
-	wheel_day,      
-};
 
 enum{
 	INCB      = 1,
@@ -35,12 +28,6 @@ static uint16_t wheel_size[] = {
 # define  cast(T,P) ((T)(P))
 #endif
 
-typedef struct {
-	uint8_t      type;
-	int16_t      cur;
-	chk_dlist    tlist[0]; 
-}wheel;
-
 struct chk_timer {
 	chk_dlist_entry      entry;
 	chk_timeout_cb       cb;
@@ -49,12 +36,6 @@ struct chk_timer {
 	uint64_t             expire;
 	int32_t              status;
 	void                *ud;
-};
-
-struct chk_timermgr {
-	wheel 		*wheels[wheel_day+1];
-	uint64_t    *ptrtick;
-	uint64_t     lasttick;
 };
 
 static wheel *wheel_new(uint8_t type) {

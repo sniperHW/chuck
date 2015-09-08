@@ -8,6 +8,12 @@ typedef struct chk_acceptor chk_acceptor;
 
 typedef void (*chk_acceptor_cb)(chk_acceptor*,int32_t fd,chk_sockaddr*,void *ud,int32_t err);
 
+struct chk_acceptor{
+    _chk_handle;
+    void           *ud;      
+    chk_acceptor_cb cb;
+};
+
 /**
  * 恢复acceptor的执行
  * @param a 接受器

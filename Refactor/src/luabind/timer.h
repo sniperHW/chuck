@@ -3,7 +3,7 @@
 #define TIMER_METATABLE "lua_timer"
 
 typedef struct {
-	chk_timer  timer;
+	chk_timer *timer;
 	chk_luaRef cb;
 }lua_timer;
 
@@ -28,7 +28,7 @@ static int32_t lua_timeout_cb(uint64_t tick,void*ud) {
 	(chk_timermgr*)luaL_checkudata(L,I,TIMERMGR_METATABLE)
 
 #define lua_checktimer(L,I)	\
-	(chk_timer*)luaL_checkudata(L,I,TIMER_METATABLE)
+	(lua_timer*)luaL_checkudata(L,I,TIMER_METATABLE)
 
 static int32_t lua_timer_gc(lua_State *L) {
 	lua_timer *luatimer = lua_checktimer(L,1);
@@ -55,17 +55,17 @@ static int32_t lua_new_timermgr(lua_State *L) {
 
 static int32_t lua_timermgr_register(lua_State *L) {
 	chk_luaRef    cb;
-	uint32_t      ms,ret;
+	uint32_t      ms;
 	lua_timer    *luatimer;
 	chk_timermgr *timermgr = (chk_timermgr*)lua_newuserdata(L, sizeof(*timermgr));
 	ms  = (uint32_t)luaL_optinteger(L,2,1);
 	if(!lua_isfunction(L,3)) 
 		return luaL_error(L,"argument 3 of event_loop_addtimer must be lua function"); 
 	cb = chk_toluaRef(L,3);
-	luatimer = (lua_timer*)lua_newuserdata(L, sizeof(*t));
+	luatimer = (lua_timer*)lua_newuserdata(L, sizeof(*luatimer));
 	luatimer->cb = cb;
 	luatimer->timer = chk_timer_register(timermgr,ms,lua_timeout_cb,luatimer,chk_systick64());
-	if(luatimer.timer) chk_timer_set_ud_cleaner(luatimer.timer,timer_ud_cleaner);
+	if(luatimer->timer) chk_timer_set_ud_cleaner(luatimer->timer,timer_ud_cleaner);
 	else chk_luaRef_release(&luatimer->cb);
 	luaL_getmetatable(L, TIMER_METATABLE);
 	lua_setmetatable(L, -2);

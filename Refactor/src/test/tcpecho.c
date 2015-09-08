@@ -5,8 +5,6 @@ chk_event_loop *loop;
 
 chk_stream_socket_option option = {
 	.recv_buffer_size = 4096,
-	.recv_timeout = 0,
-	.send_timeout = 0,
 	.decoder = NULL,
 };
 

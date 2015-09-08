@@ -425,8 +425,6 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 
 static	chk_stream_socket_option option = {
 	.recv_buffer_size = 1024*16,
-	.recv_timeout = 0,
-	.send_timeout = 0,
 	.decoder = NULL,
 };
 

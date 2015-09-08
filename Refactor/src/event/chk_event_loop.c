@@ -5,13 +5,6 @@
 
 #include "event/chk_event_loop.h"
 
-#define _chk_loop				 	 \
-	 chk_timermgr  *timermgr;        \
-     int32_t        notifyfds[2];    \
-     chk_dlist      handles;         \
-     int32_t        status;          \
-     pid_t          threadid
-
 extern int32_t pipe2(int pipefd[2], int flags);
 static int32_t stopevent = 1;
 
