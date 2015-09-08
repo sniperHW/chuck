@@ -223,28 +223,28 @@ static int32_t parse(parse_tree *current,char **str)
 
 	switch(current->type){
 		case '+':{
-			reply->type = REDIS_REPLY_STATUS;
+			if(!reply->type) reply->type = REDIS_REPLY_STATUS;
 			ret = parse_string(current,str);
 			break;
 		}
 		case '-':{
-			reply->type = REDIS_REPLY_ERROR;
+			if(!reply->type) reply->type = REDIS_REPLY_ERROR;
 			ret = parse_string(current,str);
 			break;
 		}
 		case ':':{
-			reply->type = REDIS_REPLY_INTEGER;
+			if(!reply->type) reply->type = REDIS_REPLY_INTEGER;
 			current->want = 1;
 			ret = parse_integer(current,str);
 			break;
 		}
 		case '$':{
-			reply->type = REDIS_REPLY_STRING;
+			if(!reply->type) reply->type = REDIS_REPLY_STRING;
 			ret = parse_breply(current,str);
 			break;
 		}
 		case '*':{
-			reply->type = REDIS_REPLY_ARRAY;
+			if(!reply->type) reply->type = REDIS_REPLY_ARRAY;
 			ret = parse_mbreply(current,str);
 			break;
 		}							
