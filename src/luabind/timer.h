@@ -14,10 +14,10 @@ static void timer_ud_cleaner(void *ud) {
 }
 
 static int32_t lua_timeout_cb(uint64_t tick,void*ud) {
-	chk_luaRef *cb = (chk_luaRef*)ud;
+	lua_timer *luatimer = (lua_timer*)ud;
 	const char *error; 
 	lua_Integer ret;
-	if(NULL != (error = chk_Lua_PCallRef(*cb,":i",&ret))) {
+	if(NULL != (error = chk_Lua_PCallRef(luatimer->cb,":i",&ret))) {
 		CHK_SYSLOG(LOG_ERROR,"error on lua_timeout_cb %s",error);
 		return -1;
 	}

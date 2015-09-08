@@ -128,6 +128,7 @@ void lua_redis_reply_cb(chk_redisclient *_,redisReply *reply,void *ud) {
 	chk_luaRef *cb = (chk_luaRef*)ud;
 	const char *error = NULL;
 	ReplyPusher pusher;
+	if(!cb) return;
 	if(reply){
 		pusher.reply = reply;
 		pusher.Push = PushReply;
