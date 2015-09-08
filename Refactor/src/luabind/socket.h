@@ -2,17 +2,12 @@
 
 #define STREAM_SOCKET_METATABLE "lua_stream_socket"
 
-//#define BYTEBUFFER_METATABLE "lua_bytebuffer"
-
 #define lua_checkacceptor(L,I)	\
 	(chk_acceptor*)luaL_checkudata(L,I,ACCEPTOR_METATABLE)
 
 #define lua_checkstreamsocket(L,I)	\
 	(chk_stream_socket*)luaL_checkudata(L,I,STREAM_SOCKET_METATABLE)
 
-/*#define lua_checkbytebuffer(L,I)	\
-	(chk_bytebuffer*)luaL_checkudata(L,I,BYTEBUFFER_METATABLE)	
-*/
 
 static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
 	chk_luaRef   *cb = (chk_luaRef*)ud;
@@ -150,48 +145,49 @@ static int32_t lua_stream_socket_gc(lua_State *L) {
 	return 0;
 }
 
-/*
 static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
-
-}
-
-typedef struct {
-	void (*Push)(chk_luaPushFunctor *self,lua_State *L);
-	int32_t fd;
-}Stream_socket_Pusher;
-
-static void PushStream_socket(chk_luaPushFunctor *_,lua_State *L) {
-	Stream_socket_Pusher *self = (Stream_socket_Pusher*)_;
-	chk_stream_socket *s = (chk_stream_socket*)lua_newuserdata(L, sizeof(*s));
-	memset(s,0,sizeof(*s));
-	s->fd = self->fd;
-	easy_close_on_exec(s->fd);
-	luaL_getmetatable(L, STREAM_SOCKET_METATABLE);
-	lua_setmetatable(L, -2);
+	chk_luaRef *cb = (chk_luaRef*)chk_stream_socket_getUd(s);
+	luaBufferPusher pusher = {PushBuffer,data};
+	const char *error_str;
+	if(data) error_str = chk_Lua_PCallRef(*cb,"fi",(chk_luaPushFunctor*)&pusher,error);
+	else error_str = chk_Lua_PCallRef(*cb,"pi",NULL,error);
+	if(error_str) CHK_SYSLOG(LOG_ERROR,"error on data_cb %s",error_str);	
 }
 
 static int32_t lua_stream_socket_bind(lua_State *L) {
 	chk_stream_socket *s;
 	chk_event_loop    *event_loop;
 	chk_luaRef        *cb;
-	chk_stream_socket_option option = {
-		.decoder = NULL
-	};
 	if(!lua_isfunction(L,3)) 
 		return luaL_error(L,"argument 3 of stream_socket_bind must be lua function");
 	s = lua_checkstreamsocket(L,1);
 	event_loop = lua_checkeventloop(L,2);
-	option.recv_buffer_size = (uint32_t)luaL_optinteger(L,3,4096);
+
 	cb = calloc(1,sizeof(*cb));
-	*cb = chk_toluaRef(L,4);
-	if(lua_islightuserdata(L,5)) option.decoder = lua_touserdata(L,5);
-	chk_stream_socket_init(s,s->fd,&option);
+	*cb = chk_toluaRef(L,3);
+	chk_stream_socket_setUd(s,cb);
 	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)s,(chk_event_callback)data_cb)) {
 		lua_pushstring(L,"stream_socket_bind failed");
 		return 1;
 	}
 	return 0;
-}*/
+}
+
+static int32_t lua_stream_socket_new(lua_State *L) {
+	int32_t fd;
+	chk_stream_socket *s;
+	chk_stream_socket_option option = {
+		.decoder = NULL
+	};
+	fd = (int32_t)luaL_checkinteger(L,1);
+	option.recv_buffer_size = (uint32_t)luaL_optinteger(L,2,4096);
+	if(lua_islightuserdata(L,3)) option.decoder = lua_touserdata(L,3);
+	s = (chk_stream_socket*)lua_newuserdata(L, sizeof(*s));
+	chk_stream_socket_init(s,fd,&option);
+	luaL_getmetatable(L, STREAM_SOCKET_METATABLE);
+	lua_setmetatable(L, -2);
+	return 1;
+}	
 
 static int32_t lua_stream_socket_close(lua_State *L) {
 	chk_stream_socket *s = lua_checkstreamsocket(L,1);
@@ -217,6 +213,17 @@ static int32_t lua_close_fd(lua_State *L) {
 	return 0;
 }
 
+static int32_t lua_stream_socket_send(lua_State *L) {
+	chk_bytebuffer    *b,*o;
+	chk_stream_socket *s = lua_checkstreamsocket(L,1);
+	o = lua_checkbytebuffer(L,1);
+	b = chk_bytebuffer_clone(NULL,o);
+	if(0 != chk_stream_socket_send(s,b)){
+		lua_pushstring(L,"send error");
+		return 1;
+	}
+	return 0;
+}
 
 static void register_socket(lua_State *L) {
 	luaL_Reg acceptor_mt[] = {
@@ -236,7 +243,8 @@ static void register_socket(lua_State *L) {
 	};
 
 	luaL_Reg stream_socket_methods[] = {
-		//{"Bind",    lua_stream_socket_bind},
+		{"Send",    lua_stream_socket_send},
+		{"Bind",    lua_stream_socket_bind},
 		{"Pause",   lua_stream_socket_pause},
 		{"Resume",	lua_stream_socket_resume},		
 		{"Close",   lua_stream_socket_close},
@@ -262,11 +270,14 @@ static void register_socket(lua_State *L) {
 	lua_pushstring(L,"stream");
 	lua_newtable(L);
 	
+	SET_FUNCTION(L,"New",lua_stream_socket_new);
+
 	lua_pushstring(L,"ip4");
 	lua_newtable(L);
 	SET_FUNCTION(L,"dail",lua_dail_ip4);
 	SET_FUNCTION(L,"listen",lua_listen_ip4);
 	lua_settable(L,-3);
+
 	lua_settable(L,-3);
 
 	SET_FUNCTION(L,"closefd",lua_close_fd);

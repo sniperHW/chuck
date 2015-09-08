@@ -38,7 +38,9 @@ struct chk_bytebuffer {
     uint32_t       datasize;   //属于本buffer的数据大小
     uint32_t       spos;       //起始数据在head中的下标    
     chk_bytechunk *head;
+    uint8_t        create_by_new;
 };
+
 
 /*
 *如果ptr非空,则构造一个至少能容纳len字节的chunk,并把ptr指向的len个字节拷贝到data中
@@ -121,32 +123,79 @@ static inline chk_bytechunk *chk_bytechunk_write(chk_bytechunk *b,char *in,
     return b;
 }
 
+static inline void chk_bytebuffer_init(chk_bytebuffer *b,chk_bytechunk *o,uint32_t spos,uint32_t datasize) {
+    assert(b);
+    if(o) b->head = chk_bytechunk_retain(o);
+    else  b->head = chk_bytechunk_new(NULL,datasize);
+    b->spos  = spos;
+    b->datasize = datasize;
+    b->create_by_new = 0;
+    ++buffercount;    
+}
+
+static inline void chk_bytebuffer_finalize(chk_bytebuffer *b) {
+    if(b->head) chk_bytechunk_release(b->head);
+    b->head = NULL;
+    --buffercount;
+}
+
 static inline chk_bytebuffer *chk_bytebuffer_new(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
     chk_bytebuffer *buffer = calloc(1,sizeof(*buffer));
-    if(b) buffer->head     = chk_bytechunk_retain(b);
-    else  buffer->head     = chk_bytechunk_new(NULL,datasize);
-    buffer->spos           = spos;
-    buffer->datasize       = datasize;
-    ++buffercount;
+    chk_bytebuffer_init(buffer,b,spos,datasize);
+    buffer->create_by_new = 1;
     return buffer;
 }
 
-static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *o) {
-    chk_bytebuffer *buffer = NULL;
-    if(o) {
-        ++buffercount;
-        buffer = calloc(1,sizeof(*buffer));
-        buffer->head     = chk_bytechunk_retain(o->head);
-        buffer->spos     = o->spos;
-        buffer->datasize = o->datasize;        
+/*
+* 浅拷贝,b和o共享数据
+*/
+
+static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *b,chk_bytebuffer *o) {
+    assert(o);
+    if(!b){
+        b = calloc(1,sizeof(*b));
+        chk_bytebuffer_init(b,o->head,o->spos,o->datasize);
+        b->create_by_new = 1;
+    }else {
+        chk_bytebuffer_init(b,o->head,o->spos,o->datasize);
+    }               
+    return b;
+}
+
+/*
+* 深拷贝,b和o数据独立
+*/
+
+static inline chk_bytebuffer *chk_bytebuffer_deep_clone(chk_bytebuffer *b,chk_bytebuffer *o) {
+    assert(o);
+    uint8_t  create_by_new = 0;
+    uint32_t pos = 0;
+    uint32_t dataremain,copysize;
+    chk_bytechunk *c1,*c2;
+    if(!b){
+        b = calloc(1,sizeof(*b));
+        create_by_new = 1;
     }
-    return buffer;
+    b->datasize = o->datasize;
+    b->spos = 0;
+    b->head = c1 = chk_bytechunk_new(NULL,b->datasize);
+    c2 = o->head;
+    dataremain = o->datasize;
+    while(c2) {
+        copysize = c2->cap;
+        copysize = copysize > dataremain ? dataremain:copysize;
+        memcpy(&c1->data[pos],c2->data,copysize);
+        dataremain -= copysize;
+        pos += copysize;
+        c2 = c2->next;
+    }
+    b->create_by_new = create_by_new;
+    return b;
 }
 
 static inline void chk_bytebuffer_del(chk_bytebuffer *b) {
-    if(b->head) chk_bytechunk_release(b->head);
-    --buffercount;
-    free(b);
+    chk_bytebuffer_finalize(b);
+    if(b->create_by_new) free(b);
 }
 
 #endif

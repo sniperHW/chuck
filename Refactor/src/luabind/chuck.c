@@ -15,6 +15,7 @@
 
 #include "timer.h"
 #include "event_loop.h"
+#include "buffer.h"
 #include "socket.h"
 #include "redis.h"
 
@@ -33,5 +34,6 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"event_loop",register_event_loop);
 	REGISTER_MODULE(L,"socket",register_socket);
 	REGISTER_MODULE(L,"redis",register_redis);
+	REGISTER_MODULE(L,"buffer",register_buffer);
 	return 1;
 }
