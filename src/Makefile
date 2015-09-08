@@ -1,110 +1,77 @@
 CFLAGS  = -g -Wall -fno-strict-aliasing 
-LDFLAGS = -lpthread -lrt -lm 
+LDFLAGS = -lpthread -lrt -lm
 DEPDIR  = 
 INCLUDE = -I./ -I../deps
 DEFINE  =
 LIBNAME = libchuck.a
 MAKE    =
 CC      = 
-# if you want to use luajit,change it to jit
-LUA         = lua53
-HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
-JEMALLOC    = ../deps/jemalloc/lib/libjemalloc_pic.a
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),Linux)
 	MAKE += make
 	CC += gcc
-	LDFLAGS += -ldl
 	DEFINE += -D_LINUX
 endif
 
 ifeq ($(uname_S),FreeBSD)
 	MAKE += gmake
 	CC += clang
-	LDFLAGS += -lexecinfo
 	DEFINE += -D_BSD
 endif
 
-ifeq ($(LUA),jit)
-	INCLUDE += -I../deps/myluajit
-	DEFINE  += -D_MYLUAJIT
-else
-	INCLUDE += -I../deps/lua-5.3.0/src
-endif
+source =  util/chk_log.c\
+		  util/chk_timer.c\
+		  util/chk_exception.c\
+		  util/chk_refobj.c\
+		  lua/chk_lua.c\
+		  socket/chk_stream_socket.c\
+		  socket/chk_socket_helper.c\
+		  socket/chk_acceptor.c\
+		  socket/chk_connector.c\
+		  event/chk_event_loop.c\
+		  redis/chk_client.c\
+		  thread/chk_thread.c
 
-
-source =  util/exception.c\
-		  util/minheap.c\
-		  util/timewheel.c\
-		  util/log.c\
-		  util/refobj.c\
-		  util/signaler.c\
-		  util/string.c\
-		  util/lookup8.c\
-		  packet/wpacket.c\
-		  packet/rpacket.c\
-		  packet/packet.c\
-		  packet/rawpacket.c\
-		  packet/luapacket.c\
-		  packet/httppacket.c\
-		  packet/decoder.c\
-		  thread/thread.c\
-		  thread/spinlock.c\
-		  socket/socket.c\
-		  socket/acceptor.c\
-		  socket/connector.c\
-		  socket/stream_socket.c\
-		  socket/datagram_socket.c\
-		  socket/socket_helper.c\
-		  socket/wrap/connection.c\
-		  socket/wrap/datagram.c\
-		  engine/engine.c\
-		  lua/lua_util.c\
-		  lua/lua_util_packet.c\
-		  lua/val.c\
-		  db/redis/client.c\
-		  mem/obj_allocator.c\
-		  util/daemon.c	  
-
-test-source = test/testexception.c\
-			  test/testthread.c\
-			  test/testpacket.c\
-			  test/testdecoder.c
-
-$(HTTP_PARSER):
-	cd ../deps/http-parser/;$(MAKE) package
-
-$(JEMALLOC):				  
-	cd ../deps/jemalloc/;./configure;$(MAKE)
-
-libchuck-release:$(source) $(HTTP_PARSER)
-	$(CC) -fPIC -O2 $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
+$(LIBNAME):$(source)
+	$(CC) -fPIC $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
 	rm *.o
 
-libchuck-debug:$(source) $(HTTP_PARSER)
-	$(CC) -fPIC $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
-	ar -rc $(LIBNAME) *.o
-	rm *.o
-
-testcase:$(test-source)
-	$(CC) $(CFLAGS) -c $(test-source) $(INCLUDE) $(DEFINE)
-	$(CC) $(CFLAGS) -o testexception testexception.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o testthread testthread.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o testpacket testpacket.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	$(CC) $(CFLAGS) -o testdecoder testdecoder.o $(LIBNAME) $(INCLUDE) $(LDFLAGS) $(DEFINE)
-	rm *.o
-
-chuck.so-debug:$(source) $(HTTP_PARSER) $(JEMALLOC)
-	$(CC) -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG -D_CHUCKLUA
+chuck.so:$(source)
+	$(CC) -fPIC $(CFLAGS) -c luabind/chuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
 	$(CC) $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
 	rm *.o
 
-chuck.so-release:$(source) $(HTTP_PARSER) $(JEMALLOC)
-	$(CC) -O2 -fPIC $(CFLAGS) -c luachuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG -D_CHUCKLUA
-	$(CC) -O2 $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
-	rm *.o	
+testlog:test/testlog.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+
+testexception:test/testexception.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/testexception test/testexception.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+
+testpacket:test/testpacket.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/testpacket test/testpacket.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+
+testtimer:test/testtimer.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/testtimer test/testtimer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+
+tcpecho:test/tcpecho.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+
+echobrocast:test/echobrocast.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+
+echoclient:test/echoclient.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/echoclient test/echoclient.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+
+testconnect:test/testconnect.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+
+testredis:test/testredis.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/testredis test/testredis.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
+
+testlua:test/testlua.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/testlua test/testlua.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl
 
 clean:
 	rm *.o
