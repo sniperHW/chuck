@@ -35,9 +35,10 @@ chk_stream_socket *chk_stream_socket_new(int32_t fd,chk_stream_socket_option *op
 /**
  * 关闭stream_socket,同时关联的fd被关闭
  * @param s stream_socket
+ * @param now 如果now=0,则读端关闭,如果写队列中还有数据则尝试将数据写完,否则连接立即关闭
  */
 
-void chk_stream_socket_close(chk_stream_socket *s);
+void chk_stream_socket_close(chk_stream_socket *s,int32_t now);
 
 /**
  * 发送一个buffer

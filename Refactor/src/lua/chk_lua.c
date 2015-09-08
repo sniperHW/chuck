@@ -71,7 +71,8 @@ const char *chk_lua_pcall(lua_State *L,const char *fmt,...) {
 		}
 		case 'f': {
 			_p = va_arg(vl,chk_luaPushFunctor*);
-			_p->Push(_p,L);
+			if(_p) _p->Push(_p,L);
+			else lua_pushnil(L);
 			break;
 		}
 		case ':': {
@@ -127,7 +128,7 @@ arg_end:
 			}
 			case 't': {
 				_t = va_arg(vl,chk_luaToFunctor*);
-				_t->To(_t,L,i);
+				if(_t) _t->To(_t,L,i);
 				break;
 			}
 			default: {

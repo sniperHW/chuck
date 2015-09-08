@@ -24,9 +24,9 @@ typedef struct redisReply redisReply;
 typedef struct chk_redisclient chk_redisclient;
 
 //连接被关闭后回调
-typedef void (*chk_redis_disconnect_cb)(chk_redisclient*,int32_t err);
+typedef void (*chk_redis_disconnect_cb)(chk_redisclient*,void *ud,int32_t err);
 //连接回调
-typedef void (*chk_redis_connect_cb)(chk_redisclient*,int32_t err,void *ud);
+typedef void (*chk_redis_connect_cb)(chk_redisclient*,void *ud,int32_t err);
 //请求回调
 typedef void (*chk_redis_reply_cb)(chk_redisclient*,redisReply*,void *ud);
 
@@ -48,9 +48,9 @@ struct redisReply {
  * @param dcntcb 连接关闭回调
  */
 
-int32_t chk_redis_connect(chk_event_loop *e,chk_sockaddr *addr,
-                          chk_redis_connect_cb cntcb,void *ud,
-                          chk_redis_disconnect_cb dcntcb);
+int32_t chk_redis_connect(chk_event_loop *e,chk_sockaddr *addr,chk_redis_connect_cb cntcb,void *ud);
+
+void    chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,void *ud);
 
 /**
  * 关闭redis连接,当连接结构销毁时回调dcntcb

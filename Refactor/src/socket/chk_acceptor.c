@@ -50,6 +50,7 @@ static void process_accept(chk_handle *h,int32_t events) {
     chk_sockaddr addr;
     chk_acceptor *acceptor = cast(chk_acceptor*,h);
 	if(events == CHK_EVENT_ECLOSE){
+		chk_loop_remove_handle(h);
 		acceptor->cb(acceptor,-1,NULL,acceptor->ud,CHK_ELOOPCLOSE);
 		return;
 	}

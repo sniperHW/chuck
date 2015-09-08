@@ -1,9 +1,16 @@
 #define TIMERMGR_METATABLE "lua_timermgr"
 
+#define TIMER_METATABLE "lua_timer"
+
+typedef struct {
+	chk_timer  timer;
+	chk_luaRef cb;
+}lua_timer;
+
 static void timer_ud_cleaner(void *ud) {
-	chk_luaRef *cb = (chk_luaRef*)ud;
-	chk_luaRef_release(cb);
-	free(cb);
+	lua_timer *luatimer = (lua_timer*)ud;
+	luatimer->timer = NULL;
+	chk_luaRef_release(&luatimer->cb);
 }
 
 static int32_t lua_timeout_cb(uint64_t tick,void*ud) {
@@ -20,6 +27,18 @@ static int32_t lua_timeout_cb(uint64_t tick,void*ud) {
 #define lua_checktimermgr(L,I)	\
 	(chk_timermgr*)luaL_checkudata(L,I,TIMERMGR_METATABLE)
 
+#define lua_checktimer(L,I)	\
+	(chk_timer*)luaL_checkudata(L,I,TIMER_METATABLE)
+
+static int32_t lua_timer_gc(lua_State *L) {
+	lua_timer *luatimer = lua_checktimer(L,1);
+	if(luatimer->timer) {
+		chk_timer_unregister(luatimer->timer);
+		chk_luaRef_release(&luatimer->cb);
+	}
+	return 0;
+}
+
 static int32_t lua_timermgr_gc(lua_State *L) {
 	chk_timermgr *timermgr = lua_checktimermgr(L,1);
 	chk_timermgr_finalize(timermgr);
@@ -35,28 +54,37 @@ static int32_t lua_new_timermgr(lua_State *L) {
 }
 
 static int32_t lua_timermgr_register(lua_State *L) {
-	chk_luaRef   *cb;
+	chk_luaRef    cb;
 	uint32_t      ms,ret;
-	chk_timer    *timer;
+	lua_timer    *luatimer;
 	chk_timermgr *timermgr = (chk_timermgr*)lua_newuserdata(L, sizeof(*timermgr));
 	ms  = (uint32_t)luaL_optinteger(L,2,1);
 	if(!lua_isfunction(L,3)) 
 		return luaL_error(L,"argument 3 of event_loop_addtimer must be lua function"); 
-	cb  = calloc(sizeof(*cb));
-	*cb = chk_toluaRef(L,3);
-	timer = chk_timer_register(timermgr,ms,lua_timeout_cb,cb,chk_systick64());
-	if(!timer) {
-		timer_ud_cleaner((void*)cb);
-		return 0;
-	}
-	chk_timer_set_ud_cleaner(timer,timer_ud_cleaner);
-	lua_pushlightuserdata(L,(void*)timer);
+	cb = chk_toluaRef(L,3);
+	luatimer = (lua_timer*)lua_newuserdata(L, sizeof(*t));
+	luatimer->cb = cb;
+	luatimer->timer = chk_timer_register(timermgr,ms,lua_timeout_cb,luatimer,chk_systick64());
+	if(luatimer.timer) chk_timer_set_ud_cleaner(luatimer.timer,timer_ud_cleaner);
+	else chk_luaRef_release(&luatimer->cb);
+	luaL_getmetatable(L, TIMER_METATABLE);
+	lua_setmetatable(L, -2);
 	return 1;
 }
 
 static int32_t lua_timermgr_tick(lua_State *L) {
 	chk_timermgr *timermgr = (chk_timermgr*)lua_newuserdata(L, sizeof(*timermgr));
 	chk_timer_tick(timermgr,chk_systick64());
+	return 0;
+}
+
+static int32_t lua_unregister_timer(lua_State *L) {
+	lua_timer *luatimer = lua_checktimer(L,1);
+	if(luatimer->timer) {
+		chk_timer_unregister(luatimer->timer);
+		luatimer->timer = NULL;
+		chk_luaRef_release(&luatimer->cb);
+	}
 	return 0;
 }
 
@@ -73,12 +101,29 @@ static void register_timer(lua_State *L) {
 		{NULL,     NULL}
 	};
 
+	luaL_Reg timer_mt[] = {
+		{"__gc", lua_timer_gc},
+		{NULL, NULL}
+	};
+
+	luaL_Reg timer_methods[] = {
+		{"UnRegister",    lua_unregister_timer},
+		{NULL,     NULL}
+	};	
+
 	luaL_newmetatable(L, TIMERMGR_METATABLE);
 	luaL_setfuncs(L, timermgr_mt, 0);
 
 	luaL_newlib(L, timermgr_methods);
 	lua_setfield(L, -2, "__index");
 	lua_pop(L, 1);
+
+	luaL_newmetatable(L, TIMER_METATABLE);
+	luaL_setfuncs(L, timer_mt, 0);
+
+	luaL_newlib(L, timer_methods);
+	lua_setfield(L, -2, "__index");
+	lua_pop(L, 1);	
 
 	lua_newtable(L);
 	SET_FUNCTION(L,"New",lua_new_timermgr);

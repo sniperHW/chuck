@@ -203,11 +203,11 @@ int32_t last_timer_cb(uint64_t tick,void*ud) {
 	return -1;
 }
 
-void chk_stream_socket_close(chk_stream_socket *s) {
+void chk_stream_socket_close(chk_stream_socket *s,int32_t now) {
 	if((s->status & SOCKET_CLOSE) || (s->status & SOCKET_HCLOSE)) 
 		return;
 	
-	if(!(s->status & SOCKET_PEERCLOSE) && !chk_list_empty(&s->send_list) && s->loop) {
+	if(0 == now && !(s->status & SOCKET_PEERCLOSE) && !chk_list_empty(&s->send_list) && s->loop) {
 		s->status |= SOCKET_HCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
 		shutdown(s->fd,SHUT_RD);
@@ -323,7 +323,7 @@ static void on_events(chk_handle *h,int32_t events) {
 	if(!s->loop || s->status & SOCKET_CLOSE)
 		return;
 	if(events == CHK_EVENT_ECLOSE) {
-		//通知loop关闭
+		chk_loop_remove_handle(h);
 		s->cb(s,NULL,CHK_ELOOPCLOSE);
 		return;
 	}

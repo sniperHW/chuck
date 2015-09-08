@@ -48,7 +48,7 @@ static int32_t lua_listen_ip4(lua_State *L) {
 	ip = luaL_checkstring(L,2);
 	port = (int16_t)luaL_checkinteger(L,3);
 	
-	if(0 != easy_sockaddr_ip4(ip,port) {
+	if(0 != easy_sockaddr_ip4(&server,ip,port) {
 		close(fd);
 		return 0;
 	}	

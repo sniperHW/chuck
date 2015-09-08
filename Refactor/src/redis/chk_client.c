@@ -372,7 +372,7 @@ static void destroy_redisclient(chk_redisclient *c,int32_t err) {
 		stcb->cb(c,&connection_lose,stcb->ud);
 		free(stcb);
 	}
-	if(c->dcntcb) c->dcntcb(c,err);
+	if(c->dcntcb) c->dcntcb(c,c->ud,err);
 	free(c);
 }
 
@@ -436,32 +436,34 @@ static void connect_callback(int32_t fd,void *ud,int32_t err) {
 		c->sock = chk_stream_socket_new(fd,&option);
 		chk_stream_socket_setUd(c->sock,c);
 		chk_loop_add_handle(c->loop,(chk_handle*)c->sock,(chk_event_callback)data_cb);
-		c->cntcb(c,0,c->ud);	
+		c->cntcb(c,c->ud,0);	
 	} else {
-		c->cntcb(NULL,err,c->ud);
+		c->cntcb(NULL,c->ud,err);
 		free(c);
 	}
 }
 
-int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,
-                          chk_redis_connect_cb cntcb,void *ud,
-                          chk_redis_disconnect_cb dcntcb) {
+int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_connect_cb cntcb,void *ud) {
 	chk_redisclient *c;
 	int32_t          fd;
 	if(!loop || !addr || !cntcb) return -1;
 	fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 	c  = calloc(1,sizeof(*c));
-	c->dcntcb = dcntcb;
 	c->cntcb  = cntcb;
 	c->ud     = ud;
 	c->loop   = loop;
     return chk_connect(fd,addr,NULL,loop,connect_callback,c,0);
 }
 
+void chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,void *ud) {
+	c->dcntcb = cb;
+	c->ud = ud;
+}
+
 void    chk_redis_close(chk_redisclient *c,int32_t err) {
 	if(c->status & CLIENT_CLOSE) return;
 	c->status |= CLIENT_CLOSE;
-	chk_stream_socket_close(c->sock);
+	chk_stream_socket_close(c->sock,1);
 	if(!(c->status & CLIENT_INCB))
 		destroy_redisclient(c,err);
 }
