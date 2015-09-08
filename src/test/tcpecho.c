@@ -11,7 +11,7 @@ chk_stream_socket_option option = {
 
 void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	if(data)
-		chk_stream_socket_send(s,chk_bytebuffer_clone(data));
+		chk_stream_socket_send(s,chk_bytebuffer_clone(NULL,data));
 	else
 		chk_stream_socket_close(s,0);
 	
@@ -28,5 +28,8 @@ int main(int argc,char **argv) {
 	loop = chk_loop_new();
 	if(!chk_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),accept_cb,NULL))
 		printf("server start error\n");
+	else
+		chk_loop_run(loop);
+	chk_loop_del(loop);
 	return 0;
 }

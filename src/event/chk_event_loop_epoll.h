@@ -102,7 +102,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 void chk_loop_finalize(chk_event_loop *e) {
 	assert(e);
 	chk_handle *h;
-	if(e->tfd) {
+	if(e->tfd >= 0) {
 		close(e->tfd);
 		chk_timermgr_del(e->timermgr);
 	}

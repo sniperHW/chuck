@@ -216,7 +216,7 @@ static int32_t lua_close_fd(lua_State *L) {
 static int32_t lua_stream_socket_send(lua_State *L) {
 	chk_bytebuffer    *b,*o;
 	chk_stream_socket *s = lua_checkstreamsocket(L,1);
-	o = lua_checkbytebuffer(L,1);
+	o = lua_checkbytebuffer(L,2);
 	b = chk_bytebuffer_clone(NULL,o);
 	if(0 != chk_stream_socket_send(s,b)){
 		lua_pushstring(L,"send error");

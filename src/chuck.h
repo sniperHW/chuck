@@ -14,12 +14,11 @@
 #include "util/chk_timer.h"
 #include "util/chk_util.h"
 #include "thread/chk_thread.h"
+#include "event/chk_event_loop.h"
 #include "socket/chk_acceptor.h"
 #include "socket/chk_connector.h"
 #include "socket/chk_decoder.h"
-#include "socket/chk_socket_helper.h"
 #include "socket/chk_stream_socket.h"
-#include "event/chk_event_loop.h"
 #include "lua/chk_lua.h"
 #include "redis/chk_client.h"
 

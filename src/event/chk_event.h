@@ -34,6 +34,36 @@ typedef struct chk_handle   chk_handle;
 typedef void *(*chk_event_callback)(void*);
 
 
+#ifndef _chk_handle
+#define _chk_handle                                                         \
+    chk_dlist_entry entry;                                                  \
+    int             fd;                                                     \
+    union {                                                                 \
+        int32_t     events;                                                 \
+        struct {                                                            \
+            int16_t set_read;                                               \
+            int16_t set_write;                                              \
+        };                                                                  \
+    };                                                                      \
+    chk_event_loop *loop;                                                   \
+    int32_t (*handle_add)(chk_event_loop*,chk_handle*,chk_event_callback);  \
+    void    (*on_events)(chk_handle*,int32_t events)                    
+
+#endif
+
+struct chk_handle {
+    _chk_handle;
+};
+
+#ifndef TEMP_FAILURE_RETRY
+#define TEMP_FAILURE_RETRY(expression)\
+    ({ long int __result;\
+    do __result = (long int)(expression);\
+    while(__result == -1L&& errno == EINTR);\
+    __result;})
+#endif 
+
+
 #ifdef _CORE_
 
 #ifdef _LINUX
@@ -61,32 +91,6 @@ enum{
 #   error "un support platform!"   
 
 #endif
-
-#define _chk_handle                                                         \
-    chk_dlist_entry entry;                                                  \
-    int             fd;                                                     \
-    union {                                                                 \
-        int32_t     events;                                                 \
-        struct {                                                            \
-            int16_t set_read;                                               \
-            int16_t set_write;                                              \
-        };                                                                  \
-    };                                                                      \
-    chk_event_loop *loop;                                                   \
-    int32_t (*handle_add)(chk_event_loop*,chk_handle*,chk_event_callback);  \
-    void    (*on_events)(chk_handle*,int32_t events)                    
-
-struct chk_handle {
-    _chk_handle;
-};
-
-#ifndef TEMP_FAILURE_RETRY
-#define TEMP_FAILURE_RETRY(expression)\
-    ({ long int __result;\
-    do __result = (long int)(expression);\
-    while(__result == -1L&& errno == EINTR);\
-    __result;})
-#endif    
 
 int32_t chk_events_add(chk_event_loop*,chk_handle*,int32_t events);
 

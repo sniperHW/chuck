@@ -305,7 +305,6 @@ static void on_events(chk_handle *h,int32_t events) {
 	if(!s->loop || s->status & SOCKET_CLOSE)
 		return;
 	if(events == CHK_EVENT_ECLOSE) {
-		chk_loop_remove_handle(h);
 		s->cb(s,NULL,CHK_ELOOPCLOSE);
 		return;
 	}
