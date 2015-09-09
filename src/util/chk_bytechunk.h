@@ -32,13 +32,21 @@ struct chk_bytechunk {
 	char            data[0];
 };
 
+
+enum {
+    CREATE_BY_NEW = 1,
+    SHALLOW_COPY  = 1 << 1,
+};
+
 //bytechunk链表形成的buffer
 struct chk_bytebuffer {
     chk_list_entry entry;
     uint32_t       datasize;   //属于本buffer的数据大小
-    uint32_t       spos;       //起始数据在head中的下标    
+    uint32_t       spos;       //起始数据在head中的下标
+    uint32_t       append_pos;     
     chk_bytechunk *head;
-    uint8_t        create_by_new;
+    chk_bytechunk *tail;
+    uint8_t        flags;
 };
 
 
@@ -125,11 +133,15 @@ static inline chk_bytechunk *chk_bytechunk_write(chk_bytechunk *b,char *in,
 
 static inline void chk_bytebuffer_init(chk_bytebuffer *b,chk_bytechunk *o,uint32_t spos,uint32_t datasize) {
     assert(b);
-    if(o) b->head = chk_bytechunk_retain(o);
-    else  b->head = chk_bytechunk_new(NULL,datasize);
-    b->spos  = spos;
-    b->datasize = datasize;
-    b->create_by_new = 0;
+    if(o){
+        b->head = chk_bytechunk_retain(o);
+        b->tail = NULL;
+        b->datasize = datasize;
+        b->spos  = spos;
+    } else {
+        b->tail = b->head = chk_bytechunk_new(NULL,datasize);
+        b->spos = b->datasize = b->append_pos = 0;
+    }
     ++buffercount;    
 }
 
@@ -142,7 +154,7 @@ static inline void chk_bytebuffer_finalize(chk_bytebuffer *b) {
 static inline chk_bytebuffer *chk_bytebuffer_new(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
     chk_bytebuffer *buffer = calloc(1,sizeof(*buffer));
     chk_bytebuffer_init(buffer,b,spos,datasize);
-    buffer->create_by_new = 1;
+    buffer->flags |= CREATE_BY_NEW;
     return buffer;
 }
 
@@ -155,47 +167,144 @@ static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *b,chk_bytebuf
     if(!b){
         b = calloc(1,sizeof(*b));
         chk_bytebuffer_init(b,o->head,o->spos,o->datasize);
-        b->create_by_new = 1;
+        b->flags |= CREATE_BY_NEW;
     }else {
         chk_bytebuffer_init(b,o->head,o->spos,o->datasize);
-    }               
+    }
+    b->flags |= SHALLOW_COPY;
+    b->tail   = b->head;
+    b->append_pos = b->datasize;               
     return b;
+}
+
+static inline chk_bytebuffer *chk_bytebuffer_do_copy(chk_bytebuffer *b,chk_bytechunk *c,uint32_t spos,uint32_t size) {
+    assert(b && c);
+    chk_bytechunk *curr;
+    uint32_t pos = 0;
+    uint32_t dataremain,copysize;
+    b->datasize = size;
+    b->spos = 0;
+    b->head = curr = chk_bytechunk_new(NULL,b->datasize);
+    dataremain = size;
+    while(c) {
+        copysize = c->cap;
+        copysize = copysize > dataremain ? dataremain:copysize;
+        memcpy(&curr->data[pos],c->data + spos,copysize);
+        dataremain -= copysize;
+        pos += copysize;
+        spos = 0;
+        c = c->next;
+    }
 }
 
 /*
 * 深拷贝,b和o数据独立
 */
-
 static inline chk_bytebuffer *chk_bytebuffer_deep_clone(chk_bytebuffer *b,chk_bytebuffer *o) {
     assert(o);
     uint8_t  create_by_new = 0;
-    uint32_t pos = 0;
-    uint32_t dataremain,copysize;
-    chk_bytechunk *c1,*c2;
+    chk_bytechunk *c1;
     if(!b){
         b = calloc(1,sizeof(*b));
         create_by_new = 1;
     }
-    b->datasize = o->datasize;
-    b->spos = 0;
-    b->head = c1 = chk_bytechunk_new(NULL,b->datasize);
-    c2 = o->head;
-    dataremain = o->datasize;
-    while(c2) {
-        copysize = c2->cap;
-        copysize = copysize > dataremain ? dataremain:copysize;
-        memcpy(&c1->data[pos],c2->data,copysize);
-        dataremain -= copysize;
-        pos += copysize;
-        c2 = c2->next;
-    }
-    b->create_by_new = create_by_new;
+    c1 = b->head;
+    b->head = NULL;
+    chk_bytebuffer_do_copy(b,o->head,o->spos,o->datasize);
+    if(c1) chk_bytechunk_release(c1);
+    if(create_by_new) b->flags |= CREATE_BY_NEW;
     return b;
 }
 
 static inline void chk_bytebuffer_del(chk_bytebuffer *b) {
     chk_bytebuffer_finalize(b);
-    if(b->create_by_new) free(b);
+    if(b->flags & CREATE_BY_NEW) free(b);
 }
+
+
+/*
+* 向buffer尾部添加数据,如空间不足会扩张
+*/
+
+static inline void chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_t size) {
+    uint32_t datasize,remain,copysize;
+    if(b->flags & SHALLOW_COPY) {
+        //写时拷贝
+        chk_bytebuffer_do_copy(b,b->head,b->spos,b->datasize);
+    }
+    assert(b->head);
+    if(!b->tail) {
+        //设置正确的tail和append_pos
+        remain   = b->datasize;
+        b->tail  = b->head;
+        datasize = b->tail->cap - b->spos;
+        if(datasize > remain) datasize = remain;
+        b->append_pos = datasize;
+        while(b->tail->next) {
+            remain -= datasize;
+            b->tail = b->tail->next;
+            datasize = b->tail->cap > remain ? remain : b->tail->cap;
+            b->append_pos = datasize;
+        }
+    }
+    while(size) {
+        if(b->append_pos >= b->tail->cap) {
+            //空间不足,扩展
+            b->tail->next = chk_bytechunk_new(NULL,size);
+            b->tail = b->tail->next;
+            b->append_pos = 0; 
+        }
+        copysize = b->tail->cap - b->append_pos;
+        if(copysize > size) copysize = size;
+        memcpy(b->tail->data + b->append_pos,v,copysize);
+        b->append_pos += copysize;
+        v += copysize;
+        size -= copysize;
+    }
+    b->datasize += size;
+}
+
+
+static inline void chk_bytebuffer_append_byte(chk_bytebuffer *b,uint8_t v) {
+    chk_bytebuffer_append(b,&v,1);
+}
+
+
+static inline void chk_bytebuffer_append_word(chk_bytebuffer *b,uint16_t v) {
+    chk_bytebuffer_append(b,(uint8_t*)&v,2);
+}
+
+
+static inline void chk_bytebuffer_append_dword(chk_bytebuffer *b,uint32_t v) {
+    chk_bytebuffer_append(b,(uint8_t*)&v,4);
+}
+
+
+static inline void chk_bytebuffer_append_qword(chk_bytebuffer *b,uint64_t v) {
+    chk_bytebuffer_append(b,(uint8_t*)&v,8);
+}
+
+static inline uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t out_len) {
+    assert(b && out);
+    uint32_t remain,copysize,pos,size;
+    chk_bytechunk *c = b->head;
+    if(!c) return 0;
+    size = remain = out_len > b->datasize ? b->datasize : out_len;
+    pos = b->spos;
+    while(remain) {
+        copysize = c->cap - pos;
+        if(copysize > remain) copysize = remain;
+        memcpy(out,c->data + pos,copysize);
+        remain -= copysize;
+        pos += copysize;
+        out += copysize;
+        if(remain) {
+            c = c->next;
+            pos = 0;
+        }
+    }
+    return size;
+}
+
 
 #endif
