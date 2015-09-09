@@ -43,6 +43,11 @@ chuck.so:$(source)
 	$(CC) $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
 	rm *.o
 
+packet.so:packet/lua_packet.c
+	$(CC) -fPIC $(CFLAGS) -c packet/lua_packet.c $(INCLUDE) $(DEFINE) -D_DEBUG
+	$(CC) $(CFLAGS) -shared -o packet.so *.o -lrt -lm $(LDFLAGS)
+	rm *.o
+
 testlog:test/testlog.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
 

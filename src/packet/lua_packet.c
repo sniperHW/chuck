@@ -1,6 +1,13 @@
+/*
+*  数据包表示       |2字节数据长度|数据...|
+*  二进制数据表示法	|2字节数据长度|数据...|
+*/
+
+
 #include "lua/chk_lua.h"
+#include "util/chk_error.h"
 #include "util/chk_bytechunk.h"
-#include "util/chk_endian.h"
+#include "util/chk_order.h"
 #include "socket/chk_decoder.h"
 
 #ifndef  cast
@@ -22,8 +29,8 @@ typedef struct {
 typedef struct {
 	chk_bytebuffer *buff;
     chk_bytechunk  *cur;       
-    uint16_t        readpos;           
-    uint16_t        data_remain;        
+    uint32_t        readpos;           
+    uint32_t        data_remain;        
 }lua_rpacket;
 
 
@@ -114,11 +121,16 @@ static inline _decoder *_decoder_new(uint32_t max) {
 	return d;
 }
 
+
+/*
+* lua_rpacket用于从一个完整的协议包中读取数据
+*/
+
+
 static inline int32_t lua_rpacket_read(lua_rpacket *r,char *out,uint32_t size) {
-    uint32_t rsize = size;
     if(size > r->data_remain) return 0;//请求数据大于剩余数据
-    r->cur      = chk_bytechunk_read(r->cur,out,&r->readpos,&rsize);
-    r->data_remain -= rsize;
+    r->cur      = chk_bytechunk_read(r->cur,out,&r->readpos,&size);
+    r->data_remain -= size;
     return 1;
 }
 
@@ -133,29 +145,34 @@ static inline int32_t lua_rpacket_readI8(lua_State *L) {
     return 1;
 }
 
-static inline int32_t lua_rpacket_readI16() {
+static inline int32_t lua_rpacket_readI16(lua_State *L) {
 	lua_rpacket *r = lua_checkrpacket(L,1);
-    lua_pushinteger(chk_ntoh16(LUA_RPACKET_READ(r,int16_t)));
+    lua_pushinteger(L,chk_ntoh16(LUA_RPACKET_READ(r,int16_t)));
     return 1;
 }
 
-static inline int32_t lua_rpacket_readI32() {
+static inline int32_t lua_rpacket_readI32(lua_State *L) {
 	lua_rpacket *r = lua_checkrpacket(L,1);
-    lua_pushinteger(chk_ntoh32(LUA_RPACKET_READ(r,int32_t)));
+    lua_pushinteger(L,chk_ntoh32(LUA_RPACKET_READ(r,int32_t)));
     return 1;
 }
 
-static inline int32_t lua_rpacket_readI64() {
+static inline int32_t lua_rpacket_readI64(lua_State *L) {
 	lua_rpacket *r = lua_checkrpacket(L,1);
-    lua_pushinteger(chk_ntoh64(LUA_RPACKET_READ(r,int64_t)));
+    lua_pushinteger(L,chk_ntoh64(LUA_RPACKET_READ(r,int64_t)));
     return 1;
 }
 
-static inline int32_t lua_rpacket_readDub() {
+static inline int32_t lua_rpacket_readDub(lua_State *L) {
 	lua_rpacket *r = lua_checkrpacket(L,1);
-    lua_pushnumber(LUA_RPACKET_READ(r,double));
+    lua_pushnumber(L,LUA_RPACKET_READ(r,double));
     return 1;
 }
+
+
+/*
+* lua_wpacket用于向buffer中写入符合协议的数据
+*/
 
 static inline void lua_wpacket_write(lua_wpacket *w,char *in,uint32_t size) {
     if(w->buff->datasize + size < w->buff->datasize) {
@@ -168,35 +185,35 @@ static inline void lua_wpacket_write(lua_wpacket *w,char *in,uint32_t size) {
 
 
 static inline int32_t lua_wpacket_writeI8(lua_State *L) {
-	lua_rpacket *w = lua_checkwpacket(L,1);
+	lua_wpacket *w = lua_checkwpacket(L,1);
 	int8_t value = (int8_t)luaL_checkinteger(L,2);  
     lua_wpacket_write(w,cast(char*,&value),sizeof(value));
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeI16(lua_State *L) {
-	lua_rpacket *w = lua_checkwpacket(L,1); 
+	lua_wpacket *w = lua_checkwpacket(L,1); 
     int16_t value = chk_hton16((int16_t)luaL_checkinteger(L,2));
     lua_wpacket_write(w,cast(char*,&value),sizeof(value));
     return 0;        
 }
 
 static inline int32_t lua_wpacket_writeI32(lua_State *L) {
-	lua_rpacket *w = lua_checkwpacket(L,1);    
+	lua_wpacket *w = lua_checkwpacket(L,1);    
     int32_t value = chk_hton32((int32_t)luaL_checkinteger(L,2));
     lua_wpacket_write(w,cast(char*,&value),sizeof(value));
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeI64(lua_State *L) {
-	lua_rpacket *w = lua_checkwpacket(L,1);    
+	lua_wpacket *w = lua_checkwpacket(L,1);    
     int64_t value = chk_hton64((int64_t)luaL_checkinteger(L,2));
     lua_wpacket_write(w,cast(char*,&value),sizeof(value));
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeDub(lua_State *L) {
-	lua_rpacket *w = lua_checkwpacket(L,1);
+	lua_wpacket *w = lua_checkwpacket(L,1);
 	double value = luaL_checknumber(L,2);    
     lua_wpacket_write(w,cast(char*,&value),sizeof(value));
     return 0;
@@ -206,6 +223,9 @@ static inline int32_t lua_new_wpacket(lua_State *L) {
 	chk_bytebuffer *buff = lua_checkbytebuffer(L,1);
 	lua_wpacket    *w = (lua_wpacket*)lua_newuserdata(L, sizeof(*w));
 	w->buff = buff;
+	chk_bytebuffer_append_word(buff,0);
+	luaL_getmetatable(L, WPACKET_METATABLE);
+	lua_setmetatable(L, -2);
 	return 1;
 }
 
@@ -214,13 +234,15 @@ static inline int32_t lua_new_rpacket(lua_State *L) {
 	lua_rpacket    *r = (lua_rpacket*)lua_newuserdata(L, sizeof(*r));
 	r->cur = buff->head;
 	r->buff = buff;
-	r->data_remain = buff->datasize - sizeof(r->data_remain);
+	r->data_remain = buff->datasize - 2;
 	if(r->cur->cap - buff->spos > 2)
 		r->readpos = buff->spos + 2;
 	else {
 		r->cur = r->cur->next;
 		r->readpos = 1;
-	}	
+	}
+	luaL_getmetatable(L, RPACKET_METATABLE);
+	lua_setmetatable(L, -2);	
 	return 1;
 }
 
@@ -234,7 +256,7 @@ static inline int32_t lua_rpacket_buff(lua_State *L) {
 
 static inline int32_t lua_wpacket_buff(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
-	lua_pushlightuserdata(L,r->buff);
+	lua_pushlightuserdata(L,w->buff);
 	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -270,8 +292,8 @@ int32_t luaopen_packet(lua_State *L)
 		{"ReadI16",  lua_rpacket_readI16},
 		{"ReadI32",  lua_rpacket_readI32},
 		{"ReadI64",  lua_rpacket_readI64},
-		{"ReadNum",  lua_rpacket_writeDub},
-		{"Buff", 	 lua_rpacket_buff}
+		{"ReadNum",  lua_rpacket_readDub},
+		{"Buff", 	 lua_rpacket_buff},
 		{NULL,     NULL}
 	};	
 
@@ -288,8 +310,8 @@ int32_t luaopen_packet(lua_State *L)
 
 
 	lua_newtable(L);
-	SET_FUNCTION(L,"RPacket",lua_new_rpacket);
-	SET_FUNCTION(L,"WPacket",lua_new_wpacket);
+	SET_FUNCTION(L,"Writer",lua_new_rpacket);
+	SET_FUNCTION(L,"Reader",lua_new_wpacket);
 	SET_FUNCTION(L,"Decoder",lua_new_decoder);
 	return 1;
 }

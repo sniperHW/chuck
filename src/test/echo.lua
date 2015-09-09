@@ -1,7 +1,6 @@
 local chuck = require("chuck")
 local socket = chuck.socket
 
-
 local event_loop = chuck.event_loop.New()
 
 local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
