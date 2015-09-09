@@ -41,6 +41,33 @@ static int32_t lua_bytebuffer_clone(lua_State *L) {
 	return 1;
 }
 
+static int32_t lua_bytebuffer_readall(lua_State *L) {
+	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
+	luaL_Buffer     lb;
+	char           *in;
+	luaL_buffinit(L, &lb);
+	in = luaL_buffinitsize(L,&lb,(size_t)b->datasize);
+	chk_bytebuffer_read(b,in,b->datasize);
+	luaL_pushresultsize(&lb,(size_t)b->datasize);
+	return 1;
+}
+
+static int32_t lua_bytebuffer_append_string(lua_State *L) {
+	const char *str;
+	size_t len = 0;
+	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
+	str = lua_tolstring(L,2,&len);
+	do{
+		if(str && len > 0) {
+			if(0 != chk_bytebuffer_append(b,(uint8_t*)str,(uint32_t)len))
+				break;
+			return 0;
+		}
+	}while(0);
+	lua_pushstring(L,"append string failed");
+	return 1;
+}
+
 static void register_buffer(lua_State *L) {
 
 	luaL_Reg bytebuffer_mt[] = {
@@ -50,10 +77,8 @@ static void register_buffer(lua_State *L) {
 
 	luaL_Reg bytebuffer_methods[] = {
 		{"Clone",    lua_bytebuffer_clone},
-		//{"Bind",    lua_stream_socket_bind},
-		//{"Pause",   lua_stream_socket_pause},
-		//{"Resume",	lua_stream_socket_resume},		
-		//{"Close",   lua_stream_socket_close},
+		{"Content",  lua_bytebuffer_readall},
+		{"AppendStr",lua_bytebuffer_append_string},
 		{NULL,     NULL}
 	};	
 

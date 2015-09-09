@@ -34,8 +34,8 @@ struct chk_bytechunk {
 
 
 enum {
-    CREATE_BY_NEW = 1,
-    SHALLOW_COPY  = 1 << 1,
+    CREATE_BY_NEW      = 1,
+    NEED_COPY_ON_WRITE = 1 << 1,
 };
 
 //bytechunk链表形成的buffer
@@ -138,6 +138,7 @@ static inline void chk_bytebuffer_init(chk_bytebuffer *b,chk_bytechunk *o,uint32
         b->tail = NULL;
         b->datasize = datasize;
         b->spos  = spos;
+        b->flags |= NEED_COPY_ON_WRITE;
     } else {
         b->tail = b->head = chk_bytechunk_new(NULL,datasize);
         b->spos = b->datasize = b->append_pos = 0;
@@ -168,12 +169,8 @@ static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *b,chk_bytebuf
         b = calloc(1,sizeof(*b));
         chk_bytebuffer_init(b,o->head,o->spos,o->datasize);
         b->flags |= CREATE_BY_NEW;
-    }else {
-        chk_bytebuffer_init(b,o->head,o->spos,o->datasize);
-    }
-    b->flags |= SHALLOW_COPY;
-    b->tail   = b->head;
-    b->append_pos = b->datasize;               
+    }else 
+        chk_bytebuffer_init(b,o->head,o->spos,o->datasize);         
     return b;
 }
 
@@ -195,6 +192,10 @@ static inline chk_bytebuffer *chk_bytebuffer_do_copy(chk_bytebuffer *b,chk_bytec
         spos = 0;
         c = c->next;
     }
+    b->flags ^= NEED_COPY_ON_WRITE;
+    b->tail = b->head;
+    b->append_pos = b->datasize;
+    return b;
 }
 
 /*
@@ -226,27 +227,14 @@ static inline void chk_bytebuffer_del(chk_bytebuffer *b) {
 * 向buffer尾部添加数据,如空间不足会扩张
 */
 
-static inline void chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_t size) {
-    uint32_t datasize,remain,copysize;
-    if(b->flags & SHALLOW_COPY) {
+static inline int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_t size) {
+    uint32_t copysize;
+    if(b->flags & NEED_COPY_ON_WRITE) {
         //写时拷贝
         chk_bytebuffer_do_copy(b,b->head,b->spos,b->datasize);
     }
-    assert(b->head);
-    if(!b->tail) {
-        //设置正确的tail和append_pos
-        remain   = b->datasize;
-        b->tail  = b->head;
-        datasize = b->tail->cap - b->spos;
-        if(datasize > remain) datasize = remain;
-        b->append_pos = datasize;
-        while(b->tail->next) {
-            remain -= datasize;
-            b->tail = b->tail->next;
-            datasize = b->tail->cap > remain ? remain : b->tail->cap;
-            b->append_pos = datasize;
-        }
-    }
+    if(!b->tail) return -1;
+    b->datasize += size;
     while(size) {
         if(b->append_pos >= b->tail->cap) {
             //空间不足,扩展
@@ -261,27 +249,27 @@ static inline void chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_t s
         v += copysize;
         size -= copysize;
     }
-    b->datasize += size;
+    return 0;
 }
 
 
-static inline void chk_bytebuffer_append_byte(chk_bytebuffer *b,uint8_t v) {
-    chk_bytebuffer_append(b,&v,1);
+static inline int32_t chk_bytebuffer_append_byte(chk_bytebuffer *b,uint8_t v) {
+    return chk_bytebuffer_append(b,&v,1);
 }
 
 
-static inline void chk_bytebuffer_append_word(chk_bytebuffer *b,uint16_t v) {
-    chk_bytebuffer_append(b,(uint8_t*)&v,2);
+static inline int32_t chk_bytebuffer_append_word(chk_bytebuffer *b,uint16_t v) {
+    return chk_bytebuffer_append(b,(uint8_t*)&v,2);
 }
 
 
-static inline void chk_bytebuffer_append_dword(chk_bytebuffer *b,uint32_t v) {
-    chk_bytebuffer_append(b,(uint8_t*)&v,4);
+static inline int32_t chk_bytebuffer_append_dword(chk_bytebuffer *b,uint32_t v) {
+    return chk_bytebuffer_append(b,(uint8_t*)&v,4);
 }
 
 
-static inline void chk_bytebuffer_append_qword(chk_bytebuffer *b,uint64_t v) {
-    chk_bytebuffer_append(b,(uint8_t*)&v,8);
+static inline int32_t chk_bytebuffer_append_qword(chk_bytebuffer *b,uint64_t v) {
+    return chk_bytebuffer_append(b,(uint8_t*)&v,8);
 }
 
 static inline uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t out_len) {
