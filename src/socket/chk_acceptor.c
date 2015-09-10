@@ -70,6 +70,7 @@ void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud) {
 	a->fd = fd;
 	a->on_events  = process_accept;
 	a->handle_add = loop_add;
+	a->loop = NULL;
 	easy_close_on_exec(fd);
 }
 

@@ -115,6 +115,7 @@ static void fire(chk_timermgr *m,wheel *w,uint64_t tick) {
 void chk_timermgr_init(chk_timermgr *m) {
 	assert(m);
 	uint16_t i;
+	m->ptrtick = NULL;
 	for(i = 0; i <= wheel_day; ++i) m->wheels[i] = wheel_new(i);
 }
 

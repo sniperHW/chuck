@@ -128,10 +128,10 @@ static inline _decoder *_decoder_new(uint32_t max) {
 
 
 static inline int32_t lua_rpacket_read(lua_rpacket *r,char *out,uint32_t size) {
-    if(size > r->data_remain) return 0;//请求数据大于剩余数据
+    if(size > r->data_remain) return -1;//请求数据大于剩余数据
     r->cur      = chk_bytechunk_read(r->cur,out,&r->readpos,&size);
     r->data_remain -= size;
-    return 1;
+    return 0;
 }
 
 #define LUA_RPACKET_READ(R,TYPE)                                   ({\
@@ -169,54 +169,89 @@ static inline int32_t lua_rpacket_readDub(lua_State *L) {
     return 1;
 }
 
+static inline int32_t lua_rpacket_readStr(lua_State *L) {
+	luaL_Buffer     lb;
+	char           *in;
+	lua_rpacket    *r = lua_checkrpacket(L,1);
+	uint16_t        size = chk_ntoh16(LUA_RPACKET_READ(r,uint16_t));
+	if(size == 0) return 0;
+	luaL_buffinit(L, &lb);
+	in = luaL_buffinitsize(L,&lb,(size_t)size);
+	if(0 != (uint16_t)lua_rpacket_read(r,in,size))
+		return luaL_error(L,"lua_rpacket_readstr invaild packet");
+	luaL_pushresultsize(&lb,size);
+	return 1;
+}
+
 
 /*
 * lua_wpacket用于向buffer中写入符合协议的数据
 */
 
-static inline void lua_wpacket_write(lua_wpacket *w,char *in,uint32_t size) {
+static inline int32_t lua_wpacket_write(lua_wpacket *w,char *in,uint32_t size) {
     if(w->buff->datasize + size < w->buff->datasize) {
     	//log
-    	return;
+    	return -1;
     }
     chk_bytebuffer_append(w->buff,(uint8_t*)in,size);
     *((uint16_t*)(w->buff->head->data)) = chk_hton16(w->buff->datasize - sizeof(uint16_t));
+    return 0;
 }
 
 
 static inline int32_t lua_wpacket_writeI8(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
 	int8_t value = (int8_t)luaL_checkinteger(L,2);  
-    lua_wpacket_write(w,cast(char*,&value),sizeof(value));
+    if(0 != lua_wpacket_write(w,cast(char*,&value),sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeI16(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1); 
     int16_t value = chk_hton16((int16_t)luaL_checkinteger(L,2));
-    lua_wpacket_write(w,cast(char*,&value),sizeof(value));
+    if(0 != lua_wpacket_write(w,cast(char*,&value),sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;        
 }
 
 static inline int32_t lua_wpacket_writeI32(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);    
     int32_t value = chk_hton32((int32_t)luaL_checkinteger(L,2));
-    lua_wpacket_write(w,cast(char*,&value),sizeof(value));
+    if(0 != lua_wpacket_write(w,cast(char*,&value),sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeI64(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);    
     int64_t value = chk_hton64((int64_t)luaL_checkinteger(L,2));
-    lua_wpacket_write(w,cast(char*,&value),sizeof(value));
+    if(0 != lua_wpacket_write(w,cast(char*,&value),sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeDub(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
 	double value = luaL_checknumber(L,2);    
-    lua_wpacket_write(w,cast(char*,&value),sizeof(value));
+    if(0 != lua_wpacket_write(w,cast(char*,&value),sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;
+}
+
+static inline int32_t lua_wpacket_writeStr(lua_State *L) {
+	lua_wpacket *w = lua_checkwpacket(L,1);
+	const char  *str;
+	size_t       len;
+	uint16_t     size;
+	if(!lua_isstring(L,2)) luaL_error(L,"argument 2 or lua_rpacket_readstr must be string");
+	str = lua_tolstring(L,2,&len);
+	size = chk_hton16((uint16_t)len);
+	if(0 != lua_wpacket_write(w,cast(char*,&size),sizeof(size)))
+		return luaL_error(L,"write beyond limited");
+	if(0 != lua_wpacket_write(w,cast(char*,str),(uint32_t)len))
+		return luaL_error(L,"write beyond limited");
+	return 0;
 }
 
 static inline int32_t lua_new_wpacket(lua_State *L) {
@@ -283,6 +318,7 @@ int32_t luaopen_packet(lua_State *L)
 		{"WriteI32",  lua_wpacket_writeI32},
 		{"WriteI64",  lua_wpacket_writeI64},
 		{"WriteNum",  lua_wpacket_writeDub},
+		{"WriteStr",  lua_wpacket_writeStr},
 		{"Buff", 	  lua_wpacket_buff},
 		{NULL,     NULL}
 	};
@@ -293,6 +329,7 @@ int32_t luaopen_packet(lua_State *L)
 		{"ReadI32",  lua_rpacket_readI32},
 		{"ReadI64",  lua_rpacket_readI64},
 		{"ReadNum",  lua_rpacket_readDub},
+		{"ReadStr",  lua_rpacket_readStr},
 		{"Buff", 	 lua_rpacket_buff},
 		{NULL,     NULL}
 	};	
@@ -310,8 +347,8 @@ int32_t luaopen_packet(lua_State *L)
 
 
 	lua_newtable(L);
-	SET_FUNCTION(L,"Writer",lua_new_rpacket);
-	SET_FUNCTION(L,"Reader",lua_new_wpacket);
+	SET_FUNCTION(L,"Writer",lua_new_wpacket);
+	SET_FUNCTION(L,"Reader",lua_new_rpacket);
 	SET_FUNCTION(L,"Decoder",lua_new_decoder);
 	return 1;
 }

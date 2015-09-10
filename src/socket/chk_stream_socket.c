@@ -331,6 +331,7 @@ void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_op
 	s->on_events = on_events;
 	s->handle_add = loop_add;
 	s->option = *op;
+	s->loop   = NULL;
 	s->create_by_new = 0;
 	if(!s->option.decoder) 
 		s->option.decoder = cast(chk_decoder*,default_decoder_new());	

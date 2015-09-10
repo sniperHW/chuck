@@ -71,6 +71,7 @@ static int32_t lua_listen_ip4(lua_State *L) {
 		return luaL_error(L,"argument 4 of dail must be lua function"); 
 	a   = (chk_acceptor*)lua_newuserdata(L, sizeof(*a));
 	if(!a) return 0;
+	memset(a,0,sizeof(*a));
 	cb  = calloc(1,sizeof(*cb));
 	*cb = chk_toluaRef(L,4); 	
 	chk_acceptor_init(a,fd,cb);
@@ -183,6 +184,7 @@ static int32_t lua_stream_socket_new(lua_State *L) {
 	option.recv_buffer_size = (uint32_t)luaL_optinteger(L,2,4096);
 	if(lua_islightuserdata(L,3)) option.decoder = lua_touserdata(L,3);
 	s = (chk_stream_socket*)lua_newuserdata(L, sizeof(*s));
+	memset(s,0,sizeof(*s));
 	chk_stream_socket_init(s,fd,&option);
 	luaL_getmetatable(L, STREAM_SOCKET_METATABLE);
 	lua_setmetatable(L, -2);
