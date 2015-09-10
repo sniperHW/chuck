@@ -1,6 +1,6 @@
 /*
-*  数据包表示       |2字节数据长度|数据...|
-*  二进制数据表示法	|2字节数据长度|数据...|
+*  数据包表示       |4字节数据长度|数据...|
+*  二进制数据表示法	|4字节数据长度|数据...|
 */
 
 
@@ -44,7 +44,7 @@ typedef struct {
 	(lua_rpacket*)luaL_checkudata(L,I,RPACKET_METATABLE)	
 
 
-//一个解包器,包头2字节,表示后面数据大小.
+//一个解包器,包头4字节,表示后面数据大小.
 typedef struct _decoder {
 	void (*update)(chk_decoder*,chk_bytechunk *b,uint32_t spos,uint32_t size);
 	chk_bytebuffer *(*unpack)(chk_decoder*,int32_t *err);
@@ -69,14 +69,14 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 	_decoder *d = ((_decoder*)_);
 	chk_bytebuffer *ret  = NULL;
 	chk_bytechunk  *head = d->b;
-	uint16_t        pk_len;
+	uint32_t        pk_len;
 	uint32_t        pk_total,size,pos;
 	do {
 		if(d->size <= sizeof(pk_len)) break;
 		size = sizeof(pk_len);
 		pos  = d->spos;
 		chk_bytechunk_read(head,(char*)&pk_len,&pos,&size);//读取payload大小
-		pk_len = chk_ntoh16(pk_len);
+		pk_len = chk_ntoh32(pk_len);
 		if(pk_len == 0) {
 			if(err) *err = -1;
 			break;
@@ -173,11 +173,11 @@ static inline int32_t lua_rpacket_readStr(lua_State *L) {
 	luaL_Buffer     lb;
 	char           *in;
 	lua_rpacket    *r = lua_checkrpacket(L,1);
-	uint16_t        size = chk_ntoh16(LUA_RPACKET_READ(r,uint16_t));
+	uint32_t        size = chk_ntoh32(LUA_RPACKET_READ(r,uint32_t));
 	if(size == 0) return 0;
 	luaL_buffinit(L, &lb);
 	in = luaL_buffinitsize(L,&lb,(size_t)size);
-	if(0 != (uint16_t)lua_rpacket_read(r,in,size))
+	if(0 != (uint32_t)lua_rpacket_read(r,in,size))
 		return luaL_error(L,"lua_rpacket_readstr invaild packet");
 	luaL_pushresultsize(&lb,size);
 	return 1;
@@ -194,7 +194,7 @@ static inline int32_t lua_wpacket_write(lua_wpacket *w,char *in,uint32_t size) {
     	return -1;
     }
     chk_bytebuffer_append(w->buff,(uint8_t*)in,size);
-    *((uint16_t*)(w->buff->head->data)) = chk_hton16(w->buff->datasize - sizeof(uint16_t));
+    *((uint32_t*)(w->buff->head->data)) = chk_hton32(w->buff->datasize - sizeof(uint32_t));
     return 0;
 }
 
@@ -243,10 +243,10 @@ static inline int32_t lua_wpacket_writeStr(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
 	const char  *str;
 	size_t       len;
-	uint16_t     size;
+	uint32_t     size;
 	if(!lua_isstring(L,2)) luaL_error(L,"argument 2 or lua_rpacket_readstr must be string");
 	str = lua_tolstring(L,2,&len);
-	size = chk_hton16((uint16_t)len);
+	size = chk_hton32((uint32_t)len);
 	if(0 != lua_wpacket_write(w,cast(char*,&size),sizeof(size)))
 		return luaL_error(L,"write beyond limited");
 	if(0 != lua_wpacket_write(w,cast(char*,str),(uint32_t)len))
@@ -258,7 +258,7 @@ static inline int32_t lua_new_wpacket(lua_State *L) {
 	chk_bytebuffer *buff = lua_checkbytebuffer(L,1);
 	lua_wpacket    *w = (lua_wpacket*)lua_newuserdata(L, sizeof(*w));
 	w->buff = buff;
-	chk_bytebuffer_append_word(buff,0);
+	chk_bytebuffer_append_dword(buff,0);
 	luaL_getmetatable(L, WPACKET_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -269,12 +269,12 @@ static inline int32_t lua_new_rpacket(lua_State *L) {
 	lua_rpacket    *r = (lua_rpacket*)lua_newuserdata(L, sizeof(*r));
 	r->cur = buff->head;
 	r->buff = buff;
-	r->data_remain = buff->datasize - 2;
-	if(r->cur->cap - buff->spos > 2)
-		r->readpos = buff->spos + 2;
-	else {
-		r->cur = r->cur->next;
-		r->readpos = 1;
+	r->data_remain = buff->datasize - sizeof(uint32_t);
+	switch(r->cur->cap - buff->spos) {
+		case 1:{r->cur = r->cur->next;r->readpos = 3;}break;
+		case 2:{r->cur = r->cur->next;r->readpos = 2;}break;
+		case 3:{r->cur = r->cur->next;r->readpos = 2;}break;
+		default:r->readpos = buff->spos + 4;
 	}
 	luaL_getmetatable(L, RPACKET_METATABLE);
 	lua_setmetatable(L, -2);	
