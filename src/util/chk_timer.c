@@ -1,5 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
+#include <pthread.h>
+#include <string.h>
 #include "util/chk_timer.h"
 #include "util/chk_util.h"
 
@@ -28,6 +30,11 @@ static uint16_t wheel_size[] = {
 # define  cast(T,P) ((T)(P))
 #endif
 
+#define INIT_FREE_TIMER_SIZE 1024
+
+static pthread_key_t  timer_pool_key;//用于设置key_destructor以在线程结束时清理timer_pool
+__thread chk_dlist   *timer_pool;
+
 struct chk_timer {
 	chk_dlist_entry      entry;
 	chk_timeout_cb       cb;
@@ -37,6 +44,36 @@ struct chk_timer {
 	int32_t              status;
 	void                *ud;
 };
+
+static void key_destructor(void *_) {
+	chk_timer *t;
+	while((t = cast(chk_timer*,chk_dlist_pop(timer_pool))))
+		free(t);
+	free(timer_pool);
+}
+
+static inline chk_timer *get_free_timer() {
+	chk_timer *t;
+	int32_t    i;
+	if(!timer_pool || !(t = cast(chk_timer*,chk_dlist_pop(timer_pool)))){
+		if(!timer_pool) {
+			pthread_key_create(&timer_pool_key,key_destructor);
+			timer_pool = malloc(sizeof(*timer_pool));
+			chk_dlist_init(timer_pool);
+		}
+		for(i = 0;i < INIT_FREE_TIMER_SIZE; ++i) {
+			t = calloc(1,sizeof(*t));
+			chk_dlist_pushback(timer_pool,cast(chk_dlist_entry*,t));
+		}
+	}
+	t = cast(chk_timer*,chk_dlist_pop(timer_pool));
+	memset(t,0,sizeof(*t));
+	return t;
+}
+
+static inline void release_timer(chk_timer *t) {
+	chk_dlist_pushback(timer_pool,cast(chk_dlist_entry*,t));
+}
 
 static wheel *wheel_new(uint8_t type) {
 	wheel   *w;
@@ -80,7 +117,7 @@ static inline void _reg(chk_timermgr *m,chk_timer *t,uint64_t tick) {
 
 static inline void _destroy_timer(chk_timer *t) {
 	if(t->cleaner) t->cleaner(t->ud);
-	free(t);
+	release_timer(t);
 }
 
 static void fire(chk_timermgr *m,wheel *w,uint64_t tick) {
@@ -155,7 +192,7 @@ chk_timer *chk_timer_register(chk_timermgr *m,uint32_t ms,
 							  uint64_t now) {
 	chk_timer *t;
 	if(!cb) return NULL;
-	t = calloc(1,sizeof(*t));
+	t = get_free_timer();
 	t->timeout = ms > MAX_TIMEOUT ? MAX_TIMEOUT : (ms > 0 ? ms : 1);
 	t->cb = cb;
 	t->ud = ud;
