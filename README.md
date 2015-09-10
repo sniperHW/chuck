@@ -15,62 +15,128 @@ static library for c:
 dynamic library for lua:
 
 	make chuck.so
-
-c example:
-
-	make samples
+	make packet.so
 
 
 #examples
 
-echo server:
+##echo.lua
 
-	lua src/samples/lua/echoserver.lua
+	local chuck = require("chuck")
+	local socket = chuck.socket
 
-now try telnet to 127.0.0.1 8010.
+	local event_loop = chuck.event_loop.New()
 
-asynchronous redis client:
-
-start redis server on 127.0.0.1 6379
-
-	lua src/samples/lua/redis_stress.lua 	
-
-httpserver:
-
-	local Http   = require("distri.http.http")
-	local Distri = require("distri.distri")
-	local Chuck  = require("chuck")
-
-	local server = Http.Server(function (req,res)
-		res:WriteHead(200,"OK", {"Content-Type: text/plain"})
-	  	res:End("hello world!")
-	end):Listen("0.0.0.0",8010)
+	local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
+		local conn = socket.stream.New(fd,4096)
+		if conn then
+			conn:Bind(event_loop,function (data)
+				if data then 
+					print(data:Content())
+					local response = data:Clone()
+					response:AppendStr("hello world\r\n")
+					conn:Send(response)
+				else
+					print("client disconnected") 
+					conn:Close() 
+				end
+			end)
+		end
+	end)
 
 	if server then
-		Distri.Signal(Chuck.signal.SIGINT,Distri.Stop)
-		Distri.Run()
+		event_loop:Run()
 	end
 
-httpclient:
+##broadcast_svr.lua
 
-	local Http   = require("distri.http.http")
-	local Distri = require("distri.distri")
-	local Chuck  = require("chuck")
+	local chuck = require("chuck")
+	local socket = chuck.socket
+	local packet = require("packet")
 
-	local client    = Http.Client("www.baidu.com")
-	if client then
-		local request = Http.Request("/")
-		client:Get(request,function (response)
-			for k,v in pairs(response:Headers()) do
-				print(v[1] .. " : " .. v[2])
+	local event_loop = chuck.event_loop.New()
+
+	local clients = {}
+	local client_count = 0
+	local packet_count = 0
+
+	local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
+		local conn = socket.stream.New(fd,65536,packet.Decoder())
+		if conn then
+			clients[fd] = conn
+			client_count = client_count + 1
+			conn:Bind(event_loop,function (data)
+				if data then 
+					for k,v in pairs(clients) do
+						packet_count = packet_count + 1
+						v:Send(data)
+					end
+				else
+					client_count = client_count - 1
+					print("client disconnected") 
+					conn:Close()
+					clients[fd] = nil 
+				end
+			end)
+		end
+	end)
+
+	local timer1 = event_loop:RegTimer(1000,function ()
+		collectgarbage("collect")
+		print(client_count,packet_count)
+		packet_count = 0
+	end)
+
+	if server then
+		event_loop:Run()
+	end
+
+##broadcast_cli.lua
+
+	local chuck = require("chuck")
+	local socket = chuck.socket
+	local packet = require("packet")
+
+	local event_loop = chuck.event_loop.New()
+
+	local connections = {}
+	local packet_count = 0
+
+	for i=1,500 do
+		socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd)
+			local conn = socket.stream.New(fd,65536,packet.Decoder())
+			if conn then
+			connections[fd] = conn
+			conn:Bind(event_loop,function (data)
+					if data then 
+						packet_count = packet_count + 1
+					else
+						print("client disconnected") 
+						conn:Close()
+						connections[fd] = nil 
+					end
+				end)
 			end
-			print(response:Content())
 		end)
-		Distri.Signal(Chuck.signal.SIGINT,Distri.Stop)
-		Distri.Run()	
 	end
 
-[more detail](doc/reference.md)
+	local timer1 = event_loop:RegTimer(1000,function ()
+		print(packet_count)
+		collectgarbage("collect")
+		packet_count = 0
+	end)
+
+	local timer2 = event_loop:RegTimer(300,function ()
+		for k,v in pairs(connections) do
+			local buff = chuck.buffer.New()
+			local w = packet.Writer(buff)
+			w:WriteStr("hello")
+			v:Send(buff)
+		end
+	end)
+
+	event_loop:Run()
+
 
 #customer
 
