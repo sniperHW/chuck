@@ -281,22 +281,6 @@ static inline int32_t lua_new_rpacket(lua_State *L) {
 	return 1;
 }
 
-static inline int32_t lua_rpacket_buff(lua_State *L) {
-	lua_rpacket *r = lua_checkrpacket(L,1);
-	lua_pushlightuserdata(L,r->buff);
-	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
-	lua_setmetatable(L, -2);
-	return 1;
-}
-
-static inline int32_t lua_wpacket_buff(lua_State *L) {
-	lua_wpacket *w = lua_checkwpacket(L,1);
-	lua_pushlightuserdata(L,w->buff);
-	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
-	lua_setmetatable(L, -2);
-	return 1;
-}
-
 static inline int32_t lua_new_decoder(lua_State *L) {
 	uint32_t max = (uint32_t)luaL_optinteger(L,1,1024);
 	lua_pushlightuserdata(L,_decoder_new(max));
@@ -319,7 +303,6 @@ int32_t luaopen_packet(lua_State *L)
 		{"WriteI64",  lua_wpacket_writeI64},
 		{"WriteNum",  lua_wpacket_writeDub},
 		{"WriteStr",  lua_wpacket_writeStr},
-		{"Buff", 	  lua_wpacket_buff},
 		{NULL,     NULL}
 	};
 
@@ -330,7 +313,6 @@ int32_t luaopen_packet(lua_State *L)
 		{"ReadI64",  lua_rpacket_readI64},
 		{"ReadNum",  lua_rpacket_readDub},
 		{"ReadStr",  lua_rpacket_readStr},
-		{"Buff", 	 lua_rpacket_buff},
 		{NULL,     NULL}
 	};	
 
