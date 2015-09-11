@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #if !defined LUA_VERSION_NUM || LUA_VERSION_NUM==501
 /*
@@ -82,26 +83,30 @@ struct chk_luaToFunctor {
 static inline void chk_push_LuaRef(lua_State *L,chk_luaRef ref);
 static inline chk_luaRef chk_toluaRef(lua_State *L,int idx);
 
-static inline chk_luaRef chk_luaRef_retain(chk_luaRef ref) {
-	if(ref.L && ref.index != LUA_REFNIL) {
-		chk_push_LuaRef(ref.L,ref);
-		return chk_toluaRef(ref.L,-1);
+/*
+static inline chk_luaRef chk_luaRef_retain(chk_luaRef *ref) {
+	if(ref->L && ref->index != LUA_REFNIL) {
+		chk_push_LuaRef(ref->L,ref);
+		return chk_toluaRef(ref->L,-1);
 	}
-	return (chk_luaRef){.L=NULL,.index=LUA_REFNIL};
+	return (chk_luaRef){.L=NULL};
 }
+*/
 
 static inline void chk_luaRef_release(chk_luaRef *ref) {
-	if(ref->L && ref->index != LUA_REFNIL) {
+	if(ref->L) {
 		luaL_unref(ref->L,LUA_REGISTRYINDEX,ref->index);
 		ref->L = NULL;
-		ref->index = LUA_REFNIL;
 	}
 }
 
 static inline chk_luaRef chk_toluaRef(lua_State *L,int idx) {
-	chk_luaRef ref;
+	chk_luaRef ref = {.L = NULL};
 	lua_pushvalue(L,idx);
 	ref.index = luaL_ref(L,LUA_REGISTRYINDEX);
+	if(ref.index == LUA_REFNIL || ref.index == LUA_NOREF)
+		return ref;	
+
 #ifdef _MYLUAJIT
 	lua_pushmainthread(L);
 	ref.L = lua_tothread(L,-1);
@@ -114,6 +119,7 @@ static inline chk_luaRef chk_toluaRef(lua_State *L,int idx) {
 }
 
 static inline void chk_push_LuaRef(lua_State *L,chk_luaRef ref) {
+	assert(L && (ref.index != LUA_REFNIL && ref.index != LUA_REFNIL));
 	lua_rawgeti(L,LUA_REGISTRYINDEX,ref.index);
 }
 
@@ -140,12 +146,14 @@ const char *chk_lua_pcall(lua_State *L,const char *fmt,...);
 
 //调用一个lua函数引用		
 #define chk_Lua_PCallRef(__FUNREF,__FMT,...)			         ({\
-	const char *__result;									       \
-	lua_State *__L = (__FUNREF).L;							       \
-	int __oldtop = lua_gettop(__L);							       \
-	lua_rawgeti(__L,LUA_REGISTRYINDEX,(__FUNREF).index);	       \
-	__result = chk_lua_pcall(__L,__FMT,##__VA_ARGS__);		       \
-	lua_settop(__L,__oldtop);								       \
+	const char *__result = "invaild ref";						   \
+	lua_State *__L = (__FUNREF).L;								   \
+	if(__L) {							       					   \
+		int __oldtop = lua_gettop(__L);							   \
+		lua_rawgeti(__L,LUA_REGISTRYINDEX,(__FUNREF).index);	   \
+		__result = chk_lua_pcall(__L,__FMT,##__VA_ARGS__);		   \
+		lua_settop(__L,__oldtop);								   \
+	}								       						   \
 	__result;												     })
 
 #if 0
