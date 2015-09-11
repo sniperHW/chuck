@@ -10,7 +10,7 @@ w:WriteStr("hello")
 w:WriteStr("fasdfasdfasffdsafjklafklkfjklfjlkasfjaklfjfkjasfjaklf")
 w:WriteStr("fasdfasdfasffdsafjklafklkfjklfjlkasfjaklfjfkjasfjaklf")
 --w:WriteTable({-2,3,6273549})
-w:WriteTable({a=1,b=2})
+w:WriteTable({a=1,b=2.8})
 
 local r = packet.Reader(buff)
 

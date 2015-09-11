@@ -48,6 +48,7 @@ enum{
 	L_STRING,
 	L_BOOL,
 	L_FLOAT,
+	L_DOUBLE,
 	L_UINT8,
 	L_UINT16,
 	L_UINT32,
@@ -214,7 +215,8 @@ static inline int32_t _lua_unpack_boolean(lua_rpacket *rpk,lua_State *L) {
 static inline int32_t _lua_unpack_number(lua_rpacket *rpk,lua_State *L,int type) {
 	lua_Integer   n;
 	switch(type){
-		case L_FLOAT:lua_pushnumber(L, LUA_RPACKET_READ(rpk,double));return 0;
+		case L_FLOAT:lua_pushnumber(L, LUA_RPACKET_READ(rpk,float));return 0;
+		case L_DOUBLE:lua_pushnumber(L, LUA_RPACKET_READ(rpk,double));return 0;
 		case L_UINT8:n  = LUA_RPACKET_READ(rpk,uint8_t);break;
 		case L_UINT16:n = chk_ntoh16(LUA_RPACKET_READ(rpk,uint16_t));break;
 		case L_UINT32:n = chk_ntoh32(LUA_RPACKET_READ(rpk,uint32_t));break;
@@ -388,8 +390,13 @@ static inline int32_t _lua_pack_boolean(lua_wpacket *wpk,lua_State *L,int index)
 static  int32_t _lua_pack_number(lua_wpacket *wpk,lua_State *L,int index) {
 	lua_Number v = lua_tonumber(L,index);
 	if(v != cast(lua_Integer,v)){
-		CHECK_WRITE_NUM(wpk,L_FLOAT,int8_t);
-		CHECK_WRITE_NUM(wpk,v,double);
+		if(v != cast(float,v)) {
+			CHECK_WRITE_NUM(wpk,L_FLOAT,int8_t);
+			CHECK_WRITE_NUM(wpk,v,float);
+		}else {
+			CHECK_WRITE_NUM(wpk,L_DOUBLE,int8_t);
+			CHECK_WRITE_NUM(wpk,v,double);
+		}
 	}else{
 		if(cast(int64_t,v) > 0){
 			uint64_t _v = cast(uint64_t,v);
