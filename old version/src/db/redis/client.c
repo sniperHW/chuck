@@ -333,11 +333,13 @@ void execute_callback(redis_conn *c,reply_cb *stcb)
 	st1.base.Push = PushConn;
 	redisReply *reply = c->tree->reply;
 	stPushResultSet st2;
-	if(reply->type == REDIS_REPLY_ERROR  || 
-       reply->type == REDIS_REPLY_STATUS ||
+	if(reply->type == REDIS_REPLY_STATUS ||
        reply->type == REDIS_REPLY_STRING)
 	{
 		error = LuaCallRefFunc(stcb->luacb,"fs",&st1,reply->str);				
+	}else if(reply->type == REDIS_REPLY_ERROR) {
+		SYS_LOG(LOG_ERROR,"REDIS_REPLY_ERROR [%s]",reply->str);
+		error = LuaCallRefFunc(stcb->luacb,"fp",&st1,NULL);	
 	}else if(reply->type == REDIS_REPLY_NIL){
 		error = LuaCallRefFunc(stcb->luacb,"fp",&st1,NULL);			
 	}else if(reply->type == REDIS_REPLY_INTEGER){

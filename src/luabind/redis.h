@@ -103,7 +103,8 @@ static inline void build_resultset(redisReply* reply,lua_State *L){
 	int32_t i;
 	if(reply->type == REDIS_REPLY_INTEGER){
 		lua_pushinteger(L,reply->integer);
-	}else if(reply->type == REDIS_REPLY_STRING){
+	}else if(reply->type == REDIS_REPLY_STRING ||
+			 reply->type ==	REDIS_REPLY_STATUS){
 		lua_pushstring(L,reply->str);
 	}else if(reply->type == REDIS_REPLY_ARRAY){
 		lua_newtable(L);
@@ -111,7 +112,11 @@ static inline void build_resultset(redisReply* reply,lua_State *L){
 			build_resultset(reply->element[i],L);
 			lua_rawseti(L,-2,i+1);
 		}
-	}else lua_pushnil(L);
+	}else{
+		if(reply->type == REDIS_REPLY_ERROR)
+			CHK_SYSLOG(LOG_ERROR,"REDIS_REPLY_ERROR [%s]",reply->str);
+		lua_pushnil(L);
+	}
 }
 
 typedef struct {
