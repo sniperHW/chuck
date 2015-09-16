@@ -26,11 +26,11 @@ end)
 
 if server then
 	log.SysLog(log.ERROR,"server start")	
+	local t = chuck.RegTimer(engine,1000,function() 
+		collectgarbage("collect")	
+	end)
 	signaler:Register(engine,function ()
 		engine:Stop()
-	end)
-	local t = chuck.RegTimer(engine,1,function() 
-		collectgarbage("collect")	
-	end)	
+	end)		
 	engine:Run()
 end
