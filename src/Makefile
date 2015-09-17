@@ -39,12 +39,12 @@ $(LIBNAME):$(source)
 	rm *.o
 
 chuck.so:$(source)
-	$(CC) -fPIC $(CFLAGS) -c luabind/chuck.c $(source) $(INCLUDE) $(DEFINE) -D_DEBUG
+	$(CC) -fPIC $(CFLAGS) -c luabind/chuck.c $(source) $(INCLUDE) $(DEFINE)
 	$(CC) $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
 	rm *.o
 
 packet.so:packet/lua_packet.c
-	$(CC) -fPIC $(CFLAGS) -c packet/lua_packet.c $(INCLUDE) $(DEFINE) -D_DEBUG
+	$(CC) -fPIC $(CFLAGS) -c packet/lua_packet.c $(INCLUDE) $(DEFINE)
 	$(CC) $(CFLAGS) -shared -o packet.so *.o -lrt -lm $(LDFLAGS)
 	rm *.o
 

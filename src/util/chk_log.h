@@ -61,6 +61,20 @@ int32_t chk_log_prefix(char *buf,uint8_t loglev);
         }                                                                  \
     }while(0)
 
+
+#ifdef NDEBUG
+    #define CHK_DBGLOG(...) do{}while(0)   
+#else
+     #define CHK_DBGLOG(...)                                               \
+        do{                                                                \
+            char *xx___buf = malloc(CHK_MAX_LOG_SIZE);                     \
+            int32_t size = chk_log_prefix(xx___buf,LOG_DEBUG);             \
+            snprintf(&xx___buf[size],CHK_MAX_LOG_SIZE-size,__VA_ARGS__);   \
+            chk_syslog(LOG_DEBUG,xx___buf);                                \
+        }while(0)
+#endif
+
+
 #define CHK_DEF_LOG(LOGNAME,LOGFILENAME)                                   \
     typedef struct{chk_logfile *_logfile;}LOGNAME;                         \
     static inline LOGNAME *LOGNAME##create_function(){                     \
