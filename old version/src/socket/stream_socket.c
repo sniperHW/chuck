@@ -22,21 +22,32 @@ static int32_t imp_engine_add(engine *e,handle *h,generic_callback callback)
 }
 
  
-static void process_read(stream_socket_ *s)
+static void process_read(stream_socket_ *s,int32_t events)
 {
 	iorequest *req = NULL;
 	int32_t bytes = 0;
-	s->status |= SOCKET_READABLE;
-	if((req = cast(iorequest*,list_pop(&s->pending_recv)))!=NULL){
-		errno = 0;
-		bytes = TEMP_FAILURE_RETRY(readv(cast(handle*,s)->fd,req->iovec,req->iovec_count));	
-		s->callback(s,req,bytes,errno);
-		if(s->status & SOCKET_CLOSE)
-			return;			
-	}	
-	if(s->e && !list_size(&s->pending_recv)){
-		//没有接收请求了,取消EPOLLIN
-		disable_read(cast(handle*,s));
+
+
+	if(events | EPOLLERR || events | EPOLLHUP || events| EPOLLRDHUP)
+	{
+		s->callback(s,req,0,0);
+		if(!(s->status & SOCKET_CLOSE)){
+			engine_remove(cast(handle*,s));
+			close(cast(handle*,s)->fd);
+		}
+	}else {
+		s->status |= SOCKET_READABLE;
+		if((req = cast(iorequest*,list_pop(&s->pending_recv)))!=NULL){
+			errno = 0;
+			bytes = TEMP_FAILURE_RETRY(readv(cast(handle*,s)->fd,req->iovec,req->iovec_count));	
+			s->callback(s,req,bytes,errno);
+			if(s->status & SOCKET_CLOSE)
+				return;			
+		}	
+		if(s->e && !list_size(&s->pending_recv)){
+			//没有接收请求了,取消EPOLLIN
+			disable_read(cast(handle*,s));
+		}
 	}	
 }
 
@@ -67,7 +78,7 @@ static void on_events(handle *h,int32_t events)
 	do{
 		s->status |= SOCKET_INLOOP;
 		if(events & EVENT_READ){
-			process_read(s);	
+			process_read(s,events);	
 			if(s->status & SOCKET_CLOSE) 
 				break;								
 		}		
