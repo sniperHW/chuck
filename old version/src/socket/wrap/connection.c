@@ -292,6 +292,8 @@ static void IoFinish(handle *sock,void *_,int32_t bytes,int32_t err_code)
 		SendFinish(c,bytes,err_code);
 	else if(io == cast(iorequest*,&c->recv_overlap))
 		RecvFinish(c,bytes,err_code);
+	else
+		c->on_packet(c,NULL,err_code);
 }
 
 static int32_t timer_callback(uint32_t event,uint64_t tick,void *ud)

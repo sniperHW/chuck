@@ -242,6 +242,10 @@ static void IoFinish(handle *sock,void *_,int32_t bytestransfer,int32_t err_code
 		SendFinish(c,bytestransfer,err_code);
 	else if(io == cast(iorequest*,&c->recv_overlap))
 		RecvFinish(c,bytestransfer,err_code);
+	else {
+		if(c->on_error) 
+			c->on_error(c,err_code);
+	}
 }
 
 

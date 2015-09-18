@@ -308,17 +308,32 @@ static void on_events(chk_handle *h,int32_t events) {
 		s->cb(s,NULL,CHK_ELOOPCLOSE);
 		return;
 	}
+	s->status |= SOCKET_INLOOP;
 	do {
-		s->status |= SOCKET_INLOOP;
+		/*if((events & EPOLLERR) && (s->status & SOCKET_HCLOSE)) {
+			s->status |= SOCKET_CLOSE;
+			break;
+		}
 		if(events & CHK_EVENT_READ && !(s->status & SOCKET_HCLOSE)) {
 			process_read(s);	
 			if(s->status & SOCKET_CLOSE) 
 				break;								
-		}		
+		}*/
+		if(s->status & SOCKET_HCLOSE) {
+			if(events & EPOLLERR) {
+				s->status |= SOCKET_CLOSE;
+				break;
+			}
+		}else if(events & CHK_EVENT_READ) {
+			process_read(s);	
+			if(s->status & SOCKET_CLOSE) 
+				break;		
+		}	
+
 		if(s->loop && (events & CHK_EVENT_WRITE))
 			process_write(s);			
-		s->status ^= SOCKET_INLOOP;
 	}while(0);
+	s->status ^= SOCKET_INLOOP;
 	if(s->status & SOCKET_CLOSE) {
 		release_socket(s);		
 	}
