@@ -28,7 +28,7 @@ static void process_read(stream_socket_ *s,int32_t events)
 	int32_t bytes = 0;
 	req = cast(iorequest*,list_pop(&s->pending_recv);
 
-	if(!req && (events & EPOLLERR || events & EPOLLHUP || events & EPOLLRDHUP))
+	if(!req && (events & (EPOLLERR | EPOLLHUP |EPOLLRDHUP)))
 	{
 		s->callback(s,req,0,0);
 		if(!(s->status & SOCKET_CLOSE)){
