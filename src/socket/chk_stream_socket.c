@@ -277,7 +277,6 @@ static void process_read(chk_stream_socket *s) {
 		if(!(s->status & (SOCKET_CLOSE | SOCKET_HCLOSE)))
 			update_next_recv_pos(s,bytes);
 	}else {
-		if(errno == EAGAIN) return;
 		s->status |= SOCKET_PEERCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
 		s->cb(s,NULL,errno);
