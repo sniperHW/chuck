@@ -73,17 +73,16 @@ static void on_events(handle *h,int32_t events)
 		s->callback(s,NULL,-1,EENGCLOSE);
 		return;
 	}
+	s->status |= SOCKET_INLOOP;
 	do{
-		s->status |= SOCKET_INLOOP;
 		if(events & EVENT_READ){
 			process_read(s,events);	
-			if(s->status & SOCKET_CLOSE) 
+			if(s->status & SOCKET_CLOSE || !s->e) 
 				break;								
 		}		
-		if(s->e && (events & EVENT_WRITE))
-			process_write(s);			
-		s->status ^= SOCKET_INLOOP;
+		if(events & EVENT_WRITE) process_write(s);			
 	}while(0);
+	s->status ^= SOCKET_INLOOP;
 	if(s->status & SOCKET_CLOSE){
 		release_socket((socket_*)s);		
 	}

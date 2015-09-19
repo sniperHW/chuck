@@ -186,7 +186,7 @@ int32_t last_timer_cb(uint64_t tick,void*ud) {
 }
 
 void chk_stream_socket_close(chk_stream_socket *s,int32_t now) {
-	if((s->status & SOCKET_CLOSE) || (s->status & SOCKET_HCLOSE)) 
+	if(s->status & (SOCKET_CLOSE | SOCKET_HCLOSE))
 		return;
 	
 	if(0 == now && !(s->status & SOCKET_PEERCLOSE) && !chk_list_empty(&s->send_list) && s->loop) {
@@ -215,7 +215,7 @@ void *chk_stream_socket_getUd(chk_stream_socket *s) {
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
-	if(!e || !h || !cb || s->status & SOCKET_CLOSE || s->status & SOCKET_HCLOSE)
+	if(!e || !h || !cb || s->status & (SOCKET_CLOSE | SOCKET_HCLOSE))
 		return -1;
 	if(!chk_list_empty(&s->send_list))
 		ret = chk_events_add(e,h,CHK_EVENT_READ) || chk_events_add(e,h,CHK_EVENT_WRITE);
@@ -267,16 +267,17 @@ static void process_read(chk_stream_socket *s) {
 			if((b = decoder->unpack(decoder,&unpackerr))) {
 				s->cb(s,b,0);
 				chk_bytebuffer_del(b);
-				if(s->status & SOCKET_CLOSE || s->status & SOCKET_HCLOSE) 
+				if(s->status & (SOCKET_CLOSE | SOCKET_HCLOSE)) 
 					break;
 			}else {
 				if(unpackerr) s->cb(s,NULL,unpackerr);
 				break;
 			}
 		};
-		if(!(s->status & SOCKET_CLOSE || s->status & SOCKET_HCLOSE))
+		if(!(s->status & (SOCKET_CLOSE | SOCKET_HCLOSE)))
 			update_next_recv_pos(s,bytes);
 	}else {
+		if(errno == EAGAIN) return;
 		s->status |= SOCKET_PEERCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
 		s->cb(s,NULL,errno);
@@ -285,10 +286,8 @@ static void process_read(chk_stream_socket *s) {
 
 int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
 	int32_t ret = 0;
-	int32_t status = s->status;
 	do {
-		if((status & SOCKET_CLOSE) || (status & SOCKET_HCLOSE) || 
-		   (status & SOCKET_PEERCLOSE)) {
+		if(s->status & (SOCKET_CLOSE | SOCKET_HCLOSE | SOCKET_PEERCLOSE)) {
 			chk_bytebuffer_del(b);	
 			ret = -1;
 			break;
@@ -302,36 +301,24 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
 
 static void on_events(chk_handle *h,int32_t events) {
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
-	if(!s->loop || s->status & SOCKET_CLOSE)
-		return;
+	/*if(!s->loop || s->status & SOCKET_CLOSE)
+		return;*/
 	if(events == CHK_EVENT_ECLOSE) {
 		s->cb(s,NULL,CHK_ELOOPCLOSE);
 		return;
 	}
 	s->status |= SOCKET_INLOOP;
 	do {
-		/*if((events & EPOLLERR) && (s->status & SOCKET_HCLOSE)) {
-			s->status |= SOCKET_CLOSE;
-			break;
-		}
-		if(events & CHK_EVENT_READ && !(s->status & SOCKET_HCLOSE)) {
-			process_read(s);	
-			if(s->status & SOCKET_CLOSE) 
-				break;								
-		}*/
-		if(s->status & SOCKET_HCLOSE) {
-			if(events & EPOLLERR) {
+		if(events & CHK_EVENT_READ){
+			if(s->status & SOCKET_HCLOSE) {
 				s->status |= SOCKET_CLOSE;
 				break;
 			}
-		}else if(events & CHK_EVENT_READ) {
-			process_read(s);	
-			if(s->status & SOCKET_CLOSE) 
-				break;		
-		}	
-
-		if(s->loop && (events & CHK_EVENT_WRITE))
-			process_write(s);			
+			process_read(s);
+			if((s->status & SOCKET_CLOSE) || !s->loop) 
+				break;
+		}		
+		if(events & CHK_EVENT_WRITE) process_write(s);			
 	}while(0);
 	s->status ^= SOCKET_INLOOP;
 	if(s->status & SOCKET_CLOSE) {

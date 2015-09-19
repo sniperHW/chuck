@@ -37,8 +37,11 @@ typedef void *(*chk_event_callback)(void*);
 #ifndef _chk_handle
 #define _chk_handle                                                         \
     chk_dlist_entry entry;                                                  \
-    int             fd;                                                     \
+    chk_dlist_entry ready_entry;                                            \
+    int32_t         fd;                                                     \
+    int32_t         active_evetns;/*激活的事件*/                            \
     union {                                                                 \
+        /*关注的事件*/                                                      \
         int32_t     events;                                                 \
         struct {                                                            \
             int16_t set_read;                                               \
@@ -55,11 +58,14 @@ struct chk_handle {
     _chk_handle;
 };
 
+#define READY_TO_HANDKE(ENTRY)                                              \
+    (chk_handle*)(((char*)(ENTRY))-sizeof(chk_dlist_entry))
+
 #ifndef TEMP_FAILURE_RETRY
-#define TEMP_FAILURE_RETRY(expression)\
-    ({ long int __result;\
-    do __result = (long int)(expression);\
-    while(__result == -1L&& errno == EINTR);\
+#define TEMP_FAILURE_RETRY(expression)                                      \
+    ({ long int __result;                                                   \
+    do __result = (long int)(expression);                                   \
+    while(__result == -1L&& errno == EINTR);                                \
     __result;})
 #endif 
 

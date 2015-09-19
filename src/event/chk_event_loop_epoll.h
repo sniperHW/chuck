@@ -34,7 +34,8 @@ int32_t chk_events_remove(chk_handle *h) {
 		return errno; 
 	h->events = 0;
 	h->loop = NULL;
-	chk_dlist_remove(cast(chk_dlist_entry*,h));
+	chk_dlist_remove(&h->ready_entry);
+	chk_dlist_remove(&h->entry);
 	return 0;	
 }
 
@@ -122,10 +123,13 @@ int32_t _loop_run(chk_event_loop *e,int32_t ms) {
 	int32_t ret = 0;
 	int32_t i,nfds,ticktimer;
 	int64_t _;
-	chk_handle *h;	
+	chk_handle      *h;
+	chk_dlist        ready_list;
+	chk_dlist_entry *read_entry;	
 	do {
 		ticktimer = 0;
 		errno = 0;
+		chk_dlist_init(&ready_list);
 		nfds = TEMP_FAILURE_RETRY(epoll_wait(e->epfd,e->events,e->maxevents,ms > 0 ? ms:-1));
 		if(nfds > 0) {
 			e->status |= INLOOP;
@@ -140,13 +144,17 @@ int32_t _loop_run(chk_event_loop *e,int32_t ms) {
 					ticktimer = 1;//优先处理其它事件,定时器事件最后处理
 				}else {
 					h = cast(chk_handle*,event->data.ptr);
-					h->on_events(h,event->events);
+					h->active_evetns = event->events;
+					chk_dlist_pushback(&ready_list,&h->ready_entry);
 				}
+			}
+			while((read_entry = chk_dlist_pop(&ready_list))) {
+				h = READY_TO_HANDKE(read_entry);
+				h->on_events(h,h->active_evetns);
 			}
 			if(ticktimer) chk_timer_tick(e->timermgr,chk_systick64());
 			e->status ^= INLOOP;
-			if(e->status & CLOSING)
-				break;
+			if(e->status & CLOSING) break;
 			if(nfds == e->maxevents){
 				free(e->events);
 				e->maxevents <<= 2;
