@@ -77,7 +77,7 @@ static inline void release_timer(chk_timer *t) {
 
 static wheel *wheel_new(uint8_t type) {
 	wheel   *w;
-	uint16_t size,i;
+	int16_t  size,i;
 	if(type >  wheel_day) return NULL;
 	w = calloc(1,sizeof(*w)*wheel_size[type]*sizeof(chk_dlist));	
 	w->type = type;
@@ -97,7 +97,7 @@ static inline uint64_t cal_remain(uint64_t now,uint64_t expire) {
 static inline void _reg(chk_timermgr *m,chk_timer *t,uint64_t tick) {
 	uint32_t slot,wsize;
 	wheel   *w;
-	uint16_t wtype = wheel_sec;
+	int8_t   wtype = wheel_sec;
 	uint32_t remain = cast(uint32_t,cal_remain(tick,t->expire));
 	do {
 		w     = m->wheels[wtype];
@@ -151,14 +151,14 @@ static void fire(chk_timermgr *m,wheel *w,uint64_t tick) {
 
 void chk_timermgr_init(chk_timermgr *m) {
 	assert(m);
-	uint16_t i;
+	int8_t i;
 	m->ptrtick = NULL;
 	for(i = 0; i <= wheel_day; ++i) m->wheels[i] = wheel_new(i);
 }
 
 void chk_timermgr_finalize(chk_timermgr *m) {
 	assert(m);
-	uint16_t    i,j,size;
+	int16_t     i,j,size;
 	chk_dlist  *tlist;
 	chk_timer  *t;
 	for(i = 0; i <= wheel_day; ++i) {
@@ -188,8 +188,8 @@ void chk_timer_tick(chk_timermgr *m,uint64_t now)
 } 
 
 chk_timer *chk_timer_register(chk_timermgr *m,uint32_t ms,
-							  chk_timeout_cb cb,void *ud,
-							  uint64_t now) {
+			      chk_timeout_cb cb,void *ud,
+			      uint64_t now) {
 	chk_timer *t;
 	if(!cb) return NULL;
 	t = get_free_timer();
