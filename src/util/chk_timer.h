@@ -24,7 +24,7 @@ enum{
 
 
 typedef struct {
-	uint8_t      type;
+	int8_t       type;
 	int16_t      cur;
 	chk_dlist    tlist[0]; 
 }wheel;
