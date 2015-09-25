@@ -91,6 +91,10 @@ static inline uint64_t chk_systick64() {
     return c->last_time;
 }
 
+static inline uint32_t chk_accurate_tick64(){
+    return _clock_time();
+}
+
 #define chk_systick     chk_systick64
 
 #define chk_systick32() ((uint32_t)chk_systick64())     
