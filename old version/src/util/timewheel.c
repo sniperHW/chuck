@@ -12,8 +12,8 @@ enum{
 };
 
 typedef struct {
-	uint8_t  type;
-	uint16_t cur;
+	int8_t   type;
+	int16_t  cur;
 	dlist    timer_list[0]; 
 }wheel;
 
@@ -33,7 +33,7 @@ typedef struct {
 static wheel *wheel_new(uint8_t type)
 {
 	wheel   *w;
-	uint16_t size,i;
+	int16_t  size,i;
 	if(type >  wheel_day) return NULL;
 	w       = calloc(1,sizeof(*w)+(wheel_size(type)*sizeof(dlist)));	
 	w->type = type;
@@ -68,11 +68,11 @@ struct wheelmgr{
 
 //将timer插入到合适的链表中
 static inline void add2wheel(wheelmgr *m,wheel *w,timer *t,uint64_t remain) {
-	uint16_t i;
+	int16_t i;
 	uint64_t wsize = wheel_size(w->type);
 	if(w->type == wheel_day || wsize >= remain) {
 		i = (w->cur + remain)%wsize;
-		dlist_pushback(&w->timer_list[i],cast(dlistnode*,t));		
+		dlist_pushback(&w->timer_list[i],cast(dlistnode*,t));	
 	}else {
 		//插入到上一级时间轮中
 		remain -= 1;
@@ -178,7 +178,7 @@ void unregister_timer(timer *t)
 void wheelmgr_del(wheelmgr *m)
 {
 	int i;
-	uint16_t j,size;
+	int16_t j,size;
 	dlist   *items;
 	timer   *t;
 	for(i = 0; i < wheel_day+1; ++i){
@@ -238,7 +238,7 @@ static int32_t lua_wheelmgr_gc(lua_State *L)
 {
 	wheelmgr *w = lua_towheelmgr(L,1);
 	int      i;
-	uint16_t j,size;
+	int16_t  j,size;
 	dlist   *items;
 	timer   *t;
 	for(i = 0; i < wheel_day+1; ++i){
@@ -268,7 +268,7 @@ static int32_t lua_timeout_callback(uint32_t _1,uint64_t _2,void *ud)
 void lua_timer_new(lua_State *L,wheelmgr *m,uint32_t timeout,luaRef *cb)
 {
 	timer *t     = cast(timer*,lua_newuserdata(L, sizeof(*t)));
-	uint64_t now = systick64();
+	uint64_t now = accurate_tick64();
 	memset(t,0,sizeof(*t));
 	t->timeout   = timeout;
 	t->cb        = lua_timeout_callback;
@@ -329,7 +329,7 @@ static int32_t lua_timer_gc(lua_State *L)
 static int32_t lua_wheel_tick(lua_State *L)
 {
 	wheelmgr *w = lua_towheelmgr(L,1);
-	wheelmgr_tick(w,systick64());
+	wheelmgr_tick(w,accurate_tick64());
 	return 0;
 }
 
