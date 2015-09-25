@@ -152,7 +152,7 @@ int32_t _loop_run(chk_event_loop *e,int32_t ms) {
 				h = READY_TO_HANDKE(read_entry);
 				h->on_events(h,h->active_evetns);
 			}
-			if(ticktimer) chk_timer_tick(e->timermgr,chk_systick64());
+			if(ticktimer) chk_timer_tick(e->timermgr,chk_accurate_tick64());
 			e->status ^= INLOOP;
 			if(e->status & CLOSING) break;
 			if(nfds == e->maxevents){
@@ -202,7 +202,7 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 		}
 		e->timermgr = chk_timermgr_new();
 	}
-	return chk_timer_register(e->timermgr,timeout,cb,ud,chk_systick64()); 
+	return chk_timer_register(e->timermgr,timeout,cb,ud,chk_accurate_tick64()); 
 }
 
 #endif
