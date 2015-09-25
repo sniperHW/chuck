@@ -64,7 +64,7 @@ static int32_t lua_timermgr_register(lua_State *L) {
 	cb = chk_toluaRef(L,3);
 	luatimer = (lua_timer*)lua_newuserdata(L, sizeof(*luatimer));
 	luatimer->cb = cb;
-	luatimer->timer = chk_timer_register(timermgr,ms,lua_timeout_cb,luatimer,chk_systick64());
+	luatimer->timer = chk_timer_register(timermgr,ms,lua_timeout_cb,luatimer,chk_accurate_tick64());
 	if(luatimer->timer) chk_timer_set_ud_cleaner(luatimer->timer,timer_ud_cleaner);
 	else chk_luaRef_release(&luatimer->cb);
 	luaL_getmetatable(L, TIMER_METATABLE);
