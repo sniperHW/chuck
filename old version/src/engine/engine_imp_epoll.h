@@ -71,7 +71,7 @@ int32_t event_disable(handle *h,int32_t events)
 void timerfd_callback(void *ud)
 {
 	wheelmgr *mgr = (wheelmgr*)ud;
-	wheelmgr_tick(mgr,systick64());
+	wheelmgr_tick(mgr,accurate_tick64());
 }
 
 void   engine_init_timer(engine *e){
