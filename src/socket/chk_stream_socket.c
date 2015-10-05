@@ -309,7 +309,7 @@ static void on_events(chk_handle *h,int32_t events) {
 	s->status |= SOCKET_INLOOP;
 	do {
 		if(events & CHK_EVENT_READ){
-			if(s->status & SOCKET_HCLOSE) {
+			if(s->status & SOCKET_RCLOSE) {
 				s->status |= SOCKET_CLOSE;
 				break;
 			}
