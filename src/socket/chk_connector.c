@@ -96,16 +96,16 @@ int32_t chk_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local,
 		ret = easy_connect(fd,server,local);
 	} else {
 		easy_noblock(fd,1);
-		if(0 == (ret = easy_connect(fd,server,local)))
-			cb(fd,ud,0);
-		else if(ret == -EINPROGRESS){
+		ret = easy_connect(fd,server,local);
+		if(0 == ret || -EINPROGRESS == ret){
 			c   = chk_connector_new(fd,ud,timeout);
 			chk_loop_add_handle(e,cast(chk_handle*,c),cast(chk_event_callback,cb));
-			ret = 0;			
-		}else {
+			ret = 0;
+		}else
+		{
 			close(fd);
 			ret = -ret;
-		}	
+		}
 	}
 	return ret;
 }
