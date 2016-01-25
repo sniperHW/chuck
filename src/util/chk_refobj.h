@@ -61,7 +61,10 @@ static inline int32_t chk_is_vaild_refhandle(chk_refhandle h) {
 }
 
 static inline chk_refhandle chk_get_refhandle(chk_refobj *o) {
-    return (chk_refhandle){.identity=o->identity,.ptr=o}; 
+    chk_refhandle handle;
+    handle.identity = o->identity;
+    handle.ptr = o;
+    return handle;
 } 
 
 #endif
