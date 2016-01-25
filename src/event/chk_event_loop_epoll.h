@@ -149,7 +149,7 @@ int32_t _loop_run(chk_event_loop *e,int32_t ms) {
 				}
 			}
 			while((read_entry = chk_dlist_pop(&ready_list))) {
-				h = READY_TO_HANDKE(read_entry);
+				h = READY_TO_HANDLE(read_entry);
 				h->on_events(h,h->active_evetns);
 			}
 			if(ticktimer) chk_timer_tick(e->timermgr,chk_accurate_tick64());
