@@ -8,6 +8,10 @@
 extern int32_t pipe2(int pipefd[2], int flags);
 static int32_t stopevent = 1;
 
+#define READY_TO_HANDLE(ENTRY)                                              \
+    (chk_handle*)(((char*)(ENTRY))-sizeof(chk_dlist_entry))
+
+
 enum {
 	INLOOP  =  1 << 1,
 	CLOSING =  1 << 2,
