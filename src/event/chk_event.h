@@ -58,8 +58,6 @@ struct chk_handle {
     _chk_handle;
 };
 
-#define READY_TO_HANDKE(ENTRY)                                              \
-    (chk_handle*)(((char*)(ENTRY))-sizeof(chk_dlist_entry))
 
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(expression)                                      \
