@@ -8,7 +8,11 @@ local connections = {}
 local packet_count = 0
 
 for i=1,500 do
-	socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd)
+	socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
+		if 0 ~= errCode then
+			print("connect error:" .. errCode)
+			return
+		end
 		local conn = socket.stream.New(fd,65536,packet.Decoder())
 		if conn then
 		connections[fd] = conn
