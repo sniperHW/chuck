@@ -32,11 +32,11 @@ int                 chk_fiber_schedule();
 
 int                 chk_fiber_yield();
 
-int                 chk_fiber_sleep(uint32_t ms);
+int                 chk_fiber_sleep(uint32_t ms,void **);
 
-int                 chk_fiber_block(uint32_t ms);
+int                 chk_fiber_block(uint32_t ms,void **);
 
-int                 chk_fiber_wakeup(chk_fiber_t);
+int                 chk_fiber_wakeup(chk_fiber_t,void **);
 
 chk_fiber_t         chk_fiber_spawn(void(*fun)(void*),void *param);
 
