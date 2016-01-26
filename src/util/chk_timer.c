@@ -206,7 +206,7 @@ chk_timer *chk_timer_register(chk_timermgr *m,uint32_t ms,
 }
 
 void chk_timer_unregister(chk_timer *t) {
-	if(t->status & RELEASING) return;
+	if(!t || t->status & RELEASING) return;
 	t->status |= RELEASING;
 	if(!(t->status & INCB)){
 		chk_dlist_remove(cast(chk_dlist_entry*,t));
