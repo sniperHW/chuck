@@ -47,7 +47,9 @@ static inline void fiber_switch(struct chk_fiber* from,struct chk_fiber* to) {
 
 static void fiber_main_function(void *arg) {
 	struct chk_fiber* fiber = (struct chk_fiber*)arg;
-	fiber->main_fun(fiber->param);
+	void *param = fiber->param;
+	fiber->param = NULL;
+	fiber->main_fun(param);
 	fiber->status = dead;
 	--t_scheduler->activecount;
 	fiber_switch(fiber,t_scheduler->fiber_scheduler);
@@ -141,7 +143,9 @@ chk_fiber_t chk_fiber_spawn(void(*fun)(void*),void *param){
 }
 
 int chk_fiber_schedule() {
-	assert(t_scheduler);
+	
+	if(!t_scheduler) return -1;
+
 	chk_dlist tmp;
 	chk_dlist_init(&tmp);
 	struct chk_fiber *next;
@@ -167,15 +171,22 @@ int chk_fiber_schedule() {
 }
 
 int chk_fiber_yield(){
+
+	struct chk_fiber *current = NULL;
+
 	if(!t_scheduler || !t_scheduler->current)
 		return -1;
-	t_scheduler->current->status = yield;
+	
+	current = t_scheduler->current;
+
+	current->status = yield;
 	--t_scheduler->activecount;
-	fiber_switch(t_scheduler->current,t_scheduler->fiber_scheduler);
+	current->param = NULL;
+	fiber_switch(current,t_scheduler->fiber_scheduler);
 	return 0;
 }
 
-int chk_fiber_block(uint32_t ms) {
+int chk_fiber_block(uint32_t ms,void **param) {
 	
 	struct chk_fiber *current = NULL;
 
@@ -188,20 +199,24 @@ int chk_fiber_block(uint32_t ms) {
 		current->timer = chk_timer_register(t_scheduler->timermgr,ms,timeout_callback,current,chk_systick64());		
 	}
 
-	if(t_scheduler->current->status != sleeping)
-		t_scheduler->current->status = blocking;
-	--t_scheduler->activecount;	
-	fiber_switch(t_scheduler->current,t_scheduler->fiber_scheduler);
+	if(current->status != sleeping) current->status = blocking;
+	--t_scheduler->activecount;
+	if(param) *param = current->param;
+	current->param = NULL;
+	fiber_switch(current,t_scheduler->fiber_scheduler);
 	return 0;		
 }
 
-int chk_fiber_sleep(uint32_t ms) {
+int chk_fiber_sleep(uint32_t ms,void **param) {
 	if(ms == 0) return chk_fiber_yield();
 	t_scheduler->current->status = sleeping;
-	return chk_fiber_block(ms);		
+	return chk_fiber_block(ms,param);		
 }  
 
 chk_fiber_t chk_current_fiber() {
+	chk_fiber_t uident;
+	bzero(&uident,sizeof(uident));
+	if(!t_scheduler) return uident;
 	return chk_get_refhandle(&t_scheduler->current->refobj);
 }
 
@@ -211,11 +226,18 @@ static inline struct chk_fiber *cast2fiber(chk_fiber_t f) {
 	return (struct chk_fiber*)((char*)fiber  - sizeof(chk_dlist_entry));
 }
 
-int chk_fiber_wakeup(chk_fiber_t f) {
-	struct chk_fiber *fiber = cast2fiber(f);
-	if(!fiber) return -1;
-	add2ready(fiber);
+int chk_fiber_wakeup(chk_fiber_t f,void **param) {
+	struct chk_fiber *fiber; 
+	int ret = -1;
+	if(!t_scheduler) return ret;
+	fiber = cast2fiber(f);
+	if(!fiber) return ret;
+	if(fiber->status == blocking || fiber->status == sleeping) {
+		add2ready(fiber);
+		fiber->param = param;
+		ret = 0;
+	}
 	chk_refobj_release(&fiber->refobj);
-	return 0;
+	return ret;
 } 
 
