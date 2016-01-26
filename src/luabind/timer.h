@@ -1,6 +1,12 @@
+#include "util/chk_timer_define.h"
+
 #define TIMERMGR_METATABLE "lua_timermgr"
 
 #define TIMER_METATABLE "lua_timer"
+
+void chk_timermgr_init(chk_timermgr *);
+
+void chk_timermgr_finalize(chk_timermgr *);
 
 typedef struct {
 	chk_timer *timer;

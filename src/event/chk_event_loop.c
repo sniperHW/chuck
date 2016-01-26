@@ -3,7 +3,8 @@
 
 #define _CORE_
 
-#include "event/chk_event_loop.h"
+#include "event/chk_event_loop.h" 
+#include "event/chk_event_loop_define.h"
 
 extern int32_t pipe2(int pipefd[2], int flags);
 static int32_t stopevent = 1;
@@ -26,7 +27,7 @@ enum {
 #endif
 
 int32_t chk_loop_run_once(chk_event_loop *e,uint32_t ms) {
-	return _loop_run(e,(int32_t)ms);
+	return _loop_run(e,ms,1);
 }
 
 int32_t chk_loop_add_handle(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
@@ -58,7 +59,7 @@ void chk_loop_del(chk_event_loop *e) {
 }
 
 int32_t chk_loop_run(chk_event_loop *e) {
-	return _loop_run(e,-1);
+	return _loop_run(e,0,0);
 }
 
 void chk_loop_remove_handle(chk_handle *h) {

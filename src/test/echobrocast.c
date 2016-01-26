@@ -46,7 +46,7 @@ void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t er
 			break;
 		}
 	}
-	chk_loop_add_handle(loop,(chk_handle*)s,(chk_event_callback)data_event_cb);
+	chk_loop_add_handle(loop,(chk_handle*)s,data_event_cb);
 }
 
 int32_t on_timeout_cb(uint64_t tick,void*ud) {

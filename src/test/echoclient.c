@@ -38,7 +38,7 @@ void connect_callback(int32_t fd,void *ud,int32_t err) {
 		chk_stream_socket *s = chk_stream_socket_new(fd,&option);
 		chk_timer *t = chk_loop_addtimer(loop,200,on_timeout_cb,s);
 		chk_stream_socket_setUd(s,t);
-		chk_loop_add_handle(loop,(chk_handle*)s,(chk_event_callback)data_event_cb);
+		chk_loop_add_handle(loop,(chk_handle*)s,data_event_cb);
 	}
 }
 

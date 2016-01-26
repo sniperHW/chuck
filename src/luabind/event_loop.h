@@ -1,3 +1,9 @@
+#include "event/chk_event_loop_define.h"
+
+int32_t chk_loop_init(chk_event_loop *loop);
+
+void chk_loop_finalize(chk_event_loop *loop);
+
 #define EVENT_LOOP_METATABLE "lua_event_loop"
 
 #define lua_checkeventloop(L,I)	\

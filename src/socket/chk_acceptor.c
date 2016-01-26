@@ -3,6 +3,7 @@
 #include "event/chk_event_loop.h"
 #include "socket/chk_acceptor.h"
 #include "socket/chk_socket_helper.h"
+#include "socket/chk_acceptor_define.h"
 #include "util/chk_log.h"
 #include "util/chk_error.h"
 
@@ -106,7 +107,7 @@ chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t por
 		easy_addr_reuse(fd,1);
 		if(0 == easy_listen(fd,&server)){
 			a = chk_acceptor_new(fd,ud);
-			chk_loop_add_handle(loop,(chk_handle*)a,(chk_event_callback)cb);
+			chk_loop_add_handle(loop,(chk_handle*)a,cb);
 		}else close(fd);
 	}while(0);	
 	return a;

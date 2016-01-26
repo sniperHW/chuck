@@ -433,7 +433,7 @@ static void connect_callback(int32_t fd,void *ud,int32_t err) {
 	if(fd) {
 		c->sock = chk_stream_socket_new(fd,&option);
 		chk_stream_socket_setUd(c->sock,c);
-		chk_loop_add_handle(c->loop,(chk_handle*)c->sock,(chk_event_callback)data_cb);
+		chk_loop_add_handle(c->loop,(chk_handle*)c->sock,data_cb);
 		c->cntcb(c,c->ud,0);	
 	} else {
 		c->cntcb(NULL,c->ud,err);

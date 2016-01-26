@@ -119,7 +119,7 @@ void chk_loop_finalize(chk_event_loop *e) {
 	free(e->events);
 }
 
-int32_t _loop_run(chk_event_loop *e,int32_t ms) {
+int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 	int32_t ret = 0;
 	int32_t i,nfds,ticktimer;
 	int64_t _;
@@ -130,7 +130,7 @@ int32_t _loop_run(chk_event_loop *e,int32_t ms) {
 		ticktimer = 0;
 		errno = 0;
 		chk_dlist_init(&ready_list);
-		nfds = TEMP_FAILURE_RETRY(epoll_wait(e->epfd,e->events,e->maxevents,ms > 0 ? ms:-1));
+		nfds = TEMP_FAILURE_RETRY(epoll_wait(e->epfd,e->events,e->maxevents,once ? ms : -1));
 		if(nfds > 0) {
 			e->status |= INLOOP;
 			for(i=0; i < nfds ; ++i) {
@@ -164,7 +164,7 @@ int32_t _loop_run(chk_event_loop *e,int32_t ms) {
 			ret = errno;
 			break;
 		}	
-	}while(ms < 0);
+	}while(!once);
 
 loopend:	
 	if(e->status & CLOSING) {

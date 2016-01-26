@@ -1,6 +1,20 @@
+
+#include "socket/chk_stream_socket_define.h"
+#include "socket/chk_acceptor_define.h"
+
 #define ACCEPTOR_METATABLE "lua_acceptor"
 
 #define STREAM_SOCKET_METATABLE "lua_stream_socket"
+
+
+void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud);
+
+void chk_acceptor_finalize(chk_acceptor *a);
+
+void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *option);
+
+void *chk_acceptor_getud(chk_acceptor *a);
+
 
 #define lua_checkacceptor(L,I)	\
 	(chk_acceptor*)luaL_checkudata(L,I,ACCEPTOR_METATABLE)
@@ -25,6 +39,7 @@ static int32_t lua_acceptor_gc(lua_State *L) {
 		chk_luaRef_release(cb);
 		free(cb);
 	}
+	chk_acceptor_finalize(a);
 	return 0;
 }
 
@@ -77,7 +92,7 @@ static int32_t lua_listen_ip4(lua_State *L) {
 	chk_acceptor_init(a,fd,cb);
 	luaL_getmetatable(L, ACCEPTOR_METATABLE);
 	lua_setmetatable(L, -2);	
-	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a,(chk_event_callback)lua_acceptor_cb))
+	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a,lua_acceptor_cb))
 		CHK_SYSLOG(LOG_ERROR,"event_loop add acceptor failed %s:%d",ip,port);
 	return 1;
 }
@@ -167,7 +182,7 @@ static int32_t lua_stream_socket_bind(lua_State *L) {
 	cb = calloc(1,sizeof(*cb));
 	*cb = chk_toluaRef(L,3);
 	chk_stream_socket_setUd(s,cb);
-	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)s,(chk_event_callback)data_cb)) {
+	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)s,data_cb)) {
 		lua_pushstring(L,"stream_socket_bind failed");
 		return 1;
 	}

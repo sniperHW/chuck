@@ -20,7 +20,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
 	printf("accept_cb\n");
 	chk_stream_socket *s = chk_stream_socket_new(fd,&option);
-	chk_loop_add_handle(loop,(chk_handle*)s,(chk_event_callback)data_event_cb);
+	chk_loop_add_handle(loop,(chk_handle*)s,data_event_cb);
 }
 
 int main(int argc,char **argv) {

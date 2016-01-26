@@ -20,26 +20,42 @@ ifeq ($(uname_S),FreeBSD)
 	DEFINE += -D_BSD
 endif
 
-source =  util/chk_log.c\
-		  util/chk_timer.c\
-		  util/chk_exception.c\
-		  util/chk_refobj.c\
-		  lua/chk_lua.c\
-		  socket/chk_stream_socket.c\
-		  socket/chk_socket_helper.c\
-		  socket/chk_acceptor.c\
-		  socket/chk_connector.c\
-		  event/chk_event_loop.c\
-		  redis/chk_client.c\
-		  thread/chk_thread.c
+source.lib =  util/chk_log.c\
+			  util/chk_timer.c\
+			  util/chk_exception.c\
+			  util/chk_refobj.c\
+			  lua/chk_lua.c\
+			  socket/chk_stream_socket.c\
+			  socket/chk_socket_helper.c\
+			  socket/chk_acceptor.c\
+			  socket/chk_connector.c\
+			  event/chk_event_loop.c\
+			  redis/chk_client.c\
+			  thread/chk_thread.c\
+			  fiber/chk_fiber.c
 
-$(LIBNAME):$(source)
-	$(CC) -fPIC $(CFLAGS) -c $(source) $(INCLUDE) $(DEFINE)
+source.so =   util/chk_log.c\
+			  util/chk_timer.c\
+			  util/chk_exception.c\
+			  util/chk_refobj.c\
+			  lua/chk_lua.c\
+			  socket/chk_stream_socket.c\
+			  socket/chk_socket_helper.c\
+			  socket/chk_acceptor.c\
+			  socket/chk_connector.c\
+			  event/chk_event_loop.c\
+			  redis/chk_client.c\
+			  thread/chk_thread.c\
+			  fiber/chk_fiber.c
+
+
+$(LIBNAME):$(source.lib)
+	$(CC) -fPIC $(CFLAGS) -c $(source.lib) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
 	rm *.o
 
-chuck.so:$(source)
-	$(CC) -fPIC $(CFLAGS) -c luabind/chuck.c $(source) $(INCLUDE) $(DEFINE)
+chuck.so:$(source.so)
+	$(CC) -fPIC $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE)
 	$(CC) $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
 	rm *.o
 

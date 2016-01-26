@@ -1,9 +1,11 @@
+#define _CORE_
 #include <assert.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
 #include "util/chk_timer.h"
 #include "util/chk_util.h"
+#include "util/chk_timer_define.h"
 
 enum{
 	INCB      = 1,

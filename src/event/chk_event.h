@@ -31,7 +31,7 @@ typedef struct chk_event_loop chk_event_loop;
 
 typedef struct chk_handle   chk_handle;
 
-typedef void *(*chk_event_callback)(void*);
+typedef void* chk_event_callback;
 
 
 #ifndef _chk_handle

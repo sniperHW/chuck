@@ -4,6 +4,7 @@
 #include "socket/chk_socket_helper.h"
 #include "socket/chk_stream_socket.h"
 #include "event/chk_event_loop.h"
+#include "socket/chk_stream_socket_define.h"
 
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
@@ -173,7 +174,8 @@ static void release_socket(chk_stream_socket *s) {
 	while((b = cast(chk_bytebuffer*,chk_list_pop(&s->send_list))))
 		chk_bytebuffer_del(b);
 	if(s->fd >= 0) close(s->fd);
-	if(s->create_by_new) free(s);
+	if(s->create_by_new) free(s); //stream_socket是通过new接口创建的，需要释放内存
+
 }
 
 int32_t last_timer_cb(uint64_t tick,void*ud) {

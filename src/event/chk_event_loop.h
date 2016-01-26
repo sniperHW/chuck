@@ -5,44 +5,66 @@
 #include "util/chk_timer.h"  
 #include "util/chk_list.h"  
 #include "event/chk_event.h"
-
-#define _chk_loop				 	 \
-	 chk_timermgr  *timermgr;        \
-     int32_t        notifyfds[2];    \
-     chk_dlist      handles;         \
-     int32_t        status;          \
-     pid_t          threadid
-
-#ifdef _LINUX
-	struct chk_event_loop {
-		_chk_loop;
-		int32_t    tfd;
-		int32_t    epfd;
-		struct     epoll_event* events;
-		int32_t    maxevents;
-	};
-#else
-#	error "un support platform!"		
-#endif
    
-int32_t         chk_loop_init(chk_event_loop*);
-
-void            chk_loop_finalize(chk_event_loop*);
+/**
+ * 创建一个新的event_loop
+ */
 
 chk_event_loop *chk_loop_new();
 
-void            chk_loop_del(chk_event_loop*);
+/**
+ * 销毁event_loop
+ * @param loop event_loop
+ */
 
-int32_t         chk_loop_run(chk_event_loop*);
+void            chk_loop_del(chk_event_loop *loop);
 
-int32_t         chk_loop_run_once(chk_event_loop*,uint32_t ms);
+/**
+ * 运行event_loop,直到chk_loop_end调用
+ * @param loop event_loop
+ */
 
-void            chk_loop_end(chk_event_loop*);
+int32_t         chk_loop_run(chk_event_loop *loop);
 
-chk_timer      *chk_loop_addtimer(chk_event_loop*,uint32_t timeout,chk_timeout_cb,void *ud);
+/**
+ * 运行event_loop一次
+ * @param loop event_loop
+ * @param ms 如果没有事件,调用最多休眠ms毫秒 
+ */
 
-int32_t         chk_loop_add_handle(chk_event_loop*,chk_handle*,chk_event_callback);
+int32_t         chk_loop_run_once(chk_event_loop *loop,uint32_t ms);
 
-void            chk_loop_remove_handle(chk_handle*);
+/**
+ * 终止event_loop的运行,(终止之后如需重启再次调用run系列函数)
+ * @param loop event_loop
+ */
+
+void            chk_loop_end(chk_event_loop *loop);
+
+/**
+ * 向event_loop注册一个定时器
+ * @param loop event_loop
+ * @param timeout 定时器超时时间(毫秒)
+ * @param cb 定时器回调函数
+ * @param ud 用户传递数据,调用cb时回传 
+ */
+
+chk_timer      *chk_loop_addtimer(chk_event_loop *loop,uint32_t timeout,chk_timeout_cb cb,void *ud);
+
+/**
+ * 向event_loop注册一个handle
+ * @param loop event_loop
+ * @param handle 要注册的handle
+ * @param cb handle有事件时的回调函数
+ */
+
+int32_t         chk_loop_add_handle(chk_event_loop *loop,chk_handle *handle,chk_event_callback cb);
+
+/**
+ * 移除handle与event_loop的关联(如果有),移除后handle将不再触发任何事件回调
+ * @param handle 要移除的handle
+ */
+
+void            chk_loop_remove_handle(chk_handle *handle);
 
 #endif

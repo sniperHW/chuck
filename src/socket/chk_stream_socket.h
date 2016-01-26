@@ -10,10 +10,6 @@
 #include "util/chk_timer.h"
 #include "socket/chk_decoder.h"
 
-#define MAX_WBAF          1024
-
-#define MAX_SEND_SIZE     1024*64
-
 typedef struct chk_stream_socket chk_stream_socket;
 
 typedef struct chk_stream_socket_option chk_stream_socket_option;
@@ -25,23 +21,6 @@ struct chk_stream_socket_option {
 	chk_decoder *decoder;
 };
 
-struct chk_stream_socket {
-	_chk_handle;
-	chk_stream_socket_option option;
-	struct iovec         wsendbuf[MAX_WBAF];
-    struct iovec         wrecvbuf[2];
-    uint32_t             status;
-    uint32_t             next_recv_pos;
-    chk_bytechunk       *next_recv_buf;
-    void                *ud;        
-    chk_list             send_list;             //待发送的包
-    chk_timer           *timer;                 //用于最后的发送处理
-    chk_stream_socket_cb cb;
-    uint8_t              create_by_new;
-};
-
-void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *option);
-
 /**
  * 创建stream_socket
  * @param fd 文件描述符
@@ -51,7 +30,7 @@ void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_op
 chk_stream_socket *chk_stream_socket_new(int32_t fd,chk_stream_socket_option *option);
 
 /**
- * 关闭stream_socket,同时关联的fd被关闭
+ * 关闭stream_socket,同时关联的fd被关闭,当stream_socket完成关闭后将其销毁
  * @param s stream_socket
  * @param now 如果now=0,则读端关闭,如果写队列中还有数据则尝试将数据写完,否则连接立即关闭
  */
