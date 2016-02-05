@@ -55,6 +55,7 @@ static default_decoder *default_decoder_new() {
 	default_decoder *d = calloc(1,sizeof(*d));
 	d->update = default_update;
 	d->unpack = default_unpack;
+	d->dctor  = (void (*)(chk_decoder*))free;
 	return d;
 }
 
@@ -167,15 +168,15 @@ static inline void update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 
 static void release_socket(chk_stream_socket *s) {
 	chk_bytebuffer  *b;
+	chk_decoder *d = s->option.decoder;	
 	chk_events_remove(cast(chk_handle*,s));	
 	if(s->next_recv_buf) chk_bytechunk_release(s->next_recv_buf);
-	if(s->option.decoder) chk_decoder_del(s->option.decoder);
+	if(d && d->dctor) d->dctor(d);
 	if(s->timer) chk_timer_unregister(s->timer);
 	while((b = cast(chk_bytebuffer*,chk_list_pop(&s->send_list))))
 		chk_bytebuffer_del(b);
 	if(s->fd >= 0) close(s->fd);
 	if(s->create_by_new) free(s); //stream_socket是通过new接口创建的，需要释放内存
-
 }
 
 int32_t last_timer_cb(uint64_t tick,void*ud) {

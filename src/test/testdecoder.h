@@ -64,6 +64,7 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 static inline void _dctor(chk_decoder *_) {
 	_decoder *d = ((_decoder*)_);
 	if(d->b) chk_bytechunk_release(d->b);
+	free(d);
 }
 
 static inline _decoder *_decoder_new(uint32_t max) {

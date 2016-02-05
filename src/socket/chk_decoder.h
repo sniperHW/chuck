@@ -34,14 +34,4 @@ struct chk_decoder {
 	void (*dctor)(chk_decoder *d);
 };
 
-/**
- * 销毁解包器
- * @param d 解包器
- */	
-static inline void chk_decoder_del(chk_decoder *d) {
-	if(d->dctor) d->dctor(d);
-	free(d);
-}
-
-
 #endif
