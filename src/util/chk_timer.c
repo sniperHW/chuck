@@ -6,6 +6,7 @@
 #include "util/chk_timer.h"
 #include "util/chk_util.h"
 #include "util/chk_timer_define.h"
+#include "../config.h"
 
 enum{
 	INCB      = 1,
@@ -31,8 +32,6 @@ static uint16_t wheel_size[] = {
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
 #endif
-
-#define INIT_FREE_TIMER_SIZE 1024
 
 static pthread_key_t  timer_pool_key;//用于设置key_destructor以在线程结束时清理timer_pool
 __thread chk_dlist   *timer_pool;

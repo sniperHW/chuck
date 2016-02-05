@@ -1,6 +1,7 @@
 #ifdef _CORE_
 
-#define MAX_TIMEOUT (1000*3600*24-1)
+#include "../config.h"
+
 
 enum{
 	wheel_sec = 0,  

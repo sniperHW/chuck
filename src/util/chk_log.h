@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "util/chk_singleton.h"
+#include "../config.h"
 
 /*
 * 一个简单的日志系统
@@ -16,10 +17,6 @@ enum{
     LOG_ERROR,
     LOG_CRITICAL
 };
-
-#define CHK_MAX_FILE_SIZE 1024*1024*256  //日志文件最大大小256MB
-#define CHK_SYSLOG_NAME   "chk_syslog"
-#define CHK_MAX_LOG_SIZE  4096           //一条日志的最大大小
 
 typedef struct chk_logfile chk_logfile;
 

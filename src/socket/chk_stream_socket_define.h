@@ -1,8 +1,6 @@
 #ifdef _CORE_
 
-#define MAX_WBAF          1024
-
-#define MAX_SEND_SIZE     1024*64
+#include "../config.h"
 
 struct chk_stream_socket {
 	_chk_handle;

@@ -6,6 +6,7 @@
 #include "util/chk_time.h"
 #include "util/chk_util.h"
 #include "util/chk_timer.h"
+#include "../config.h"
 #include "chk_fiber.h"
 
 //fiber status
@@ -108,7 +109,7 @@ int chk_fiber_cheduler_init(uint32_t stack_size) {
 	if(t_scheduler) return -1;
 	t_scheduler = calloc(1,sizeof(*t_scheduler));
 	stack_size = chk_get_pow2(stack_size);
-	if(stack_size < 8192) stack_size = 8192;
+	if(stack_size < MIN_FIBER_STACK_SIZE) stack_size = MIN_FIBER_STACK_SIZE;
 	t_scheduler->stacksize = stack_size;
 	t_scheduler->fiber_scheduler = fiber_create(NULL,NULL,NULL);
 	t_scheduler->timermgr = chk_timermgr_new();

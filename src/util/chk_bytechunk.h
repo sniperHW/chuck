@@ -55,8 +55,11 @@ struct chk_bytebuffer {
 *否则,构造一个至少能容纳len字节的chunk,不对数据初始化
 */
 static inline chk_bytechunk *chk_bytechunk_new(void *ptr,uint32_t len) {
+
+    static const uint32_t min_buf_len = 64;
+
 	chk_bytechunk *b;
-	len           = len < 64 ? 64 : chk_size_of_pow2(len);
+	len           = len < min_buf_len ? min_buf_len : chk_size_of_pow2(len);
 	uint32_t size = sizeof(*b) + len;
     b 			  = cast(chk_bytechunk*,malloc(size));
     b->next       = NULL;
@@ -254,22 +257,22 @@ static inline int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_
 
 
 static inline int32_t chk_bytebuffer_append_byte(chk_bytebuffer *b,uint8_t v) {
-    return chk_bytebuffer_append(b,&v,1);
+    return chk_bytebuffer_append(b,&v,sizeof(v));
 }
 
 
 static inline int32_t chk_bytebuffer_append_word(chk_bytebuffer *b,uint16_t v) {
-    return chk_bytebuffer_append(b,(uint8_t*)&v,2);
+    return chk_bytebuffer_append(b,(uint8_t*)&v,sizeof(v));
 }
 
 
 static inline int32_t chk_bytebuffer_append_dword(chk_bytebuffer *b,uint32_t v) {
-    return chk_bytebuffer_append(b,(uint8_t*)&v,4);
+    return chk_bytebuffer_append(b,(uint8_t*)&v,sizeof(v));
 }
 
 
 static inline int32_t chk_bytebuffer_append_qword(chk_bytebuffer *b,uint64_t v) {
-    return chk_bytebuffer_append(b,(uint8_t*)&v,8);
+    return chk_bytebuffer_append(b,(uint8_t*)&v,sizeof(v));
 }
 
 static inline uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t out_len) {
