@@ -45,7 +45,7 @@ static chk_bytebuffer *default_unpack(chk_decoder *d,int32_t *err) {
 	chk_bytebuffer  *ret = NULL;
 	*err = 0;
 	if(_d->b) {
-		ret = chk_bytebuffer_new(_d->b,_d->spos,_d->size);
+		ret = chk_bytebuffer_new_readonly(_d->b,_d->spos,_d->size);
 		_d->b = NULL;
 	}
 	return ret;

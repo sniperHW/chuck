@@ -22,9 +22,6 @@ typedef struct chk_bytechunk  chk_bytechunk;
 
 typedef struct chk_bytebuffer chk_bytebuffer;
 
-//extern uint32_t chunkcount;
-//extern uint32_t buffercount;
-
 struct chk_bytechunk {
 	uint32_t        refcount;
 	uint32_t        cap;
@@ -34,15 +31,21 @@ struct chk_bytechunk {
 
 
 enum {
-    CREATE_BY_NEW      = 1,
+    CREATE_BY_NEW      = 1,       
     NEED_COPY_ON_WRITE = 1 << 1,
+    READ_ONLY          = 1 << 2,   
+};
+
+enum {
+    READ_ONLY_BUFFER = -1,
+    INVAILD_BUFFER   = -2,
 };
 
 //bytechunk链表形成的buffer
 struct chk_bytebuffer {
     chk_list_entry entry;
-    uint32_t       datasize;   //属于本buffer的数据大小
-    uint32_t       spos;       //起始数据在head中的下标
+    uint32_t       datasize;     //属于本buffer的数据大小
+    uint32_t       spos;         //起始数据在head中的下标
     uint32_t       append_pos;     
     chk_bytechunk *head;
     chk_bytechunk *tail;
@@ -67,7 +70,6 @@ static inline chk_bytechunk *chk_bytechunk_new(void *ptr,uint32_t len) {
 		if(ptr) memcpy(b->data,ptr,len);
 		b->cap = len;
 		b->refcount = 1;
-        //++chunkcount;
 	}
 	return b;
 }
@@ -84,7 +86,6 @@ static inline void chk_bytechunk_release(chk_bytechunk *b) {
 	if(0 >= chh_atomic_decrease_fetch(&b->refcount)) {
         assert(b->refcount == 0);
         if(b->next) chk_bytechunk_release(b->next);
-        //--chunkcount;
         free(b);    
     }
 }
@@ -134,31 +135,35 @@ static inline chk_bytechunk *chk_bytechunk_write(chk_bytechunk *b,char *in,
     return b;
 }
 
-static inline void chk_bytebuffer_init(chk_bytebuffer *b,chk_bytechunk *o,uint32_t spos,uint32_t datasize) {
+static inline void chk_bytebuffer_init(chk_bytebuffer *b,chk_bytechunk *o,uint32_t spos,uint32_t datasize,uint8_t flags) {
     assert(b);
+    b->flags  = flags;
     if(o){
         b->head = chk_bytechunk_retain(o);
         b->tail = NULL;
         b->datasize = datasize;
-        b->spos  = spos;
-        b->flags |= NEED_COPY_ON_WRITE;
+        b->spos   = spos;
+        //b->flags |= NEED_COPY_ON_WRITE;
     } else {
-        b->tail = b->head = chk_bytechunk_new(NULL,datasize);
-        b->spos = b->datasize = b->append_pos = 0;
-    }
-    //++buffercount;    
+        b->tail   = b->head = chk_bytechunk_new(NULL,datasize);
+        b->spos   = b->datasize = b->append_pos = 0;
+    }    
 }
 
 static inline void chk_bytebuffer_finalize(chk_bytebuffer *b) {
     if(b->head) chk_bytechunk_release(b->head);
     b->head = NULL;
-    //--buffercount;
 }
 
 static inline chk_bytebuffer *chk_bytebuffer_new(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
     chk_bytebuffer *buffer = calloc(1,sizeof(*buffer));
-    chk_bytebuffer_init(buffer,b,spos,datasize);
-    buffer->flags |= CREATE_BY_NEW;
+    chk_bytebuffer_init(buffer,b,spos,datasize,CREATE_BY_NEW);
+    return buffer;
+}
+
+static inline chk_bytebuffer *chk_bytebuffer_new_readonly(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
+    chk_bytebuffer *buffer = calloc(1,sizeof(*buffer));
+    chk_bytebuffer_init(buffer,b,spos,datasize,(CREATE_BY_NEW | READ_ONLY));
     return buffer;
 }
 
@@ -169,11 +174,10 @@ static inline chk_bytebuffer *chk_bytebuffer_new(chk_bytechunk *b,uint32_t spos,
 static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *b,chk_bytebuffer *o) {
     assert(o);
     if(!b){
-        b = calloc(1,sizeof(*b));
-        chk_bytebuffer_init(b,o->head,o->spos,o->datasize);
-        b->flags |= CREATE_BY_NEW;
+        b = calloc(1,sizeof(*b)); 
+        chk_bytebuffer_init(b,o->head,o->spos,o->datasize,CREATE_BY_NEW|NEED_COPY_ON_WRITE);
     }else 
-        chk_bytebuffer_init(b,o->head,o->spos,o->datasize);         
+        chk_bytebuffer_init(b,o->head,o->spos,o->datasize,NEED_COPY_ON_WRITE);         
     return b;
 }
 
@@ -208,7 +212,7 @@ static inline chk_bytebuffer *chk_bytebuffer_deep_clone(chk_bytebuffer *b,chk_by
     assert(o);
     uint8_t  create_by_new = 0;
     chk_bytechunk *c1;
-    if(!b){
+    if(!b) {
         b = calloc(1,sizeof(*b));
         create_by_new = 1;
     }
@@ -232,11 +236,20 @@ static inline void chk_bytebuffer_del(chk_bytebuffer *b) {
 
 static inline int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_t size) {
     uint32_t copysize;
+
+    if(b->flags & READ_ONLY) {
+        return READ_ONLY_BUFFER;
+    }
+
     if(b->flags & NEED_COPY_ON_WRITE) {
         //写时拷贝
         chk_bytebuffer_do_copy(b,b->head,b->spos,b->datasize);
     }
-    if(!b->tail) return -1;
+
+    if(!b->tail) {
+        return INVAILD_BUFFER;
+    }
+
     b->datasize += size;
     while(size) {
         if(b->append_pos >= b->tail->cap) {

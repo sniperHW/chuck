@@ -490,8 +490,12 @@ static inline int32_t lua_wpacket_writeTable(lua_State *L) {
 /////
 
 static inline int32_t lua_new_wpacket(lua_State *L) {
+	lua_wpacket    *w = NULL;
 	chk_bytebuffer *buff = lua_checkbytebuffer(L,1);
-	lua_wpacket    *w = (lua_wpacket*)lua_newuserdata(L, sizeof(*w));
+	if(buff->flags |= READ_ONLY){
+		luaL_error(L,"buffer is readonly");
+	}	
+	w = (lua_wpacket*)lua_newuserdata(L, sizeof(*w));
 	w->buff = buff;
 	chk_bytebuffer_append_dword(buff,0);
 	luaL_getmetatable(L, WPACKET_METATABLE);

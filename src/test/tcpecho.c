@@ -10,8 +10,12 @@ chk_stream_socket_option option = {
 
 
 void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
-	if(data)
+	if(data){
+		if(0!= chk_bytebuffer_append(data,(uint8_t*)"hello",strlen("hello"))){
+			printf("data is readonly\n");
+		}
 		chk_stream_socket_send(s,chk_bytebuffer_clone(NULL,data));
+	}
 	else
 		chk_stream_socket_close(s,0);
 	
