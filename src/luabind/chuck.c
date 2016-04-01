@@ -1,5 +1,6 @@
 #define _CORE_
 #include "../chuck.h"
+#include "util/chk_obj_pool.h"
 
 #define SET_CONST(L,N) do{\
 		lua_pushstring(L, #N);\

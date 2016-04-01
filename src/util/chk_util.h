@@ -1,6 +1,8 @@
 #ifndef _CHK_UTIL_H
 #define _CHK_UTIL_H
 
+#include <stdint.h>
+
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(expression)\
     ({ long int __result;\
