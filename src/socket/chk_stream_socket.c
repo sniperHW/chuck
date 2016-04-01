@@ -288,6 +288,11 @@ static void process_read(chk_stream_socket *s) {
 
 int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
 	int32_t ret = 0;
+
+	if(b->flags & READ_ONLY) {
+		return -1;
+	}
+	
 	do {
 		if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE | SOCKET_PEERCLOSE)) {
 			chk_bytebuffer_del(b);	

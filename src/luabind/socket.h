@@ -234,7 +234,7 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 	chk_bytebuffer    *b,*o;
 	chk_stream_socket *s = lua_checkstreamsocket(L,1);
 	o = lua_checkbytebuffer(L,2);
-	b = chk_bytebuffer_clone(NULL,o);
+	b = chk_bytebuffer_clone(o);
 	if(0 != chk_stream_socket_send(s,b)){
 		lua_pushstring(L,"send error");
 		return 1;

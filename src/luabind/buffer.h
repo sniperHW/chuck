@@ -45,7 +45,7 @@ static int32_t lua_bytebuffer_clone(lua_State *L) {
 	chk_bytebuffer *self,*o;
 	self = lua_checkbytebuffer(L,1);
 	o = (chk_bytebuffer*)lua_newuserdata(L, sizeof(*o));
-	chk_bytebuffer_clone(o,self);
+	chk_bytebuffer_share(o,self);
 	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;

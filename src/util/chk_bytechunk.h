@@ -143,7 +143,6 @@ static inline void chk_bytebuffer_init(chk_bytebuffer *b,chk_bytechunk *o,uint32
         b->tail = NULL;
         b->datasize = datasize;
         b->spos   = spos;
-        //b->flags |= NEED_COPY_ON_WRITE;
     } else {
         b->tail   = b->head = chk_bytechunk_new(NULL,datasize);
         b->spos   = b->datasize = b->append_pos = 0;
@@ -167,17 +166,18 @@ static inline chk_bytebuffer *chk_bytebuffer_new_readonly(chk_bytechunk *b,uint3
     return buffer;
 }
 
-/*
-* 浅拷贝,b和o共享数据
-*/
-
-static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *b,chk_bytebuffer *o) {
+static inline chk_bytebuffer *chk_bytebuffer_share(chk_bytebuffer *b,chk_bytebuffer *o) {
     assert(o);
-    if(!b){
-        b = calloc(1,sizeof(*b)); 
-        chk_bytebuffer_init(b,o->head,o->spos,o->datasize,CREATE_BY_NEW|NEED_COPY_ON_WRITE);
-    }else 
-        chk_bytebuffer_init(b,o->head,o->spos,o->datasize,NEED_COPY_ON_WRITE);         
+    assert(b);
+    chk_bytebuffer_finalize(b);
+    chk_bytebuffer_init(b,o->head,o->spos,o->datasize,NEED_COPY_ON_WRITE);      
+    return b;
+}
+
+static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *o) {
+    assert(o);
+    chk_bytebuffer *b = calloc(1,sizeof(*b)); 
+    chk_bytebuffer_init(b,o->head,o->spos,o->datasize,CREATE_BY_NEW|NEED_COPY_ON_WRITE);
     return b;
 }
 
@@ -202,25 +202,6 @@ static inline chk_bytebuffer *chk_bytebuffer_do_copy(chk_bytebuffer *b,chk_bytec
     b->flags ^= NEED_COPY_ON_WRITE;
     b->tail = b->head;
     b->append_pos = b->datasize;
-    return b;
-}
-
-/*
-* 深拷贝,b和o数据独立
-*/
-static inline chk_bytebuffer *chk_bytebuffer_deep_clone(chk_bytebuffer *b,chk_bytebuffer *o) {
-    assert(o);
-    uint8_t  create_by_new = 0;
-    chk_bytechunk *c1;
-    if(!b) {
-        b = calloc(1,sizeof(*b));
-        create_by_new = 1;
-    }
-    c1 = b->head;
-    b->head = NULL;
-    chk_bytebuffer_do_copy(b,o->head,o->spos,o->datasize);
-    if(c1) chk_bytechunk_release(c1);
-    if(create_by_new) b->flags |= CREATE_BY_NEW;
     return b;
 }
 

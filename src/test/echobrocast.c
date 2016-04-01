@@ -17,7 +17,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 			chk_stream_socket *_s = clients[i];
 			if(_s){
 				packet_count++;
-				chk_stream_socket_send(_s,chk_bytebuffer_clone(NULL,data));
+				chk_stream_socket_send(_s,chk_bytebuffer_clone(data));
 			}
 		}		
 	}else {
