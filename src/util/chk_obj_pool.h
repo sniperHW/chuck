@@ -58,7 +58,7 @@ static inline void* TYPE##_new_obj(TYPE##_pool *pool){										\
 	TYPE##_chunk   *freechunk = (TYPE##_chunk*)chk_list_begin(&pool->freechunk);			\
 	TYPE##_chunk  **tmp;																	\
 	if(chk_unlikely(!freechunk)){															\
-		chunkcount = pool->chunkcount*2;													\
+		chunkcount = pool->chunkcount+1;													\
 		if(chunkcount > MAX_CHUNK) chunkcount = MAX_CHUNK;									\
 		if(chunkcount == pool->chunkcount) return NULL;										\
 		tmp = calloc(chunkcount,sizeof(*tmp));												\

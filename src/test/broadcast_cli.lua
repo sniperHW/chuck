@@ -35,7 +35,7 @@ local timer1 = event_loop:RegTimer(1000,function ()
 	packet_count = 0
 end)
 
-local timer2 = event_loop:RegTimer(65,function ()
+local timer2 = event_loop:RegTimer(100,function ()
 	for k,v in pairs(connections) do
 		local buff = chuck.buffer.New()
 		local w = packet.Writer(buff)
