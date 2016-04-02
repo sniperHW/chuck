@@ -24,6 +24,7 @@ source.lib =  util/chk_log.c\
 			  util/chk_timer.c\
 			  util/chk_exception.c\
 			  util/chk_refobj.c\
+			  util/chk_bytechunk.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
 			  socket/chk_socket_helper.c\
@@ -38,6 +39,7 @@ source.so =   util/chk_log.c\
 			  util/chk_timer.c\
 			  util/chk_exception.c\
 			  util/chk_refobj.c\
+			  util/chk_bytechunk.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
 			  socket/chk_socket_helper.c\
@@ -59,11 +61,6 @@ chuck.so:$(source.so)
 	$(CC) $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
 	rm *.o
 
-packet.so:packet/lua_packet.c
-	$(CC) -fPIC $(CFLAGS) -c packet/lua_packet.c $(INCLUDE) $(DEFINE)
-	$(CC) $(CFLAGS) -shared -o packet.so *.o -lrt -lm $(LDFLAGS)
-	rm *.o
-
 testlog:test/testlog.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
 
@@ -81,6 +78,9 @@ tcpecho:test/tcpecho.c $(LIBNAME)
 
 test_objpool:test/test_objpool.c $(LIBNAME)	
 	$(CC) $(CFLAGS) -o test/test_objpool test/test_objpool.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+
+test_bytebuffer:test/test_bytebuffer.c $(LIBNAME)	
+	$(CC) $(CFLAGS) -o test/test_bytebuffer test/test_bytebuffer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 
 echobrocast:test/echobrocast.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)

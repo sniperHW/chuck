@@ -1,5 +1,5 @@
 local chuck = require("chuck")
-local packet = require("packet")
+local packet = chuck.packet
 
 local buff = chuck.buffer.New()
 local w = packet.Writer(buff)

@@ -1,6 +1,6 @@
 local chuck = require("chuck")
 local socket = chuck.socket
-local packet = require("packet")
+local packet = chuck.packet
 
 local event_loop = chuck.event_loop.New()
 

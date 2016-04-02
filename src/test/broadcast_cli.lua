@@ -1,13 +1,13 @@
 local chuck = require("chuck")
 local socket = chuck.socket
-local packet = require("packet")
+local packet = chuck.packet
 
 local event_loop = chuck.event_loop.New()
 
 local connections = {}
 local packet_count = 0
 
-for i=1,500 do
+for i=1,300 do
 	socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 		if 0 ~= errCode then
 			print("connect error:" .. errCode)
@@ -35,7 +35,7 @@ local timer1 = event_loop:RegTimer(1000,function ()
 	packet_count = 0
 end)
 
-local timer2 = event_loop:RegTimer(300,function ()
+local timer2 = event_loop:RegTimer(65,function ()
 	for k,v in pairs(connections) do
 		local buff = chuck.buffer.New()
 		local w = packet.Writer(buff)

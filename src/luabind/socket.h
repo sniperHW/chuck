@@ -234,6 +234,10 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 	chk_bytebuffer    *b,*o;
 	chk_stream_socket *s = lua_checkstreamsocket(L,1);
 	o = lua_checkbytebuffer(L,2);
+	if(NULL == o)
+	{
+		luaL_error(L,"need bytebuffer to send");
+	}
 	b = chk_bytebuffer_clone(o);
 	if(0 != chk_stream_socket_send(s,b)){
 		lua_pushstring(L,"send error");

@@ -13,6 +13,7 @@
 #include "util/chk_atomic.h"
 #include "util/chk_util.h"
 #include "util/chk_list.h"
+#include "util/chk_obj_pool.h"
 
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
@@ -51,6 +52,46 @@ struct chk_bytebuffer {
     chk_bytechunk *tail;
     uint8_t        flags;
 };
+
+#ifdef USE_BUFFER_POOL
+
+DECLARE_OBJPOOL(chk_bytebuffer)
+
+extern chk_bytebuffer_pool *bytebuffer_pool;
+
+extern int32_t lock_bytebuffer_pool;
+
+#define LOCK(L) while (__sync_lock_test_and_set(&lock_bytebuffer_pool,1)) {}
+#define UNLOCK(L) __sync_lock_release(&lock_bytebuffer_pool);
+
+#ifndef INIT_BYTEBUFFER_POOL_SIZE
+#define INIT_BYTEBUFFER_POOL_SIZE 4096
+#endif
+
+#define NEW_BYTEBUFFER()         ({                                             \
+    chk_bytebuffer *bytebuffer;                                                 \
+    LOCK();                                                                     \
+    if(NULL == bytebuffer_pool) {                                               \
+        bytebuffer_pool = chk_bytebuffer_pool_new(INIT_BYTEBUFFER_POOL_SIZE);   \
+    }                                                                           \
+    bytebuffer = chk_bytebuffer_new_obj(bytebuffer_pool);                       \
+    UNLOCK();                                                                   \
+    bytebuffer;                                                                 \
+})
+
+#define FREE_BYTEBUFFER(BYTEBUFFER) do{                                         \
+    LOCK();                                                                     \
+    chk_bytebuffer_release_obj(bytebuffer_pool,BYTEBUFFER);                     \
+    UNLOCK();                                                                   \
+}while(0)
+
+#else
+
+#define NEW_BYTEBUFFER() ((chk_bytebuffer*)calloc(1,sizeof(chk_bytebuffer)))
+
+#define FREE_BYTEBUFFER(BYTEBUFFER) free(BYTEBUFFER) 
+
+#endif
 
 
 /*
@@ -155,13 +196,13 @@ static inline void chk_bytebuffer_finalize(chk_bytebuffer *b) {
 }
 
 static inline chk_bytebuffer *chk_bytebuffer_new(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
-    chk_bytebuffer *buffer = calloc(1,sizeof(*buffer));
+    chk_bytebuffer *buffer = NEW_BYTEBUFFER();
     chk_bytebuffer_init(buffer,b,spos,datasize,CREATE_BY_NEW);
     return buffer;
 }
 
 static inline chk_bytebuffer *chk_bytebuffer_new_readonly(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
-    chk_bytebuffer *buffer = calloc(1,sizeof(*buffer));
+    chk_bytebuffer *buffer = NEW_BYTEBUFFER();
     chk_bytebuffer_init(buffer,b,spos,datasize,(CREATE_BY_NEW | READ_ONLY));
     return buffer;
 }
@@ -176,7 +217,7 @@ static inline chk_bytebuffer *chk_bytebuffer_share(chk_bytebuffer *b,chk_bytebuf
 
 static inline chk_bytebuffer *chk_bytebuffer_clone(chk_bytebuffer *o) {
     assert(o);
-    chk_bytebuffer *b = calloc(1,sizeof(*b)); 
+    chk_bytebuffer *b = NEW_BYTEBUFFER(); 
     chk_bytebuffer_init(b,o->head,o->spos,o->datasize,CREATE_BY_NEW|NEED_COPY_ON_WRITE);
     return b;
 }
@@ -207,7 +248,7 @@ static inline chk_bytebuffer *chk_bytebuffer_do_copy(chk_bytebuffer *b,chk_bytec
 
 static inline void chk_bytebuffer_del(chk_bytebuffer *b) {
     chk_bytebuffer_finalize(b);
-    if(b->flags & CREATE_BY_NEW) free(b);
+    if(b->flags & CREATE_BY_NEW) FREE_BYTEBUFFER(b);
 }
 
 

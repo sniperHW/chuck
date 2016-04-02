@@ -18,6 +18,7 @@
 #include "buffer.h"
 #include "socket.h"
 #include "redis.h"
+#include "packet.h"
 
 
 #define REGISTER_MODULE(L,N,F) do {	\
@@ -35,5 +36,7 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"socket",register_socket);
 	REGISTER_MODULE(L,"redis",register_redis);
 	REGISTER_MODULE(L,"buffer",register_buffer);
+	REGISTER_MODULE(L,"packet",register_packet);	
+	
 	return 1;
 }
