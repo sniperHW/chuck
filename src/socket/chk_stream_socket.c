@@ -45,7 +45,7 @@ static chk_bytebuffer *default_unpack(chk_decoder *d,int32_t *err) {
 	chk_bytebuffer  *ret = NULL;
 	*err = 0;
 	if(_d->b) {
-		ret = chk_bytebuffer_new_readonly(_d->b,_d->spos,_d->size);
+		ret = chk_bytebuffer_new_bychunk_readonly(_d->b,_d->spos,_d->size);
 		_d->b = NULL;
 	}
 	return ret;
@@ -290,6 +290,10 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
 	int32_t ret = 0;
 
 	if(b->flags & READ_ONLY) {
+		return -1;
+	}
+
+	if(b->datasize == 0) {
 		return -1;
 	}
 	

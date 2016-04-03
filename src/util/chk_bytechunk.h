@@ -195,13 +195,19 @@ static inline void chk_bytebuffer_finalize(chk_bytebuffer *b) {
     b->head = NULL;
 }
 
-static inline chk_bytebuffer *chk_bytebuffer_new(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
+static inline chk_bytebuffer *chk_bytebuffer_new(uint32_t initcap) {
+    chk_bytebuffer *buffer = NEW_BYTEBUFFER();
+    chk_bytebuffer_init(buffer,NULL,0,initcap,CREATE_BY_NEW);
+    return buffer;
+}
+
+static inline chk_bytebuffer *chk_bytebuffer_new_bychunk(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
     chk_bytebuffer *buffer = NEW_BYTEBUFFER();
     chk_bytebuffer_init(buffer,b,spos,datasize,CREATE_BY_NEW);
     return buffer;
 }
 
-static inline chk_bytebuffer *chk_bytebuffer_new_readonly(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
+static inline chk_bytebuffer *chk_bytebuffer_new_bychunk_readonly(chk_bytechunk *b,uint32_t spos,uint32_t datasize) {
     chk_bytebuffer *buffer = NEW_BYTEBUFFER();
     chk_bytebuffer_init(buffer,b,spos,datasize,(CREATE_BY_NEW | READ_ONLY));
     return buffer;

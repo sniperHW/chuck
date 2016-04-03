@@ -21,6 +21,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 			}
 		}		
 	}else {
+		printf("socket close\n");
 		for(i = 0;i < 1000; ++i){
 			if(clients[i] == s) {
 				--client_count;
@@ -33,6 +34,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 }
 
 void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
+	printf("accept_cb\n");
 	int i;
 	chk_stream_socket_option option = {
 		.recv_buffer_size = 1024*16,
@@ -50,8 +52,7 @@ void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t er
 }
 
 int32_t on_timeout_cb(uint64_t tick,void*ud) {
-	printf("client_count:%d,packet_count:%u/s,chunk_count:%u,buffercount:%u\n",
-		    client_count,packet_count,chunkcount,buffercount);
+	printf("client_count:%d,packet_count:%u\n",client_count,packet_count);
 	packet_count = 0; 
 	return 0; 
 }

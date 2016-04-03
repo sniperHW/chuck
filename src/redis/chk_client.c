@@ -304,7 +304,7 @@ static chk_bytebuffer *convert(uint32_t size,size_t space) {
 	size_t i;
 	uint32_t idx = 0;		
 	space += (digitcount(size) + 3);//plus head *,tail \r\n
-	buff   =  chk_bytebuffer_new(NULL,0,space);
+	buff   =  chk_bytebuffer_new(space);
 	chunk  =  buff->head;
 	ptr1 = chunk->data;
 	*ptr1++ = '*';

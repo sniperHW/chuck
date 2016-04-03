@@ -59,8 +59,7 @@ static inline void* TYPE##_new_obj(TYPE##_pool *pool){										\
 	TYPE##_chunk  **tmp;																	\
 	if(chk_unlikely(!freechunk)){															\
 		chunkcount = pool->chunkcount+1;													\
-		if(chunkcount > MAX_CHUNK) chunkcount = MAX_CHUNK;									\
-		if(chunkcount == pool->chunkcount) return NULL;										\
+		if(chunkcount > MAX_CHUNK) return NULL;												\
 		tmp = calloc(chunkcount,sizeof(*tmp));												\
 		for(i = 0; i < pool->chunkcount;++i) {												\
 			tmp[i] = pool->chunks[i];														\
@@ -94,7 +93,7 @@ static inline void TYPE##_release_obj(TYPE##_pool *pool,void *ptr){							\
 	int32_t index = _obj->idx;																\
 	assert(index >=0 && index < CHUNK_OBJSIZE);												\
 	_obj->next = _chunk->head;																\
-	if(chk_unlikely(!_chunk->head))															\
+	if(chk_unlikely(-1 == _chunk->head))													\
 		chk_list_pushback(&pool->freechunk,(chk_list_entry*)_chunk);						\
 	_chunk->head = index;																	\
 	++pool->freecount;--pool->usedcount;													\

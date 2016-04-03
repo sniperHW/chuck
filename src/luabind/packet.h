@@ -106,7 +106,7 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 			break;
 		}
 		if(pk_total > d->size) break;//没有足够的数据
-		ret = chk_bytebuffer_new(head,d->spos,pk_total);
+		ret = chk_bytebuffer_new_bychunk(head,d->spos,pk_total);
 		//调整pos及其b
 		do {
 			head = d->b;

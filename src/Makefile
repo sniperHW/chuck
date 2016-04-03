@@ -1,8 +1,8 @@
 CFLAGS  = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lrt -lm
 DEPDIR  = 
-INCLUDE = -I./ -I../deps
-DEFINE  = -USE_BUFFER_POOL
+INCLUDE = -I./ -I./deps/lua-5.3.0/src
+DEFINE  = -DUSE_BUFFER_POOL
 LIBNAME = libchuck.a
 MAKE    =
 CC      = 

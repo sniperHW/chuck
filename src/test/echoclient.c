@@ -7,7 +7,7 @@ uint32_t   packet_count = 0;
 
 void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	chk_timer *t;
-	if(!data) {		
+	if(!data) {	
 		t = (chk_timer*)chk_stream_socket_getUd(s);
 		chk_timer_unregister(t);
 		chk_stream_socket_close(s,1);
@@ -18,14 +18,17 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 
 int32_t on_timeout_cb(uint64_t tick,void*ud) {
 	chk_stream_socket *s = (chk_stream_socket*)ud;
-	chk_bytebuffer *buffer = chk_bytebuffer_new(NULL,0,64);
+	chk_bytebuffer *buffer = chk_bytebuffer_new(64);
 	uint16_t len = 64 - sizeof(len);
+	char data[64-sizeof(len)];
+	memset(data,0,sizeof(data));
 	len = chk_hton16(len);
-	uint32_t pos,size;
-	pos  = 0;
-	size = sizeof(len);
-	chk_bytechunk_write(buffer->head,(char*)&len,&pos,&size);
-	chk_stream_socket_send(s,buffer);
+	chk_bytebuffer_append(buffer,(uint8_t*)&len,sizeof(len));
+	chk_bytebuffer_append(buffer,(uint8_t*)data,64-sizeof(len));	
+	if(0 != chk_stream_socket_send(s,buffer))
+	{
+		printf("send error\n");
+	}
 	return 0; 
 }
 
@@ -36,7 +39,7 @@ void connect_callback(int32_t fd,void *ud,int32_t err) {
 	};
 	if(fd) {
 		chk_stream_socket *s = chk_stream_socket_new(fd,&option);
-		chk_timer *t = chk_loop_addtimer(loop,200,on_timeout_cb,s);
+		chk_timer *t = chk_loop_addtimer(loop,100,on_timeout_cb,s);
 		chk_stream_socket_setUd(s,t);
 		chk_loop_add_handle(loop,(chk_handle*)s,data_event_cb);
 	}
