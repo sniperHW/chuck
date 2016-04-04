@@ -2,7 +2,7 @@
 
 * first, Chuck is my son's name.
 
-* second, Chuck is a high perference,asynchronous and easily use C/Lua network library under Linux/Freebsd.
+* second, Chuck is a high perference,asynchronous and easily use C/Lua network library under Linux/MacOS.
 
 #build
 
@@ -15,7 +15,6 @@ static library for c:
 dynamic library for lua:
 
 	make chuck.so
-	make packet.so
 
 
 #examples
@@ -52,7 +51,7 @@ dynamic library for lua:
 
 	local chuck = require("chuck")
 	local socket = chuck.socket
-	local packet = require("packet")
+	local packet = chuck.packet
 
 	local event_loop = chuck.event_loop.New()
 
@@ -95,7 +94,7 @@ dynamic library for lua:
 
 	local chuck = require("chuck")
 	local socket = chuck.socket
-	local packet = require("packet")
+	local packet = chuck.packet
 
 	local event_loop = chuck.event_loop.New()
 
