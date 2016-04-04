@@ -1,4 +1,6 @@
+#ifdef _MACH
 #define _XOPEN_SOURCE
+#endif
 #include <stdlib.h>
 #include <pthread.h>
 #include <ucontext.h>

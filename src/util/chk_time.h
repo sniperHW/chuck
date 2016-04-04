@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include "util/chk_util.h"
 
-#ifdef __MACH__
+#ifdef _MACH
 #include <mach/mach_time.h>
 #define CLOCK_REALTIME 0
 #define CLOCK_MONOTONIC 0

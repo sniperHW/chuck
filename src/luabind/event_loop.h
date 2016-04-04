@@ -23,7 +23,6 @@ static int32_t lua_new_event_loop(lua_State *L) {
 		chk_loop_finalize(&tmp);
 		return 0;
 	}
-	printf("lua_new_event_loop %p\n",event_loop);
 	*event_loop = tmp;
 	luaL_getmetatable(L, EVENT_LOOP_METATABLE);
 	lua_setmetatable(L, -2);
@@ -34,7 +33,6 @@ static int32_t lua_event_loop_run(lua_State *L) {
 	chk_event_loop *event_loop;
 	int32_t         ms,ret;
 	event_loop = lua_checkeventloop(L,1);
-	printf("lua_new_event_loop %p\n",event_loop);	
 	ms = (int32_t)luaL_optinteger(L,2,-1);
 	if(ms == -1) ret = chk_loop_run(event_loop);
 	else ret = chk_loop_run_once(event_loop,ms);

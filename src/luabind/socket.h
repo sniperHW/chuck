@@ -92,7 +92,6 @@ static int32_t lua_listen_ip4(lua_State *L) {
 	chk_acceptor_init(a,fd,cb);
 	luaL_getmetatable(L, ACCEPTOR_METATABLE);
 	lua_setmetatable(L, -2);
-	printf("fd:%d\n",fd);	
 	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a,lua_acceptor_cb)) {
 		CHK_SYSLOG(LOG_ERROR,"event_loop add acceptor failed %s:%d",ip,port);
 		return 0;
