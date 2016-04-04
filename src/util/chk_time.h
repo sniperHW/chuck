@@ -15,7 +15,7 @@
 #define CLOCK_MONOTONIC 0
 #define CLOCK_MONOTONIC_RAW 0
 static inline int clock_gettime(int clk_id, struct timespec *t){
-    mach_timebase_info_data_t timebase;
+    /*mach_timebase_info_data_t timebase;
     mach_timebase_info(&timebase);
     uint64_t time;
     time = mach_absolute_time();
@@ -23,6 +23,14 @@ static inline int clock_gettime(int clk_id, struct timespec *t){
     double seconds = ((double)time * (double)timebase.numer)/((double)timebase.denom * 1e9);
     t->tv_sec = seconds;
     t->tv_nsec = nseconds;
+    return 0;*/
+
+    struct timeval tm;
+    if(0 != gettimeofday(&tm,NULL)){
+        return -1;
+    }
+    t->tv_sec = tm.tv_sec;
+    t->tv_nsec = tm.tv_usec * 1e3;
     return 0;
 }
 #endif
