@@ -80,6 +80,9 @@ testtimer:test/testtimer.c $(LIBNAME)
 tcpecho:test/tcpecho.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
 
+testfiber:test/testfiber.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/testfiber test/testfiber.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+
 test_objpool:test/test_objpool.c $(LIBNAME)	
 	$(CC) $(CFLAGS) -o test/test_objpool test/test_objpool.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 

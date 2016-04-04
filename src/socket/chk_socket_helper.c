@@ -89,9 +89,13 @@ int32_t easy_sockaddr_un(chk_sockaddr *addr,const char *path) {
 int32_t easy_hostbyname_ipv4(const char *name,char *host,size_t len) {
    
 #ifdef _MACH
+    struct hostent *result;
+    if(NULL == (result = gethostbyname(name)))
+        return -1;
+    if(inet_ntop(AF_INET, result->h_addr_list[0],host, len) != NULL)
+        return 0;
     return -1;
-#endif    
-
+#else    
     int     h_err;
     char    buf[8192];
     struct hostent ret, *result;
@@ -100,4 +104,5 @@ int32_t easy_hostbyname_ipv4(const char *name,char *host,size_t len) {
     if(inet_ntop(AF_INET, result->h_addr_list[0],host, len) != NULL)
         return 0;
     return -1;
+#endif
 }

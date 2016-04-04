@@ -24,9 +24,9 @@ typedef chk_refhandle chk_fiber_t;
 /*
 *    init fiber system for current thread 
 */
-int                 chk_fiber_cheduler_init(uint32_t stack_size);
+int                 chk_fiber_sheduler_init(uint32_t stack_size);
 
-int                 chk_fiber_cheduler_clear();
+int                 chk_fiber_sheduler_clear();
 
 int                 chk_fiber_schedule();
 

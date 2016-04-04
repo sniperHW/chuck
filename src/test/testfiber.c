@@ -7,8 +7,8 @@ void fiber_main(void *arg) {
 	uint32_t id = (uint32_t)arg;
 
 	for(;;) {
-		chk_fiber_sleep(1000);
 		printf("fiber %u\n",id);
+		chk_fiber_sleep(1000,NULL);
 	}
 }
 
@@ -16,10 +16,13 @@ int main() {
 
 	int32_t i = 0;
 
-	chk_fiber_cheduler_init(8192);
+	chk_fiber_sheduler_init(8192);
+
+	printf("ok\n");
 
 	for(; i < 10; ++i) {
 		chk_fiber_spawn(fiber_main,(void*)i);
+		printf("ok %d\n",i);
 	}
 
 	for(;;) {

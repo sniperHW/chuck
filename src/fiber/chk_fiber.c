@@ -50,6 +50,7 @@ static inline void fiber_switch(struct chk_fiber* from,struct chk_fiber* to) {
 }
 
 static void fiber_main_function(void *arg) {
+	printf("fiber_main_function\n");
 	struct chk_fiber* fiber = (struct chk_fiber*)arg;
 	void *param = fiber->param;
 	fiber->param = NULL;
@@ -108,7 +109,7 @@ static int32_t timeout_callback(uint64_t tick,void*ud) {
 	return -1;
 }
 
-int chk_fiber_cheduler_init(uint32_t stack_size) {
+int chk_fiber_sheduler_init(uint32_t stack_size) {
 	if(t_scheduler) return -1;
 	t_scheduler = calloc(1,sizeof(*t_scheduler));
 	stack_size = chk_get_pow2(stack_size);
@@ -120,7 +121,7 @@ int chk_fiber_cheduler_init(uint32_t stack_size) {
 	return 0;
 }
 
-int chk_fiber_cheduler_clear() {
+int chk_fiber_sheduler_clear() {
 	if(t_scheduler && t_scheduler->current == NULL) {
 		struct chk_fiber *next;
 		while((next = (struct chk_fiber *)chk_dlist_pop(&t_scheduler->ready_list))){
