@@ -7,7 +7,7 @@ local event_loop = chuck.event_loop.New()
 local connections = {}
 local packet_count = 0
 
-for i=1,300 do
+for i=1,200 do
 	socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 		if 0 ~= errCode then
 			print("connect error:" .. errCode)

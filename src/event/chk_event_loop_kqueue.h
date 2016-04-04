@@ -140,6 +140,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	e->events = calloc(1,(sizeof(*e->events)*e->maxevents));
 	e->notifyfds[0] = tmp[0];
 	e->notifyfds[1] = tmp[1];
+	e->timermgr = NULL;
 	struct kevent ke;
 	EV_SET(&ke,tmp[0], EVFILT_READ, EV_ADD, 0, 0, (void*)(int64_t)tmp[0]);
 	errno = 0;
@@ -248,9 +249,9 @@ loopend:
 chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb cb,void *ud) {
 
 	if(!e->timermgr){
-		e->tfd      = 1;
+		e->tfd      = e->notifyfds[0];
 		e->timermgr = chk_timermgr_new();
-		EV_SET(&e->change, 1, EVFILT_TIMER, EV_ADD | EV_ENABLE, 0, 1, e->timermgr);
+		EV_SET(&e->change, e->tfd, EVFILT_TIMER, EV_ADD | EV_ENABLE, NOTE_USECONDS, 1000, e->timermgr);
 	}
 	return chk_timer_register(e->timermgr,timeout,cb,ud,chk_accurate_tick64()); 
 }

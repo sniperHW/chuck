@@ -52,7 +52,8 @@ void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t er
 }
 
 int32_t on_timeout_cb(uint64_t tick,void*ud) {
-	printf("client_count:%d,packet_count:%u\n",client_count,packet_count);
+	uint32_t lasttick = chk_systick32();
+	printf("client_count:%d,packet_count:%u,lasttick:%u\n",client_count,packet_count,lasttick);
 	packet_count = 0; 
 	return 0; 
 }

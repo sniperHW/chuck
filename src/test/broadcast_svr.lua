@@ -35,6 +35,8 @@ local timer1 = event_loop:RegTimer(1000,function ()
 	packet_count = 0
 end)
 
+print("server run")
+
 if server then
 	event_loop:Run()
 end

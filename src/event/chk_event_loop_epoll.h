@@ -86,6 +86,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	e->events = calloc(1,(sizeof(*e->events)*e->maxevents));
 	e->notifyfds[0] = tmp[0];
 	e->notifyfds[1] = tmp[1];
+	e->timermgr = NULL;
 	ev.data.fd = e->notifyfds[0];
 	ev.events = EPOLLIN;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,ev.data.fd,&ev)) {

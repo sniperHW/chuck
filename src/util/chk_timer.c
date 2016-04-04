@@ -6,6 +6,7 @@
 #include "util/chk_timer.h"
 #include "util/chk_util.h"
 #include "util/chk_timer_define.h"
+#include "util/chk_time.h"
 #include "../config.h"
 
 enum{
@@ -133,6 +134,7 @@ static void fire(chk_timermgr *m,wheel *w,uint64_t tick) {
 			while((t = cast(chk_timer*,chk_dlist_pop(&tlist)))) {
 				t->status |= INCB;
 				assert(tick == t->expire);
+				//printf("%lld,%lld,%lld\n",tick,t->expire,chk_accurate_tick64());
 				ret = t->cb(tick,t->ud);
 				t->status ^= INCB;
 				if(!(t->status & RELEASING) && ret >= 0) {
@@ -182,6 +184,10 @@ chk_timermgr *chk_timermgr_new() {
 void chk_timer_tick(chk_timermgr *m,uint64_t now)
 {
 	if(!m->ptrtick) return;//没有注册过定时器
+	/*if(m->lasttick != now)
+	{
+		printf("delta:%lld,now:%lld,lasttick:%lld\n",now - m->lasttick,now,m->lasttick);
+	}*/
 	while(m->lasttick != now) {
 		INC_LASTTICK(m->lasttick);
 		fire(m,m->wheels[wheel_sec],m->lasttick);
