@@ -141,7 +141,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	e->notifyfds[0] = tmp[0];
 	e->notifyfds[1] = tmp[1];
 	struct kevent ke;
-	EV_SET(&ke,tmp[0], EVFILT_READ, EV_ADD, 0, 0, (void*)tmp[0]);
+	EV_SET(&ke,tmp[0], EVFILT_READ, EV_ADD, 0, 0, (void*)(int64_t)tmp[0]);
 	errno = 0;
 	if(0 != kevent(kfd, &ke, 1, NULL, 0, NULL)){
 		close(kfd);
@@ -175,13 +175,12 @@ void chk_loop_finalize(chk_event_loop *e) {
 int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 	int32_t ret = 0;
 	int32_t i,nfds,ticktimer;
-	int64_t _;
 	chk_handle      *h;
 	chk_dlist        ready_list;
 	chk_dlist_entry *read_entry;
 	struct timespec ts,*pts;
 	uint64_t msec;
-	if(ms >= 0){
+	if(once){
 		msec = ms%1000;
 		ts.tv_nsec = (msec*1000*1000);
 		ts.tv_sec   = (ms/1000);
@@ -200,7 +199,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 			e->status |= INLOOP;
 			for(i=0; i < nfds ; ++i) {
 				struct kevent *event = &e->events[i];
-				if(event->udata == (void*)e->notifyfds[0]) {
+				if(event->udata == (void*)(int64_t)e->notifyfds[0]) {
 					int32_t _;
 					while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
 					goto loopend;	
