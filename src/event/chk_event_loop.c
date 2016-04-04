@@ -20,7 +20,7 @@ enum {
 
 #ifdef _LINUX
 #	include "chk_event_loop_epoll.h"
-#elif  _BSD
+#elif  _MACH
 #	include "chk_event_loop_kqueue.h"
 #else
 #	error "un support platform!"		

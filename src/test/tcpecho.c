@@ -16,8 +16,10 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 		}
 		chk_stream_socket_send(s,chk_bytebuffer_clone(data));
 	}
-	else
+	else{
+		printf("socket close:%d\n",error);
 		chk_stream_socket_close(s,0);
+	}
 	
 }
 

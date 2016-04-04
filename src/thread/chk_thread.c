@@ -6,7 +6,7 @@
 
 #ifdef _LINUX
 # define gettid() syscall(__NR_gettid)  
-#elif _BSD
+#elif _MACH
 # define gettid() getpid()
 #else
 # error "un support platform!"		

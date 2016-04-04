@@ -15,6 +15,18 @@
 		struct     epoll_event* events;
 		int32_t    maxevents;
 	};
+#elif _MACH
+
+	struct chk_event_loop{
+		_chk_loop;
+		int    tfd;		
+		int32_t kfd;
+		struct kevent* events;
+		int    maxevents;
+		//for timer
+	   	struct kevent change;	
+	};
+
 #else
 #	error "un support platform!"		
 #endif

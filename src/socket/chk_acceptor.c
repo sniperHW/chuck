@@ -99,13 +99,13 @@ void *chk_acceptor_getud(chk_acceptor *a) {
 chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb cb,void *ud) {
 	assert(loop && cb && ip);
 	chk_sockaddr  server;
-	int32_t       fd;
+	int32_t       fd,ret;
 	chk_acceptor *a = NULL;
 	do {
 		if(0 != easy_sockaddr_ip4(&server,ip,port)) break;
 		if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) break;
 		easy_addr_reuse(fd,1);
-		if(0 == easy_listen(fd,&server)){
+		if(0 == (ret = easy_listen(fd,&server))){
 			a = chk_acceptor_new(fd,ud);
 			chk_loop_add_handle(loop,(chk_handle*)a,cb);
 		}else close(fd);

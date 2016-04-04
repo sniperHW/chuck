@@ -1,7 +1,7 @@
 CFLAGS  = -g -Wall -fno-strict-aliasing 
-LDFLAGS = -lpthread -lrt -lm
+LDFLAGS = -lpthread -lm
 DEPDIR  = 
-INCLUDE = -I./ -I./deps/lua-5.3.0/src
+INCLUDE = -I./ -I../deps/lua-5.3.0/src
 DEFINE  = -DUSE_BUFFER_POOL
 LIBNAME = libchuck.a
 MAKE    =
@@ -12,12 +12,13 @@ ifeq ($(uname_S),Linux)
 	MAKE += make
 	CC += gcc
 	DEFINE += -D_LINUX
+	LDFLAGS += -lrt
 endif
 
-ifeq ($(uname_S),FreeBSD)
-	MAKE += gmake
+ifeq ($(uname_S),Darwin)
+	MAKE += make
 	CC += clang
-	DEFINE += -D_BSD
+	DEFINE += -D_MACH
 endif
 
 source.lib =  util/chk_log.c\

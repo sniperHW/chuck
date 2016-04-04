@@ -2,6 +2,7 @@
 #include "util/chk_log.h"
 #include "util/chk_list.h"
 #include "util/chk_atomic.h"
+#include "util/chk_time.h"
 #include "thread/chk_thread.h"
 
 #ifndef  cast

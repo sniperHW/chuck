@@ -18,12 +18,22 @@ int32_t easy_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local) {
 	errno = 0;	
 	if(local && 0 != easy_bind(fd,local))
 		return -errno;
-	ret = connect(fd,cast(struct sockaddr*,server),sizeof(*server));
-	return ret == 0 ? ret : -errno;
+    if(server->addr_type == SOCK_ADDR_IPV4)    
+	   ret = connect(fd,cast(struct sockaddr*,server),sizeof(server->in));
+	else if(server->addr_type == SOCK_ADDR_UN)
+       ret = connect(fd,cast(struct sockaddr*,server),sizeof(server->un));
+    else
+        return -1;
+    return ret == 0 ? ret : -errno;
 }
 
 int32_t easy_bind(int32_t fd,chk_sockaddr *addr) {
-    return bind(fd,(struct sockaddr*)addr,sizeof(*addr));
+    if(addr->addr_type == SOCK_ADDR_IPV4)
+        return bind(fd,(struct sockaddr*)addr,sizeof(addr->in));
+    else if(addr->addr_type == SOCK_ADDR_UN)
+        return bind(fd,(struct sockaddr*)addr,sizeof(addr->un));
+    else
+        return -1;
 }
 
 int32_t easy_addr_reuse(int32_t fd,int32_t yes) {
@@ -59,6 +69,7 @@ int32_t easy_close_on_exec(int32_t fd) {
 
 int32_t easy_sockaddr_ip4(chk_sockaddr *addr,const char *ip,uint16_t port) {
     memset(cast(void*,addr),0,sizeof(*addr));
+    addr->addr_type = SOCK_ADDR_IPV4;
     addr->in.sin_family = AF_INET;
     addr->in.sin_port = htons(port);
     if(inet_pton(AF_INET,ip,&addr->in.sin_addr) == 1)
@@ -68,6 +79,7 @@ int32_t easy_sockaddr_ip4(chk_sockaddr *addr,const char *ip,uint16_t port) {
 
 int32_t easy_sockaddr_un(chk_sockaddr *addr,const char *path) {
     memset(cast(void*,addr),0,sizeof(*addr));
+    addr->addr_type = SOCK_ADDR_UN;    
     addr->un.sun_family = AF_LOCAL;
     strncpy(addr->un.sun_path,path,sizeof(addr->un.sun_path)-1);
     return 0;
@@ -75,6 +87,11 @@ int32_t easy_sockaddr_un(chk_sockaddr *addr,const char *path) {
 
 //get the first ipv4 address of name
 int32_t easy_hostbyname_ipv4(const char *name,char *host,size_t len) {
+   
+#ifdef _MACH
+    return -1;
+#endif    
+
     int     h_err;
     char    buf[8192];
     struct hostent ret, *result;

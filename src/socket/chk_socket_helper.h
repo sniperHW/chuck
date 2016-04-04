@@ -3,12 +3,19 @@
 
 #include "event/chk_event.h"
 
+enum{
+	SOCK_ADDR_IPV4 = 1,
+	SOCK_ADDR_IPV6,
+	SOCK_ADDR_UN,
+};
+
 typedef struct {
     union{
         struct sockaddr_in  in;   //for ipv4 
         struct sockaddr_in6 in6;  //for ipv6
         struct sockaddr_un  un;   //for unix domain
     }; 
+    int32_t addr_type;
 }chk_sockaddr;
 
 /**

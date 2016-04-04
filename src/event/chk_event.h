@@ -39,15 +39,8 @@ typedef void* chk_event_callback;
     chk_dlist_entry entry;                                                  \
     chk_dlist_entry ready_entry;                                            \
     int32_t         fd;                                                     \
-    int32_t         active_evetns;/*激活的事件*/                            \
-    union {                                                                 \
-        /*关注的事件*/                                                      \
-        int32_t     events;                                                 \
-        struct {                                                            \
-            int16_t set_read;                                               \
-            int16_t set_write;                                              \
-        };                                                                  \
-    };                                                                      \
+    int32_t         active_evetns;/*激活的事件*/                              \
+    int32_t         events;         /*关注的事件*/                            \
     chk_event_loop *loop;                                                   \
     int32_t (*handle_add)(chk_event_loop*,chk_handle*,chk_event_callback);  \
     void    (*on_events)(chk_handle*,int32_t events)                    
@@ -77,17 +70,17 @@ struct chk_handle {
 enum{
     CHK_EVENT_READ   =  EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP,
     CHK_EVENT_WRITE  =  EPOLLOUT,
-    CHK_EVENT_ECLOSE = 0xffffffff,//engine close    
+    CHK_EVENT_ECLOSE = 0x7fffffff,//engine close    
 };
 
-#elif _BSD
+#elif _MACH
 
 #   include    <sys/event.h>
 
 enum{
-    CHK_EVENT_READ   =  EVFILT_READ,
-    CHK_EVENT_WRITE  =  EVFILT_WRITE,
-    CHK_EVENT_ECLOSE = 0xffffffff,//engine close         
+    CHK_EVENT_READ   =  1,
+    CHK_EVENT_WRITE  =  1 << 2,
+    CHK_EVENT_ECLOSE = 0x7fffffff,//engine close         
 };
 
 #else

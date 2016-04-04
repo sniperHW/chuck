@@ -221,7 +221,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	if(!e || !h || !cb || s->status & (SOCKET_CLOSE | SOCKET_RCLOSE))
 		return -1;
 	if(!chk_list_empty(&s->send_list))
-		ret = chk_events_add(e,h,CHK_EVENT_READ) || chk_events_add(e,h,CHK_EVENT_WRITE);
+		ret = chk_events_add(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE);
 	else
 		ret = chk_events_add(e,h,CHK_EVENT_READ);
 	if(ret == 0) {
