@@ -5,7 +5,8 @@ INCLUDE = -I./ -I../deps/lua-5.3.0/src
 DEFINE  = -DUSE_BUFFER_POOL
 LIBNAME = libchuck.a
 MAKE    =
-CC      = 
+CC      =
+LIBRARY = -L../deps/lua-5.3.0/src
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),Linux)
@@ -13,12 +14,14 @@ ifeq ($(uname_S),Linux)
 	CC += gcc
 	DEFINE += -D_LINUX
 	LDFLAGS += -lrt
+	SHAREFLAGS += -shared
 endif
 
 ifeq ($(uname_S),Darwin)
 	MAKE += make
 	CC += clang
 	DEFINE += -D_MACH
+	SHAREFLAGS += -bundle -undefined dynamic_lookup	
 endif
 
 source.lib =  util/chk_log.c\
@@ -53,13 +56,13 @@ source.so =   util/chk_log.c\
 
 
 $(LIBNAME):$(source.lib)
-	$(CC) -fPIC $(CFLAGS) -c $(source.lib) $(INCLUDE) $(DEFINE)
+	$(CC) -fpic $(CFLAGS) -c $(source.lib) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
 	rm *.o
 
 chuck.so:$(source.so)
-	$(CC) -fPIC $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE)
-	$(CC) $(CFLAGS) -shared -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) -lpthread -lrt -lm $(LDFLAGS)
+	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE)
+	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) $(LDFLAGS) $(LIBRARY)
 	rm *.o
 
 testlog:test/testlog.c $(LIBNAME)

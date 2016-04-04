@@ -135,6 +135,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	easy_noblock(tmp[1],1);
 
 	e->kfd = kfd;
+	e->tfd  = -1;
 	e->maxevents = 64;
 	e->events = calloc(1,(sizeof(*e->events)*e->maxevents));
 	e->notifyfds[0] = tmp[0];
@@ -165,7 +166,7 @@ void chk_loop_finalize(chk_event_loop *e) {
 		chk_events_remove(h);
 		h->on_events(h,CHK_EVENT_ECLOSE);
 	}
-	e->tfd = 0;	
+	e->tfd  = -1;	
 	close(e->notifyfds[0]);
 	close(e->notifyfds[1]);
 	free(e->events);
@@ -180,7 +181,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 	chk_dlist_entry *read_entry;
 	struct timespec ts,*pts;
 	uint64_t msec;
-	if(ms > 0){
+	if(ms >= 0){
 		msec = ms%1000;
 		ts.tv_nsec = (msec*1000*1000);
 		ts.tv_sec   = (ms/1000);
@@ -194,7 +195,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 		ticktimer = 0;
 		errno = 0;
 		chk_dlist_init(&ready_list);
-		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd? 1 : 0, e->events,e->maxevents,pts));	
+		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd >=0 ? 1 : 0, e->events,e->maxevents,pts));
 		if(nfds > 0) {
 			e->status |= INLOOP;
 			for(i=0; i < nfds ; ++i) {

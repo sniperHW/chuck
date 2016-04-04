@@ -112,7 +112,7 @@ void chk_loop_finalize(chk_event_loop *e) {
 		chk_events_remove(h);
 		h->on_events(h,CHK_EVENT_ECLOSE);
 	}
-
+	e->tfd  = -1;
 	close(e->epfd);
 	close(e->notifyfds[0]);
 	close(e->notifyfds[1]);

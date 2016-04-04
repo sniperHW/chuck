@@ -16,6 +16,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	assert(e && h && cb);
 	ret = chk_events_add(e,h,CHK_EVENT_READ);
+	printf("loop_add,fd:%d\n",h->fd);
 	if(ret == 0) {
 		easy_noblock(h->fd,1);
 		cast(chk_acceptor*,h)->cb = cast(chk_acceptor_cb,cb);
