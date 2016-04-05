@@ -82,6 +82,9 @@ static void fiber_destroy(void *_u) {
 static struct chk_fiber* fiber_create(void*stack,void(*fun)(void*),void *param) {
 	struct chk_fiber *fiber = (struct chk_fiber*)calloc(1,sizeof(*fiber));
 	chk_refobj_init(&fiber->refobj,fiber_destroy);	
+	fiber->stack = stack;
+	fiber->main_fun = fun;
+	fiber->param = param;
 	return fiber;
 }
 
