@@ -16,7 +16,7 @@ int main() {
 
 	int32_t i = 0;
 
-	chk_fiber_sheduler_init(8192);
+	chk_fiber_sheduler_init(1024*1024);
 
 	printf("ok\n");
 
@@ -25,6 +25,7 @@ int main() {
 		printf("ok %d\n",i);
 	}
 
+	printf("spawn ok\n");
 	for(;;) {
 
 		chk_fiber_schedule();

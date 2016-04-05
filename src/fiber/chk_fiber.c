@@ -14,7 +14,7 @@
 
 //fiber status
 enum {
-	start,
+	start = 1,
 	ready,
 	running,
 	blocking,
@@ -40,17 +40,26 @@ typedef struct {
 	uint32_t          activecount;
 	chk_timermgr     *timermgr;
 	struct chk_fiber *current;
-	struct chk_fiber *fiber_scheduler;	
+	struct chk_fiber *fiber_scheduler;
 }*fiber_scheduler_t;
 
 static __thread fiber_scheduler_t t_scheduler = NULL;
 
+static void fiber_main_function(void *arg);
+
 static inline void fiber_switch(struct chk_fiber* from,struct chk_fiber* to) {
-    	swapcontext(&(from->ucontext),&(to->ucontext));
+	if(to->status == start){
+		getcontext(&(to->ucontext));			
+		to->ucontext.uc_stack.ss_sp = to->stack;
+		to->ucontext.uc_stack.ss_size = t_scheduler->stacksize;
+		to->ucontext.uc_link = NULL;
+		makecontext(&(to->ucontext),(void(*)())fiber_main_function,1,to);
+	}
+	to->status = running;
+    swapcontext(&(from->ucontext),&(to->ucontext));
 }
 
 static void fiber_main_function(void *arg) {
-	printf("fiber_main_function\n");
 	struct chk_fiber* fiber = (struct chk_fiber*)arg;
 	void *param = fiber->param;
 	fiber->param = NULL;
@@ -72,17 +81,7 @@ static void fiber_destroy(void *_u) {
 
 static struct chk_fiber* fiber_create(void*stack,void(*fun)(void*),void *param) {
 	struct chk_fiber *fiber = (struct chk_fiber*)calloc(1,sizeof(*fiber));
-	chk_refobj_init(&fiber->refobj,fiber_destroy);
-	getcontext(&(fiber->ucontext));		
-	if(stack) {	
-		fiber->ucontext.uc_stack.ss_sp = stack;
-		fiber->ucontext.uc_stack.ss_size = t_scheduler->stacksize;
-		fiber->ucontext.uc_link = NULL;
-		fiber->main_fun = fun;
-		fiber->param = param;
-		fiber->stack = stack;
-		makecontext(&(fiber->ucontext),(void(*)())fiber_main_function,1,fiber);
-	}	
+	chk_refobj_init(&fiber->refobj,fiber_destroy);	
 	return fiber;
 }
 
@@ -93,7 +92,9 @@ static int add2ready(struct chk_fiber* fiber) {
 		fiber->timer = NULL;
 
 		if(0 == chk_dlist_pushback(&(t_scheduler->ready_list),(chk_dlist_entry*)fiber)) {
-			fiber->status = ready;
+			if(fiber->status != start){
+				fiber->status = ready;
+			}
 			++t_scheduler->activecount;
 			return 0;
 		}
@@ -143,6 +144,7 @@ chk_fiber_t chk_fiber_spawn(void(*fun)(void*),void *param){
 	if(!stack) return uident;
 	struct chk_fiber *fiber = fiber_create(stack,fun,param);
 	if(!fiber) return uident;
+	fiber->status = start;
 	add2ready(fiber);
 	return chk_get_refhandle(&fiber->refobj);
 }
@@ -156,7 +158,6 @@ int chk_fiber_schedule() {
 	struct chk_fiber *next;
 	while((next = (struct chk_fiber *)chk_dlist_pop(&t_scheduler->ready_list))){
 		t_scheduler->current = next;
-		next->status = running;
 		fiber_switch(t_scheduler->fiber_scheduler,next);
 		t_scheduler->current = NULL;
 		if(next->status == dead){
