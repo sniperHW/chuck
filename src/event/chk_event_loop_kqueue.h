@@ -1,5 +1,7 @@
 #ifdef _CORE_
 
+#include <fcntl.h>
+
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
 #endif
@@ -134,7 +136,8 @@ int32_t chk_loop_init(chk_event_loop *e) {
 
 	easy_noblock(tmp[0],1);		
 	easy_noblock(tmp[1],1);
-
+	printf("%d\n",fcntl(tmp[0],F_SETFD,FD_CLOEXEC));
+	printf("%d\n",fcntl(tmp[1],F_SETFD,FD_CLOEXEC));
 	e->kfd = kfd;
 	e->tfd  = -1;
 	e->maxevents = 64;
