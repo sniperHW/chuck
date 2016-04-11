@@ -2,15 +2,26 @@
 #define _CHK_HTTP_H
 
 #include "http-parser/http_parser.h"
-#include "uitl/chk_bytechunk.h"
+#include "util/chk_bytechunk.h"
+#include "util/chk_string.h"
+
+#define CHK_HTTP_SLOTS_SIZE 16
+
+typedef struct chk_http_hash_item chk_http_hash_item;
+
+struct chk_http_hash_item{
+	chk_http_hash_item *next;
+	chk_string         *field;
+	chk_string         *value;
+};
 
 typedef struct {
-	//std::vector<std::string> m_header_field;
-	//std::vector<std::string> m_header_value;	
-	//std::string              m_status;
-	chk_bytebuffer            *body;
 	uint32_t        		   refcount;
-	int32_t                    method;
+	int32_t                    method;	
+	chk_string                *status;
+	chk_string                *url;
+	chk_bytebuffer            *body;
+	chk_http_hash_item        *headers[CHK_HTTP_SLOTS_SIZE];
 }chk_http_packet;
 
 
@@ -35,10 +46,10 @@ chk_bytebuffer *chk_http_request_get_body(chk_http_request *);
 
 chk_http_response *chk_http_response_new();
 void chk_http_response_destroy(chk_http_response *);
-int32_t chk_http_response_set_method(chk_http_response *,int32_t method);
-int32_t chk_http_response_set_url(chk_http_response *,const char *url);
-int32_t chk_http_response_set_status(chk_http_response *,const char *status);
-int32_t chk_http_response_set_header(chk_http_response *,const char *field,const char *value);
+void chk_http_response_set_method(chk_http_response *,int32_t method);
+void chk_http_response_set_url(chk_http_response *,chk_string *url);
+void chk_http_response_set_status(chk_http_response *,chk_string *status);
+int32_t chk_http_response_set_header(chk_http_response *,chk_string *field,chk_string *value);
 int32_t chk_http_response_add_body(chk_http_response *,const char *str,size_t size);
 
 

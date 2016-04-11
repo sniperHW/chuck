@@ -1,7 +1,7 @@
 CFLAGS  = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lm
 DEPDIR  = 
-INCLUDE = -I./ -I../deps/lua-5.3.0/src
+INCLUDE = -I./ -I../deps/lua-5.3.0/src -I../deps -I../
 DEFINE  = -DUSE_BUFFER_POOL
 LIBNAME = libchuck.a
 MAKE    =
@@ -29,6 +29,8 @@ source.lib =  util/chk_log.c\
 			  util/chk_exception.c\
 			  util/chk_refobj.c\
 			  util/chk_bytechunk.c\
+			  util/chk_string.c\
+			  http/chk_http.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
 			  socket/chk_socket_helper.c\
@@ -44,6 +46,7 @@ source.so =   util/chk_log.c\
 			  util/chk_exception.c\
 			  util/chk_refobj.c\
 			  util/chk_bytechunk.c\
+			  util/chk_string.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
 			  socket/chk_socket_helper.c\
@@ -85,6 +88,9 @@ testfiber:test/testfiber.c $(LIBNAME)
 
 test_objpool:test/test_objpool.c $(LIBNAME)	
 	$(CC) $(CFLAGS) -o test/test_objpool test/test_objpool.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+
+teststring:test/teststring.c $(LIBNAME)	
+	$(CC) $(CFLAGS) -o test/teststring test/teststring.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 
 test_bytebuffer:test/test_bytebuffer.c $(LIBNAME)	
 	$(CC) $(CFLAGS) -o test/test_bytebuffer test/test_bytebuffer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
