@@ -7,6 +7,7 @@ LIBNAME = libchuck.a
 MAKE    =
 CC      =
 LIBRARY = -L../deps/lua-5.3.0/src
+HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),Linux)
@@ -48,6 +49,8 @@ source.so =   util/chk_log.c\
 			  util/chk_refobj.c\
 			  util/chk_bytechunk.c\
 			  util/chk_string.c\
+			  util/lookup8.c\
+			  http/chk_http.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
 			  socket/chk_socket_helper.c\
@@ -58,15 +61,17 @@ source.so =   util/chk_log.c\
 			  thread/chk_thread.c\
 			  fiber/chk_fiber.c
 
+$(HTTP_PARSER):
+	cd ../deps/http-parser/;$(MAKE) package
 
 $(LIBNAME):$(source.lib)
 	$(CC) -fpic $(CFLAGS) -c $(source.lib) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
 	rm *.o
 
-chuck.so:$(source.so)
+chuck.so:$(source.so) $(HTTP_PARSER)
 	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE)
-	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o $(HTTP_PARSER) $(JEMALLOC) $(LDFLAGS) $(LIBRARY)
+	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(JEMALLOC) $(LDFLAGS) $(LIBRARY)
 	rm *.o
 
 testlog:test/testlog.c $(LIBNAME)

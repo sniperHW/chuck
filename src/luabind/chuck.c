@@ -19,6 +19,7 @@
 #include "socket.h"
 #include "redis.h"
 #include "packet.h"
+#include "http.h"
 
 
 #define REGISTER_MODULE(L,N,F) do {	\

@@ -1,7 +1,6 @@
 #ifndef _CHK_HTTP_H
 #define _CHK_HTTP_H
 
-#include "http-parser/http_parser.h"
 #include "util/chk_bytechunk.h"
 #include "util/chk_string.h"
 
@@ -33,6 +32,9 @@ struct chk_http_header_iterator {
 	const char          *value;	
 };
 
+const char *chk_http_method2name(int32_t method);
+int32_t chk_http_name2method(const char *name);
+
 int32_t chk_http_is_vaild_header_iterator(chk_http_header_iterator *);
 int32_t chk_http_header_iterator_next(chk_http_header_iterator *);
 int32_t chk_http_header_begin(chk_http_packet*,chk_http_header_iterator*);
@@ -50,6 +52,7 @@ void chk_http_set_url(chk_http_packet *http_packet,chk_string *url);
 void chk_http_set_status(chk_http_packet *http_packet,chk_string *status);
 int32_t chk_http_set_header(chk_http_packet *http_packet,chk_string *field,chk_string *value);
 int32_t chk_http_append_body(chk_http_packet *http_packet,const char *str,size_t size);
+
 
 
 /*

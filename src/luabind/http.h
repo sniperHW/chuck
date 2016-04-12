@@ -1,5 +1,5 @@
-#include "util/chk_http.h"
-#include "http_parser/http_parser.h"
+#include "http/chk_http.h"
+#include "http-parser/http_parser.h"
 
 #define HTTP_PACKET_METATABLE "lua_http_packet"
 
@@ -41,12 +41,12 @@ static int32_t lua_http_connection_gc(lua_State *L) {
 	if(conn->field) chk_string_destroy(conn->field);
 	if(conn->value) chk_string_destroy(conn->value);			
 	if(conn->socket) chk_stream_socket_close(conn->socket,0);
-	if(conn->cb) chk_luaRef_release(&conn->cb);
+	chk_luaRef_release(&conn->cb);
 	return 0;
 }
 
 static int32_t lua_http_packet_gc(lua_State *L) {
-	lua_http_packet *packet = lua_check_read_packet(L,1);
+	lua_http_packet *packet = lua_check_http_packet(L,1);
 	chk_http_packet_release(packet->packet);
 	return 0;
 }
@@ -61,7 +61,7 @@ static int on_message_begin(http_parser *parser)
 
 static int on_url(http_parser *parser, const char *at, size_t length)
 {	
-	http_connection *conn = lua_check_http_connection(L,1);
+	http_connection *conn = (http_connection*)parser;
 	if(conn->url)
 		chk_string_append(conn->url,at,length);
 	else
@@ -71,7 +71,7 @@ static int on_url(http_parser *parser, const char *at, size_t length)
 
 static int on_status(http_parser *parser, const char *at, size_t length)
 {
-	http_connection *conn = lua_check_http_connection(L,1);
+	http_connection *conn = (http_connection*)parser;
 	if(conn->status)
 		chk_string_append(conn->status,at,length);
 	else
@@ -81,7 +81,7 @@ static int on_status(http_parser *parser, const char *at, size_t length)
 
 static int on_header_field(http_parser *parser, const char *at, size_t length)
 {
-	http_connection *conn = lua_check_http_connection(L,1);
+	http_connection *conn = (http_connection*)parser;
 	if(conn->field)
 		chk_string_append(conn->field,at,length);
 	else {
@@ -96,7 +96,7 @@ static int on_header_field(http_parser *parser, const char *at, size_t length)
 
 static int on_header_value(http_parser *parser, const char *at, size_t length)
 {
-	http_connection *conn = lua_check_http_connection(L,1);
+	http_connection *conn = (http_connection*)parser;
 	if(conn->value)
 		chk_string_append(conn->value,at,length);
 	else
@@ -111,7 +111,7 @@ static int on_headers_complete(http_parser *parser)
 
 static int on_body(http_parser *parser, const char *at, size_t length)
 {
-	http_connection *conn = lua_check_http_connection(L,1);
+	http_connection *conn = (http_connection*)parser;
 	if(0 != chk_http_append_body(conn->packet,at,length)){
 		conn->errcode = HTTP_BODY_TOO_LARGE;
 		return -1;
@@ -136,12 +136,12 @@ static int on_message_complete(http_parser *parser)
 {	
 	const char   *error; 
 	lua_http_packet_PushFunctor packet;
-	http_connection *conn = lua_check_http_connection(L,1);
+	http_connection *conn = (http_connection*)parser;
 	chk_http_set_method(conn->packet,conn->method);
 	chk_http_set_url(conn->packet,conn->url);
 	chk_http_set_status(conn->packet,conn->status);
 
-	if(conn->cb) {
+	if(conn->cb.L) {
 		packet.packet = conn->packet;
 		packet.Push = lua_push_http_packet;
 		if(NULL != (error = chk_Lua_PCallRef(conn->cb,"f",&packet))) {
@@ -211,7 +211,7 @@ static int32_t lua_new_http_connection(lua_State *L) {
 
 	conn = (http_connection*)lua_newuserdata(L, sizeof(*conn));
 	if(!conn) {
-		chk_stream_socket_close(s);
+		chk_stream_socket_close(s,1);
 		return 0;
 	}
 	memset(conn,0,sizeof(*conn));
@@ -244,23 +244,69 @@ int32_t lua_http_connection_close(lua_State *L) {
 }
 
 int32_t lua_http_packet_get_method(lua_State *L) {
-	return 0;
+	lua_http_packet *packet = lua_check_http_packet(L,1);
+	const char *method = chk_http_method2name(chk_http_get_method(packet->packet));
+	if(!method) return 0;
+	lua_pushstring(L,method);
+	return 1;
 }
 
 int32_t lua_http_packet_get_status(lua_State *L) {
-	return 0;
+	lua_http_packet *packet = lua_check_http_packet(L,1);
+	const char *status = chk_http_get_status(packet->packet);
+	if(!status) return 0;
+	lua_pushstring(L,status);
+	return 1;
 }
 
 int32_t lua_http_packet_get_url(lua_State *L) {
-	return 0;
+	lua_http_packet *packet = lua_check_http_packet(L,1);
+	const char *url = chk_http_get_url(packet->packet);
+	if(!url) return 0;
+	lua_pushstring(L,url);
+	return 1;	
 }
 
 int32_t lua_http_packet_get_body(lua_State *L) {
-	return 0;
+	uint32_t spos,chunk_data_size,size_remain;
+	struct luaL_Buffer b;
+	chk_bytechunk   *head;
+	lua_http_packet *packet = lua_check_http_packet(L,1);
+	chk_bytebuffer  *body   = chk_http_get_body(packet->packet);
+	if(!body || !body->head) return 0;
+
+#if LUA_VERSION_NUM >= 503
+	luaL_buffinitsize(L, &b, (size_t)body->datasize);
+#else
+ 	luaL_buffinit(L, &b);
+#endif
+	head = body->head;
+	spos = body->spos;
+	size_remain = body->datasize;
+	do{
+		chunk_data_size = head->cap - spos;	
+		if(chunk_data_size > size_remain) chunk_data_size = size_remain;		
+		luaL_addlstring(&b,&head->data[spos],(size_t)chunk_data_size);
+		head = head->next;
+		if(!head) break;
+		size_remain -= chunk_data_size;
+		spos = 0;		
+	}while(size_remain);
+#if LUA_VERSION_NUM >= 503
+	luaL_pushresultsize(&b,(size_t)body->datasize);
+#else	
+	luaL_pushresult(&b);
+#endif
+	return 1;
 }
 
 int32_t lua_http_packet_get_header(lua_State *L) {
-	return 0;
+	lua_http_packet *packet = lua_check_http_packet(L,1);
+	const char *field = luaL_checkstring(L,2);
+	const char *value = chk_http_get_header(packet->packet,field);	
+	if(!value) return 0;
+	lua_pushstring(L,value);
+	return 1;
 }
 
 int32_t lua_http_packet_get_headers(lua_State *L) {

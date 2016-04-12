@@ -1,5 +1,32 @@
 #define _CORE_
+#include "http-parser/http_parser.h"
 #include "http/chk_http.h"
+
+const char *http_method_name[] =
+{
+#define XX(num, name, string) #name,
+  HTTP_METHOD_MAP(XX)
+#undef XX
+};
+
+const char *chk_http_method2name(int32_t method) {
+	method = method - 1;
+	if(method >= 0 && method < (sizeof(http_method_name) / sizeof(http_method_name[0]))) {
+		return http_method_name[method];
+	}
+	return NULL;
+}
+
+int32_t chk_http_name2method(const char *name) {
+	int32_t i,size;
+	size = sizeof(http_method_name) / sizeof(http_method_name[0]);
+	for(i = 0; i < size; ++i) {
+		if(0 == strcasecmp(name,http_method_name[i])) {
+			return i + 1;
+		}
+	}
+	return -1;
+}
 
 int32_t chk_http_is_vaild_iterator(chk_http_header_iterator *iterator) {
 	if(!iterator) return -1;

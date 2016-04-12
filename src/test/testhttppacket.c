@@ -2,8 +2,7 @@
 #include "chuck.h"
 #include "util/chk_string.h"
 #include "http/chk_http.h"
-#define _CORE_
-#include "http/chk_http_internal.h"
+
 
 int main(){
 
