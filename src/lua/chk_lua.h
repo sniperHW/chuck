@@ -80,8 +80,8 @@ struct chk_luaToFunctor {
 };
 
 
-static inline void chk_push_LuaRef(lua_State *L,chk_luaRef ref);
-static inline chk_luaRef chk_toluaRef(lua_State *L,int idx);
+//static inline void chk_push_LuaRef(lua_State *L,chk_luaRef ref);
+//static inline chk_luaRef chk_toluaRef(lua_State *L,int idx);
 
 /*
 static inline chk_luaRef chk_luaRef_retain(chk_luaRef *ref) {

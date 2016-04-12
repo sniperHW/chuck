@@ -1,15 +1,15 @@
 #include "util/chk_string.h"
 
 int main() {
-	chk_string *string = chk_string_new("hello");
+	chk_string *string = chk_string_new("hello",strlen("hello"));
 	printf("%s,%d\n",chk_string_c_str(string),chk_string_size(string));
-	chk_string_append(string,"hello");
+	chk_string_append(string,"hello",strlen("hello"));
 	printf("%s,%d\n",chk_string_c_str(string),chk_string_size(string));
-	chk_string_append(string,"hello");
+	chk_string_append(string,"hello",strlen("hello"));
 	printf("%s,%d\n",chk_string_c_str(string),chk_string_size(string));
-	chk_string_append(string,"hello");
+	chk_string_append(string,"hello",strlen("hello"));
 	printf("%s,%d\n",chk_string_c_str(string),chk_string_size(string));	
-	chk_string_append(string,"hello");
+	chk_string_append(string,"hello",strlen("hello"));
 	printf("%s,%d\n",chk_string_c_str(string),chk_string_size(string));
 	chk_string_destroy(string);					
 	return 0;

@@ -30,6 +30,7 @@ source.lib =  util/chk_log.c\
 			  util/chk_refobj.c\
 			  util/chk_bytechunk.c\
 			  util/chk_string.c\
+			  util/lookup8.c\
 			  http/chk_http.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
@@ -76,6 +77,9 @@ testexception:test/testexception.c $(LIBNAME)
 
 testpacket:test/testpacket.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testpacket test/testpacket.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+
+testhttppacket:test/testhttppacket.c $(LIBNAME)
+	$(CC) $(CFLAGS) -o test/testhttppacket test/testhttppacket.c $(LIBNAME) ../deps/http-parser/libhttp_parser.a $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 
 testtimer:test/testtimer.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testtimer test/testtimer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)

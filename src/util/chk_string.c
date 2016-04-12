@@ -1,23 +1,26 @@
-#include "chk_string.h"
+#include "util/chk_string.h"
+#include "util/chk_util.h"
 #include <string.h>
 #include <stdlib.h>
 
-chk_string *chk_string_new(const char *ptr) {
+chk_string *chk_string_new(const char *ptr,size_t len) {
+	size_t cap;
 	chk_string *str = calloc(1,sizeof(*str));
-	if(!str) {
-		return NULL;
-	}
+	if(!str) return NULL;
 	str->ptr = str->buff;
-	if(ptr) {
-		str->len = strlen(ptr);
-		if(str->len >= CHK_STRING_DEFAULT_BUFF_SIZE) {
-			str->ptr = calloc(1,str->len+1);
+	if(ptr && len > 0) {
+		str->len = len;
+		cap = chk_size_of_pow2(len+1);
+		if(cap > CHK_STRING_INIT_SIZE) {
+			str->ptr = calloc(1,cap);
 			if(!str->ptr) {
 				free(str->ptr);
 				str = NULL;
 			}
 		}
-		strcpy(str->ptr,ptr);		
+		str->cap = cap > CHK_STRING_INIT_SIZE ? cap : CHK_STRING_INIT_SIZE;
+		memcpy(str->ptr,ptr,len);
+		str->ptr[len] = 0;		
 	}
 	return str;
 }
@@ -28,24 +31,25 @@ void chk_string_destroy(chk_string *str) {
 	free(str);
 }
 
-int32_t chk_string_append(chk_string *str,const char *ptr) {
-
+int32_t chk_string_append(chk_string *str,const char *ptr,size_t len) {
 	char  *tmp;
-	size_t len = strlen(ptr);
-	size_t newlen = len + str->len;
-	if(newlen >= CHK_STRING_DEFAULT_BUFF_SIZE) {
-		if(str->ptr == str->buff) {
-			tmp = calloc(1,newlen + 1);
-		}
-		else {
-			tmp = realloc(str->ptr,newlen + 1);
-		}
-		if(!tmp)
-			return -1;
+	size_t newlen,cap;
+	if(!ptr || 0 >= len)
+		return -1;
+	newlen = len + str->len;
+	cap = chk_size_of_pow2(newlen+1);
+	if(cap > CHK_STRING_INIT_SIZE) {
+		if(str->ptr == str->buff)
+			tmp = calloc(1,cap);
+		else
+			tmp = realloc(str->ptr,cap);
+		if(!tmp) return -1;
 		str->ptr = tmp;		
 	}
-	strcat(str->ptr,ptr);
+	memcpy(str->ptr + str->len,ptr,len);
+	str->ptr[newlen] = 0;
 	str->len = newlen;
+	str->cap = cap > CHK_STRING_INIT_SIZE ? cap : CHK_STRING_INIT_SIZE;	
 	return 0;
 }
 
