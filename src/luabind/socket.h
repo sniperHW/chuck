@@ -156,10 +156,11 @@ static int32_t lua_stream_socket_gc(lua_State *L) {
 	chk_stream_socket *s = lua_checkstreamsocket(L,1);
 	chk_luaRef   *cb = (chk_luaRef*)chk_stream_socket_getUd(s);
 	if(cb) {
+		chk_stream_socket_setUd(s,NULL);
 		chk_luaRef_release(cb);
 		free(cb);
 	}
-	chk_stream_socket_close(s,1);
+	chk_stream_socket_close(s,0);
 	return 0;
 }
 
@@ -167,6 +168,7 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	chk_luaRef *cb = (chk_luaRef*)chk_stream_socket_getUd(s);
 	luaBufferPusher pusher = {PushBuffer,data};
 	const char *error_str;
+	if(!cb) return;
 	if(data) error_str = chk_Lua_PCallRef(*cb,"fi",(chk_luaPushFunctor*)&pusher,error);
 	else error_str = chk_Lua_PCallRef(*cb,"pi",NULL,error);
 	if(error_str) CHK_SYSLOG(LOG_ERROR,"error on data_cb %s",error_str);	

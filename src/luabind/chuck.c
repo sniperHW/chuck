@@ -37,7 +37,8 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"socket",register_socket);
 	REGISTER_MODULE(L,"redis",register_redis);
 	REGISTER_MODULE(L,"buffer",register_buffer);
-	REGISTER_MODULE(L,"packet",register_packet);	
+	REGISTER_MODULE(L,"packet",register_packet);
+	REGISTER_MODULE(L,"http",register_http);		
 	
 	return 1;
 }

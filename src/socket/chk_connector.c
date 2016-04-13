@@ -69,7 +69,7 @@ static void _process_connect(chk_connector *c) {
 
 static void process_connect(chk_handle *h,int32_t events) {
 	chk_connector *c = cast(chk_connector*,h);
-	if(events == CHK_EVENT_ECLOSE){
+	if(events == CHK_EVENT_LOOPCLOSE){
 		c->cb(-1,c->ud,CHK_ELOOPCLOSE);
 		close(c->fd);
 	}else _process_connect(c);

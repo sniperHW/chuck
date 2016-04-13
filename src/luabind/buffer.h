@@ -55,10 +55,17 @@ static int32_t lua_bytebuffer_readall(lua_State *L) {
 	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
 	luaL_Buffer     lb;
 	char           *in;
-	luaL_buffinit(L, &lb);
+#if LUA_VERSION_NUM >= 503	
 	in = luaL_buffinitsize(L,&lb,(size_t)b->datasize);
 	chk_bytebuffer_read(b,in,b->datasize);
 	luaL_pushresultsize(&lb,(size_t)b->datasize);
+#else
+ 	luaL_buffinit(L, &lb);
+ 	in = luaL_prepbuffsize(&lb,(size_t)body->datasize);
+	chk_bytebuffer_read(b,in,b->datasize);
+	luaL_addsize(&lb,(size_t)b->datasize);	
+	luaL_pushresult(&lb);
+#endif	
 	return 1;
 }
 

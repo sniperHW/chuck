@@ -7,11 +7,11 @@
 int main(){
 
 	chk_http_packet *http_packet = chk_http_packet_new();
-	chk_http_set_url(http_packet,chk_string_new("www.google.cn"));
-	printf("url:%s\n",chk_http_get_url(http_packet));
+	//chk_http_set_url(http_packet,chk_string_new("www.google.cn"));
+	//printf("url:%s\n",chk_http_get_url(http_packet));
 
-	chk_http_set_header(http_packet,chk_string_new("1"),chk_string_new("1"));
-	chk_http_set_header(http_packet,chk_string_new("2"),chk_string_new("2"));
+	chk_http_set_header(http_packet,chk_string_new("1",strlen("1")),chk_string_new("1",strlen("1")));
+	/*chk_http_set_header(http_packet,chk_string_new("2"),chk_string_new("2"));
 	chk_http_set_header(http_packet,chk_string_new("3"),chk_string_new("3"));
 	chk_http_set_header(http_packet,chk_string_new("4"),chk_string_new("4"));
 	chk_http_set_header(http_packet,chk_string_new("5"),chk_string_new("5"));
@@ -32,7 +32,7 @@ int main(){
 	chk_http_set_header(http_packet,chk_string_new("18"),chk_string_new("18"));
 	chk_http_set_header(http_packet,chk_string_new("19"),chk_string_new("19"));
 	chk_http_set_header(http_packet,chk_string_new("20"),chk_string_new("20"));
-	chk_http_set_header(http_packet,chk_string_new("21"),chk_string_new("21"));
+	chk_http_set_header(http_packet,chk_string_new("21"),chk_string_new("21"));*/
 
 
 	chk_http_header_iterator iterator;

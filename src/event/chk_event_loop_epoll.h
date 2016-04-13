@@ -111,7 +111,7 @@ void chk_loop_finalize(chk_event_loop *e) {
 
 	while((h = cast(chk_handle*,chk_dlist_pop(&e->handles)))){
 		chk_events_remove(h);
-		h->on_events(h,CHK_EVENT_ECLOSE);
+		h->on_events(h,CHK_EVENT_LOOPCLOSE);
 	}
 	e->tfd  = -1;
 	close(e->epfd);

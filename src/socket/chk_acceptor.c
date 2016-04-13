@@ -44,7 +44,7 @@ static void process_accept(chk_handle *h,int32_t events) {
 	int 	     fd;
     chk_sockaddr addr;
     chk_acceptor *acceptor = cast(chk_acceptor*,h);
-	if(events == CHK_EVENT_ECLOSE){
+	if(events == CHK_EVENT_LOOPCLOSE){
 		acceptor->cb(acceptor,-1,NULL,acceptor->ud,CHK_ELOOPCLOSE);
 		return;
 	}

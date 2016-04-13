@@ -70,7 +70,7 @@ struct chk_handle {
 enum{
     CHK_EVENT_READ   =  EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP,
     CHK_EVENT_WRITE  =  EPOLLOUT,
-    CHK_EVENT_ECLOSE = 0x7fffffff,//engine close    
+    CHK_EVENT_LOOPCLOSE = 0x7fffffff,//engine close    
 };
 
 #elif _MACH
@@ -80,7 +80,7 @@ enum{
 enum{
     CHK_EVENT_READ   =  1,
     CHK_EVENT_WRITE  =  1 << 2,
-    CHK_EVENT_ECLOSE = 0x7fffffff,//engine close         
+    CHK_EVENT_LOOPCLOSE = 0x7fffffff,//engine close         
 };
 
 #else

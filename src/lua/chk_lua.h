@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#if !defined LUA_VERSION_NUM || LUA_VERSION_NUM==501
+#if !defined LUA_VERSION_NUM || LUA_VERSION_NUM < 503
 /*
 ** Adapted from Lua 5.2.0
 */

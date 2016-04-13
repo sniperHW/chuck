@@ -40,9 +40,9 @@ int32_t chk_http_header_iterator_next(chk_http_header_iterator *iterator) {
 	if(!iterator || 0 != chk_http_is_vaild_iterator(iterator))
 		return -1;
 	next = iterator->current->next;
-	if(!next && iterator->curidx < CHK_HTTP_SLOTS_SIZE) {
-		for(; iterator->curidx < CHK_HTTP_SLOTS_SIZE;) {
-			next = iterator->http_packet->headers[++iterator->curidx];
+	if(!next && ++iterator->curidx < CHK_HTTP_SLOTS_SIZE) {
+		for(; iterator->curidx < CHK_HTTP_SLOTS_SIZE;++iterator->curidx) {
+			next = iterator->http_packet->headers[iterator->curidx];
 			if(next) break;
 		}	
 	}
@@ -59,17 +59,19 @@ int32_t chk_http_header_iterator_next(chk_http_header_iterator *iterator) {
 int32_t chk_http_header_begin(chk_http_packet *http_packet,chk_http_header_iterator *iterator) {
 	
 	chk_http_hash_item  *begin;
+	int32_t              i;
 	if(!http_packet || !iterator)
 		return -1;
 	iterator->http_packet = NULL;
 	iterator->curidx = -1;
-	for(; iterator->curidx < CHK_HTTP_SLOTS_SIZE;) {
-		begin = http_packet->headers[++iterator->curidx];
+	for(i = 0; i < CHK_HTTP_SLOTS_SIZE; ++i) {
+		begin = http_packet->headers[i];
 		if(begin) break;
 	}
 
 	if(!begin) return -1;	
 
+	iterator->curidx = i;
 	iterator->http_packet = http_packet;
 	iterator->current = begin;
 	iterator->field = chk_string_c_str(begin->field);
@@ -191,7 +193,6 @@ int32_t chk_http_set_header(chk_http_packet *http_packet,chk_string *field,chk_s
 		listhead->field = field;
 		listhead->value = value;
 	}
-
 	return 0;
 }
 

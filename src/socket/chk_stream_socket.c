@@ -312,9 +312,9 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
 
 static void on_events(chk_handle *h,int32_t events) {
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
-	/*if(!s->loop || s->status & SOCKET_CLOSE)
-		return;*/
-	if(events == CHK_EVENT_ECLOSE) {
+	if(!s->loop || s->status & SOCKET_CLOSE)
+		return;
+	if(events == CHK_EVENT_LOOPCLOSE) {
 		s->cb(s,NULL,CHK_ELOOPCLOSE);
 		return;
 	}

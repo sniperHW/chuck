@@ -195,13 +195,22 @@ static inline int32_t lua_rpacket_readStr(lua_State *L) {
 	luaL_Buffer     lb;
 	char           *in;
 	lua_rpacket    *r = lua_checkrpacket(L,1);
-	uint32_t        size = chk_ntoh32(LUA_RPACKET_READ(r,uint32_t));
+	size_t          size = (size_t)chk_ntoh32(LUA_RPACKET_READ(r,uint32_t));
 	if(size == 0) return 0;
-	luaL_buffinit(L, &lb);
-	in = luaL_buffinitsize(L,&lb,(size_t)size);
+
+#if LUA_VERSION_NUM >= 503
+	in = luaL_buffinitsize(L,&lb,size);
 	if(0 != (uint32_t)lua_rpacket_read(r,in,size))
 		return luaL_error(L,"lua_rpacket_readstr invaild packet");
 	luaL_pushresultsize(&lb,size);
+#else
+	luaL_buffinit(L, &b);
+	in = luaL_prepbuffsize(&b,size);
+	if(0 != (uint32_t)lua_rpacket_read(r,in,size))
+		return luaL_error(L,"lua_rpacket_readstr invaild packet");
+	luaL_addsize(&b,size);
+	luaL_pushresult(&b);
+#endif
 	return 1;
 }
 
@@ -234,13 +243,22 @@ static inline int32_t _lua_unpack_number(lua_rpacket *rpk,lua_State *L,int type)
 static inline int32_t _lua_unpack_string(lua_rpacket *rpk,lua_State *L) {
 	luaL_Buffer     lb;
 	char           *in;
-	uint32_t        size = chk_ntoh32(LUA_RPACKET_READ(rpk,uint32_t));
-	if(size == 0) return -1;
-	luaL_buffinit(L, &lb);
-	in = luaL_buffinitsize(L,&lb,(size_t)size);
+	size_t          size = (size_t)chk_ntoh32(LUA_RPACKET_READ(rpk,uint32_t));
+	if(size <= 0) return -1;
+
+#if LUA_VERSION_NUM >= 503
+	in = luaL_buffinitsize(L,&lb,size);
 	if(0 != (uint32_t)lua_rpacket_read(rpk,in,size))
 		return luaL_error(L,"invaild packet");
 	luaL_pushresultsize(&lb,size);
+#else
+	luaL_buffinit(L, &b);
+	in = luaL_prepbuffsize(&b,size);
+	if(0 != (uint32_t)lua_rpacket_read(rpk,in,size))
+		return luaL_error(L,"invaild packet");
+	luaL_addsize(&b,size);
+	luaL_pushresult(&b);
+#endif
 	return 0;
 }
 

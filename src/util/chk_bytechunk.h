@@ -181,7 +181,7 @@ static inline void chk_bytebuffer_init(chk_bytebuffer *b,chk_bytechunk *o,uint32
     b->flags  = flags;
     if(o){
         b->head = chk_bytechunk_retain(o);
-        b->tail = NULL;
+        b->tail = b->head;
         b->datasize = datasize;
         b->spos   = spos;
     } else {

@@ -61,13 +61,13 @@ source.so =   util/chk_log.c\
 			  thread/chk_thread.c\
 			  fiber/chk_fiber.c
 
-$(HTTP_PARSER):
-	cd ../deps/http-parser/;$(MAKE) package
-
 $(LIBNAME):$(source.lib)
 	$(CC) -fpic $(CFLAGS) -c $(source.lib) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
 	rm *.o
+
+$(HTTP_PARSER):
+	cd ../deps/http-parser/;$(MAKE) package
 
 chuck.so:$(source.so) $(HTTP_PARSER)
 	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE)
