@@ -1,3 +1,6 @@
+package.path = './lib/?.lua;'
+package.cpath = './lib/?.so;'
+
 local chuck = require("chuck")
 local http = require("http")
 local socket = chuck.socket
@@ -9,14 +12,14 @@ socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 		return
 	end
 	local httpclient = http.HttpClient(event_loop,"127.0.0.1",fd)
-	--local c = 0
 	local OnResponse
 	OnResponse = function (response)
-		--c = c + 1
-		print("got response",c)
-		httpclient:Get("/",nil,OnResponse)
+		local headers = response:AllHeaders()
+		for i,v in ipairs(headers) do
+			print(v[1],v[2])
+		end	
+		--httpclient:Get("/",nil,OnResponse)
 	end
-
 	httpclient:Get("/",nil,OnResponse)
 end)
 

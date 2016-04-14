@@ -1,3 +1,6 @@
+package.path = './lib/?.lua;'
+package.cpath = './lib/?.so;'
+
 local chuck = require("chuck")
 local socket = chuck.socket
 local buffer = chuck.buffer

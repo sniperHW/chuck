@@ -5,15 +5,9 @@
 
 #define HTTP_CONNECTION_METATABLE "lua_http_connection"
 
-enum{
-	HTTP_BODY_TOO_LARGE = -1,
-};
-
 typedef struct {
 	http_parser           parser;
-    http_parser_settings  settings;
-	int32_t               method;
-	int32_t               errcode;  
+    http_parser_settings  settings;  
     chk_http_packet      *packet;
 	chk_string           *field;
 	chk_string           *value;	
@@ -21,6 +15,11 @@ typedef struct {
 	chk_string           *url;
 	chk_stream_socket    *socket;
 	chk_luaRef            cb;
+	int32_t               method;
+	int32_t               errcode;
+	uint32_t              max_header_size;
+	uint32_t              max_content_size;
+	uint32_t              total_packet_size;	
 }http_connection;
 
 typedef struct {
@@ -59,8 +58,23 @@ static int on_message_begin(http_parser *parser)
 	http_connection *conn = (http_connection*)parser;
 	if(conn->packet) chk_http_packet_release(conn->packet);
 	conn->packet = chk_http_packet_new();
+	conn->total_packet_size = 0;
+	if(conn->field) chk_string_destroy(conn->field);
+	if(conn->value) chk_string_destroy(conn->value);
+	if(conn->url) chk_string_destroy(conn->url);
+	if(conn->status) chk_string_destroy(conn->status);	
+	conn->url = conn->status = conn->field = conn->value = NULL;
 	return 0;
 }
+
+#define CHECK_HEADER_SIZE(CONN,LEN)							\
+do{															\
+	CONN->total_packet_size += LEN;							\
+	if(CONN->total_packet_size > CONN->max_header_size) {	\
+		CONN->errcode = CHK_EHTTPHEADER;					\
+		return -1;											\
+	}														\
+}while(0);
 
 static int on_url(http_parser *parser, const char *at, size_t length)
 {	
@@ -69,6 +83,7 @@ static int on_url(http_parser *parser, const char *at, size_t length)
 		chk_string_append(conn->url,at,length);
 	else
 		conn->url = chk_string_new(at,length);
+	CHECK_HEADER_SIZE(conn,length);
 	return 0;
 }
 
@@ -79,21 +94,31 @@ static int on_status(http_parser *parser, const char *at, size_t length)
 		chk_string_append(conn->status,at,length);
 	else
 		conn->status = chk_string_new(at,length);
+	CHECK_HEADER_SIZE(conn,length);	
 	return 0;			
 }
 
 static int on_header_field(http_parser *parser, const char *at, size_t length)
 {
 	http_connection *conn = (http_connection*)parser;
-	if(conn->field)
+	size_t i;
+	char   *ptr = (char*)at;
+	//将field转成小写
+	for(i = 0; i < length; ++i) {
+		if(ptr[i] >= 'A' && ptr[i] <= 'Z') {
+			ptr[i] += ('a'-'A');
+		}
+	}
+	if(!conn->value && conn->field)
 		chk_string_append(conn->field,at,length);
 	else {
-		if(conn->field) {
+		if(conn->value) {
 			chk_http_set_header(conn->packet,conn->field,conn->value);
-			conn->field = conn->value = NULL;
+			conn->value = NULL;
 		}
 		conn->field = chk_string_new(at,length);
 	}
+	CHECK_HEADER_SIZE(conn,length);	
 	return 0;				
 }
 
@@ -104,11 +129,25 @@ static int on_header_value(http_parser *parser, const char *at, size_t length)
 		chk_string_append(conn->value,at,length);
 	else
 		conn->value = chk_string_new(at,length);
+	CHECK_HEADER_SIZE(conn,length);	
 	return 0;				
 }
 
 static int on_headers_complete(http_parser *parser)
 {	
+	http_connection *conn = (http_connection*)parser;
+
+	if(conn->field && conn->value) {
+		chk_http_set_header(conn->packet,conn->field,conn->value);
+		conn->field = conn->value = NULL;
+	}
+
+	//检查是否有Content-Length,长度是否超限制
+	const char *content_length = chk_http_get_header(conn->packet,"content-length");
+	if(content_length && atol(content_length) > conn->max_content_size) {
+		conn->errcode = CHK_EHTTPCONTENT;
+		return -1;
+	}
 	return 0;		
 }
 
@@ -116,7 +155,7 @@ static int on_body(http_parser *parser, const char *at, size_t length)
 {
 	http_connection *conn = (http_connection*)parser;
 	if(0 != chk_http_append_body(conn->packet,at,length)){
-		conn->errcode = HTTP_BODY_TOO_LARGE;
+		conn->errcode = CHK_EHTTPCONTENT;
 		return -1;
 	}
 	return 0;
@@ -200,7 +239,8 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 }
 
 static int32_t lua_new_http_connection(lua_State *L) {
-	int32_t fd;
+	int32_t  fd;
+	uint32_t max_header_size,max_content_size;
 	chk_stream_socket *s;
 	http_connection   *conn;
 	chk_stream_socket_option option = {
@@ -208,6 +248,8 @@ static int32_t lua_new_http_connection(lua_State *L) {
 		.recv_buffer_size = 4096
 	};
 	fd = (int32_t)luaL_checkinteger(L,1);
+	max_header_size = (uint32_t)luaL_checkinteger(L,2);
+	max_content_size = (uint32_t)luaL_checkinteger(L,3);
 	s = chk_stream_socket_new(fd,&option);
 	if(!s) {
 		return 0;
@@ -218,6 +260,9 @@ static int32_t lua_new_http_connection(lua_State *L) {
 		chk_stream_socket_close(s,1);
 		return 0;
 	}
+
+	if(max_header_size > MAX_UINT32/2) max_header_size = MAX_UINT32/2;
+	if(max_content_size > MAX_UINT32/2) max_content_size = MAX_UINT32/2;
 	memset(conn,0,sizeof(*conn));
 	conn->settings.on_message_begin = on_message_begin;
 	conn->settings.on_url = on_url;
@@ -228,6 +273,8 @@ static int32_t lua_new_http_connection(lua_State *L) {
 	conn->settings.on_body = on_body;
 	conn->settings.on_message_complete = on_message_complete;
 	conn->socket = s;
+	conn->max_header_size = max_header_size;
+	conn->max_content_size = max_content_size;
 	chk_stream_socket_setUd(s,conn);
 	http_parser_init(&conn->parser,HTTP_BOTH);
 	luaL_getmetatable(L, HTTP_CONNECTION_METATABLE);
@@ -466,6 +513,7 @@ static int32_t lua_http_packet_get_headers(lua_State *L) {
 	chk_http_header_iterator iterator;
 	lua_http_packet *packet = lua_check_http_packet(L,1);
 	if(0 == chk_http_header_begin(packet->packet,&iterator)) {
+		printf("here\n");
 		//{{f,v},{f,v}...}
 		lua_newtable(L);
 		c = 1;

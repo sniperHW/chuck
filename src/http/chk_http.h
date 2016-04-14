@@ -4,7 +4,7 @@
 #include "util/chk_bytechunk.h"
 #include "util/chk_string.h"
 
-#define CHK_HTTP_SLOTS_SIZE 16
+#define CHK_HTTP_SLOTS_SIZE 63
 
 typedef struct chk_http_hash_item chk_http_hash_item;
 typedef struct chk_http_header_iterator chk_http_header_iterator;

@@ -1,5 +1,11 @@
 local chuck = require("chuck")
 
+
+local http_request_max_header_size     = 1024*256         --http请求包头最大大小256K
+local http_request_max_content_length  = 4*1024*1024      --http请求content最大大小4M
+local http_response_max_header_size    = 1024*256         --http响应包头最大大小256K
+local http_response_max_content_length = 2*1024*1024*1024 --http响应content最大大小2G
+
 local http_packet_readonly = {}
 
 function http_packet_readonly.new(packet)
@@ -27,7 +33,8 @@ function http_packet_readonly:Body()
 end
 
 function http_packet_readonly:Header(filed)
-	return self.packet:GetHeader(filed)
+	--内部吧field全转化成小写，所以也要把filed转成小写来查询
+	return self.packet:GetHeader(string.lower(filed))
 end
 
 function http_packet_readonly:AllHeaders()
@@ -70,7 +77,7 @@ function http_server.new(eventLoop,fd,onRequest)
   local o = {}
   o.__index = http_server     
   setmetatable(o,o)
-  o.conn = chuck.http.Connection(fd)
+  o.conn = chuck.http.Connection(fd,http_request_max_header_size,http_request_max_content_length)
   if not o.conn then
   	return nil,"call http.Connection() failed"
   end
@@ -111,7 +118,7 @@ function http_client.new(eventLoop,host,fd)
   local o = {}
   o.__index = http_client     
   setmetatable(o,o)
-  o.conn = chuck.http.Connection(fd)
+  o.conn = chuck.http.Connection(fd,http_response_max_header_size,http_response_max_content_length)
   if not o.conn then
   	return nil,"call http.Connection() failed"
   end
