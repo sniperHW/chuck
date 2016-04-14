@@ -1,6 +1,5 @@
 #include "util/chk_string.h"
 #include "util/chk_util.h"
-#include <string.h>
 #include <stdlib.h>
 
 chk_string *chk_string_new(const char *ptr,size_t len) {
@@ -25,10 +24,18 @@ chk_string *chk_string_new(const char *ptr,size_t len) {
 	return str;
 }
 
+chk_string *chk_string_new_cstr(const char *ptr) {
+	return chk_string_new(ptr,strlen(ptr));
+}
+
 void chk_string_destroy(chk_string *str) {
 	if(str->ptr != str->buff)
 		free(str->ptr);
 	free(str);
+}
+
+int32_t chk_string_append_cstr(chk_string *str,const char *ptr) {
+	return chk_string_append(str,ptr,strlen(ptr));
 }
 
 int32_t chk_string_append(chk_string *str,const char *ptr,size_t len) {

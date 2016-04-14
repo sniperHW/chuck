@@ -74,49 +74,20 @@ chuck.so:$(source.so) $(HTTP_PARSER)
 	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(JEMALLOC) $(LDFLAGS) $(LIBRARY)
 	rm *.o
 
-testlog:test/testlog.c $(LIBNAME)
+testcase:
 	$(CC) $(CFLAGS) -o test/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-
-testexception:test/testexception.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testexception test/testexception.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-
-testpacket:test/testpacket.c $(LIBNAME)
-	$(CC) $(CFLAGS) -o test/testpacket test/testpacket.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-
-testhttppacket:test/testhttppacket.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testhttppacket test/testhttppacket.c $(LIBNAME) ../deps/http-parser/libhttp_parser.a $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-
-testtimer:test/testtimer.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testtimer test/testtimer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-
-tcpecho:test/tcpecho.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-
-testfiber:test/testfiber.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testfiber test/testfiber.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-
-test_objpool:test/test_objpool.c $(LIBNAME)	
 	$(CC) $(CFLAGS) -o test/test_objpool test/test_objpool.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-
-teststring:test/teststring.c $(LIBNAME)	
-	$(CC) $(CFLAGS) -o test/teststring test/teststring.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-
-test_bytebuffer:test/test_bytebuffer.c $(LIBNAME)	
+	$(CC) $(CFLAGS) -o test/teststring test/teststring.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
 	$(CC) $(CFLAGS) -o test/test_bytebuffer test/test_bytebuffer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-
-echobrocast:test/echobrocast.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-
-echoclient:test/echoclient.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/echoclient test/echoclient.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-
-testconnect:test/testconnect.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-
-testredis:test/testredis.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testredis test/testredis.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
-
-testlua:test/testlua.c $(LIBNAME)
 	$(CC) $(CFLAGS) -o test/testlua test/testlua.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl
 
 clean:

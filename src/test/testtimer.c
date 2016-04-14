@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "util/chk_timer.h"
+#include "config.h"
 
 uint64_t tick = 0;
 

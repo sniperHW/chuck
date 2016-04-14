@@ -18,6 +18,7 @@ socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 		for i,v in ipairs(headers) do
 			print(v[1],v[2])
 		end	
+		print(response:Body())
 		--httpclient:Get("/",nil,OnResponse)
 	end
 	httpclient:Get("/",nil,OnResponse)

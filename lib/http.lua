@@ -123,6 +123,7 @@ function http_client.new(eventLoop,host,fd)
   	return nil,"call http.Connection() failed"
   end
   o.host = host
+  o.pendingResponse = {}
   local ret = o.conn:Bind(eventLoop,function (httpPacket)
 
 	if not httpPacket then
@@ -133,8 +134,6 @@ function http_client.new(eventLoop,host,fd)
 		o.conn = nil	
 		return
 	end
-
-	print("got packet")
 
 	if not o.pendingResponse then
 		--没有请求

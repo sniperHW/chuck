@@ -15,8 +15,7 @@ enum{
     CHK_ESNTIMEOUT,                 /*send timeout*/
     CHK_ELOOPCLOSE,                 /*event_loop close*/
     CHK_ERDSPASERR,                 /*redis reply parse error*/
-    CHK_EHTTPHEADER,                /*http header too large*/
-    CHK_EHTTPCONTENT                /*http content too large*/
+    CHK_EHTTP,                      /*http parse error*/
 };
 
 enum {

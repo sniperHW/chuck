@@ -7,32 +7,32 @@
 int main(){
 
 	chk_http_packet *http_packet = chk_http_packet_new();
-	//chk_http_set_url(http_packet,chk_string_new("www.google.cn"));
+	//chk_http_set_url(http_packet,chk_string_new_cstr("www.google.cn"));
 	//printf("url:%s\n",chk_http_get_url(http_packet));
 
-	chk_http_set_header(http_packet,chk_string_new("1",strlen("1")),chk_string_new("1",strlen("1")));
-	/*chk_http_set_header(http_packet,chk_string_new("2"),chk_string_new("2"));
-	chk_http_set_header(http_packet,chk_string_new("3"),chk_string_new("3"));
-	chk_http_set_header(http_packet,chk_string_new("4"),chk_string_new("4"));
-	chk_http_set_header(http_packet,chk_string_new("5"),chk_string_new("5"));
-	chk_http_set_header(http_packet,chk_string_new("6"),chk_string_new("6"));
-	chk_http_set_header(http_packet,chk_string_new("7"),chk_string_new("7"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("1"),chk_string_new_cstr("1"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("2"),chk_string_new_cstr("2"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("3"),chk_string_new_cstr("3"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("4"),chk_string_new_cstr("4"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("5"),chk_string_new_cstr("5"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("6"),chk_string_new_cstr("6"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("7"),chk_string_new_cstr("7"));
 
-	chk_http_set_header(http_packet,chk_string_new("8"),chk_string_new("8"));
-	chk_http_set_header(http_packet,chk_string_new("9"),chk_string_new("9"));
-	chk_http_set_header(http_packet,chk_string_new("10"),chk_string_new("10"));
-	chk_http_set_header(http_packet,chk_string_new("11"),chk_string_new("11"));
-	chk_http_set_header(http_packet,chk_string_new("12"),chk_string_new("12"));
-	chk_http_set_header(http_packet,chk_string_new("13"),chk_string_new("13"));
-	chk_http_set_header(http_packet,chk_string_new("14"),chk_string_new("14"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("8"),chk_string_new_cstr("8"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("9"),chk_string_new_cstr("9"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("10"),chk_string_new_cstr("10"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("11"),chk_string_new_cstr("11"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("12"),chk_string_new_cstr("12"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("13"),chk_string_new_cstr("13"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("14"),chk_string_new_cstr("14"));
 
-	chk_http_set_header(http_packet,chk_string_new("15"),chk_string_new("15"));
-	chk_http_set_header(http_packet,chk_string_new("16"),chk_string_new("16"));
-	chk_http_set_header(http_packet,chk_string_new("17"),chk_string_new("17"));
-	chk_http_set_header(http_packet,chk_string_new("18"),chk_string_new("18"));
-	chk_http_set_header(http_packet,chk_string_new("19"),chk_string_new("19"));
-	chk_http_set_header(http_packet,chk_string_new("20"),chk_string_new("20"));
-	chk_http_set_header(http_packet,chk_string_new("21"),chk_string_new("21"));*/
+	chk_http_set_header(http_packet,chk_string_new_cstr("15"),chk_string_new_cstr("15"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("16"),chk_string_new_cstr("16"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("17"),chk_string_new_cstr("17"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("18"),chk_string_new_cstr("18"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("19"),chk_string_new_cstr("19"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("20"),chk_string_new_cstr("20"));
+	chk_http_set_header(http_packet,chk_string_new_cstr("21"),chk_string_new_cstr("21"));
 
 
 	chk_http_header_iterator iterator;
