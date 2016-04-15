@@ -16,20 +16,18 @@ local event_loop = chuck.event_loop.New()
 	end)
 end)]]--
 
-local server = http.easyServer(function (request,response)
+local ret = http.easyServer(function (request,response)
 	response:SetHeader("Content-Type","text/plain")
 	response:SetHeader("A","a")
 	response:SetHeader("B","b")
 	response:AppendBody("hello everyone")
 	response:Finish("200","OK")
-end)
+end):Listen(event_loop,"0.0.0.0",8010)
 
-local timer1 = event_loop:RegTimer(1000,function ()
-	collectgarbage("collect")
-end)
-
-local success = server:Listen(event_loop,"0.0.0.0",8010) == nil
-
-if success then
+if "OK" == ret then
+	local timer1 = event_loop:RegTimer(1000,function ()
+		collectgarbage("collect")
+	end)
 	event_loop:Run()
 end
+

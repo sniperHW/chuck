@@ -56,13 +56,17 @@ function http_packet_writeonly.new()
 end
 
 function http_packet_writeonly:AppendBody(body)
-	return self.packet:AppendBody(body)
+	if self.packet:AppendBody(body) then
+		return "return AppendBody failed"
+	else
+		return "OK"
+	end
 end
 
 function http_packet_writeonly:SetHeader(filed,value)
 	--content-length不许手动设置发包时跟根据body长度生成	
 	if string.lower(filed) ~= "content-length" then
-		return self.packet:SetHeader(filed,value)
+		self.packet:SetHeader(filed,value)
 	end
 end
 
@@ -96,7 +100,11 @@ function http_server.new(eventLoop,fd,onRequest)
 		end
 		status = status or "200"
 		phase = phase or "OK"
-		return conn:SendResponse("1.1",status,phase,self.packet)		
+		if conn:SendResponse("1.1",status,phase,self.packet) then
+			return "send response failed"
+		else
+			return "OK"
+		end		
 	end
 	onRequest(request,response)
   end)
@@ -179,10 +187,12 @@ local function SendRequest(self,method,path,request,OnResponse)
 	path = path or "/"
 
 	local ret = self.conn:SendRequest("1.1",self.host,method,path,request.packet)
+	if not ret then
+		self.pendingResponse = OnResponse
+		return "OK"
+	end
 
-	self.pendingResponse = OnResponse
-
-	return ret
+	return "send request failed"
 	
 end
 
@@ -217,17 +227,21 @@ function easy_http_server:Listen(eventLoop,ip,port)
 	local socket = chuck.socket
 	local onRequest = self.onRequest
 	self.server = socket.stream.ip4.listen(eventLoop,ip,port,function (fd)
+		self.selfRef = self --自引用，在easy_http_server.new之后立即调用Listen,即使不持有server对象也可以保证server不被垃圾回收
 		http_server.new(eventLoop,fd,onRequest)
 	end)
 
 	if not self.server then
 		return "Listen on " .. ip .. ":" .. port .. " failed" 
-	end 
+	end
+
+	return "OK" 
 end
 
 function easy_http_server:Close()
 	if self.server then
 		self.server:Close()
+		self.selfRef = nil
 	end
 end
 
@@ -263,7 +277,7 @@ local function easySendRequest(self,method,path,request,onResponse)
 				return
 			end
 			self.client = http_client.new(self.eventLoop,self.ip,fd)
-			if SendRequest(self.client,method,path,request,onResponse) then
+			if "OK" ~= SendRequest(self.client,method,path,request,onResponse) then
 				--发送失败用空response回调，通告出错
 				onResponse()
 			end
