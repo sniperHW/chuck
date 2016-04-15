@@ -77,8 +77,7 @@ static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 			//只完成一个buffer中部分数据的发送
 			for(;bytes;) {
 				head = b->head;
-				size = head->cap - b->spos;
-				size = size > bytes ? bytes:size;
+				size = MIN(head->cap - b->spos,bytes);
 				bytes -= size;
 				b->spos += size;
 				b->datasize -= size;
@@ -106,8 +105,7 @@ static inline int32_t prepare_send(chk_stream_socket *s) {
 		datasize = b->datasize;
 		while(i < MAX_WBAF && chunk && datasize) {
 			s->wsendbuf[i].iov_base = chunk->data + pos;
-			size = chunk->cap - pos;
-			size = size > datasize ? datasize:size;
+			size = MIN(chunk->cap - pos,datasize);
 			datasize    -= size;
 			send_size   += size;
 			s->wsendbuf[i].iov_len = size;
@@ -151,8 +149,7 @@ static inline void update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 	chk_bytechunk *head;
 	for(;bytes;) {
 		head = s->next_recv_buf;
-		size = head->cap - s->next_recv_pos;
-		size = size > bytes ? bytes:size;
+		size = MIN(head->cap - s->next_recv_pos,bytes);
 		s->next_recv_pos += size;
 		bytes -= size;
 		if(s->next_recv_pos >= head->cap) {

@@ -17,6 +17,14 @@
 #define chk_likely(x)   __builtin_expect(!!(x), 1)  
 #define chk_unlikely(x) __builtin_expect(!!(x), 0)
 
+#ifndef MAX
+#define MAX(L,R) (L) > (R) ? (L) : (R)    
+#endif
+
+#ifndef MIN
+#define MIN(L,R) (L) > (R) ? (R) : (L)    
+#endif    
+
 static inline int32_t chk_is_pow2(uint32_t size) {
     return !(size&(size-1));
 }

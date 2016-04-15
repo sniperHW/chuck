@@ -103,7 +103,7 @@ static inline chk_bytechunk *chk_bytechunk_new(void *ptr,uint32_t len) {
     static const uint32_t min_buf_len = 64;
 
 	chk_bytechunk *b;
-	len           = len < min_buf_len ? min_buf_len : chk_size_of_pow2(len);
+	len           = MAX(min_buf_len,chk_size_of_pow2(len));
 	uint32_t size = sizeof(*b) + len;
     b 			  = cast(chk_bytechunk*,malloc(size));
     b->next       = NULL;
@@ -139,9 +139,8 @@ static inline chk_bytechunk *chk_bytechunk_read(chk_bytechunk *b,char *out,
     uint32_t rsize,copy_size;
     rsize = 0;
     while(*size && b) {
-    	copy_size = b->cap - *pos;
-    	copy_size = copy_size > *size ? *size : copy_size;
-    	memcpy(out,b->data + *pos,copy_size);
+    	copy_size = MIN((b->cap - *pos),*size);
+        memcpy(out,b->data + *pos,copy_size);
     	rsize    += copy_size;
     	*size    -= copy_size;
     	*pos     += copy_size;
@@ -160,9 +159,8 @@ static inline chk_bytechunk *chk_bytechunk_write(chk_bytechunk *b,char *in,
     uint32_t wsize,copy_size;
     wsize = 0;
     while(*size && b) {
-    	copy_size = b->cap - *pos;
-    	copy_size = copy_size > *size ? *size : copy_size;
-    	memcpy(b->data + *pos,in,copy_size);
+    	copy_size = MIN((b->cap - *pos),*size);
+        memcpy(b->data + *pos,in,copy_size);
     	wsize    += copy_size;
     	*size    -= copy_size;
     	*pos     += copy_size;
@@ -238,8 +236,7 @@ static inline chk_bytebuffer *chk_bytebuffer_do_copy(chk_bytebuffer *b,chk_bytec
     b->head = curr = chk_bytechunk_new(NULL,b->datasize);
     dataremain = size;
     while(c) {
-        copysize = c->cap;
-        copysize = copysize > dataremain ? dataremain:copysize;
+        copysize = MIN(c->cap,dataremain);
         memcpy(&curr->data[pos],c->data + spos,copysize);
         dataremain -= copysize;
         pos += copysize;
@@ -321,11 +318,10 @@ static inline uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t 
     uint32_t remain,copysize,pos,size;
     chk_bytechunk *c = b->head;
     if(!c) return 0;
-    size = remain = out_len > b->datasize ? b->datasize : out_len;
+    size = remain = MIN(out_len,b->datasize);
     pos = b->spos;
     while(remain) {
-        copysize = c->cap - pos;
-        if(copysize > remain) copysize = remain;
+        copysize = MIN(c->cap - pos,remain);
         memcpy(out,c->data + pos,copysize);
         remain -= copysize;
         pos += copysize;

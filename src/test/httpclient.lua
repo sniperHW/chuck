@@ -6,12 +6,13 @@ local http = require("http")
 local socket = chuck.socket
 local event_loop = chuck.event_loop.New()
 
+--[[
 socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 	if 0 ~= errCode then
 		print("connect error:" .. errCode)
 		return
 	end
-	local httpclient = http.HttpClient(event_loop,"127.0.0.1",fd)
+	local httpclient = http.Client(event_loop,"127.0.0.1",fd)
 	local OnResponse
 	OnResponse = function (response)
 		local headers = response:AllHeaders()
@@ -19,10 +20,22 @@ socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 			print(v[1],v[2])
 		end	
 		print(response:Body())
-		--httpclient:Get("/",nil,OnResponse)
+		httpclient:Close()
+		event_loop:End()
 	end
 	httpclient:Get("/",nil,OnResponse)
 end)
+]]--
 
+local client = http.easyClient(event_loop,"127.0.0.1",8010)
+
+client:Get("/",nil,function (response)
+	for i,v in ipairs(response:AllHeaders()) do
+		print(v[1],v[2])
+	end	
+	print(response:Body())
+	event_loop:End()
+end)
 
 event_loop:Run()
+

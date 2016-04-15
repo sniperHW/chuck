@@ -78,13 +78,20 @@ void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud) {
 void chk_acceptor_finalize(chk_acceptor *a) {
 	assert(a);
 	chk_events_remove(cast(chk_handle*,a));
-	close(a->fd);
+	if(a->fd >= 0) {
+		close(a->fd);
+		a->fd = -1;
+	}
 }
 
 chk_acceptor *chk_acceptor_new(int32_t fd,void *ud) {
 	chk_acceptor *a = calloc(1,sizeof(*a));
 	chk_acceptor_init(a,fd,ud);
 	return a;
+}
+
+int32_t chk_acceptor_get_fd(chk_acceptor *a) {
+	return a->fd;
 }
 
 void chk_acceptor_del(chk_acceptor *a) {

@@ -208,8 +208,7 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 		size_remain = data->datasize;
 		do{
 			buff = chunk->data + spos;
-			size = chunk->cap - spos;
-			if(size > size_remain) size = size_remain;
+			size = MIN(chunk->cap - spos,size_remain);
 			nparsed = http_parser_execute(&conn->parser,&conn->settings,buff,size);
 			
 			/*
@@ -262,24 +261,16 @@ static int32_t lua_new_http_connection(lua_State *L) {
 		.recv_buffer_size = RECV_BUFF_SIZE
 	};
 	fd = (int32_t)luaL_checkinteger(L,1);
-	max_header_size = (uint32_t)luaL_checkinteger(L,2);
-	if(max_header_size < option.recv_buffer_size) {
-		max_header_size = option.recv_buffer_size;
-	}
+	max_header_size = MAX((uint32_t)luaL_checkinteger(L,2),option.recv_buffer_size);
 	max_content_size = (uint32_t)luaL_checkinteger(L,3);
 	s = chk_stream_socket_new(fd,&option);
-	if(!s) {
-		return 0;
-	}
-
+	if(!s) return 0;
 	conn = (http_connection*)lua_newuserdata(L, sizeof(*conn));
 	if(!conn) {
 		chk_stream_socket_close(s,0);
 		return 0;
 	}
 
-	if(max_header_size > MAX_UINT32/2) max_header_size = MAX_UINT32/2;
-	if(max_content_size > MAX_UINT32/2) max_content_size = MAX_UINT32/2;
 	memset(conn,0,sizeof(*conn));
 	conn->settings.on_message_begin = on_message_begin;
 	conn->settings.on_url = on_url;
@@ -290,8 +281,8 @@ static int32_t lua_new_http_connection(lua_State *L) {
 	conn->settings.on_body = on_body;
 	conn->settings.on_message_complete = on_message_complete;
 	conn->socket = s;
-	conn->max_header_size = max_header_size;
-	conn->max_content_size = max_content_size;
+	conn->max_header_size = MIN(max_header_size,MAX_UINT32/2);
+	conn->max_content_size = MIN(max_content_size,MAX_UINT32/2);
 	conn->check_size = 0;
 	chk_stream_socket_setUd(s,conn);
 	http_parser_init(&conn->parser,HTTP_BOTH);
@@ -346,9 +337,8 @@ static void write_http_body(chk_bytebuffer *b,chk_http_packet *packet) {
 		//write the content
 		spos = body->spos;
 		size_remain = body->datasize;
-		do{
-			chunk_data_size = head->cap - spos;	
-			if(chunk_data_size > size_remain) chunk_data_size = size_remain;				
+		do{				
+			chunk_data_size = MIN(head->cap - spos,size_remain);
 			chk_bytebuffer_append(b,(uint8_t*)&head->data[spos],chunk_data_size);
 			head = head->next;
 			if(!head) break;
@@ -374,9 +364,8 @@ static void push_bytebuffer(lua_State *L,chk_bytebuffer *buffer) {
 	head = buffer->head;
 	spos = buffer->spos;
 	size_remain = buffer->datasize;
-	do{
-		chunk_data_size = head->cap - spos;	
-		if(chunk_data_size > size_remain) chunk_data_size = size_remain;				
+	do{		
+		chunk_data_size = MIN(head->cap - spos,size_remain);
 		memcpy(in,&head->data[spos],(size_t)chunk_data_size);
 		head = head->next;
 		if(!head) break;

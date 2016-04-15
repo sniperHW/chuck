@@ -34,6 +34,7 @@ static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,void *
 
 static int32_t lua_acceptor_gc(lua_State *L) {
 	chk_acceptor *a = lua_checkacceptor(L,1);
+	if(0 > chk_acceptor_get_fd(a)) return 0;
 	chk_luaRef   *cb = (chk_luaRef*)chk_acceptor_getud(a);
 	if(cb) {
 		chk_luaRef_release(cb);
@@ -259,6 +260,7 @@ static void register_socket(lua_State *L) {
 	luaL_Reg acceptor_methods[] = {
 		{"Pause",    lua_acceptor_pause},
 		{"Resume",	 lua_acceptor_resume},
+		{"Close",    lua_acceptor_gc},
 		{NULL,     NULL}
 	};
 

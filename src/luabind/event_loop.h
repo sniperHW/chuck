@@ -16,14 +16,12 @@ static int32_t lua_event_loop_gc(lua_State *L) {
 }
 
 static int32_t lua_new_event_loop(lua_State *L) {
-	chk_event_loop tmp,*event_loop;
-	if(0 != chk_loop_init(&tmp)) return 0;
+	chk_event_loop *event_loop;
 	event_loop = (chk_event_loop*)lua_newuserdata(L, sizeof(*event_loop));
 	if(!event_loop) {
-		chk_loop_finalize(&tmp);
 		return 0;
 	}
-	*event_loop = tmp;
+	if(0 != chk_loop_init(event_loop)) return 0;
 	luaL_getmetatable(L, EVENT_LOOP_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
