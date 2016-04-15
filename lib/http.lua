@@ -133,10 +133,9 @@ function http_client.new(eventLoop,host,fd)
   o.host = host
   o.pendingResponse = {}
   local ret = o.conn:Bind(eventLoop,function (httpPacket)
-  	print("got packet")
 	if not httpPacket then
 		if o.pendingResponse then
-			o.pendingResponse(nil) --通告对端关闭	
+			o.pendingResponse(nil,"connection lose") --通告对端关闭	
 		end	
 		o.conn:Close()
 		o.conn = nil	
@@ -273,13 +272,13 @@ local function easySendRequest(self,method,path,request,onResponse)
 		socket.stream.ip4.dail(self.eventLoop,self.ip,self.port,function (fd,errCode)
 			self.connecting = false
 			if 0 ~= errCode then
-				onResponse() --用空response回调，通告出错
+				onResponse(nil,"connect failed") --用空response回调，通告出错
 				return
 			end
 			self.client = http_client.new(self.eventLoop,self.ip,fd)
 			if "OK" ~= SendRequest(self.client,method,path,request,onResponse) then
 				--发送失败用空response回调，通告出错
-				onResponse()
+				onResponse(nil,"send request failed")
 			end
 		end)
 		self.connecting = true		

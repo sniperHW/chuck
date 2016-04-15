@@ -30,7 +30,7 @@ redis.Connect_ip4(event_loop,"127.0.0.1",6379,function (conn)
 
 end)
 
-local timer = event_loop:RegTimer(1000,function ()
+local timer = event_loop:AddTimer(1000,function ()
 	print(count)
 	count = 0
 end)

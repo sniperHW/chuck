@@ -74,8 +74,8 @@ static void register_event_loop(lua_State *L) {
 
 	luaL_Reg event_loop_methods[] = {
 		{"Run",    lua_event_loop_run},
-		{"End",    lua_event_loop_end},
-		{"RegTimer",lua_event_loop_addtimer},
+		{"Stop",    lua_event_loop_end},
+		{"AddTimer",lua_event_loop_addtimer},
 		{NULL,     NULL}
 	};
 

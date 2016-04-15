@@ -32,13 +32,13 @@ for i=1,200 do
 	end)
 end
 
-local timer1 = event_loop:RegTimer(1000,function ()
+local timer1 = event_loop:AddTimer(1000,function ()
 	print(packet_count)
 	collectgarbage("collect")
 	packet_count = 0
 end)
 
-local timer2 = event_loop:RegTimer(100,function ()
+local timer2 = event_loop:AddTimer(100,function ()
 	for k,v in pairs(connections) do
 		local buff = chuck.buffer.New()
 		local w = packet.Writer(buff)

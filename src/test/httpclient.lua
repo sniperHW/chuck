@@ -21,7 +21,7 @@ socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 		end	
 		print(response:Body())
 		httpclient:Close()
-		event_loop:End()
+		event_loop:Stop()
 	end
 	httpclient:Get("/",nil,OnResponse)
 end)
@@ -29,12 +29,17 @@ end)
 
 local client = http.easyClient(event_loop,"127.0.0.1",8010)
 
-client:Get("/",nil,function (response)
+client:Get("/",nil,function (response,err)
+	if err then
+		print(err)
+		event_loop:Stop()
+		return
+	end
 	for i,v in ipairs(response:AllHeaders()) do
 		print(v[1],v[2])
 	end	
 	print(response:Body())
-	event_loop:End()
+	event_loop:Stop()
 end)
 
 event_loop:Run()

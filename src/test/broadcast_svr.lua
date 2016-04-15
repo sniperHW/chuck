@@ -32,7 +32,7 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd
 	end
 end)
 
-local timer1 = event_loop:RegTimer(1000,function ()
+local timer1 = event_loop:AddTimer(1000,function ()
 	collectgarbage("collect")
 	print(client_count,packet_count)
 	packet_count = 0
