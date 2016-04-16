@@ -163,9 +163,8 @@ typedef struct {
 
 void lua_push_http_packet(chk_luaPushFunctor *self,lua_State *L) {
 	lua_http_packet_PushFunctor *pushFunctor = (lua_http_packet_PushFunctor*)self;
-	lua_http_packet *lua_packet = (lua_http_packet*)lua_newuserdata(L, sizeof(*lua_packet));
+	lua_http_packet *lua_packet = LUA_NEWUSERDATA(L,lua_http_packet);
 	if(lua_packet) {
-		memset(lua_packet,sizeof(*lua_packet),0);
 		lua_packet->packet = chk_http_packet_retain(pushFunctor->packet);
 		luaL_getmetatable(L, HTTP_PACKET_METATABLE);
 		lua_setmetatable(L, -2);
@@ -268,13 +267,12 @@ static int32_t lua_new_http_connection(lua_State *L) {
 	max_content_size = (uint32_t)luaL_checkinteger(L,3);
 	s = chk_stream_socket_new(fd,&option);
 	if(!s) return 0;
-	conn = (http_connection*)lua_newuserdata(L, sizeof(*conn));
+	conn = LUA_NEWUSERDATA(L,http_connection);
 	if(!conn) {
 		chk_stream_socket_close(s,0);
 		return 0;
 	}
 
-	memset(conn,0,sizeof(*conn));
 	conn->settings.on_message_begin = on_message_begin;
 	conn->settings.on_url = on_url;
 	conn->settings.on_status = on_status;

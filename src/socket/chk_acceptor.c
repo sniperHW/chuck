@@ -99,8 +99,12 @@ void chk_acceptor_del(chk_acceptor *a) {
 	free(a);
 }
 
-void *chk_acceptor_getud(chk_acceptor *a) {
+void *chk_acceptor_get_ud(chk_acceptor *a) {
 	return a->ud;
+}
+
+void chk_acceptor_set_ud(chk_acceptor *a,void *ud) {
+	a->ud = ud;
 }
 
 chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb cb,void *ud) {

@@ -15,7 +15,7 @@
 
 #define LUA_NEWUSERDATA(L,TYPE)   					({\
 	TYPE *ret = lua_newuserdata(L, sizeof(TYPE));	  \
-	if(ret) memset(ret,sizeof(TYPE),0);				  \
+	if(ret) memset(ret,0,sizeof(TYPE));				  \
 	ret;})
 
 #include "timer.h"

@@ -52,9 +52,8 @@ static int32_t lua_timermgr_gc(lua_State *L) {
 }
 
 static int32_t lua_new_timermgr(lua_State *L) {
-	chk_timermgr *timermgr = (chk_timermgr*)lua_newuserdata(L, sizeof(*timermgr));
+	chk_timermgr *timermgr = LUA_NEWUSERDATA(L,chk_timermgr);
 	if(!timermgr) return 0;
-	memset(timermgr,sizeof(*timermgr),0);
 	luaL_getmetatable(L, TIMERMGR_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -64,16 +63,14 @@ static int32_t lua_timermgr_register(lua_State *L) {
 	chk_luaRef    cb;
 	uint32_t      ms;
 	lua_timer    *luatimer;
-	chk_timermgr *timermgr = (chk_timermgr*)lua_newuserdata(L, sizeof(*timermgr));
+	chk_timermgr *timermgr = LUA_NEWUSERDATA(L,chk_timermgr);
 	if(!timermgr) return 0;
-	memset(timermgr,sizeof(*timermgr),0);
 	ms  = (uint32_t)luaL_optinteger(L,2,1);
 	if(!lua_isfunction(L,3)) 
 		return luaL_error(L,"argument 3 of event_loop_addtimer must be lua function"); 
 	cb = chk_toluaRef(L,3);
-	luatimer = (lua_timer*)lua_newuserdata(L, sizeof(*luatimer));
+	luatimer = LUA_NEWUSERDATA(L,lua_timer);
 	if(!luatimer) return 0;
-	memset(luatimer,sizeof(*luatimer),0);
 	luatimer->cb = cb;
 	luatimer->timer = chk_timer_register(timermgr,ms,lua_timeout_cb,luatimer,chk_accurate_tick64());
 	if(luatimer->timer) chk_timer_set_ud_cleaner(luatimer->timer,timer_ud_cleaner);

@@ -13,9 +13,6 @@ void chk_acceptor_finalize(chk_acceptor *a);
 
 void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *option);
 
-void *chk_acceptor_getud(chk_acceptor *a);
-
-
 #define lua_checkacceptor(L,I)	\
 	(chk_acceptor*)luaL_checkudata(L,I,ACCEPTOR_METATABLE)
 
@@ -35,7 +32,7 @@ static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,void *
 static int32_t lua_acceptor_gc(lua_State *L) {
 	chk_acceptor *a = lua_checkacceptor(L,1);
 	if(0 > chk_acceptor_get_fd(a)) return 0;
-	chk_luaRef   *cb = (chk_luaRef*)chk_acceptor_getud(a);
+	chk_luaRef   *cb = (chk_luaRef*)chk_acceptor_get_ud(a);
 	if(cb) {
 		chk_luaRef_release(cb);
 		free(cb);
@@ -85,9 +82,8 @@ static int32_t lua_listen_ip4(lua_State *L) {
 
 	if(!lua_isfunction(L,4)) 
 		return luaL_error(L,"argument 4 of dail must be lua function"); 
-	a   = (chk_acceptor*)lua_newuserdata(L, sizeof(*a));
+	a   = LUA_NEWUSERDATA(L,chk_acceptor);
 	if(!a) return 0;
-	memset(a,0,sizeof(*a));
 	cb  = calloc(1,sizeof(*cb));
 	*cb = chk_toluaRef(L,4); 	
 	chk_acceptor_init(a,fd,cb);
@@ -203,9 +199,8 @@ static int32_t lua_stream_socket_new(lua_State *L) {
 	fd = (int32_t)luaL_checkinteger(L,1);
 	option.recv_buffer_size = (uint32_t)luaL_optinteger(L,2,4096);
 	if(lua_islightuserdata(L,3)) option.decoder = lua_touserdata(L,3);
-	s = (chk_stream_socket*)lua_newuserdata(L, sizeof(*s));
+	s = LUA_NEWUSERDATA(L,chk_stream_socket);
 	if(!s) return -1;
-	memset(s,0,sizeof(*s));
 	chk_stream_socket_init(s,fd,&option);
 	luaL_getmetatable(L, STREAM_SOCKET_METATABLE);
 	lua_setmetatable(L, -2);

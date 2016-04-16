@@ -50,4 +50,8 @@ chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t por
 
 int32_t chk_acceptor_get_fd(chk_acceptor *a);
 
+void *chk_acceptor_get_ud(chk_acceptor *a);
+
+void chk_acceptor_set_ud(chk_acceptor *a,void *ud);
+
 #endif
