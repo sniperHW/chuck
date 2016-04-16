@@ -19,8 +19,37 @@ dynamic library for lua:
 
 #examples
 
+##httpserver.lua
+
+	package.path = './lib/?.lua;'
+	package.cpath = './lib/?.so;'
+	
+	local chuck = require("chuck")
+	local http = require("http")
+	local event_loop = chuck.event_loop.New()
+	
+	
+	
+	local ret = http.easyServer(function (request,response)
+		response:SetHeader("Content-Type","text/plain")
+		response:SetHeader("A","a")
+		response:SetHeader("B","b")
+		response:AppendBody("hello everyone")
+		response:Finish("200","OK")
+	end):Listen(event_loop,"0.0.0.0",8010)
+	
+	if "OK" == ret then
+		local timer1 = event_loop:AddTimer(1000,function ()
+			collectgarbage("collect")
+		end)
+		event_loop:Run()
+	end
+
+
 ##echo.lua
 
+	package.path = './lib/?.lua;'
+	package.cpath = './lib/?.so;'
 	local chuck = require("chuck")
 	local socket = chuck.socket
 
@@ -48,7 +77,8 @@ dynamic library for lua:
 	end
 
 ##broadcast_svr.lua
-
+	package.path = './lib/?.lua;'
+	package.cpath = './lib/?.so;'
 	local chuck = require("chuck")
 	local socket = chuck.socket
 	local packet = chuck.packet
@@ -92,6 +122,8 @@ dynamic library for lua:
 
 ##broadcast_cli.lua
 
+	package.path = './lib/?.lua;'
+	package.cpath = './lib/?.so;'
 	local chuck = require("chuck")
 	local socket = chuck.socket
 	local packet = chuck.packet
