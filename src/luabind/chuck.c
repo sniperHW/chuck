@@ -13,6 +13,11 @@
 	lua_settable(L, -3);\
 }while(0)
 
+#define LUA_NEWUSERDATA(L,TYPE)   					({\
+	TYPE *ret = lua_newuserdata(L, sizeof(TYPE));	  \
+	if(ret) memset(ret,sizeof(TYPE),0);				  \
+	ret;})
+
 #include "timer.h"
 #include "event_loop.h"
 #include "buffer.h"
