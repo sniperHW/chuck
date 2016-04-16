@@ -48,9 +48,9 @@ ifeq ($(uname_S),Linux)
 	MAKE += make
 endif
 
-ifeq ($(uname_S),FreeBSD)
+ifeq ($(uname_S),Darwin)
 	CC   += clang
-	MAKE += gmake
+	MAKE += make
 endif
 
 test: test_g test_fast

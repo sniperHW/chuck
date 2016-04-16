@@ -164,7 +164,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 void chk_loop_finalize(chk_event_loop *e) {
 
 	chk_handle *h;
-	if(e->tfd){
+	if(e->tfd >= 0){
 		chk_timermgr_del(e->timermgr);
 	}
 	while((h = cast(chk_handle*,chk_dlist_pop(&e->handles)))){

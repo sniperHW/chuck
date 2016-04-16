@@ -21,6 +21,7 @@ static int32_t lua_new_event_loop(lua_State *L) {
 	if(!event_loop) {
 		return 0;
 	}
+	memset(event_loop,sizeof(*event_loop),0);
 	if(0 != chk_loop_init(event_loop)) return 0;
 	luaL_getmetatable(L, EVENT_LOOP_METATABLE);
 	lua_setmetatable(L, -2);

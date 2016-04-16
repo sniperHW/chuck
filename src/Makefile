@@ -58,8 +58,7 @@ source.so =   util/chk_log.c\
 			  socket/chk_connector.c\
 			  event/chk_event_loop.c\
 			  redis/chk_client.c\
-			  thread/chk_thread.c\
-			  fiber/chk_fiber.c
+			  thread/chk_thread.c
 
 $(LIBNAME):$(source.lib)
 	$(CC) -fpic $(CFLAGS) -c $(source.lib) $(INCLUDE) $(DEFINE)

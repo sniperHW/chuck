@@ -33,9 +33,12 @@ typedef struct {
 static void PushRedis(chk_luaPushFunctor *_,lua_State *L) {
 	luaRedisPusher *self = (luaRedisPusher*)_;
 	lua_redis_client *luaclient = (lua_redis_client*)lua_newuserdata(L, sizeof(*luaclient));
-	luaclient->client = self->c;
-	luaL_getmetatable(L, REDIS_METATABLE);
-	lua_setmetatable(L, -2);
+	if(luaclient){
+		memset(luaclient,sizeof(*luaclient),0);
+		luaclient->client = self->c;
+		luaL_getmetatable(L, REDIS_METATABLE);
+		lua_setmetatable(L, -2);
+	}
 }
 
 static void lua_redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {

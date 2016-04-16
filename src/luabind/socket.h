@@ -204,6 +204,7 @@ static int32_t lua_stream_socket_new(lua_State *L) {
 	option.recv_buffer_size = (uint32_t)luaL_optinteger(L,2,4096);
 	if(lua_islightuserdata(L,3)) option.decoder = lua_touserdata(L,3);
 	s = (chk_stream_socket*)lua_newuserdata(L, sizeof(*s));
+	if(!s) return -1;
 	memset(s,0,sizeof(*s));
 	chk_stream_socket_init(s,fd,&option);
 	luaL_getmetatable(L, STREAM_SOCKET_METATABLE);

@@ -512,6 +512,8 @@ static inline int32_t lua_new_wpacket(lua_State *L) {
 		luaL_error(L,"buffer is readonly");
 	}	
 	w = (lua_wpacket*)lua_newuserdata(L, sizeof(*w));
+	if(!w) return 0;
+	memset(w,sizeof(*w),0);
 	w->buff = buff;
 	chk_bytebuffer_append_dword(buff,0);
 	luaL_getmetatable(L, WPACKET_METATABLE);
@@ -522,6 +524,8 @@ static inline int32_t lua_new_wpacket(lua_State *L) {
 static inline int32_t lua_new_rpacket(lua_State *L) {
 	chk_bytebuffer *buff = lua_checkbytebuffer(L,1);
 	lua_rpacket    *r = (lua_rpacket*)lua_newuserdata(L, sizeof(*r));
+	if(!r) return 0;
+	memset(r,sizeof(*r),0);
 	r->cur = buff->head;
 	r->buff = buff;
 	r->data_remain = buff->datasize - sizeof(uint32_t);
