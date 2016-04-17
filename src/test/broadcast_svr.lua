@@ -16,7 +16,7 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd
 	if conn then
 		clients[fd] = conn
 		client_count = client_count + 1
-		conn:Bind(event_loop,function (data)
+		conn:Start(event_loop,function (data)
 			if data then 
 				for k,v in pairs(clients) do
 					packet_count = packet_count + 1

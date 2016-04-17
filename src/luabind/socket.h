@@ -267,7 +267,7 @@ static void register_socket(lua_State *L) {
 
 	luaL_Reg stream_socket_methods[] = {
 		{"Send",    lua_stream_socket_send},
-		{"Bind",    lua_stream_socket_bind},
+		{"Start",   lua_stream_socket_bind},
 		{"Pause",   lua_stream_socket_pause},
 		{"Resume",	lua_stream_socket_resume},		
 		{"Close",   lua_stream_socket_close},

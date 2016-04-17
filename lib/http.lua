@@ -86,7 +86,7 @@ function http_server.new(eventLoop,fd,onRequest)
   	return nil,"call http.Connection() failed"
   end
 
-  local ret = conn:Bind(eventLoop,function (httpPacket)
+  local ret = conn:Start(eventLoop,function (httpPacket)
 	if not httpPacket then
 		conn:Close()
 		conn = nil

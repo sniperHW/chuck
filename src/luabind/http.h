@@ -595,7 +595,7 @@ static void register_http(lua_State *L) {
 		{"SendRequest",    lua_http_connection_send_request},
 		{"SendResponse",   lua_http_connection_send_response},
 		{"Close",   	   lua_http_connection_close},
-		{"Bind",           lua_http_connection_bind},		
+		{"Start",           lua_http_connection_bind},		
 		{NULL,     NULL}
 	};
 

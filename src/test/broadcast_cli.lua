@@ -19,7 +19,7 @@ for i=1,200 do
 		local conn = socket.stream.New(fd,65536,packet.Decoder())
 		if conn then
 		connections[fd] = conn
-		conn:Bind(event_loop,function (data)
+		conn:Start(event_loop,function (data)
 				if data then 
 					packet_count = packet_count + 1
 				else
