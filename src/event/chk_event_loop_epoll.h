@@ -8,29 +8,30 @@
 
 static int32_t events_mod(chk_handle *h,int32_t events);
 
-int32_t chk_events_add(chk_event_loop *e,chk_handle *h,int32_t events) {
+int32_t chk_watch_handle(chk_event_loop *e,chk_handle *h,int32_t events) {
 	struct epoll_event ev = {0};
 	ev.data.ptr = h;
 	ev.events = events;
-	errno = 0;
 	if(!h->loop){
 		if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,h->fd,&ev)) 
-			return errno;
+			return -1;
 		h->events = events;
 		h->loop = e;
 		chk_dlist_pushback(&e->handles,cast(chk_dlist_entry*,h));
 		return 0;
-	}else
-		return events_mod(h,events);
+	}
+	return -1;
+	//else
+	//	return events_mod(h,events);
 }
 
 
-int32_t chk_events_remove(chk_handle *h) {
+int32_t chk_unwatch_handle(chk_handle *h) {
 	struct epoll_event ev = {0};
 	chk_event_loop *e = h->loop;
-	errno = 0;
+	if(!e) return -1;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_DEL,h->fd,&ev)) 
-		return errno; 
+		return -1; 
 	h->events = 0;
 	h->loop = NULL;
 	chk_dlist_remove(&h->ready_entry);
@@ -41,11 +42,11 @@ int32_t chk_events_remove(chk_handle *h) {
 int32_t events_mod(chk_handle *h,int32_t events) {
 	chk_event_loop *e = h->loop;	
 	struct epoll_event ev = {0};
+	if(!e) return -1;
 	ev.data.ptr = h;
 	ev.events = events;
-	errno = 0;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_MOD,h->fd,&ev)) 
-		return errno; 
+		return -1; 
 	h->events = events;		
 	return 0;	
 }
@@ -72,27 +73,24 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	assert(e);
 	struct epoll_event ev = {0};
 	int32_t epfd = epoll_create1(EPOLL_CLOEXEC);
-	if(epfd < 0) return errno;
-	int32_t tmp[2];
-	if(pipe2(tmp,O_NONBLOCK|O_CLOEXEC) != 0) {
+	if(epfd < 0) return -1;
+	if(pipe2(e->notifyfds,O_NONBLOCK|O_CLOEXEC) != 0) {
 		close(epfd);
-		return errno;
+		return -1;
 	}		
 	e->epfd = epfd;
 	e->tfd  = -1;
 	e->maxevents = 64;
 	e->events = calloc(1,(sizeof(*e->events)*e->maxevents));
-	e->notifyfds[0] = tmp[0];
-	e->notifyfds[1] = tmp[1];
 	e->timermgr = NULL;
 	ev.data.fd = e->notifyfds[0];
 	ev.events = EPOLLIN;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,ev.data.fd,&ev)) {
 		close(epfd);
-		close(tmp[0]);
-		close(tmp[1]);
+		close(e->notifyfds[0]);
+		close(e->notifyfds[1]);
 		free(e->events);
-		return errno;
+		return -1;
 	}
 	e->threadid = chk_thread_id();
 	chk_dlist_init(&e->handles);	
@@ -109,7 +107,7 @@ void chk_loop_finalize(chk_event_loop *e) {
 
 	while((h = cast(chk_handle*,chk_dlist_pop(&e->handles)))){
 		h->on_events(h,CHK_EVENT_LOOPCLOSE);
-		if(h->loop) chk_events_remove(h);
+		chk_unwatch_handle(h);
 	}
 	e->tfd  = -1;
 	close(e->epfd);
@@ -127,7 +125,6 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 	chk_dlist_entry *read_entry;	
 	do {
 		ticktimer = 0;
-		errno = 0;
 		chk_dlist_init(&ready_list);
 		nfds = TEMP_FAILURE_RETRY(epoll_wait(e->epfd,e->events,e->maxevents,once ? ms : -1));
 		if(nfds > 0) {
@@ -160,7 +157,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 				e->events = calloc(1,sizeof(*e->events)*e->maxevents);
 			}				
 		}else if(nfds < 0) {
-			ret = errno;
+			ret = -1;
 			break;
 		}	
 	}while(!once);

@@ -25,6 +25,8 @@
 #include    <netinet/tcp.h>
 #include    <fcntl.h>
 #include    <stdint.h>
+
+
 #include    "util/chk_list.h"
 
 
@@ -66,7 +68,8 @@ struct chk_handle {
 
 #ifdef _LINUX
 
-#   include    <sys/epoll.h>
+#include    <sys/epoll.h>
+extern int32_t pipe2(int pipefd[2], int flags);
 
 enum{
     CHK_EVENT_READ   =  EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP,
@@ -90,9 +93,9 @@ enum{
 
 #endif
 
-int32_t chk_events_add(chk_event_loop*,chk_handle*,int32_t events);
+int32_t chk_watch_handle(chk_event_loop*,chk_handle*,int32_t events);
 
-int32_t chk_events_remove(chk_handle*);
+int32_t chk_unwatch_handle(chk_handle*);
 
 int32_t chk_events_enable(chk_handle*,int32_t events);
 

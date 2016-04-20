@@ -15,7 +15,7 @@
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	assert(e && h && cb);
-	ret = chk_events_add(e,h,CHK_EVENT_READ);
+	ret = chk_watch_handle(e,h,CHK_EVENT_READ);
 	if(ret == 0) {
 		easy_noblock(h->fd,1);
 		cast(chk_acceptor*,h)->cb = cast(chk_acceptor_cb,cb);
@@ -77,7 +77,7 @@ void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud) {
 
 void chk_acceptor_finalize(chk_acceptor *a) {
 	assert(a);
-	chk_events_remove(cast(chk_handle*,a));
+	chk_unwatch_handle(cast(chk_handle*,a));
 	if(a->fd >= 0) {
 		close(a->fd);
 		a->fd = -1;

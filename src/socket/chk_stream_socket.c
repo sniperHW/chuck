@@ -166,7 +166,7 @@ static inline void update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 static void release_socket(chk_stream_socket *s) {
 	chk_bytebuffer  *b;
 	chk_decoder *d = s->option.decoder;	
-	chk_events_remove(cast(chk_handle*,s));	
+	chk_unwatch_handle(cast(chk_handle*,s));	
 	if(s->next_recv_buf) chk_bytechunk_release(s->next_recv_buf);
 	if(d && d->dctor) d->dctor(d);
 	if(s->timer) chk_timer_unregister(s->timer);
@@ -218,9 +218,9 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	if(!e || !h || !cb || s->status & (SOCKET_CLOSE | SOCKET_RCLOSE))
 		return -1;
 	if(!chk_list_empty(&s->send_list))
-		ret = chk_events_add(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE);
+		ret = chk_watch_handle(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE);
 	else
-		ret = chk_events_add(e,h,CHK_EVENT_READ);
+		ret = chk_watch_handle(e,h,CHK_EVENT_READ);
 	if(ret == 0) {
 		easy_noblock(h->fd,1);
 		s->cb = cast(chk_stream_socket_cb,cb);
@@ -415,7 +415,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
 	if(!e || !h || !cb || s->status & SOCKET_CLOSE || s->status & SOCKET_RCLOSE)
 		return -1;
-	ret = chk_events_add(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE | EPOLLET);
+	ret = chk_watch_handle(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE | EPOLLET);
 	if(ret == 0) {
 		easy_noblock(h->fd,1);
 		s->cb = cast(chk_stream_socket_cb,cb);

@@ -24,5 +24,9 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd
 end)
 
 if server then
+	event_loop:WatchSignal(chuck.signal.SIGINT,function()
+		print("recv SIGINT stop server")
+		event_loop:Stop()
+	end)	
 	event_loop:Run()
 end

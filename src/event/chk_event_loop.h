@@ -65,6 +65,6 @@ int32_t         chk_loop_add_handle(chk_event_loop *loop,chk_handle *handle,chk_
  * @param handle 要移除的handle
  */
 
-void            chk_loop_remove_handle(chk_handle *handle);
+int32_t         chk_loop_remove_handle(chk_handle *handle);
 
 #endif

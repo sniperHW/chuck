@@ -31,7 +31,7 @@ int32_t chk_loop_run_once(chk_event_loop *e,uint32_t ms) {
 }
 
 int32_t chk_loop_add_handle(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
-	if(h->loop) chk_events_remove(h);
+	if(h->loop) return -1;
 	return h->handle_add(e,h,cb);
 }
 
@@ -62,7 +62,7 @@ int32_t chk_loop_run(chk_event_loop *e) {
 	return _loop_run(e,0,0);
 }
 
-void chk_loop_remove_handle(chk_handle *h) {
-	chk_events_remove(h);
+int32_t chk_loop_remove_handle(chk_handle *h) {
+	return chk_unwatch_handle(h);
 }
 

@@ -7,8 +7,6 @@
 # define  cast(T,P) ((T)(P))
 #endif
 
-extern int32_t pipe2(int pipefd[2], int flags);
-
 #define MAX_SIGNAL_SIZE 64
 
 typedef struct {
@@ -39,14 +37,14 @@ static void on_signal(int32_t signo) {
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	chk_signal_handler *handler = cast(chk_signal_handler*,h);
-	if(0 == (ret = chk_events_add(e,h,CHK_EVENT_READ)))
+	if(0 == (ret = chk_watch_handle(e,h,CHK_EVENT_READ)))
 		handler->cb = cast(signal_cb,cb);
 	return ret;
 }
 
 //must surround by LOCK() and UNLOCK()
 static void release_signal_handler(chk_signal_handler *handler) {
-	chk_events_remove(cast(chk_handle*,handler));
+	chk_unwatch_handle(cast(chk_handle*,handler));
 	close(handler->notify_fd);
 	close(handler->fd);
 	if(handler->ud_dctor) handler->ud_dctor(handler->ud);
@@ -68,13 +66,28 @@ static void on_events(chk_handle *h,int32_t events) {
 		handler->cb(handler->ud);	
 }
 
+extern int32_t easy_noblock(int32_t fd,int32_t noblock); 
+
 static chk_signal_handler *signal_handler_new(int32_t signo,signal_cb cb,void *ud,void (*ud_dctor)(void*)) {
 	int32_t fdpairs[2];
 	chk_signal_handler *handler = calloc(1,sizeof(*handler));
+#ifdef _LINUX
     if(pipe2(fdpairs,O_NONBLOCK|O_CLOEXEC) != 0) {
     	free(handler);
         return NULL;	
     }
+#elif _MACH
+	if(pipe(fdpairs) != 0){
+    	free(handler);
+		return NULL;
+	}
+	easy_noblock(fdpairs[0],1);		
+	easy_noblock(fdpairs[1],1);
+	fcntl(fdpairs[0],F_SETFD,FD_CLOEXEC);
+	fcntl(fdpairs[1],F_SETFD,FD_CLOEXEC);
+#else
+#   error "un support platform!" 
+#endif    
     handler->ud = ud;
     handler->notify_fd = fdpairs[1];
     handler->fd = fdpairs[0];

@@ -31,7 +31,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	chk_connector *c = cast(chk_connector*,h);
 	assert(e && h && cb);
-	ret = chk_events_add(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE);
+	ret = chk_watch_handle(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE);
 	if(ret == 0) {
 		c->cb = cast(connect_cb,cb);
 		if(c->timeout) {
@@ -62,7 +62,7 @@ static void _process_connect(chk_connector *c) {
 		//success
 		fd = c->fd;
 	}while(0);
-	chk_events_remove(cast(chk_handle*,c));    
+	chk_unwatch_handle(cast(chk_handle*,c));    
 	if(fd != -1) c->cb(fd,c->ud,0);
 	else close(c->fd);	
 }
