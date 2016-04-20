@@ -168,8 +168,8 @@ void chk_loop_finalize(chk_event_loop *e) {
 		chk_timermgr_del(e->timermgr);
 	}
 	while((h = cast(chk_handle*,chk_dlist_pop(&e->handles)))){
-		chk_events_remove(h);
 		h->on_events(h,CHK_EVENT_LOOPCLOSE);
+		if(h->loop) chk_events_remove(h);
 	}
 	e->tfd  = -1;	
 	close(e->notifyfds[0]);

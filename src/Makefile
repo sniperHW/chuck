@@ -32,6 +32,7 @@ source.lib =  util/chk_log.c\
 			  util/chk_bytechunk.c\
 			  util/chk_string.c\
 			  util/lookup8.c\
+			  util/chk_signal.c\
 			  http/chk_http.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
@@ -50,6 +51,7 @@ source.so =   util/chk_log.c\
 			  util/chk_bytechunk.c\
 			  util/chk_string.c\
 			  util/lookup8.c\
+			  util/chk_signal.c\
 			  http/chk_http.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\

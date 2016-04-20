@@ -41,5 +41,9 @@ end)
 print("server run")
 
 if server then
+	event_loop:WatchSignal(chuck.signal.SIGINT,function()
+		print("recv SIGINT stop server")
+		event_loop:Stop()
+	end)
 	event_loop:Run()
 end

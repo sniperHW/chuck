@@ -29,9 +29,20 @@ void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t er
 	chk_loop_add_handle(loop,(chk_handle*)s,data_event_cb);
 }
 
+static void signal_int(void *ud) {
+	printf("signal_int\n");
+	chk_loop_end(loop);
+}
+
 int main(int argc,char **argv) {
 	signal(SIGPIPE,SIG_IGN);
 	loop = chk_loop_new();
+
+	if(0 != chk_watch_signal(loop,SIGINT,signal_int,NULL,NULL)) {
+		printf("watch signal failed\n");
+		return 0;
+	}
+
 	if(!chk_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),accept_cb,NULL))
 		printf("server start error\n");
 	else

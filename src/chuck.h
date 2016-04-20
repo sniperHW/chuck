@@ -13,6 +13,8 @@
 #include "util/chk_time.h"
 #include "util/chk_timer.h"
 #include "util/chk_util.h"
+#include "util/chk_string.h"
+#include "util/chk_signal.h"
 #include "thread/chk_thread.h"
 #include "event/chk_event_loop.h"
 #include "socket/chk_acceptor.h"

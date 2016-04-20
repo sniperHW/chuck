@@ -9,7 +9,6 @@
 static int32_t events_mod(chk_handle *h,int32_t events);
 
 int32_t chk_events_add(chk_event_loop *e,chk_handle *h,int32_t events) {
-	//assert((events & EPOLLET) == 0);
 	struct epoll_event ev = {0};
 	ev.data.ptr = h;
 	ev.events = events;
@@ -40,7 +39,6 @@ int32_t chk_events_remove(chk_handle *h) {
 }
 
 int32_t events_mod(chk_handle *h,int32_t events) {
-	//assert((events & EPOLLET) == 0);
 	chk_event_loop *e = h->loop;	
 	struct epoll_event ev = {0};
 	ev.data.ptr = h;
@@ -110,8 +108,8 @@ void chk_loop_finalize(chk_event_loop *e) {
 	}
 
 	while((h = cast(chk_handle*,chk_dlist_pop(&e->handles)))){
-		chk_events_remove(h);
 		h->on_events(h,CHK_EVENT_LOOPCLOSE);
+		if(h->loop) chk_events_remove(h);
 	}
 	e->tfd  = -1;
 	close(e->epfd);

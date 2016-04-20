@@ -35,6 +35,10 @@ if "OK" == ret then
 	local timer1 = event_loop:AddTimer(1000,function ()
 		collectgarbage("collect")
 	end)
+	event_loop:WatchSignal(chuck.signal.SIGINT,function()
+		print("recv SIGINT stop server")
+		event_loop:Stop()
+	end)	
 	event_loop:Run()
 end
 
