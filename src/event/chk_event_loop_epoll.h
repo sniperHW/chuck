@@ -14,8 +14,10 @@ int32_t chk_watch_handle(chk_event_loop *e,chk_handle *h,int32_t events) {
 	ev.data.ptr = h;
 	ev.events = events;
 	if(h->loop) return chk_error_duplicate_add_handle;
-	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,h->fd,&ev)) 
+	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,h->fd,&ev)){ 
+		CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_watch_handle() call epoll_ctl() failed errno:%d\n",__FILE__,__LINE__,errno);
 		return chk_error_epoll_add;
+	}
 	h->events = events;
 	h->loop = e;
 	chk_dlist_pushback(&e->handles,cast(chk_dlist_entry*,h));
@@ -27,8 +29,10 @@ int32_t chk_unwatch_handle(chk_handle *h) {
 	struct epoll_event ev = {0};
 	chk_event_loop *e = h->loop;
 	if(!e) return chk_error_no_event_loop;
-	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_DEL,h->fd,&ev)) 
+	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_DEL,h->fd,&ev)){ 
+		CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_unwatch_handle() call epoll_ctl() failed errno:%d\n",__FILE__,__LINE__,errno);
 		return chk_error_epoll_del; 
+	}
 	h->events = 0;
 	h->loop = NULL;
 	chk_dlist_remove(&h->ready_entry);
@@ -42,8 +46,10 @@ int32_t events_mod(chk_handle *h,int32_t events) {
 	if(!e) return chk_error_no_event_loop;
 	ev.data.ptr = h;
 	ev.events = events;
-	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_MOD,h->fd,&ev)) 
+	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_MOD,h->fd,&ev)){ 
+		CHK_SYSLOG(LOG_ERROR,"%s:%d,events_mod() call epoll_ctl() failed errno:%d\n",__FILE__,__LINE__,errno);
 		return chk_error_epoll_mod; 
+	}
 	h->events = events;		
 	return chk_error_ok;	
 }
@@ -83,6 +89,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	ev.data.fd = e->notifyfds[0];
 	ev.events = EPOLLIN;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,ev.data.fd,&ev)) {
+		CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_loop_init() call epoll_ctl() failed errno:%d\n",__FILE__,__LINE__,errno);
 		close(epfd);
 		chk_close_notify_channel(e->notifyfds);
 		free(e->events);
@@ -152,6 +159,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 				e->events = calloc(1,sizeof(*e->events)*e->maxevents);
 			}				
 		}else if(nfds < 0) {
+			CHK_SYSLOG(LOG_ERROR,"%s:%d,_loop_run() call epoll_wait() failed errno:%d\n",__FILE__,__LINE__,errno);
 			ret = chk_error_loop_run;
 			break;
 		}	
@@ -187,6 +195,7 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 		ev.data.fd = e->tfd;
 		ev.events  = EPOLLIN;
 		if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,e->tfd,&ev)) {
+			CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_loop_addtimer call epoll_ctl failed errno:%d\n",__FILE__,__LINE__,errno);			
 	        close(e->tfd);
 	        e->tfd = -1;
 	        return NULL;				

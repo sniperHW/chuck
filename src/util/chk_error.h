@@ -43,6 +43,7 @@ enum {
 	/*socket相关错误码*/
 	chk_error_bind,
 	chk_error_listen,
+	chk_error_accept,
 	chk_error_connect,
 	chk_error_unsupport_addr_type,
 	chk_error_setsockopt,
@@ -50,12 +51,14 @@ enum {
 	chk_error_invaild_sockaddr,
 	chk_error_invaild_hostname,
 	chk_error_connect_timeout,                            /*connect超时*/
-	chk_error_socket_close,                               /*socket已经关闭*/
-	
+	chk_error_socket_close,                               /*socket已经关闭*/                                                     
+	chk_error_stream_write,
+	chk_error_stream_read,
 	/*packet相关错误码*/
 	chk_error_packet_too_large,                           /*数据包太大*/
 	chk_error_invaild_packet_size,                        /*数据包长度非法*/
 	chk_error_http_packet,                                /*http解包错误*/
+	chk_error_unpack,                                     /*解包错误*/
 };
 
 #endif

@@ -1,6 +1,7 @@
 #define _CORE_
 #include <assert.h>
 #include "util/chk_error.h"
+#include "util/chk_log.h"
 #include "socket/chk_socket_helper.h"
 #include "socket/chk_stream_socket.h"
 #include "event/chk_event_loop.h"
@@ -243,13 +244,13 @@ static void process_write(chk_stream_socket *s) {
 		 		chk_disable_write(cast(chk_handle*,s));
 		}	
 	}else {
-		assert(errno != EAGAIN);
 		if(s->status & SOCKET_RCLOSE)
 			s->status |= SOCKET_CLOSE;
 		else {
 			s->status |= SOCKET_PEERCLOSE;
 			chk_disable_write(cast(chk_handle*,s));
-			s->cb(s,NULL,errno);
+			s->cb(s,NULL,chk_error_stream_write);
+			CHK_SYSLOG(LOG_ERROR,"%s:%d,process_write() error no writev errno:%d",__FILE__,__LINE__,errno);
 		}
 	}
 }
@@ -259,7 +260,6 @@ static void process_read(chk_stream_socket *s) {
 	chk_decoder *decoder;
 	chk_bytebuffer *b;
 	bc    = prepare_recv(s);
-	errno = 0;
 	bytes = TEMP_FAILURE_RETRY(readv(s->fd,&s->wrecvbuf[0],bc));
 	if(bytes > 0 ) {
 		decoder = s->option.decoder;
@@ -267,12 +267,12 @@ static void process_read(chk_stream_socket *s) {
 		for(;;) {
 			unpackerr = 0;
 			if((b = decoder->unpack(decoder,&unpackerr))) {
-				s->cb(s,b,0);
+				s->cb(s,b,chk_error_ok);
 				chk_bytebuffer_del(b);
 				if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE)) 
 					break;
 			}else {
-				if(unpackerr) s->cb(s,NULL,unpackerr);
+				if(unpackerr) s->cb(s,NULL,chk_error_unpack);
 				break;
 			}
 		};
@@ -281,7 +281,8 @@ static void process_read(chk_stream_socket *s) {
 	}else {
 		s->status |= SOCKET_PEERCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
-		s->cb(s,NULL,errno);
+		s->cb(s,NULL,chk_error_stream_read);
+		CHK_SYSLOG(LOG_ERROR,"%s:%d,process_read() error no readv errno:%d",__FILE__,__LINE__,errno);
 	}
 }
 

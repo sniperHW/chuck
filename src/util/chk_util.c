@@ -21,7 +21,7 @@ int32_t chk_create_notify_channel(int32_t fdpairs[2]) {
 #else
 #   error "un support platform!" 
 #endif
-	return 0;
+	return chk_error_ok;
 }
 
 void chk_close_notify_channel(int32_t fdpairs[2]) {

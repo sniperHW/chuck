@@ -24,10 +24,9 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 }
 
 
-static int _accept(chk_acceptor *a,chk_sockaddr *addr) {
+static int32_t _accept(chk_acceptor *a,chk_sockaddr *addr,int32_t *fd) {
 	socklen_t len = 0;
-	int32_t fd; 
-	while((fd = accept(a->fd,cast(struct sockaddr*,addr),&len)) < 0){
+	while((*fd = accept(a->fd,cast(struct sockaddr*,addr),&len)) < 0){
 #ifdef EPROTO
 		if(errno == EPROTO || errno == ECONNABORTED)
 #else
@@ -35,13 +34,14 @@ static int _accept(chk_acceptor *a,chk_sockaddr *addr) {
 #endif
 			continue;
 		else
-			return -errno;
+			return errno;
 	}
-	return fd;
+	return 0;
 }
 
 static void process_accept(chk_handle *h,int32_t events) {
-	int 	     fd;
+	int32_t 	 fd;
+	int32_t      ret;
     chk_sockaddr addr;
     chk_acceptor *acceptor = cast(chk_acceptor*,h);
 	if(events == CHK_EVENT_LOOPCLOSE){
@@ -49,12 +49,14 @@ static void process_accept(chk_handle *h,int32_t events) {
 		return;
 	}
     do {
-		fd = _accept(acceptor,&addr);
-		if(fd >= 0)
+		ret = _accept(acceptor,&addr,&fd);
+		if(ret == 0)
 		   acceptor->cb(acceptor,fd,&addr,acceptor->ud,0);
-		else if(fd < 0 && fd != -EAGAIN)
-		   acceptor->cb(acceptor,-1,NULL,acceptor->ud,-fd);
-	}while(fd >= 0 && chk_is_read_enable(h));	      
+		else if(ret != EAGAIN){
+		   CHK_SYSLOG(LOG_ERROR,"%s:%d,process_accept() call _accept() failed errno:%d",__FILE__,__LINE__,ret); 	
+		   acceptor->cb(acceptor,-1,NULL,acceptor->ud,chk_error_accept);
+		}
+	}while(0 == ret && chk_is_read_enable(h));	      
 }
 
 int32_t chk_acceptor_resume(chk_acceptor *a) {
@@ -113,10 +115,10 @@ chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t por
 	int32_t       fd,ret;
 	chk_acceptor *a = NULL;
 	do {
-		if(0 != easy_sockaddr_ip4(&server,ip,port)) break;
+		if(chk_error_ok != easy_sockaddr_ip4(&server,ip,port)) break;
 		if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) break;
 		easy_addr_reuse(fd,1);
-		if(0 == (ret = easy_listen(fd,&server))){
+		if(chk_error_ok == (ret = easy_listen(fd,&server))){
 			a = chk_acceptor_new(fd,ud);
 			chk_loop_add_handle(loop,(chk_handle*)a,cb);
 		}else close(fd);

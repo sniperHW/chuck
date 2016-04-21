@@ -51,19 +51,20 @@ static void _process_connect(chk_connector *c) {
 	}
 	do {
 		if(getsockopt(c->fd, SOL_SOCKET, SO_ERROR, &err, &len) == -1){
-			c->cb(-1,c->ud,err);
+			CHK_SYSLOG(LOG_ERROR,"%s:%d,_process_connect() call getsockopt() failed errno:%d",__FILE__,__LINE__,errno);
+			c->cb(-1,c->ud,chk_error_connect);
 		    break;
 		}
 		if(err) {
-		    errno = err;
-		    c->cb(-1,c->ud,err);    
+			CHK_SYSLOG(LOG_ERROR,"%s:%d,_process_connect() call getsockopt() failed errno:%d",__FILE__,__LINE__,err);			
+		    c->cb(-1,c->ud,chk_error_connect);    
 		    break;
 		}
 		//success
 		fd = c->fd;
 	}while(0);
 	chk_unwatch_handle(cast(chk_handle*,c));    
-	if(fd != -1) c->cb(fd,c->ud,0);
+	if(fd != -1) c->cb(fd,c->ud,chk_error_ok);
 	else close(c->fd);	
 }
 

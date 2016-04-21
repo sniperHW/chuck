@@ -51,7 +51,7 @@ chk_event_loop *chk_loop_new() {
 
 void chk_loop_del(chk_event_loop *e) {
 	if(e->threadid != chk_thread_current_tid()) {
-		CHK_SYSLOG(LOG_ERROR,"e->threadid != chk_thread_current_tid()");
+		CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_loop_del() e->threadid != chk_thread_current_tid()",__FILE__,__LINE__);
 		return;
 	}
 	if(e->status & INLOOP)

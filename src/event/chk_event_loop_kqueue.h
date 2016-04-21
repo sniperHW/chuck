@@ -10,8 +10,10 @@
 static int32_t _add_event(chk_event_loop *e,chk_handle *h,int32_t event) {
 	struct kevent ke;
 	EV_SET(&ke, h->fd, event, EV_ADD, 0, 0, h);
-	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL))
+	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL)){
+		CHK_SYSLOG(LOG_ERROR,"%s:%d,_add_event() call kevent() failed errno:%d\n",__FILE__,__LINE__,errno);
 		return chk_error_kevent_add;
+	}
 	return chk_error_ok;	
 }
 
@@ -135,6 +137,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	struct kevent ke;
 	EV_SET(&ke,e->notifyfds[0], EVFILT_READ, EV_ADD, 0, 0, (void*)(int64_t)e->notifyfds[0]);
 	if(0 != kevent(kfd, &ke, 1, NULL, 0, NULL)){
+		CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_loop_init() call kevent() failed errno:%d\n",__FILE__,__LINE__,errno);
 		close(kfd);
 		chk_close_notify_channel(e->notifyfds);
 		free(e->events);
@@ -220,6 +223,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 				e->events = calloc(1,sizeof(*e->events)*e->maxevents);
 			}				
 		}else if(nfds < 0) {
+			CHK_SYSLOG(LOG_ERROR,"%s:%d,_loop_run() call kevent() failed errno:%d\n",__FILE__,__LINE__,errno);
 			ret = chk_error_loop_run;
 			break;
 		}	
