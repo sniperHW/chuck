@@ -59,4 +59,9 @@ static inline uint32_t chk_align_size(uint32_t size,uint32_t align) {
     else return (size/align + 1) * align;
 }
 
+//create a fdpairs,fdpairs[0] for read,fdpairs[1] for write
+int32_t chk_create_notify_channel(int32_t fdpairs[2]);
+
+void    chk_close_notify_channel(int32_t fdpairs[2]);
+
 #endif

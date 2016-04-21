@@ -18,8 +18,7 @@
 
 struct chk_thread {
 	pthread_t       threadid;
-    pid_t           tid;
-    volatile int8_t destroy;     
+    pid_t           tid;   
 };
 
 typedef struct {
@@ -40,7 +39,7 @@ static void *start_routine(void *_) {
 	void *arg = starg->arg;
 	void*(*routine)(void*) = starg->routine;
 	tthread = starg->t;
-	tthread->tid = gettid();
+	tid = tthread->tid = gettid();
 	chk_mutex_lock(&starg->mtx);
 	if(!starg->running) {
 		starg->running = 1;
@@ -48,7 +47,6 @@ static void *start_routine(void *_) {
 		chk_condition_signal(&starg->cond);
 	}
 	ret = routine(arg);
-	tthread->destroy = 1;
 	return ret;
 }
 
@@ -100,15 +98,14 @@ void *chk_thread_join(chk_thread *t) {
 	return result;
 }
 
-static void child() {
-	tid = gettid();
+pid_t chk_thread_tid(chk_thread *t) {
+	return t->tid;
 }
 
-pid_t chk_thread_id()
+pid_t chk_thread_current_tid()
 {
 	if(!tid){
 		tid = gettid();
-		pthread_atfork(NULL,NULL,child);
 	}
 	return tid;
 }

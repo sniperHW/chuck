@@ -1,6 +1,7 @@
 #ifdef _CORE_
 
 #include <sys/timerfd.h>
+#include "util/chk_util.h"
 
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
@@ -12,43 +13,39 @@ int32_t chk_watch_handle(chk_event_loop *e,chk_handle *h,int32_t events) {
 	struct epoll_event ev = {0};
 	ev.data.ptr = h;
 	ev.events = events;
-	if(!h->loop){
-		if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,h->fd,&ev)) 
-			return -1;
-		h->events = events;
-		h->loop = e;
-		chk_dlist_pushback(&e->handles,cast(chk_dlist_entry*,h));
-		return 0;
-	}
-	return -1;
-	//else
-	//	return events_mod(h,events);
+	if(h->loop) return chk_error_duplicate_add_handle;
+	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,h->fd,&ev)) 
+		return chk_error_epoll_add;
+	h->events = events;
+	h->loop = e;
+	chk_dlist_pushback(&e->handles,cast(chk_dlist_entry*,h));
+	return chk_error_ok;
 }
 
 
 int32_t chk_unwatch_handle(chk_handle *h) {
 	struct epoll_event ev = {0};
 	chk_event_loop *e = h->loop;
-	if(!e) return -1;
+	if(!e) return chk_error_no_event_loop;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_DEL,h->fd,&ev)) 
-		return -1; 
+		return chk_error_epoll_del; 
 	h->events = 0;
 	h->loop = NULL;
 	chk_dlist_remove(&h->ready_entry);
 	chk_dlist_remove(&h->entry);
-	return 0;	
+	return chk_error_ok;	
 }
 
 int32_t events_mod(chk_handle *h,int32_t events) {
 	chk_event_loop *e = h->loop;	
 	struct epoll_event ev = {0};
-	if(!e) return -1;
+	if(!e) return chk_error_no_event_loop;
 	ev.data.ptr = h;
 	ev.events = events;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_MOD,h->fd,&ev)) 
-		return -1; 
+		return chk_error_epoll_mod; 
 	h->events = events;		
-	return 0;	
+	return chk_error_ok;	
 }
 
 
@@ -73,10 +70,10 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	assert(e);
 	struct epoll_event ev = {0};
 	int32_t epfd = epoll_create1(EPOLL_CLOEXEC);
-	if(epfd < 0) return -1;
-	if(pipe2(e->notifyfds,O_NONBLOCK|O_CLOEXEC) != 0) {
+	if(epfd < 0) return chk_error_create_epoll;
+	if(chk_error_ok != chk_create_notify_channel(e->notifyfds)) {
 		close(epfd);
-		return -1;
+		return chk_error_create_notify_channel;		
 	}		
 	e->epfd = epfd;
 	e->tfd  = -1;
@@ -87,14 +84,13 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	ev.events = EPOLLIN;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,ev.data.fd,&ev)) {
 		close(epfd);
-		close(e->notifyfds[0]);
-		close(e->notifyfds[1]);
+		chk_close_notify_channel(e->notifyfds);
 		free(e->events);
-		return -1;
+		return chk_error_epoll_add;
 	}
-	e->threadid = chk_thread_id();
+	e->threadid = chk_thread_current_tid();
 	chk_dlist_init(&e->handles);	
-	return 0;
+	return chk_error_ok;
 }
 
 void chk_loop_finalize(chk_event_loop *e) {
@@ -111,13 +107,12 @@ void chk_loop_finalize(chk_event_loop *e) {
 	}
 	e->tfd  = -1;
 	close(e->epfd);
-	close(e->notifyfds[0]);
-	close(e->notifyfds[1]);
+	chk_close_notify_channel(e->notifyfds);
 	free(e->events);
 }
 
 int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
-	int32_t ret = 0;
+	int32_t ret = chk_error_ok;
 	int32_t i,nfds,ticktimer;
 	int64_t _;
 	chk_handle      *h;
@@ -157,7 +152,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 				e->events = calloc(1,sizeof(*e->events)*e->maxevents);
 			}				
 		}else if(nfds < 0) {
-			ret = -1;
+			ret = chk_error_loop_run;
 			break;
 		}	
 	}while(!once);

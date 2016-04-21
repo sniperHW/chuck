@@ -1,12 +1,12 @@
 #include <assert.h>
 #include "thread/chk_thread.h"
+#include "util/chk_log.h"
 
 #define _CORE_
 
 #include "event/chk_event_loop.h" 
 #include "event/chk_event_loop_define.h"
 
-extern int32_t pipe2(int pipefd[2], int flags);
 static int32_t stopevent = 1;
 
 #define READY_TO_HANDLE(ENTRY)                                              \
@@ -31,7 +31,7 @@ int32_t chk_loop_run_once(chk_event_loop *e,uint32_t ms) {
 }
 
 int32_t chk_loop_add_handle(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
-	if(h->loop) return -1;
+	if(h->loop) return chk_error_duplicate_add_handle;
 	return h->handle_add(e,h,cb);
 }
 
@@ -41,7 +41,8 @@ void chk_loop_end(chk_event_loop *e) {
 
 chk_event_loop *chk_loop_new() {
 	chk_event_loop *ep = calloc(1,sizeof(*ep));
-	if(0 != chk_loop_init(ep)) {
+	if(!ep) return NULL;
+	if(chk_error_ok != chk_loop_init(ep)) {
 		free(ep);
 		ep = NULL;
 	}
@@ -49,7 +50,10 @@ chk_event_loop *chk_loop_new() {
 }
 
 void chk_loop_del(chk_event_loop *e) {
-	assert(e->threadid == chk_thread_id());
+	if(e->threadid != chk_thread_current_tid()) {
+		CHK_SYSLOG(LOG_ERROR,"e->threadid != chk_thread_current_tid()");
+		return;
+	}
 	if(e->status & INLOOP)
 		e->status |= CLOSING;
 	else {

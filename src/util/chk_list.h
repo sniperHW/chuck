@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include "util/chk_error.h"
 
 typedef struct chk_list_entry chk_list_entry;
 
@@ -39,23 +40,25 @@ static inline void chk_list_init(chk_list *l) {
 
 //if push success,return the new size,else return -1
 static inline size_t chk_list_pushback(chk_list *l,chk_list_entry *n) {
-    if(n->next) return -1;
+    if(n->next) return chk_error_common;
 	if(0 == l->size) l->head = l->tail = n;
 	else {
 		l->tail->next = n;
 		l->tail = n;
 	}
-	return ++l->size;
+	++l->size;
+    return chk_error_ok;
 }
 
 static inline size_t chk_list_pushfront(chk_list *l,chk_list_entry *n) {
-    if(n->next) return -1;
+    if(n->next) return chk_error_common;
 	if(0 == l->size) l->head = l->tail = n;
 	else {
 		n->next = l->head;
 		l->head = n;
 	}
-	return ++l->size;
+	++l->size;
+    return chk_error_ok;
 }
 
 static inline chk_list_entry *chk_list_pop(chk_list *l) {
@@ -123,7 +126,7 @@ static inline chk_dlist_entry *chk_dlist_end(chk_dlist *dl) {
 
 
 static inline int32_t chk_dlist_remove(chk_dlist_entry *dln) {
-    if(!dln->pperv || !dln->next) return -1;
+    if(!dln->pperv || !dln->next) return chk_error_common;
     dln->pperv->next = dln->next;
     dln->next->pperv = dln->pperv;
     dln->pperv       = dln->next = NULL;
@@ -140,7 +143,7 @@ static inline chk_dlist_entry *chk_dlist_pop(chk_dlist *dl) {
 }
 
 static inline int32_t chk_dlist_pushback(chk_dlist *dl,chk_dlist_entry *dln) {
-    if(dln->pperv || dln->next) return -1;
+    if(dln->pperv || dln->next) return chk_error_common;
     dl->tail.pperv->next = dln;
     dln->pperv           = dl->tail.pperv;
     dl->tail.pperv       = dln;
@@ -149,7 +152,7 @@ static inline int32_t chk_dlist_pushback(chk_dlist *dl,chk_dlist_entry *dln) {
 }
 
 static inline int32_t chk_dlist_pushfront(chk_dlist *dl,chk_dlist_entry *dln) {
-    if(dln->pperv || dln->next) return -1;
+    if(dln->pperv || dln->next) return chk_error_common;
     chk_dlist_entry *next = dl->head.next;
     dl->head.next         = dln;
     dln->pperv            = &dl->head;

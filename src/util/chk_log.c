@@ -109,7 +109,7 @@ int32_t chk_log_prefix(char *buf,uint8_t loglev)
 				   _tm.tm_min,
 				   _tm.tm_sec,
 				   cast(int32_t,tv.tv_nsec/1000000),
-				   cast(uint32_t,chk_thread_id()));
+				   cast(uint32_t,chk_thread_current_tid()));
 }
 
 static void *log_routine(void *arg) {
@@ -124,7 +124,7 @@ static void *log_routine(void *arg) {
 
 	for(;;) {
 		if((entry = logqueue_fetch(stop?0:100))) {
-			if(!entry->_logfile->file || entry->_logfile->total_size > CHK_MAX_FILE_SIZE) {
+			if(!entry->_logfile->file || entry->_logfile->total_size > CHK_MAX_LOG_FILE_SIZE) {
 				if(entry->_logfile->file) {
 					fclose(entry->_logfile->file);
 					entry->_logfile->total_size = 0;

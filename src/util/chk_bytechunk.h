@@ -14,6 +14,7 @@
 #include "util/chk_util.h"
 #include "util/chk_list.h"
 #include "util/chk_obj_pool.h"
+#include "util/chk_error.h"
 
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
@@ -263,7 +264,7 @@ static inline int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_
     uint32_t copysize;
 
     if(b->flags & READ_ONLY) {
-        return READ_ONLY_BUFFER;
+        return chk_error_buffer_read_only;
     }
 
     if(b->flags & NEED_COPY_ON_WRITE) {
@@ -272,7 +273,7 @@ static inline int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_
     }
 
     if(!b->tail) {
-        return INVAILD_BUFFER;
+        return chk_error_invaild_buffer;
     }
 
     b->datasize += size;
@@ -290,7 +291,7 @@ static inline int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_
         v += copysize;
         size -= copysize;
     }
-    return 0;
+    return chk_error_ok;
 }
 
 

@@ -225,7 +225,7 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 				
 				if(conn->check_size > conn->max_header_size && 
 				   conn->packet && !conn->packet->body) {
-					error = CHK_EHTTP;
+					error = chk_error_http_packet;
 					break;					
 				}
 
@@ -236,7 +236,7 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 					chunk = chunk->next;
 				}
 			}else {
-				error = CHK_EHTTP;
+				error = chk_error_http_packet;
 				break;		
 			}
 		}while(size_remain);

@@ -8,6 +8,7 @@
 #include <signal.h>  
 #include <pthread.h>
 #include "util/chk_util.h"
+#include "util/chk_error.h"
 
 #ifdef _MACH
 #include <mach/mach_time.h>
@@ -29,16 +30,16 @@ static inline int clock_gettime(int clk_id, struct timespec *t){
     else if(clk_id == CLOCK_REALTIME) {
         struct timeval tm;
         if(0 != gettimeofday(&tm,NULL)){
-            return -1;
+            return chk_error_common;
         }
         t->tv_sec = tm.tv_sec;
         t->tv_nsec = tm.tv_usec * 1e3;
     }
     else {
-        return -1;
+        return chk_error_common;
     }
 
-    return 0;
+    return chk_error_ok;
 }
 #endif
 

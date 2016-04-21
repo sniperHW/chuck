@@ -42,7 +42,7 @@
 *  单个日志文件的最大大小,超过这个值将会创建新的日志文件 
 */
 
-#define CHK_MAX_FILE_SIZE 1024*1024*512
+#define CHK_MAX_LOG_FILE_SIZE 1024*1024*512
 
 
 /*

@@ -1,6 +1,7 @@
 #define _CORE_
 #include "http-parser/http_parser.h"
 #include "http/chk_http.h"
+#include "util/chk_error.h"
 
 const char *http_method_name[] =
 {
@@ -29,16 +30,16 @@ int32_t chk_http_name2method(const char *name) {
 }
 
 int32_t chk_http_is_vaild_iterator(chk_http_header_iterator *iterator) {
-	if(!iterator) return -1;
-	if(!iterator->http_packet || !iterator->current) return -1;
-	return 0;
+	if(!iterator || !iterator->http_packet || !iterator->current) 
+		return chk_error_invaild_iterator;
+	return chk_error_ok;
 }
 
 int32_t chk_http_header_iterator_next(chk_http_header_iterator *iterator) {
 	
 	chk_http_hash_item  *next;
 	if(!iterator || 0 != chk_http_is_vaild_iterator(iterator))
-		return -1;
+		return chk_error_invaild_iterator;
 	next = iterator->current->next;
 	if(!next && ++iterator->curidx < CHK_HTTP_SLOTS_SIZE) {
 		for(; iterator->curidx < CHK_HTTP_SLOTS_SIZE;++iterator->curidx) {
@@ -50,10 +51,10 @@ int32_t chk_http_header_iterator_next(chk_http_header_iterator *iterator) {
 		iterator->current = next;
 		iterator->field = chk_string_c_str(next->field);
 		iterator->value = chk_string_c_str(next->value);
-		return 0;
+		return chk_error_ok;
 	}
 	iterator->http_packet = NULL;
-	return -1;
+	return chk_error_iterate_end;
 }
 
 int32_t chk_http_header_begin(chk_http_packet *http_packet,chk_http_header_iterator *iterator) {
@@ -61,7 +62,7 @@ int32_t chk_http_header_begin(chk_http_packet *http_packet,chk_http_header_itera
 	chk_http_hash_item  *begin;
 	int32_t              i;
 	if(!http_packet || !iterator)
-		return -1;
+		return chk_error_invaild_argument;
 	iterator->http_packet = NULL;
 	iterator->curidx = -1;
 	for(i = 0; i < CHK_HTTP_SLOTS_SIZE; ++i) {
@@ -69,14 +70,14 @@ int32_t chk_http_header_begin(chk_http_packet *http_packet,chk_http_header_itera
 		if(begin) break;
 	}
 
-	if(!begin) return -1;	
+	if(!begin) return chk_error_iterate_end;	
 
 	iterator->curidx = i;
 	iterator->http_packet = http_packet;
 	iterator->current = begin;
 	iterator->field = chk_string_c_str(begin->field);
 	iterator->value = chk_string_c_str(begin->value);
-	return 0;
+	return chk_error_ok;
 }
 
 extern uint64_t burtle_hash(register uint8_t* k,register uint64_t length,register uint64_t level);
@@ -179,7 +180,7 @@ int32_t chk_http_set_header(chk_http_packet *http_packet,chk_string *field,chk_s
 	}
 	if(!listhead) {
 		listhead = calloc(1,sizeof(*listhead));
-		if(!listhead) return -1;
+		if(!listhead) return chk_error_no_memory;
 		listhead->field = field;
 		listhead->value = value;
 		//chain the collision
@@ -193,7 +194,7 @@ int32_t chk_http_set_header(chk_http_packet *http_packet,chk_string *field,chk_s
 		listhead->field = field;
 		listhead->value = value;
 	}
-	return 0;
+	return chk_error_ok;
 }
 
 int32_t chk_http_append_body(chk_http_packet *http_packet,const char *str,size_t size) {
@@ -201,16 +202,16 @@ int32_t chk_http_append_body(chk_http_packet *http_packet,const char *str,size_t
 	size_t len = http_packet->body ? (uint64_t)http_packet->body->datasize : 0;
 	
 	if(size <= 0) {
-		return -1;
+		return chk_error_invaild_size;
 	}
 
 	if(len + size > MAX_UINT32) {
-		return -1;
+		return chk_error_invaild_size;
 	}
 
 	if(!len) {
 		if(NULL == (http_packet->body = chk_bytebuffer_new((uint32_t)size))) {
-			return -1;
+			return chk_error_no_memory;
 		}
 	}
 

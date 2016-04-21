@@ -97,12 +97,12 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 		chk_bytechunk_read(head,(char*)&pk_len,&pos,&size);//读取payload大小
 		pk_len = chk_ntoh32(pk_len);
 		if(pk_len == 0) {
-			if(err) *err = -1;
+			if(err) *err = chk_error_invaild_packet_size;
 			break;
 		}
 		pk_total = size + pk_len;
 		if(pk_total > d->max) {
-			if(err) *err = CHK_EPKTOOLARGE;//数据包操作限制大小
+			if(err) *err = chk_error_packet_too_large;//数据包操作限制大小
 			break;
 		}
 		if(pk_total > d->size) break;//没有足够的数据

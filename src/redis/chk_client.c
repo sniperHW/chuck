@@ -412,7 +412,7 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 				chunk = chunk->next;
 			}
 		}else if(parse_ret == REDIS_ERR){
-			error = CHK_ERDSPASERR;
+			error = chk_error_redis_parse;
 			break;
 		}else {
 			pos       = 0;
@@ -444,7 +444,7 @@ static void connect_callback(int32_t fd,void *ud,int32_t err) {
 int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_connect_cb cntcb,void *ud) {
 	chk_redisclient *c;
 	int32_t          fd;
-	if(!loop || !addr || !cntcb) return -1;
+	if(!loop || !addr || !cntcb) return chk_error_invaild_argument;
 	fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 	c  = calloc(1,sizeof(*c));
 	c->cntcb  = cntcb;
@@ -469,7 +469,7 @@ void    chk_redis_close(chk_redisclient *c,int32_t err) {
 int32_t chk_redis_execute(chk_redisclient *c,const char *str,chk_redis_reply_cb cb,void *ud) {
 	pending_reply  *repobj;
 	chk_bytebuffer *buffer;
-	int32_t         ret = -1;
+	int32_t         ret = chk_error_redis_request;
 	do {
 		if(c->status & CLIENT_CLOSE) break;
 		buffer = build_request(str);
@@ -481,7 +481,7 @@ int32_t chk_redis_execute(chk_redisclient *c,const char *str,chk_redis_reply_cb 
 			repobj->ud = ud;
 		}	
 		chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
-		ret = 0;
+		ret = chk_error_ok;
 	}while(0);
 	return ret;
 }

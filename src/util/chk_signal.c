@@ -1,4 +1,5 @@
 #define _CORE_
+#include "util/chk_util.h"
 #include "util/chk_signal.h"
 #include "util/chk_error.h"
 #include "event/chk_event_loop.h"
@@ -66,28 +67,14 @@ static void on_events(chk_handle *h,int32_t events) {
 		handler->cb(handler->ud);	
 }
 
-extern int32_t easy_noblock(int32_t fd,int32_t noblock); 
-
 static chk_signal_handler *signal_handler_new(int32_t signo,signal_cb cb,void *ud,void (*ud_dctor)(void*)) {
 	int32_t fdpairs[2];
 	chk_signal_handler *handler = calloc(1,sizeof(*handler));
-#ifdef _LINUX
-    if(pipe2(fdpairs,O_NONBLOCK|O_CLOEXEC) != 0) {
-    	free(handler);
-        return NULL;	
-    }
-#elif _MACH
-	if(pipe(fdpairs) != 0){
-    	free(handler);
+	if(!handler) return NULL;
+	if(chk_error_ok != chk_create_notify_channel(fdpairs)) {
+		free(handler);
 		return NULL;
 	}
-	easy_noblock(fdpairs[0],1);		
-	easy_noblock(fdpairs[1],1);
-	fcntl(fdpairs[0],F_SETFD,FD_CLOEXEC);
-	fcntl(fdpairs[1],F_SETFD,FD_CLOEXEC);
-#else
-#   error "un support platform!" 
-#endif    
     handler->ud = ud;
     handler->notify_fd = fdpairs[1];
     handler->fd = fdpairs[0];
@@ -99,15 +86,15 @@ static chk_signal_handler *signal_handler_new(int32_t signo,signal_cb cb,void *u
 } 
 
 int32_t chk_watch_signal(chk_event_loop *loop,int32_t signo,signal_cb cb,void *ud,void (*ud_dctor)(void*)) {
-	int32_t ret;
+	int32_t ret = chk_error_ok;
 	chk_signal_handler *handler;
 
 	//以下信号禁止watch
 	switch(signo){
-		case SIGPIPE:return -1;
-		case SIGSEGV:return -1;
-		case SIGBUS:return -1;
-		case SIGFPE:return -1;
+		case SIGPIPE:return chk_error_forbid_signal;
+		case SIGSEGV:return chk_error_forbid_signal;
+		case SIGBUS:return chk_error_forbid_signal;
+		case SIGFPE:return chk_error_forbid_signal;
 		default:break;
 	}
 
@@ -115,12 +102,12 @@ int32_t chk_watch_signal(chk_event_loop *loop,int32_t signo,signal_cb cb,void *u
 	do{
 		handler = signal_handlers[signo];
 		if(handler) {
-			ret = -1;
+			ret = chk_error_create_signal_handler;
 			break;
 		}
 
 		if(NULL == (handler = signal_handler_new(signo,cb,ud,ud_dctor))) {
-			ret = -1;
+			ret = chk_error_create_signal_handler;
 			break;				
 		}
 

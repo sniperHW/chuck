@@ -13,6 +13,10 @@ void        *chk_thread_join(chk_thread*);
 
 void         chk_thread_del(chk_thread*);
 
-pid_t        chk_thread_id();
+//获取某个线程的tid
+pid_t        chk_thread_tid(chk_thread*);
+
+//获取当前线程的tid
+pid_t        chk_thread_current_tid();
 
 #endif

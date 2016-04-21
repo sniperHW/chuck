@@ -21,7 +21,7 @@ struct chk_connector {
 
 int32_t connect_timeout(uint64_t tick,void *ud) {
 	chk_connector *c = cast(chk_connector*,ud);
-	c->cb(-1,c->ud,ETIMEDOUT);
+	c->cb(-1,c->ud,chk_error_connect_timeout);
 	close(c->fd);
 	free(c);
 	return -1;
@@ -32,7 +32,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	chk_connector *c = cast(chk_connector*,h);
 	assert(e && h && cb);
 	ret = chk_watch_handle(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE);
-	if(ret == 0) {
+	if(ret == chk_error_ok) {
 		c->cb = cast(connect_cb,cb);
 		if(c->timeout) {
 			c->t = chk_loop_addtimer(e,c->timeout,connect_timeout,c);
@@ -70,7 +70,7 @@ static void _process_connect(chk_connector *c) {
 static void process_connect(chk_handle *h,int32_t events) {
 	chk_connector *c = cast(chk_connector*,h);
 	if(events == CHK_EVENT_LOOPCLOSE){
-		c->cb(-1,c->ud,CHK_ELOOPCLOSE);
+		c->cb(-1,c->ud,chk_error_loop_close);
 		close(c->fd);
 	}else _process_connect(c);
 	free(h);
@@ -97,14 +97,11 @@ int32_t chk_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local,
 	} else {
 		easy_noblock(fd,1);
 		ret = easy_connect(fd,server,local);
-		if(0 == ret || -EINPROGRESS == ret){
+		if(chk_error_ok == ret){
 			c   = chk_connector_new(fd,ud,timeout);
 			chk_loop_add_handle(e,cast(chk_handle*,c),cast(chk_event_callback,cb));
-			ret = 0;
-		}else
-		{
+		}else {
 			close(fd);
-			ret = -ret;
 		}
 	}
 	return ret;

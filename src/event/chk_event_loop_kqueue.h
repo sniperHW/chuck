@@ -11,8 +11,8 @@ static int32_t _add_event(chk_event_loop *e,chk_handle *h,int32_t event) {
 	struct kevent ke;
 	EV_SET(&ke, h->fd, event, EV_ADD, 0, 0, h);
 	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL))
-		return -1;
-	return 0;	
+		return chk_error_kevent_add;
+	return chk_error_ok;	
 }
 
 static int32_t _enable_event(chk_event_loop *e,chk_handle *h,int32_t event) {
@@ -21,47 +21,44 @@ static int32_t _enable_event(chk_event_loop *e,chk_handle *h,int32_t event) {
 	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL) && errno == ENOENT){
 		return _add_event(e,h,event);
 	}
-	return -1;
+	return chk_error_kevent_enable;
 }
 
 static int32_t _disable_event(chk_event_loop *e,chk_handle *h,int32_t event) {
 	struct kevent ke;
 	EV_SET(&ke, h->fd, event,EV_DISABLE, 0, 0, h);
 	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL))
-		return -1;
-	return 0;	
+		return chk_error_kevent_disable;
+	return chk_error_ok;	
 }
 
 int32_t chk_watch_handle(chk_event_loop *e,chk_handle *h,int32_t events) {
 
 	int32_t ret;
 	struct kevent ke;
-	if(h->loop) return -1;
-
+	if(h->loop) return chk_error_duplicate_add_handle;
 	if(events & CHK_EVENT_READ) {
 		if((ret = _add_event(e,h,EVFILT_READ)) != 0){
-			return -1;
+			return chk_error_kevent_add;
 		}
 	}
-
 	if(events & CHK_EVENT_WRITE) {
 		if((ret = _add_event(e,h,EVFILT_WRITE)) != 0){
 			EV_SET(&ke, h->fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
 			kevent(e->kfd, &ke, 1, NULL, 0, NULL);		
-			return -1;
+			return chk_error_kevent_add;
 		}
 	}
-	
 	h->events = events;
 	h->loop = e;
 	chk_dlist_pushback(&e->handles,cast(chk_dlist_entry*,h));
-	return 0;	
+	return chk_error_ok;	
 }
 
 int32_t chk_unwatch_handle(chk_handle *h) {
 	struct kevent ke;
 	chk_event_loop *e = h->loop;
-	if(!e) return -1;
+	if(!e) return chk_error_no_event_loop;
 	EV_SET(&ke, h->fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
 	kevent(e->kfd, &ke, 1, NULL, 0, NULL);
 	EV_SET(&ke, h->fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
@@ -70,47 +67,47 @@ int32_t chk_unwatch_handle(chk_handle *h) {
 	h->loop = NULL;
 	chk_dlist_remove(&h->ready_entry);
 	chk_dlist_remove(&h->entry);
-	return 0;	
+	return chk_error_ok;	
 }
 
 int32_t chk_events_enable(chk_handle *h,int32_t events) {
 	int32_t ret;
 	chk_event_loop *e = h->loop;	
-	if(!e) return -1;
+	if(!e) return chk_error_no_event_loop;
 	if(events & CHK_EVENT_READ) {
 		if((ret = _enable_event(e,h,EVFILT_READ)) != 0){
-			return -1;
+			return chk_error_kevent_enable;
 		}
 		h->events |= CHK_EVENT_READ;
 	}
 
 	if(events & CHK_EVENT_WRITE) {
 		if((ret = _enable_event(e,h,EVFILT_WRITE)) != 0){
-			return -1;
+			return chk_error_kevent_enable;
 		}
 		h->events |= CHK_EVENT_WRITE;		
 	}	
-	return 0;
+	return chk_error_ok;
 }
 
 int32_t chk_events_disable(chk_handle *h,int32_t events) {
 	int32_t ret;
 	chk_event_loop *e = h->loop;
-	if(!e) return -1;
+	if(!e) return chk_error_no_event_loop;
 	if(events & CHK_EVENT_READ) {
 		if((ret = _disable_event(e,h,EVFILT_READ)) != 0){
-			return -1;
+			return chk_error_kevent_disable;
 		}
 		h->events &= (~CHK_EVENT_READ);
 	}
 
 	if(events & CHK_EVENT_WRITE) {
 		if((ret = _disable_event(e,h,EVFILT_WRITE)) != 0){
-			return -1;
+			return chk_error_kevent_disable;
 		}
 		h->events &= (~CHK_EVENT_WRITE);		
 	}	
-	return 0;
+	return chk_error_ok;
 }
 
 int32_t chk_is_read_enable(chk_handle*h) {
@@ -125,17 +122,11 @@ extern int32_t easy_noblock(int32_t fd,int32_t noblock);
 
 int32_t chk_loop_init(chk_event_loop *e) {
 	int32_t kfd = kqueue();
-	if(kfd < 0) return -1;
-	if(pipe(e->notifyfds) != 0){
+	if(kfd < 0) return chk_error_create_kqueue;
+	if(chk_error_ok != chk_create_notify_channel(e->notifyfds)) {
 		close(kfd);
-		return -1;
+		return chk_error_create_notify_channel;		
 	}
-
-	fcntl(kfd, F_SETFD, FD_CLOEXEC);		
-	easy_noblock(e->notifyfds[0],1);		
-	easy_noblock(e->notifyfds[1],1);
-	fcntl(e->notifyfds[0],F_SETFD,FD_CLOEXEC);
-	fcntl(e->notifyfds[1],F_SETFD,FD_CLOEXEC);
 	e->kfd = kfd;
 	e->tfd  = -1;
 	e->maxevents = 64;
@@ -145,19 +136,17 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	EV_SET(&ke,e->notifyfds[0], EVFILT_READ, EV_ADD, 0, 0, (void*)(int64_t)e->notifyfds[0]);
 	if(0 != kevent(kfd, &ke, 1, NULL, 0, NULL)){
 		close(kfd);
-		close(e->notifyfds[0]);
-		close(e->notifyfds[1]);
+		chk_close_notify_channel(e->notifyfds);
 		free(e->events);
 		free(e);
-		return -1;	
+		return chk_error_create_notify_channel;	
 	}
-	e->threadid = chk_thread_id();
+	e->threadid = chk_thread_current_tid();
 	chk_dlist_init(&e->handles);			
-	return 0;
+	return chk_error_ok;
 }
 
 void chk_loop_finalize(chk_event_loop *e) {
-
 	chk_handle *h;
 	if(e->tfd >= 0){
 		chk_timermgr_del(e->timermgr);
@@ -167,13 +156,12 @@ void chk_loop_finalize(chk_event_loop *e) {
 		chk_unwatch_handle(h);
 	}
 	e->tfd  = -1;	
-	close(e->notifyfds[0]);
-	close(e->notifyfds[1]);
+	chk_close_notify_channel(e->notifyfds);
 	free(e->events);
 }
 
 int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
-	int32_t ret = 0;
+	int32_t ret = chk_error_ok;
 	int32_t i,nfds,ticktimer;
 	chk_handle      *h;
 	chk_dlist        ready_list;
@@ -232,7 +220,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 				e->events = calloc(1,sizeof(*e->events)*e->maxevents);
 			}				
 		}else if(nfds < 0) {
-			ret = -1;
+			ret = chk_error_loop_run;
 			break;
 		}	
 	}while(!once);

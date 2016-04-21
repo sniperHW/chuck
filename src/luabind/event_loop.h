@@ -102,7 +102,6 @@ static int32_t lua_watch_signal(lua_State *L) {
 }
 
 static int32_t lua_unwatch_signal(lua_State *L) {
-	lua_checkeventloop(L,1);
 	int32_t signo = (int32_t)luaL_checkinteger(L,2);
 	chk_unwatch_signal(signo);	
 	return 0;

@@ -16,7 +16,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	assert(e && h && cb);
 	ret = chk_watch_handle(e,h,CHK_EVENT_READ);
-	if(ret == 0) {
+	if(ret == chk_error_ok) {
 		easy_noblock(h->fd,1);
 		cast(chk_acceptor*,h)->cb = cast(chk_acceptor_cb,cb);
 	}
@@ -45,7 +45,7 @@ static void process_accept(chk_handle *h,int32_t events) {
     chk_sockaddr addr;
     chk_acceptor *acceptor = cast(chk_acceptor*,h);
 	if(events == CHK_EVENT_LOOPCLOSE){
-		acceptor->cb(acceptor,-1,NULL,acceptor->ud,CHK_ELOOPCLOSE);
+		acceptor->cb(acceptor,-1,NULL,acceptor->ud,chk_error_loop_close);
 		return;
 	}
     do {
