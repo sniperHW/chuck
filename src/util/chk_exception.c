@@ -179,12 +179,16 @@ static void _log_stack(int32_t logLev,int32_t start,const char *prefix,void **bt
 	char**                  strings;
 	size_t                  sz;
 	int32_t                 i,f;
-	int32_t 				size = 0;	
-	char 					logbuf[CHK_MAX_LOG_SIZE];
+	int32_t 				size;	
+	char                   *logbuf;
 	char                    buf[1024];
 	char 				   *ptr;
 	void                   *_bt[LOG_STACK_SIZE];
 
+    if(chk_current_loglev() > logLev) return;    
+    logbuf = malloc(CHK_MAX_LOG_SIZE);
+    if(!logbuf) return;
+    size = chk_log_prefix(logbuf,logLev);
 	if(bt){
 		sz      = chk_exp_get_thread_expn()->sz;
 		strings = backtrace_symbols(bt, sz);
@@ -192,7 +196,7 @@ static void _log_stack(int32_t logLev,int32_t start,const char *prefix,void **bt
 		sz      = backtrace(_bt, LOG_STACK_SIZE);
 		strings = backtrace_symbols(_bt, sz);
 	}
-	if(prefix) size += snprintf(logbuf,CHK_MAX_LOG_SIZE,"%s\n",prefix);	    		    			
+	if(prefix) size += snprintf(&logbuf[size],CHK_MAX_LOG_SIZE,"%s\n",prefix);	    		    			
 	for(i = start,f = 0; i < sz; ++i) {
 		if(strstr(strings[i],"main+")) break;
 		ptr  = logbuf + size;
@@ -203,6 +207,6 @@ static void _log_stack(int32_t logLev,int32_t start,const char *prefix,void **bt
 			size += snprintf(ptr,CHK_MAX_LOG_SIZE-size,
 				"\t% 2d: %s\n",++f,strings[i]);		
 	}
-	CHK_SYSLOG(logLev,"%s",logbuf);
+	chk_syslog(logLev,logbuf);
 	free(strings);	
 }

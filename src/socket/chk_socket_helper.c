@@ -102,11 +102,11 @@ int32_t easy_sockaddr_ip4(chk_sockaddr *addr,const char *ip,uint16_t port) {
     addr->addr_type = SOCK_ADDR_IPV4;
     addr->in.sin_family = AF_INET;
     addr->in.sin_port = htons(port);
-    if(inet_pton(AF_INET,ip,&addr->in.sin_addr) == 1){
-        CHK_SYSLOG(LOG_ERROR,"inet_pton(AF_INET) failed errno:%d",errno);           
-        return chk_error_ok;
+    if(inet_pton(AF_INET,ip,&addr->in.sin_addr) < 0){ 
+        CHK_SYSLOG(LOG_ERROR,"inet_pton(AF_INET) failed errno:%d",errno);          
+        return chk_error_invaild_sockaddr;
     }
-    return chk_error_invaild_sockaddr;
+    return chk_error_ok;
 }
 
 int32_t easy_sockaddr_un(chk_sockaddr *addr,const char *path) {

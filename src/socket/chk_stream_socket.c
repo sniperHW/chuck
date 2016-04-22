@@ -226,7 +226,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 		flags = CHK_EVENT_READ | CHK_EVENT_WRITE;
 	else
 		flags = CHK_EVENT_READ;	
-	if(chk_error_ok != (ret = chk_watch_handle(e,h,flags))) {
+	if(chk_error_ok == (ret = chk_watch_handle(e,h,flags))) {
 		easy_noblock(h->fd,1);
 		s->cb = cast(chk_stream_socket_cb,cb);
 	}

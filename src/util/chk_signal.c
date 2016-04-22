@@ -40,7 +40,7 @@ static void on_signal(int32_t signo) {
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
 	chk_signal_handler *handler = cast(chk_signal_handler*,h);
-	if(0 == (ret = chk_watch_handle(e,h,CHK_EVENT_READ)))
+	if(chk_error_ok == (ret = chk_watch_handle(e,h,CHK_EVENT_READ)))
 		handler->cb = cast(signal_cb,cb);
 	return ret;
 }

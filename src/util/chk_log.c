@@ -116,7 +116,7 @@ int32_t chk_log_prefix_detail(char *buf,uint8_t loglev,const char *function,cons
 	struct tm _tm;
     clock_gettime (CLOCK_REALTIME, &tv);	
 	localtime_r(&tv.tv_sec, &_tm);
-	return sprintf(buf,"[%8s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u],%s():%s:%d:",
+	return sprintf(buf,"[%8s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u] %s():%s:%d:",
 				   log_lev_str[loglev],
 				   _tm.tm_year+1900,
 				   _tm.tm_mon+1,
