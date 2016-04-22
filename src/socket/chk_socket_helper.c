@@ -122,8 +122,10 @@ int32_t easy_hostbyname_ipv4(const char *name,char *host,size_t len) {
    
 #ifdef _MACH
     struct hostent *result;
-    if(NULL == (result = gethostbyname(name)))
+    if(NULL == (result = gethostbyname(name))){
+        CHK_SYSLOG(LOG_ERROR,"gethostbyname_r() failed errno:%d",h_errno);       
         return chk_error_invaild_hostname;
+    }
     if(inet_ntop(AF_INET, result->h_addr_list[0],host, len) != NULL){
         CHK_SYSLOG(LOG_ERROR,"inet_ntop() failed errno:%d",errno);         
         return chk_error_ok;
