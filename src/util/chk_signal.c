@@ -27,12 +27,14 @@ static int32_t lock = 0;
 
 static void on_signal(int32_t signo) {
     chk_signal_handler *handler;
+    int32_t err = errno; //save the old errno
     LOCK();
     handler = signal_handlers[signo];
     if(handler){
         TEMP_FAILURE_RETRY(write(handler->notify_fd,&signo,sizeof(signo)));
     }
     UNLOCK();
+    errno = err; //restore the old errno
 }
 
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
@@ -91,10 +93,7 @@ int32_t chk_watch_signal(chk_event_loop *loop,int32_t signo,signal_cb cb,void *u
 
 	//以下信号禁止watch
 	switch(signo){
-		case SIGPIPE:return chk_error_forbid_signal;
-		case SIGSEGV:return chk_error_forbid_signal;
-		case SIGBUS:return chk_error_forbid_signal;
-		case SIGFPE:return chk_error_forbid_signal;
+		case SIGSEGV:return chk_error_forbidden_signal;
 		default:break;
 	}
 

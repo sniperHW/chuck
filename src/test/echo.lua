@@ -5,6 +5,7 @@ local chuck = require("chuck")
 local socket = chuck.socket
 local buffer = chuck.buffer
 local event_loop = chuck.event_loop.New()
+local log = chuck.log
 
 local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
 	local conn = socket.stream.New(fd,4096)
@@ -16,7 +17,7 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd
 				--local response = buffer.New("hello world\r\n")
 				conn:Send(response)
 			else
-				print("client disconnected") 
+				log.SysLog(log.info,"client disconnected") 
 				conn:Close() 
 			end
 		end)
@@ -24,8 +25,9 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd
 end)
 
 if server then
+	log.SysLog(log.info,"server start")	
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
-		print("recv SIGINT stop server")
+		log.SysLog(log.error,"recv SIGINT stop server")
 		event_loop:Stop()
 	end)	
 	event_loop:Run()

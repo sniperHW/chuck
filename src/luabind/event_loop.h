@@ -18,10 +18,10 @@ static int32_t lua_event_loop_gc(lua_State *L) {
 static int32_t lua_new_event_loop(lua_State *L) {
 	chk_event_loop *event_loop;
 	event_loop = LUA_NEWUSERDATA(L,chk_event_loop);
-	if(!event_loop) {
+	if(chk_error_ok != chk_loop_init(event_loop)){
+		CHK_SYSLOG(LOG_ERROR,"chk_loop_init() failed");
 		return 0;
 	}
-	if(0 != chk_loop_init(event_loop)) return 0;
 	luaL_getmetatable(L, EVENT_LOOP_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -88,11 +88,12 @@ static int32_t lua_watch_signal(lua_State *L) {
 
 	chk_luaRef *cb = calloc(1,sizeof(*cb));
 	if(!cb) {
+		CHK_SYSLOG(LOG_ERROR,"calloc() failed");
 		lua_pushstring(L,"no memory");
 		return 1;
 	}
 	*cb = chk_toluaRef(L,3);
-	if(0 != chk_watch_signal(event_loop,signo,signal_callback,cb,signal_ud_dctor)) {
+	if(chk_error_ok != chk_watch_signal(event_loop,signo,signal_callback,cb,signal_ud_dctor)) {
 		signal_ud_dctor(cb);
 		printf("call chk_watch_signal failed\n");
 		return 0;

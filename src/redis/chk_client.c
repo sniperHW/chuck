@@ -5,9 +5,11 @@
 #include <stdlib.h>
 #include "util/chk_list.h"
 #include "util/chk_error.h"
+#include "util/chk_log.h"
 #include "redis/chk_client.h"
 #include "socket/chk_stream_socket.h"
 #include "socket/chk_connector.h"
+
 
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
@@ -461,7 +463,7 @@ void chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,v
 void    chk_redis_close(chk_redisclient *c,int32_t err) {
 	if(c->status & CLIENT_CLOSE) return;
 	c->status |= CLIENT_CLOSE;
-	chk_stream_socket_close(c->sock,1);
+	chk_stream_socket_close(c->sock,0);
 	if(!(c->status & CLIENT_INCB))
 		destroy_redisclient(c,err);
 }

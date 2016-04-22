@@ -42,8 +42,8 @@ typedef void* chk_event_callback;
     chk_dlist_entry entry;                                                  \
     chk_dlist_entry ready_entry;                                            \
     int32_t         fd;                                                     \
-    int32_t         active_evetns;/*激活的事件*/                              \
-    int32_t         events;         /*关注的事件*/                            \
+    int32_t         active_evetns;/*激活的事件*/                            \
+    int32_t         events;         /*关注的事件*/                          \
     chk_event_loop *loop;                                                   \
     int32_t (*handle_add)(chk_event_loop*,chk_handle*,chk_event_callback);  \
     void    (*on_events)(chk_handle*,int32_t events)                    

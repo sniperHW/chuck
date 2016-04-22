@@ -62,6 +62,7 @@ static int32_t lua_listen_ip4(lua_State *L) {
 	chk_event_loop *event_loop;
 	chk_acceptor   *a; 
 	if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) {
+		CHK_SYSLOG(LOG_ERROR,"socket() failed");
 		return 0;
 	}
 
@@ -70,12 +71,14 @@ static int32_t lua_listen_ip4(lua_State *L) {
 	port = (int16_t)luaL_checkinteger(L,3);
 	
 	if(0 != easy_sockaddr_ip4(&server,ip,port)) {
+		CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed,%s:%d",ip,port);
 		close(fd);
 		return 0;
 	}	
 
 	easy_addr_reuse(fd,1);
 	if(0 != easy_listen(fd,&server)){
+		CHK_SYSLOG(LOG_ERROR,"easy_listen() failed,%s:%d",ip,port);
 		close(fd);
 		return 0;
 	}	
@@ -83,13 +86,13 @@ static int32_t lua_listen_ip4(lua_State *L) {
 	if(!lua_isfunction(L,4)) 
 		return luaL_error(L,"argument 4 of dail must be lua function"); 
 	a   = LUA_NEWUSERDATA(L,chk_acceptor);
-	if(!a) return 0;
 	cb  = calloc(1,sizeof(*cb));
 	*cb = chk_toluaRef(L,4); 	
 	chk_acceptor_init(a,fd,cb);
 	luaL_getmetatable(L, ACCEPTOR_METATABLE);
 	lua_setmetatable(L, -2);
 	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a,lua_acceptor_cb)) {
+		close(fd);
 		CHK_SYSLOG(LOG_ERROR,"event_loop add acceptor failed %s:%d",ip,port);
 		return 0;
 	}
@@ -122,6 +125,7 @@ static int32_t lua_dail_ip4(lua_State *L) {
 	}
 
 	if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) {
+		CHK_SYSLOG(LOG_ERROR,"socket() failed");		
 		lua_pushstring(L,"create socket error");
 		return 1;
 	}
@@ -131,6 +135,7 @@ static int32_t lua_dail_ip4(lua_State *L) {
 	port = (int16_t)luaL_checkinteger(L,3);	
 
 	if(0 != easy_sockaddr_ip4(&remote,ip,port)) {
+		CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed,%s:%d",ip,port);		
 		close(fd);
 		lua_pushstring(L,"lua_dail_ip4 invaild address or port");
 		return 1;
@@ -157,7 +162,8 @@ static int32_t lua_stream_socket_gc(lua_State *L) {
 		chk_luaRef_release(cb);
 		free(cb);
 	}
-	chk_stream_socket_close(s,0);
+	//delay 5秒关闭,尽量将数据发送出去			
+	chk_stream_socket_close(s,5000);
 	return 0;
 }
 
@@ -179,7 +185,6 @@ static int32_t lua_stream_socket_bind(lua_State *L) {
 		return luaL_error(L,"argument 3 of stream_socket_bind must be lua function");
 	s = lua_checkstreamsocket(L,1);
 	event_loop = lua_checkeventloop(L,2);
-
 	cb = calloc(1,sizeof(*cb));
 	*cb = chk_toluaRef(L,3);
 	chk_stream_socket_setUd(s,cb);
@@ -200,7 +205,6 @@ static int32_t lua_stream_socket_new(lua_State *L) {
 	option.recv_buffer_size = (uint32_t)luaL_optinteger(L,2,4096);
 	if(lua_islightuserdata(L,3)) option.decoder = lua_touserdata(L,3);
 	s = LUA_NEWUSERDATA(L,chk_stream_socket);
-	if(!s) return -1;
 	chk_stream_socket_init(s,fd,&option);
 	luaL_getmetatable(L, STREAM_SOCKET_METATABLE);
 	lua_setmetatable(L, -2);
@@ -209,7 +213,8 @@ static int32_t lua_stream_socket_new(lua_State *L) {
 
 static int32_t lua_stream_socket_close(lua_State *L) {
 	chk_stream_socket *s = lua_checkstreamsocket(L,1);
-	chk_stream_socket_close(s,0);
+	//delay 5秒关闭,尽量将数据发送出去			
+	chk_stream_socket_close(s,5000);
 	return 0;
 }
 

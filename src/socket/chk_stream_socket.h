@@ -32,10 +32,14 @@ chk_stream_socket *chk_stream_socket_new(int32_t fd,chk_stream_socket_option *op
 /**
  * 关闭stream_socket,同时关联的fd被关闭,当stream_socket完成关闭后将其销毁
  * @param s stream_socket
- * @param now 如果now=0,则读端关闭,如果写队列中还有数据则尝试将数据写完,否则连接立即关闭
+ * @param delay控制延迟关闭参数(单位毫秒),如果设置为0,stream_socket丢弃所有未发送完成的数据立即关闭
+ *        delay != 0,stream_socket将尝试继续发送剩余数据，一旦全部发送完成立即关闭，否则
+ *        到达delay超时才关闭
+ * 注意,不管stream_socket是否完成关闭,调用chk_stream_socket_close之后都应认为stream_socket已经失效
+ * 不应该再对stream_socket执行任何操作    
  */
 
-void chk_stream_socket_close(chk_stream_socket *s,int32_t now);
+void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay);
 
 /**
  * 发送一个buffer

@@ -33,11 +33,10 @@ typedef struct {
 static void PushRedis(chk_luaPushFunctor *_,lua_State *L) {
 	luaRedisPusher *self = (luaRedisPusher*)_;
 	lua_redis_client *luaclient = LUA_NEWUSERDATA(L,lua_redis_client);
-	if(luaclient){
-		luaclient->client = self->c;
-		luaL_getmetatable(L, REDIS_METATABLE);
-		lua_setmetatable(L, -2);
-	}
+	luaclient->client = self->c;
+	luaL_getmetatable(L, REDIS_METATABLE);
+	lua_setmetatable(L, -2);
+
 }
 
 static void lua_redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
@@ -89,7 +88,6 @@ static int32_t lua_redis_connect_ip4(lua_State *L) {
 		lua_pushstring(L,"redis_connect_ip4 invaild address or port");
 		return 1;
 	}
-
 	cb  = calloc(1,sizeof(*cb));
 	*cb = chk_toluaRef(L,4);
 	if(0 != chk_redis_connect(event_loop,&server,lua_redis_connect_cb,cb)){

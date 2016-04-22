@@ -55,8 +55,9 @@ static int32_t lua_http_connection_gc(lua_State *L) {
 	if(conn->field) chk_string_destroy(conn->field);
 	if(conn->value) chk_string_destroy(conn->value);			
 	if(conn->socket) {
-		chk_stream_socket_setUd(conn->socket,NULL);		
-		chk_stream_socket_close(conn->socket,0);
+		chk_stream_socket_setUd(conn->socket,NULL);
+		//delay 5秒关闭,尽量将数据发送出去		
+		chk_stream_socket_close(conn->socket,5000);
 	}
 	chk_luaRef_release(&conn->cb);
 	return 0;
@@ -72,7 +73,6 @@ static int on_message_begin(http_parser *parser) {
 	http_connection *conn = (http_connection*)parser;
 	if(conn->packet) chk_http_packet_release(conn->packet);
 	conn->packet = chk_http_packet_new();
-	conn->error = 0;
 	if(conn->field) chk_string_destroy(conn->field);
 	if(conn->value) chk_string_destroy(conn->value);
 	if(conn->url) chk_string_destroy(conn->url);
@@ -141,6 +141,7 @@ static int on_headers_complete(http_parser *parser) {
 	//检查是否有Content-Length,长度是否超限制
 	const char *content_length = chk_http_get_header(conn->packet,"content-length");
 	if(content_length && atol(content_length) > conn->max_content_size) {
+		CHK_SYSLOG(LOG_ERROR,"content_length > conn->max_content_size");		
 		conn->error = 1;
 		return -1;
 	}
@@ -150,6 +151,7 @@ static int on_headers_complete(http_parser *parser) {
 static int on_body(http_parser *parser, const char *at, size_t length) {
 	http_connection *conn = (http_connection*)parser;
 	if(0 != chk_http_append_body(conn->packet,at,length)){
+		CHK_SYSLOG(LOG_ERROR,"chk_http_append_body() failed");		
 		conn->error = 1;
 		return -1;
 	}
@@ -164,11 +166,10 @@ typedef struct {
 void lua_push_http_packet(chk_luaPushFunctor *self,lua_State *L) {
 	lua_http_packet_PushFunctor *pushFunctor = (lua_http_packet_PushFunctor*)self;
 	lua_http_packet *lua_packet = LUA_NEWUSERDATA(L,lua_http_packet);
-	if(lua_packet) {
-		lua_packet->packet = chk_http_packet_retain(pushFunctor->packet);
-		luaL_getmetatable(L, HTTP_PACKET_METATABLE);
-		lua_setmetatable(L, -2);
-	}	
+	lua_packet->packet = chk_http_packet_retain(pushFunctor->packet);
+	luaL_getmetatable(L, HTTP_PACKET_METATABLE);
+	lua_setmetatable(L, -2);
+
 }
 
 static int on_message_complete(http_parser *parser)
@@ -266,13 +267,7 @@ static int32_t lua_new_http_connection(lua_State *L) {
 	max_header_size = MAX((uint32_t)luaL_checkinteger(L,2),option.recv_buffer_size);
 	max_content_size = (uint32_t)luaL_checkinteger(L,3);
 	s = chk_stream_socket_new(fd,&option);
-	if(!s) return 0;
 	conn = LUA_NEWUSERDATA(L,http_connection);
-	if(!conn) {
-		chk_stream_socket_close(s,0);
-		return 0;
-	}
-
 	conn->settings.on_message_begin = on_message_begin;
 	conn->settings.on_url = on_url;
 	conn->settings.on_status = on_status;
@@ -398,11 +393,6 @@ static int32_t lua_http_connection_send_request(lua_State *L) {
 	path = luaL_checkstring(L,5);
 	packet = lua_check_http_packet(L,6);	
 	b = chk_bytebuffer_new(4096);
-	if(!b) {
-		lua_pushstring(L,"new buffer failed");
-		return 1;
-	}
-
 	BYTEBUFFER_APPEND_CSTR(b,method);
 	BYTEBUFFER_APPEND_CSTR(b," ");
 	BYTEBUFFER_APPEND_CSTR(b,path);
@@ -439,10 +429,6 @@ static int32_t lua_http_connection_send_response(lua_State *L) {
 	phase = luaL_checkstring(L,4);
 	packet = lua_check_http_packet(L,5);	
 	b = chk_bytebuffer_new(4096);
-	if(!b) {
-		lua_pushstring(L,"new buffer failed");
-		return 1;
-	}
 	BYTEBUFFER_APPEND_CSTR(b,"HTTP/");
 	BYTEBUFFER_APPEND_CSTR(b,http_version);
 	BYTEBUFFER_APPEND_CSTR(b," ");
@@ -468,7 +454,8 @@ static int32_t lua_http_connection_close(lua_State *L) {
 	http_connection   *conn = lua_check_http_connection(L,1);
 	if(conn->socket) {
 		chk_stream_socket_setUd(conn->socket,NULL);
-		chk_stream_socket_close(conn->socket,0);
+		//delay 5秒关闭,尽量将数据发送出去				
+		chk_stream_socket_close(conn->socket,5000);
 		conn->socket = NULL;
 	}
 	return 0;
@@ -521,7 +508,6 @@ static int32_t lua_http_packet_get_headers(lua_State *L) {
 	chk_http_header_iterator iterator;
 	lua_http_packet *packet = lua_check_http_packet(L,1);
 	if(0 == chk_http_header_begin(packet->packet,&iterator)) {
-		printf("here\n");
 		//{{f,v},{f,v}...}
 		lua_newtable(L);
 		c = 1;
@@ -557,12 +543,8 @@ static int32_t lua_http_packet_append_body(lua_State *L) {
 }
 
 static int32_t lua_http_packet_new(lua_State *L) {
-	lua_http_packet *packet = (lua_http_packet*)lua_newuserdata(L, sizeof(*packet));
-	if(!packet)
-		return 0;
+	lua_http_packet *packet = LUA_NEWUSERDATA(L,lua_http_packet);
 	packet->packet = chk_http_packet_new();
-	if(!packet->packet)
-		return 0;
 	luaL_getmetatable(L, HTTP_PACKET_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;	

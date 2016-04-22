@@ -14,7 +14,6 @@
 
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
-	assert(e && h && cb);
 	ret = chk_watch_handle(e,h,CHK_EVENT_READ);
 	if(ret == chk_error_ok) {
 		easy_noblock(h->fd,1);
@@ -33,8 +32,11 @@ static int32_t _accept(chk_acceptor *a,chk_sockaddr *addr,int32_t *fd) {
 		if(errno == ECONNABORTED)
 #endif
 			continue;
-		else
+		else{
+			if(errno != EAGAIN)
+		    	CHK_SYSLOG(LOG_ERROR,"accept() failed errno:%d",errno); 			
 			return errno;
+		}
 	}
 	return 0;
 }
@@ -52,10 +54,8 @@ static void process_accept(chk_handle *h,int32_t events) {
 		ret = _accept(acceptor,&addr,&fd);
 		if(ret == 0)
 		   acceptor->cb(acceptor,fd,&addr,acceptor->ud,0);
-		else if(ret != EAGAIN){
-		   CHK_SYSLOG(LOG_ERROR,"%s:%d,process_accept() call _accept() failed errno:%d",__FILE__,__LINE__,ret); 	
+		else if(ret != EAGAIN)
 		   acceptor->cb(acceptor,-1,NULL,acceptor->ud,chk_error_accept);
-		}
 	}while(0 == ret && chk_is_read_enable(h));	      
 }
 
@@ -68,7 +68,6 @@ int32_t chk_acceptor_pause(chk_acceptor *a) {
 }
 
 void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud) {
-	assert(a);
 	a->ud = ud;
 	a->fd = fd;
 	a->on_events  = process_accept;
@@ -78,7 +77,6 @@ void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud) {
 }
 
 void chk_acceptor_finalize(chk_acceptor *a) {
-	assert(a);
 	chk_unwatch_handle(cast(chk_handle*,a));
 	if(a->fd >= 0) {
 		close(a->fd);
@@ -110,13 +108,16 @@ void chk_acceptor_set_ud(chk_acceptor *a,void *ud) {
 }
 
 chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb cb,void *ud) {
-	assert(loop && cb && ip);
 	chk_sockaddr  server;
 	int32_t       fd,ret;
 	chk_acceptor *a = NULL;
 	do {
-		if(chk_error_ok != easy_sockaddr_ip4(&server,ip,port)) break;
-		if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) break;
+		if(chk_error_ok != easy_sockaddr_ip4(&server,ip,port)) 
+			break;
+		if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))){
+		    CHK_SYSLOG(LOG_ERROR,"socket() failed errno:%d",errno); 			
+			break;
+		}
 		easy_addr_reuse(fd,1);
 		if(chk_error_ok == (ret = easy_listen(fd,&server))){
 			a = chk_acceptor_new(fd,ud);

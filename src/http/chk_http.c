@@ -2,6 +2,7 @@
 #include "http-parser/http_parser.h"
 #include "http/chk_http.h"
 #include "util/chk_error.h"
+#include "util/chk_log.h"
 
 const char *http_method_name[] =
 {
@@ -84,7 +85,6 @@ extern uint64_t burtle_hash(register uint8_t* k,register uint64_t length,registe
 
 chk_http_packet *chk_http_packet_new() {
 	chk_http_packet *http_packet = calloc(1,sizeof(*http_packet));
-	if(!http_packet) return NULL;
 	http_packet->refcount = 1;
 	return http_packet;
 }
@@ -180,7 +180,6 @@ int32_t chk_http_set_header(chk_http_packet *http_packet,chk_string *field,chk_s
 	}
 	if(!listhead) {
 		listhead = calloc(1,sizeof(*listhead));
-		if(!listhead) return chk_error_no_memory;
 		listhead->field = field;
 		listhead->value = value;
 		//chain the collision
@@ -210,9 +209,7 @@ int32_t chk_http_append_body(chk_http_packet *http_packet,const char *str,size_t
 	}
 
 	if(!len) {
-		if(NULL == (http_packet->body = chk_bytebuffer_new((uint32_t)size))) {
-			return chk_error_no_memory;
-		}
+		http_packet->body = chk_bytebuffer_new((uint32_t)size);
 	}
 
 	return chk_bytebuffer_append(http_packet->body,(uint8_t*)str,(uint32_t)size);

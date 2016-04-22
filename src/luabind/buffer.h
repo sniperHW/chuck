@@ -17,11 +17,10 @@ typedef struct {
 static void PushBuffer(chk_luaPushFunctor *_,lua_State *L) {
 	luaBufferPusher *self = (luaBufferPusher*)_;
 	chk_bytebuffer *data = LUA_NEWUSERDATA(L,chk_bytebuffer);
-	if(data) {
-		chk_bytebuffer_init(data,self->data->head,self->data->spos,self->data->datasize,self->data->flags);
-		luaL_getmetatable(L, BYTEBUFFER_METATABLE);
-		lua_setmetatable(L, -2);
-	}
+	chk_bytebuffer_init(data,self->data->head,self->data->spos,self->data->datasize,self->data->flags);
+	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
+	lua_setmetatable(L, -2);
+
 }
 
 static int32_t lua_new_bytebuffer(lua_State *L) {
@@ -29,7 +28,6 @@ static int32_t lua_new_bytebuffer(lua_State *L) {
 	size_t size = 0;
 	const char *str = NULL;
 	b = LUA_NEWUSERDATA(L,chk_bytebuffer);
-	if(!b) return 0;
 	if(lua_isstring(L,1)) {
 		str = lua_tolstring(L,1,&size);
 		chk_bytebuffer_init(b,chk_bytechunk_new((void*)str,(uint32_t)size),0,(uint32_t)size,0);
@@ -47,7 +45,6 @@ static int32_t lua_bytebuffer_clone(lua_State *L) {
 	chk_bytebuffer *self,*o;
 	self = lua_checkbytebuffer(L,1);
 	o = LUA_NEWUSERDATA(L,chk_bytebuffer);
-	if(!o) return 0;
 	chk_bytebuffer_share(o,self);
 	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
 	lua_setmetatable(L, -2);
@@ -79,8 +76,10 @@ static int32_t lua_bytebuffer_append_string(lua_State *L) {
 	str = lua_tolstring(L,2,&len);
 	do{
 		if(str && len > 0) {
-			if(0 != chk_bytebuffer_append(b,(uint8_t*)str,(uint32_t)len))
+			if(0 != chk_bytebuffer_append(b,(uint8_t*)str,(uint32_t)len)){
+				CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_append() failed");
 				break;
+			}
 			return 0;
 		}
 	}while(0);

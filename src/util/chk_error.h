@@ -16,13 +16,14 @@ enum {
 	chk_error_invaild_iterator,                           /*非法迭代器*/
 	chk_error_iterate_end,                                /*迭代到达末尾*/
 	chk_error_invaild_size,                               /*size参数大小非法*/
+	chk_error_eof,                                        /*读到文件结尾*/
 	/*buffef相关错误码*/
 	chk_error_buffer_read_only,                           /*只读buffer*/
 	chk_error_invaild_buffer,                             /*非法buffer*/
 	/*chk_signal相关错误码*/
 	chk_error_create_signal_handler,                      /*创建信号处理器失败*/
 	chk_error_duplicate_signal_handler,                   /*重复的信号处理器*/
-	chk_error_forbid_signal,                              /*禁止watch的信号类型*/
+	chk_error_forbidden_signal,                           /*禁止watch的信号*/
 	/*event_loop相关错误码*/
 	chk_error_duplicate_add_handle,                       /*重复添加handle*/
 	chk_error_epoll_add,                                  /*调用epoll_add失败*/
@@ -45,7 +46,7 @@ enum {
 	chk_error_listen,
 	chk_error_accept,
 	chk_error_connect,
-	chk_error_unsupport_addr_type,
+	chk_error_invaild_addr_type,
 	chk_error_setsockopt,
 	chk_error_fcntl,
 	chk_error_invaild_sockaddr,
@@ -54,6 +55,7 @@ enum {
 	chk_error_socket_close,                               /*socket已经关闭*/                                                     
 	chk_error_stream_write,
 	chk_error_stream_read,
+	chk_error_stread_peer_close,
 	/*packet相关错误码*/
 	chk_error_packet_too_large,                           /*数据包太大*/
 	chk_error_invaild_packet_size,                        /*数据包长度非法*/

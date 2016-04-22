@@ -97,11 +97,13 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 		chk_bytechunk_read(head,(char*)&pk_len,&pos,&size);//读取payload大小
 		pk_len = chk_ntoh32(pk_len);
 		if(pk_len == 0) {
+			CHK_SYSLOG(LOG_ERROR,"pk_len == 0");
 			if(err) *err = chk_error_invaild_packet_size;
 			break;
 		}
 		pk_total = size + pk_len;
 		if(pk_total > d->max) {
+			CHK_SYSLOG(LOG_ERROR,"pk_total > d->max");
 			if(err) *err = chk_error_packet_too_large;//数据包操作限制大小
 			break;
 		}
@@ -512,7 +514,6 @@ static inline int32_t lua_new_wpacket(lua_State *L) {
 		luaL_error(L,"buffer is readonly");
 	}	
 	w = LUA_NEWUSERDATA(L,lua_wpacket);
-	if(!w) return 0;
 	w->buff = buff;
 	chk_bytebuffer_append_dword(buff,0);
 	luaL_getmetatable(L, WPACKET_METATABLE);
@@ -523,7 +524,6 @@ static inline int32_t lua_new_wpacket(lua_State *L) {
 static inline int32_t lua_new_rpacket(lua_State *L) {
 	chk_bytebuffer *buff = lua_checkbytebuffer(L,1);
 	lua_rpacket    *r = LUA_NEWUSERDATA(L,lua_rpacket);
-	if(!r) return 0;
 	r->cur = buff->head;
 	r->buff = buff;
 	r->data_remain = buff->datasize - sizeof(uint32_t);

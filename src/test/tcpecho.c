@@ -18,7 +18,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	}
 	else{
 		printf("socket close:%d\n",error);
-		chk_stream_socket_close(s,0);
+		chk_stream_socket_close(s,5000);
 	}
 	
 }
@@ -45,8 +45,10 @@ int main(int argc,char **argv) {
 
 	if(!chk_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),accept_cb,NULL))
 		printf("server start error\n");
-	else
+	else{
+		CHK_SYSLOG(LOG_INFO,"server start");
 		chk_loop_run(loop);
+	}
 	chk_loop_del(loop);
 	return 0;
 }

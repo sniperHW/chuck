@@ -13,9 +13,11 @@ int32_t chk_watch_handle(chk_event_loop *e,chk_handle *h,int32_t events) {
 	struct epoll_event ev = {0};
 	ev.data.ptr = h;
 	ev.events = events;
-	if(h->loop) return chk_error_duplicate_add_handle;
+	if(h->loop) {
+		return chk_error_duplicate_add_handle;
+	}
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,h->fd,&ev)){ 
-		CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_watch_handle() call epoll_ctl() failed errno:%d\n",__FILE__,__LINE__,errno);
+		CHK_SYSLOG(LOG_ERROR,"epoll_ctl() failed errno:%d",errno);
 		return chk_error_epoll_add;
 	}
 	h->events = events;
@@ -28,9 +30,11 @@ int32_t chk_watch_handle(chk_event_loop *e,chk_handle *h,int32_t events) {
 int32_t chk_unwatch_handle(chk_handle *h) {
 	struct epoll_event ev = {0};
 	chk_event_loop *e = h->loop;
-	if(!e) return chk_error_no_event_loop;
+	if(!e) {
+		return chk_error_no_event_loop;
+	}
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_DEL,h->fd,&ev)){ 
-		CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_unwatch_handle() call epoll_ctl() failed errno:%d\n",__FILE__,__LINE__,errno);
+		CHK_SYSLOG(LOG_ERROR,"epoll_ctl() failed errno:%d",errno);
 		return chk_error_epoll_del; 
 	}
 	h->events = 0;
@@ -43,11 +47,14 @@ int32_t chk_unwatch_handle(chk_handle *h) {
 int32_t events_mod(chk_handle *h,int32_t events) {
 	chk_event_loop *e = h->loop;	
 	struct epoll_event ev = {0};
-	if(!e) return chk_error_no_event_loop;
+	if(!e) {
+		CHK_SYSLOG(LOG_DEBUG,"NULL == h->loop");
+		return chk_error_no_event_loop;
+	}
 	ev.data.ptr = h;
 	ev.events = events;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_MOD,h->fd,&ev)){ 
-		CHK_SYSLOG(LOG_ERROR,"%s:%d,events_mod() call epoll_ctl() failed errno:%d\n",__FILE__,__LINE__,errno);
+		CHK_SYSLOG(LOG_ERROR,"epoll_ctl() failed errno:%d",errno);
 		return chk_error_epoll_mod; 
 	}
 	h->events = events;		
@@ -76,8 +83,13 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	assert(e);
 	struct epoll_event ev = {0};
 	int32_t epfd = epoll_create1(EPOLL_CLOEXEC);
-	if(epfd < 0) return chk_error_create_epoll;
+	if(epfd < 0) {
+		CHK_SYSLOG(LOG_ERROR,"epoll_create1() failed,errno:%d",errno);
+		return chk_error_create_epoll;
+	}
+
 	if(chk_error_ok != chk_create_notify_channel(e->notifyfds)) {
+		CHK_SYSLOG(LOG_ERROR,"chk_create_notify_channel() failed");
 		close(epfd);
 		return chk_error_create_notify_channel;		
 	}		
@@ -89,7 +101,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	ev.data.fd = e->notifyfds[0];
 	ev.events = EPOLLIN;
 	if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,ev.data.fd,&ev)) {
-		CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_loop_init() call epoll_ctl() failed errno:%d\n",__FILE__,__LINE__,errno);
+		CHK_SYSLOG(LOG_ERROR,"epoll_ctl() failed errno:%d",errno);
 		close(epfd);
 		chk_close_notify_channel(e->notifyfds);
 		free(e->events);
@@ -122,9 +134,10 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 	int32_t ret = chk_error_ok;
 	int32_t i,nfds,ticktimer;
 	int64_t _;
-	chk_handle      *h;
-	chk_dlist        ready_list;
-	chk_dlist_entry *read_entry;	
+	chk_handle         *h;
+	chk_dlist           ready_list;
+	chk_dlist_entry    *read_entry;
+	struct epoll_event *tmp;	
 	do {
 		ticktimer = 0;
 		chk_dlist_init(&ready_list);
@@ -154,12 +167,17 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 			e->status ^= INLOOP;
 			if(e->status & CLOSING) break;
 			if(nfds == e->maxevents){
-				free(e->events);
 				e->maxevents <<= 2;
-				e->events = calloc(1,sizeof(*e->events)*e->maxevents);
+				tmp = realloc(e->events,sizeof(*e->events)*e->maxevents);
+				if(NULL == tmp) {
+					CHK_SYSLOG(LOG_ERROR,"realloc() failed");
+					ret = chk_error_no_memory;
+					break;
+				}
+				e->events = tmp;
 			}				
 		}else if(nfds < 0) {
-			CHK_SYSLOG(LOG_ERROR,"%s:%d,_loop_run() call epoll_wait() failed errno:%d\n",__FILE__,__LINE__,errno);
+			CHK_SYSLOG(LOG_ERROR,"epoll_wait() failed errno:%d",errno);
 			ret = chk_error_loop_run;
 			break;
 		}	
@@ -173,13 +191,17 @@ loopend:
 }
 
 chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb cb,void *ud) {
-	struct  itimerspec spec;
-    struct  timespec now;
-    int64_t nosec;
-	struct  epoll_event ev = {0};   
+	struct   itimerspec spec;
+    struct   timespec now;
+    int64_t  nosec;
+    uint64_t tick;
+	struct   epoll_event ev = {0};   
 	if(e->tfd < 0) {
     	e->tfd = timerfd_create(CLOCK_MONOTONIC,TFD_CLOEXEC|TFD_NONBLOCK);
-	    if(e->tfd < 0) return NULL;
+	    if(e->tfd < 0) {
+	    	CHK_SYSLOG(LOG_ERROR,"timerfd_create failed errno:%d",errno);
+	    	return NULL;
+	    }
 	    clock_gettime(CLOCK_MONOTONIC, &now);      
     	nosec = (now.tv_sec)*1000*1000*1000 + now.tv_nsec + 1*1000*1000;
     	spec.it_value.tv_sec = nosec/(1000*1000*1000);
@@ -188,6 +210,7 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
         spec.it_interval.tv_nsec = 1*1000*1000;  
 	    
 	    if(0 != timerfd_settime(e->tfd,TFD_TIMER_ABSTIME,&spec,0)) {
+	    	CHK_SYSLOG(LOG_ERROR,"timerfd_settime failed errno:%d",errno);
 	        close(e->tfd);
 	        e->tfd = -1;
 	        return NULL;		
@@ -195,14 +218,15 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 		ev.data.fd = e->tfd;
 		ev.events  = EPOLLIN;
 		if(0 != epoll_ctl(e->epfd,EPOLL_CTL_ADD,e->tfd,&ev)) {
-			CHK_SYSLOG(LOG_ERROR,"%s:%d,chk_loop_addtimer call epoll_ctl failed errno:%d\n",__FILE__,__LINE__,errno);			
+			CHK_SYSLOG(LOG_ERROR,"epoll_ctl failed errno:%d",errno);			
 	        close(e->tfd);
 	        e->tfd = -1;
 	        return NULL;				
 		}
 		e->timermgr = chk_timermgr_new();
 	}
-	return chk_timer_register(e->timermgr,timeout,cb,ud,chk_accurate_tick64()); 
+	tick = chk_accurate_tick64();
+	return chk_timer_register(e->timermgr,timeout,cb,ud,tick); 
 }
 
 #endif

@@ -94,8 +94,7 @@ log_entry *logqueue_fetch(uint32_t ms) {
 	return cast(log_entry*,chk_list_pop(&logqueue.private_queue));
 }
 
-int32_t chk_log_prefix(char *buf,uint8_t loglev)
-{
+int32_t chk_log_prefix(char *buf,uint8_t loglev) {
 	struct timespec tv;
 	struct tm _tm;
     clock_gettime (CLOCK_REALTIME, &tv);	
@@ -110,6 +109,26 @@ int32_t chk_log_prefix(char *buf,uint8_t loglev)
 				   _tm.tm_sec,
 				   cast(int32_t,tv.tv_nsec/1000000),
 				   cast(uint32_t,chk_thread_current_tid()));
+}
+
+int32_t chk_log_prefix_detail(char *buf,uint8_t loglev,const char *function,const char *file,int32_t line) {
+	struct timespec tv;
+	struct tm _tm;
+    clock_gettime (CLOCK_REALTIME, &tv);	
+	localtime_r(&tv.tv_sec, &_tm);
+	return sprintf(buf,"[%8s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u],%s():%s:%d:",
+				   log_lev_str[loglev],
+				   _tm.tm_year+1900,
+				   _tm.tm_mon+1,
+				   _tm.tm_mday,
+				   _tm.tm_hour,
+				   _tm.tm_min,
+				   _tm.tm_sec,
+				   cast(int32_t,tv.tv_nsec/1000000),
+				   cast(uint32_t,chk_thread_current_tid()),
+				   function,
+				   file,
+				   line);	
 }
 
 static void *log_routine(void *arg) {

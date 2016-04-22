@@ -9,8 +9,6 @@
 #include "util/chk_log.h"
 
 static const char *segfault   = "segfault";
-static const char *sigbug     = "sigbug";
-static const char *sigfpe     = "sigfpe";
 
 static __thread chk_expn_thd *_exception_st = NULL;
 
@@ -40,8 +38,6 @@ static void exception_throw(chk_expn_frame *frame,const char *exception,siginfo_
 	if(frame) {
 		frame->is_process = 0;
 		if(exception == segfault) sig = SIGSEGV;
-		else if(exception == sigbug) sig = SIGBUS;
-		else if(exception == sigfpe) sig = SIGFPE;  
 		siglongjmp(frame->jumpbuffer,sig);
 	}else {
 		chk_exp_log_exption_stack();
@@ -67,38 +63,6 @@ int32_t setup_sigsegv() {
 	return 1;
 }
 
-static void signal_sigbus(int32_t signum,siginfo_t* info,void*ptr) {
-	exception_throw(NULL,sigbug,info);
-}
-
-int32_t setup_sigbus() {
-	struct sigaction action;
-	memset(&action, 0, sizeof(action));
-	action.sa_sigaction = signal_sigbus;
-	action.sa_flags = SA_SIGINFO;
-	if(sigaction(SIGBUS, &action, NULL) < 0) {
-		perror("sigaction");
-		return 0;
-	}
-	return 1;
-}
-
-static void signal_sigfpe(int signum,siginfo_t* info,void*ptr) {
-	exception_throw(NULL,sigfpe,info);
-}
-
-int32_t setup_sigfpe() {
-	struct sigaction action;
-	memset(&action, 0, sizeof(action));
-	action.sa_sigaction = signal_sigfpe;
-	action.sa_flags = SA_SIGINFO;
-	if(sigaction(SIGFPE, &action, NULL) < 0) {
-		perror("sigaction");
-		return 0;
-	}
-	return 1;
-}
-
 static void reset_perthread_exception_st()
 {
 	if(_exception_st) {
@@ -109,8 +73,6 @@ static void reset_perthread_exception_st()
 
 __attribute__((constructor(103))) static void chk_sig_init() {
 	setup_sigsegv();
-	setup_sigbus();
-	setup_sigfpe();
 }
 
 chk_expn_thd *chk_exp_get_thread_expn() {

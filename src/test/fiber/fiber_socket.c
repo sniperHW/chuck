@@ -23,7 +23,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 				break;
 			}
 		}		
-		chk_stream_socket_close(s,1);
+		chk_stream_socket_close(s,0);
 	}
 	*/
 }

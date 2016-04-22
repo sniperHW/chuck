@@ -68,7 +68,6 @@ static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 	uint32_t        size;
 	for(;bytes;) {
 		b = cast(chk_bytebuffer*,chk_list_begin(&s->send_list));
-		assert(b);
 		if(bytes >= b->datasize) {
 			//一个buffer已经发送完毕,可以删除
 			chk_list_pop(&s->send_list);
@@ -124,9 +123,10 @@ static inline int32_t prepare_send(chk_stream_socket *s) {
 static inline int32_t prepare_recv(chk_stream_socket *s) {
 	chk_bytechunk  *chunk;
 	int32_t         i = 0;
-	uint32_t        recv_size,pos;
+	uint32_t        recv_size,pos,recv_buffer_size;
+	recv_buffer_size = s->option.recv_buffer_size;
 	if(!s->next_recv_buf) {
-		s->next_recv_buf = chk_bytechunk_new(NULL,s->option.recv_buffer_size);
+		s->next_recv_buf = chk_bytechunk_new(NULL,recv_buffer_size);
 		s->next_recv_pos = 0;
 	}
 	for(pos = s->next_recv_pos,chunk = s->next_recv_buf;;) {
@@ -134,10 +134,10 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 		s->wrecvbuf[i].iov_len  = recv_size;
 		s->wrecvbuf[i].iov_base = chunk->data + pos;
 		++i;
-		if(recv_size != s->option.recv_buffer_size) {
+		if(recv_size != recv_buffer_size) {
 			pos = 0;
 			if(!chunk->next) 
-				chunk->next = chk_bytechunk_new(NULL,s->option.recv_buffer_size);
+				chunk->next = chk_bytechunk_new(NULL,recv_buffer_size);
 			chunk = chunk->next;
 		}else break;
 	}
@@ -186,16 +186,18 @@ int32_t last_timer_cb(uint64_t tick,void*ud) {
 	return -1;
 }
 
-void chk_stream_socket_close(chk_stream_socket *s,int32_t now) {
+void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
 	if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE))
 		return;
 	
-	if(0 == now && !(s->status & SOCKET_PEERCLOSE) && !chk_list_empty(&s->send_list) && s->loop) {
+	if(delay > 0 && 
+	   !(s->status & SOCKET_PEERCLOSE) && 
+	   !chk_list_empty(&s->send_list) && s->loop) {
 		s->status |= SOCKET_RCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
 		shutdown(s->fd,SHUT_RD);
-		//数据还没发送完,设置5秒超时等待数据发送
-		s->timer = chk_loop_addtimer(s->loop,5000,last_timer_cb,s);
+		//数据还没发送完,设置delay豪秒超时等待数据发送
+		s->timer = chk_loop_addtimer(s->loop,delay,last_timer_cb,s);
 	}else {
 		s->status |= SOCKET_CLOSE;		
 		if(!(s->status & SOCKET_INLOOP)){
@@ -214,17 +216,17 @@ void *chk_stream_socket_getUd(chk_stream_socket *s) {
 
 
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
-	int32_t ret;
+	int32_t ret,flags;
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
 	if(!e || !h || !cb)
 		return chk_error_invaild_argument;
 	if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE))
 		return chk_error_socket_close;
 	if(!chk_list_empty(&s->send_list))
-		ret = chk_watch_handle(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE);
+		flags = CHK_EVENT_READ | CHK_EVENT_WRITE;
 	else
-		ret = chk_watch_handle(e,h,CHK_EVENT_READ);
-	if(ret == chk_error_ok) {
+		flags = CHK_EVENT_READ;	
+	if(chk_error_ok != (ret = chk_watch_handle(e,h,flags))) {
 		easy_noblock(h->fd,1);
 		s->cb = cast(chk_stream_socket_cb,cb);
 	}
@@ -250,13 +252,13 @@ static void process_write(chk_stream_socket *s) {
 			s->status |= SOCKET_PEERCLOSE;
 			chk_disable_write(cast(chk_handle*,s));
 			s->cb(s,NULL,chk_error_stream_write);
-			CHK_SYSLOG(LOG_ERROR,"%s:%d,process_write() error no writev errno:%d",__FILE__,__LINE__,errno);
+			CHK_SYSLOG(LOG_ERROR,"writev() failed errno:%d",errno);
 		}
 	}
 }
 
 static void process_read(chk_stream_socket *s) {
-	int32_t bc,bytes,unpackerr;
+	int32_t bc,bytes,unpackerr,error_code;
 	chk_decoder *decoder;
 	chk_bytebuffer *b;
 	bc    = prepare_recv(s);
@@ -281,8 +283,13 @@ static void process_read(chk_stream_socket *s) {
 	}else {
 		s->status |= SOCKET_PEERCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
-		s->cb(s,NULL,chk_error_stream_read);
-		CHK_SYSLOG(LOG_ERROR,"%s:%d,process_read() error no readv errno:%d",__FILE__,__LINE__,errno);
+		if(bytes == 0)
+			error_code = chk_error_stread_peer_close;
+		else {
+			CHK_SYSLOG(LOG_ERROR,"readv() failed errno:%d",errno);
+			error_code = chk_error_stream_read;
+		}
+		s->cb(s,NULL,error_code);
 	}
 }
 
