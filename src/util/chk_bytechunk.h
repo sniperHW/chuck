@@ -20,6 +20,17 @@
 # define  cast(T,P) ((T)(P))
 #endif
 
+enum {
+    CREATE_BY_NEW      = 1,       
+    NEED_COPY_ON_WRITE = 1 << 1,
+    READ_ONLY          = 1 << 2,   
+};
+
+enum {
+    READ_ONLY_BUFFER = -1,
+    INVAILD_BUFFER   = -2,
+};
+
 typedef struct chk_bytechunk  chk_bytechunk;
 
 typedef struct chk_bytebuffer chk_bytebuffer;
@@ -32,20 +43,10 @@ struct chk_bytechunk {
 };
 
 
-enum {
-    CREATE_BY_NEW      = 1,       
-    NEED_COPY_ON_WRITE = 1 << 1,
-    READ_ONLY          = 1 << 2,   
-};
-
-enum {
-    READ_ONLY_BUFFER = -1,
-    INVAILD_BUFFER   = -2,
-};
-
 //bytechunk链表形成的buffer
 struct chk_bytebuffer {
     chk_list_entry entry;
+    uint32_t       internal;     //内部使用的字段
     uint32_t       datasize;     //属于本buffer的数据大小
     uint32_t       spos;         //起始数据在head中的下标
     uint32_t       append_pos;     

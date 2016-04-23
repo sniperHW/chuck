@@ -252,6 +252,22 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 	return 0;
 }
 
+static int32_t lua_stream_socket_send_urgent(lua_State *L) {
+	chk_bytebuffer    *b,*o;
+	chk_stream_socket *s = lua_checkstreamsocket(L,1);
+	o = lua_checkbytebuffer(L,2);
+	if(NULL == o)
+	{
+		luaL_error(L,"need bytebuffer to send");
+	}
+	b = chk_bytebuffer_clone(o);
+	if(0 != chk_stream_socket_send_urgent(s,b)){
+		lua_pushstring(L,"send error");
+		return 1;
+	}
+	return 0;
+}
+
 static void register_socket(lua_State *L) {
 	luaL_Reg acceptor_mt[] = {
 		{"__gc", lua_acceptor_gc},
@@ -262,7 +278,7 @@ static void register_socket(lua_State *L) {
 		{"Pause",    lua_acceptor_pause},
 		{"Resume",	 lua_acceptor_resume},
 		{"Close",    lua_acceptor_gc},
-		{NULL,     NULL}
+		{NULL,		 NULL}
 	};
 
 	luaL_Reg stream_socket_mt[] = {
@@ -271,12 +287,13 @@ static void register_socket(lua_State *L) {
 	};
 
 	luaL_Reg stream_socket_methods[] = {
-		{"Send",    lua_stream_socket_send},
-		{"Start",   lua_stream_socket_bind},
-		{"Pause",   lua_stream_socket_pause},
-		{"Resume",	lua_stream_socket_resume},		
-		{"Close",   lua_stream_socket_close},
-		{NULL,     NULL}
+		{"Send",    	lua_stream_socket_send},
+		{"SendUrgent",	lua_stream_socket_send_urgent},
+		{"Start",   	lua_stream_socket_bind},
+		{"Pause",   	lua_stream_socket_pause},
+		{"Resume",		lua_stream_socket_resume},		
+		{"Close",   	lua_stream_socket_close},
+		{NULL,     		NULL}
 	};
 
 	luaL_newmetatable(L, ACCEPTOR_METATABLE);

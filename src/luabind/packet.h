@@ -3,13 +3,6 @@
 *  二进制数据表示法	|4字节数据长度|数据...|
 */
 
-
-//#include "lua/chk_lua.h"
-//#include "util/chk_error.h"
-//#include "util/chk_bytechunk.h"
-//#include "util/chk_order.h"
-//#include "socket/chk_decoder.h"
-
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
 #endif
@@ -28,7 +21,8 @@ typedef struct {
 	chk_bytebuffer *buff;
     chk_bytechunk  *cur;       
     uint32_t        readpos;           
-    uint32_t        data_remain;        
+    uint32_t        data_remain;
+    uint32_t        total_packet_size;        
 }lua_rpacket;
 
 
@@ -101,13 +95,13 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 			if(err) *err = chk_error_invaild_packet_size;
 			break;
 		}
-		pk_total = size + pk_len;
+		pk_total = size + pk_len;		
 		if(pk_total > d->max) {
 			CHK_SYSLOG(LOG_ERROR,"pk_total > d->max");
 			if(err) *err = chk_error_packet_too_large;//数据包操作限制大小
 			break;
 		}
-		if(pk_total > d->size) break;//没有足够的数据
+		if(pk_total > d->size) break;//没有足够的数据	
 		ret = chk_bytebuffer_new_bychunk(head,d->spos,pk_total);
 		//调整pos及其b
 		do {
@@ -150,7 +144,7 @@ static inline _decoder *_decoder_new(uint32_t max) {
 
 static inline int32_t lua_rpacket_read(lua_rpacket *r,char *out,uint32_t size) {
     if(size > r->data_remain) return -1;//请求数据大于剩余数据
-    r->cur      = chk_bytechunk_read(r->cur,out,&r->readpos,&size);
+    r->cur = chk_bytechunk_read(r->cur,out,&r->readpos,&size);
     r->data_remain -= size;
     return 0;
 }
@@ -182,7 +176,7 @@ static inline int32_t lua_rpacket_readI32(lua_State *L) {
 
 static inline int32_t lua_rpacket_readI64(lua_State *L) {
 	lua_rpacket *r = lua_checkrpacket(L,1);
-	int64_t v = chk_ntoh32(LUA_RPACKET_READ(r,int64_t));
+	int64_t v = chk_ntoh64(LUA_RPACKET_READ(r,int64_t));
     lua_pushinteger(L,v);
     return 1;
 }
@@ -198,7 +192,9 @@ static inline int32_t lua_rpacket_readStr(lua_State *L) {
 	char           *in;
 	lua_rpacket    *r = lua_checkrpacket(L,1);
 	size_t          size = (size_t)chk_ntoh32(LUA_RPACKET_READ(r,uint32_t));
-	if(size == 0) return 0;
+	
+	if(size == 0)
+		return luaL_error(L,"lua_rpacket_readstr invaild packet");
 
 #if LUA_VERSION_NUM >= 503
 	in = luaL_buffinitsize(L,&lb,size);
@@ -527,10 +523,11 @@ static inline int32_t lua_new_rpacket(lua_State *L) {
 	r->cur = buff->head;
 	r->buff = buff;
 	r->data_remain = buff->datasize - sizeof(uint32_t);
+	r->total_packet_size = buff->datasize;
 	switch(r->cur->cap - buff->spos) {
 		case 1:{r->cur = r->cur->next;r->readpos = 3;}break;
 		case 2:{r->cur = r->cur->next;r->readpos = 2;}break;
-		case 3:{r->cur = r->cur->next;r->readpos = 2;}break;
+		case 3:{r->cur = r->cur->next;r->readpos = 1;}break;
 		default:r->readpos = buff->spos + 4;
 	}
 	luaL_getmetatable(L, RPACKET_METATABLE);

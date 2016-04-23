@@ -49,6 +49,9 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay);
 
 int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b);
 
+
+int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b);
+
 /**
  * 设置chk_stream_socket关联的用户数据
  * @param s stream_socket

@@ -27,13 +27,14 @@ static int32_t lua_new_bytebuffer(lua_State *L) {
 	chk_bytebuffer *b;
 	size_t size = 0;
 	const char *str = NULL;
-	b = LUA_NEWUSERDATA(L,chk_bytebuffer);
 	if(lua_isstring(L,1)) {
 		str = lua_tolstring(L,1,&size);
+		b = LUA_NEWUSERDATA(L,chk_bytebuffer);		
 		chk_bytebuffer_init(b,chk_bytechunk_new((void*)str,(uint32_t)size),0,(uint32_t)size,0);
 	}
 	else {
 		size = (uint32_t)luaL_optinteger(L,1,64);
+		b = LUA_NEWUSERDATA(L,chk_bytebuffer);
 		chk_bytebuffer_init(b,NULL,0,size,0);
 	}
 	luaL_getmetatable(L, BYTEBUFFER_METATABLE);

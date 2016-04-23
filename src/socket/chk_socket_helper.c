@@ -29,7 +29,7 @@ int32_t easy_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local) {
         return chk_error_invaild_addr_type;
     }
     
-    if(ret == chk_error_ok || ret == EINPROGRESS)
+    if(ret == chk_error_ok || errno == EINPROGRESS)
         return chk_error_ok;
     else{
         CHK_SYSLOG(LOG_ERROR,"connect() failed errno:%d",errno);

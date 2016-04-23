@@ -12,12 +12,12 @@ local client_count = 0
 local packet_count = 0
 
 local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
-	local conn = socket.stream.New(fd,65536,packet.Decoder())
+	local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 	if conn then
 		clients[fd] = conn
 		client_count = client_count + 1
 		conn:Start(event_loop,function (data)
-			if data then 
+			if data then
 				for k,v in pairs(clients) do
 					packet_count = packet_count + 1
 					v:Send(data)
@@ -36,6 +36,16 @@ local timer1 = event_loop:AddTimer(1000,function ()
 	collectgarbage("collect")
 	print(client_count,packet_count)
 	packet_count = 0
+end)
+
+local timer2 = event_loop:AddTimer(5,function ()
+	--发送紧急包
+	for k,v in pairs(clients) do
+		local buff = chuck.buffer.New()
+		local w = packet.Writer(buff)
+		w:WriteStr("urgent")		
+		v:SendUrgent(buff)
+	end
 end)
 
 print("server run")
