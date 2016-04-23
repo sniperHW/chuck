@@ -50,6 +50,21 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay);
 int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b);
 
 
+/**
+ * 发送一个紧急buffer
+ * @param s stream_socket
+ * @param b 待发送缓冲,调用chk_stream_socket_send之后b不能再被别处使用
+ *
+ * 一个stream_socket管理两个buffer发送队列，普通队列和urgent队列,urgent队列的发送优先级
+ * 高于普通队列	
+ *
+ * urgent队列抢占普通队列的处理，如果普通队列中没有发送了一半的buffer,那么直到urgent队列发送完毕
+ * 才会继续发送普通队列中的buffer,如果普通队列存在发送了一半的buffer,那么将等到这个buffer发送完毕
+ * 再发送urgent队列中的buffer.普通队列中剩余的未启动发送的buffer则需要等到urgent队列发送完毕之后
+ * 才被继续发送。
+ *
+ */
+
 int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b);
 
 /**
