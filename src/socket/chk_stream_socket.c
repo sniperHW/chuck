@@ -14,11 +14,11 @@
 uint32_t chunkcount  = 0;
 uint32_t buffercount = 0;
 
-//status
+/*status*/
 enum{
-	SOCKET_CLOSE     = 1 << 1,  //连接完全关闭,对象可以被销毁
-	SOCKET_RCLOSE    = 1 << 2,  //本端读关闭,写等剩余包发完关闭
-	SOCKET_PEERCLOSE = 1 << 3,  //对端关闭
+	SOCKET_CLOSE     = 1 << 1,  /*连接完全关闭,对象可以被销毁*/
+	SOCKET_RCLOSE    = 1 << 2,  /*本端读关闭,写等剩余包发完关闭*/
+	SOCKET_PEERCLOSE = 1 << 3,  /*对端关闭*/
 	SOCKET_INLOOP    = 1 << 4,
 };
 
@@ -66,7 +66,7 @@ static inline int32_t send_list_empty(chk_stream_socket *s) {
 	return 0;
 }
 
-//发送数据完成,更新缓冲信息
+/*数据发送成功之后更新buffer list信息*/
 static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 	chk_bytebuffer *b;
 	chk_bytechunk  *head;
@@ -79,20 +79,20 @@ static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 	for(;bytes;) {
 		b = cast(chk_bytebuffer*,chk_list_begin(list));
 		if(bytes >= b->datasize) {
-			//一个buffer已经发送完毕,可以删除
+			/*一个buffer已经发送完毕,将其出列并删除*/
 			chk_list_pop(list);
 			bytes -= b->datasize;
 			chk_bytebuffer_del(b);
 		}else {
-			//只完成一个buffer中部分数据的发送
+			/*只完成一个buffer中部分数据的发送*/
 			for(;bytes;) {
 				head = b->head;
 				size = MIN(head->cap - b->spos,bytes);
 				bytes -= size;
-				b->spos += size;
-				b->datasize -= size;
+				b->spos += size;/*调整buffer数据的起始位置*/
+				b->datasize -= size;/*调整待发送数据的大小*/
 				if(b->spos >= head->cap) {
-					//发送完一个chunk
+					/*发送完一个chunk*/
 					b->spos = 0;
 					b->head = chk_bytechunk_retain(head->next);
 					chk_bytechunk_release(head);
@@ -102,7 +102,7 @@ static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 	}
 }
 
-//准备缓冲用于发起写请求
+/*准备缓冲用于发起写请求*/
 static inline int32_t prepare_send(chk_stream_socket *s) {
 	int32_t          i = 0;
 	chk_bytebuffer  *b;
@@ -112,10 +112,16 @@ static inline int32_t prepare_send(chk_stream_socket *s) {
 	b = cast(chk_bytebuffer*,chk_list_begin(&s->send_list));
 
 	do{
-		if(chk_list_empty(&s->urgent_list)) break;
-		if(!b || b->internal == b->datasize) break;
-		printf("urgent waitting\n");
-		//上次发送send_list中还有一个buffer没有完整发送完，先将其发送完
+
+		if(chk_list_empty(&s->urgent_list)) {
+			/*没有urgent buffer需要发送*/
+			break;
+		}
+		if(!b || b->internal == b->datasize){
+			/*send list中没有只完成部分发送的buffer*/
+			break;
+		}
+		/*先将send list中只发送了部分的buffer发送出去*/
 		pos   = b->spos;
 		chunk = b->head;
 		datasize = b->datasize;
@@ -134,7 +140,7 @@ static inline int32_t prepare_send(chk_stream_socket *s) {
 
 	if(!chk_list_empty(&s->urgent_list)){
 		b = cast(chk_bytebuffer*,chk_list_begin(&s->urgent_list));
-		s->sending_urgent = 1;//标记当前正在发送urgent_list 
+		s->sending_urgent = 1;/*标记当前正在发送urgent_list*/ 
 	}else
 		s->sending_urgent = 0;
 
@@ -159,7 +165,7 @@ static inline int32_t prepare_send(chk_stream_socket *s) {
 	return i;
 }
 
-//准备缓冲用于发起读请求
+/*准备缓冲用于读*/
 static inline int32_t prepare_recv(chk_stream_socket *s) {
 	chk_bytechunk  *chunk;
 	int32_t         i = 0;
@@ -184,7 +190,7 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 	return i;
 }
 
-//数据接收完成,更新缓冲信息
+/*数据接收完成,更新接收缓冲信息*/
 static inline void update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 	uint32_t       size;
 	chk_bytechunk *head;
@@ -214,14 +220,13 @@ static void release_socket(chk_stream_socket *s) {
 	while((b = cast(chk_bytebuffer*,chk_list_pop(&s->send_list))))
 		chk_bytebuffer_del(b);
 	if(s->fd >= 0) close(s->fd);
-	if(s->create_by_new) free(s); //stream_socket是通过new接口创建的，需要释放内存
+	if(s->create_by_new) free(s); /*stream_socket是通过new接口创建的，需要释放内存*/
 }
 
 int32_t last_timer_cb(uint64_t tick,void*ud) {
-	//发送已经超时,直接释放
 	chk_stream_socket *s = cast(chk_stream_socket*,ud);
 	s->timer   = NULL;
-	//timer事件在所有套接口事件之后才处理,所以这里释放是安全的
+	/*timer事件在所有套接口事件之后才处理,所以这里释放是安全的*/
 	release_socket(s);
 	return -1;
 }
@@ -236,7 +241,7 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
 		s->status |= SOCKET_RCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
 		shutdown(s->fd,SHUT_RD);
-		//数据还没发送完,设置delay豪秒超时等待数据发送
+		/*数据还没发送完,设置delay豪秒超时等待数据发送出去*/
 		s->timer = chk_loop_addtimer(s->loop,delay,last_timer_cb,s);
 	}else {
 		s->status |= SOCKET_CLOSE;		
@@ -278,7 +283,7 @@ static void process_write(chk_stream_socket *s) {
 	bc = prepare_send(s);
 	if((bytes = TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc))) > 0) {
 		update_send_list(s,bytes);
-		//没有数据需要发送了,停止写监听
+		/*没有数据需要发送了,停止写监听*/
 		if(send_list_empty(s)) {
 		 	if(s->status & SOCKET_RCLOSE)
 				s->status |= SOCKET_CLOSE;
