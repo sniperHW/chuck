@@ -34,6 +34,7 @@ static inline void chk_mutex_uninit(chk_mutex *m) {
 
 static inline chk_mutex *chk_mutex_new() {
 	chk_mutex *m = malloc(sizeof(*m));
+	if(!m) return NULL;
 	chk_mutex_init(m);
 	return m;
 }
@@ -66,6 +67,7 @@ static inline void chk_condition_uninit(chk_condition *c) {
 
 static inline chk_condition *chk_condition_new(chk_mutex *mtx) {
 	chk_condition *c = malloc(sizeof(*c));
+	if(!c) return NULL;
 	chk_condition_init(c,mtx);
 	return c;
 }

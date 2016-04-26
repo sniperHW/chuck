@@ -85,6 +85,7 @@ extern uint64_t burtle_hash(register uint8_t* k,register uint64_t length,registe
 
 chk_http_packet *chk_http_packet_new() {
 	chk_http_packet *http_packet = calloc(1,sizeof(*http_packet));
+	if(!http_packet) return NULL;
 	http_packet->refcount = 1;
 	return http_packet;
 }
@@ -180,6 +181,7 @@ int32_t chk_http_set_header(chk_http_packet *http_packet,chk_string *field,chk_s
 	}
 	if(!listhead) {
 		listhead = calloc(1,sizeof(*listhead));
+		if(!listhead) return chk_error_no_memory;
 		listhead->field = field;
 		listhead->value = value;
 		//chain the collision
@@ -210,6 +212,7 @@ int32_t chk_http_append_body(chk_http_packet *http_packet,const char *str,size_t
 
 	if(!len) {
 		http_packet->body = chk_bytebuffer_new((uint32_t)size);
+		if(!http_packet->body) return chk_error_no_memory;
 	}
 
 	return chk_bytebuffer_append(http_packet->body,(uint8_t*)str,(uint32_t)size);

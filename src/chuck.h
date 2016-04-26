@@ -23,7 +23,6 @@
 #include "socket/chk_stream_socket.h"
 #include "lua/chk_lua.h"
 #include "redis/chk_client.h"
-#include "fiber/chk_fiber.h"
 
 
 #endif

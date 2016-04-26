@@ -41,6 +41,7 @@ typedef struct {																			\
 static inline TYPE##_chunk *TYPE##_new_chunk(uint32_t idx){									\
 	TYPE##_obj_holder *_obj;																\
 	TYPE##_chunk* newchunk = calloc(1,sizeof(*newchunk));									\
+	if(!newchunk) return NULL;																\
 	uint32_t i;																				\
 	for(i = 0; i < CHUNK_OBJSIZE;++i){														\
 		_obj = &newchunk->data[i];															\
@@ -61,20 +62,23 @@ static inline void* TYPE##_new_obj(TYPE##_pool *pool){										\
 		chunkcount = pool->chunkcount+1;													\
 		if(chunkcount > MAX_CHUNK) return NULL;												\
 		tmp = calloc(chunkcount,sizeof(*tmp));												\
+		if(!tmp) return NULL;																\
 		for(i = 0; i < pool->chunkcount;++i) {												\
 			tmp[i] = pool->chunks[i];														\
 		}																					\
 		i = pool->chunkcount;																\
 		for(; i < chunkcount;++i) {															\
 			tmp[i] = TYPE##_new_chunk(i);													\
+			if(!tmp[i]) break;																\
 			chk_list_pushback(&pool->freechunk,(chk_list_entry*)tmp[i]);					\
 			pool->freecount += CHUNK_OBJSIZE;												\
 		}																					\
 		free(pool->chunks);																	\
 		pool->chunks = tmp;																	\
-		pool->chunkcount = chunkcount;														\
+		pool->chunkcount = i;																\
 		freechunk = (TYPE##_chunk*)chk_list_begin(&pool->freechunk);						\
 	}																						\
+	if(!freechunk) return NULL;																\
 	TYPE##_obj_holder *_obj = &freechunk->data[freechunk->head];							\
 	freechunk->head = _obj->next;															\
 	if(chk_unlikely(freechunk->head == -1))													\
@@ -107,13 +111,19 @@ static inline TYPE##_pool *TYPE##_pool_new(uint32_t initnum){								\
 	else chunkcount = initnum/CHUNK_OBJSIZE;												\
 	if(chunkcount > MAX_CHUNK) return NULL;													\
 	pool = calloc(1,sizeof(*pool));															\
-	pool->chunkcount = chunkcount;															\
+	if(!pool) return NULL;																	\
 	pool->chunks = calloc(chunkcount,sizeof(*pool->chunks));								\
+	if(!pool->chunks) {																		\
+		free(pool);																			\
+		return NULL;																		\
+	}																						\
 	for(i = 0; i < chunkcount; ++i) {														\
 		pool->chunks[i] = TYPE##_new_chunk(i);												\
+		if(!pool->chunks[i]) break;															\
 		pool->freecount += CHUNK_OBJSIZE;													\
 		chk_list_pushback(&pool->freechunk,(chk_list_entry*)pool->chunks[i]);				\
 	}																						\
+	pool->chunkcount = i;																	\
 	return pool;																			\
 }																							\
 																							\

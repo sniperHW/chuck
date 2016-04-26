@@ -47,6 +47,10 @@ static chk_bytebuffer *default_unpack(chk_decoder *d,int32_t *err) {
 	*err = 0;
 	if(_d->b) {
 		ret = chk_bytebuffer_new_bychunk_readonly(_d->b,_d->spos,_d->size);
+		if(!ret) {
+			*err = chk_error_no_memory;
+			return NULL;
+		}
 		_d->b = NULL;
 	}
 	return ret;
@@ -54,6 +58,7 @@ static chk_bytebuffer *default_unpack(chk_decoder *d,int32_t *err) {
 
 static default_decoder *default_decoder_new() {
 	default_decoder *d = calloc(1,sizeof(*d));
+	if(!d) return NULL;
 	d->update = default_update;
 	d->unpack = default_unpack;
 	d->dctor  = (void (*)(chk_decoder*))free;
@@ -173,6 +178,7 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 	recv_buffer_size = s->option.recv_buffer_size;
 	if(!s->next_recv_buf) {
 		s->next_recv_buf = chk_bytechunk_new(NULL,recv_buffer_size);
+		if(!s->next_recv_buf) return -1;
 		s->next_recv_pos = 0;
 	}
 	for(pos = s->next_recv_pos,chunk = s->next_recv_buf;;) {
@@ -182,8 +188,10 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 		++i;
 		if(recv_size != recv_buffer_size) {
 			pos = 0;
-			if(!chunk->next) 
+			if(!chunk->next){ 
 				chunk->next = chk_bytechunk_new(NULL,recv_buffer_size);
+				if(!chunk->next) return -1;
+			}
 			chunk = chunk->next;
 		}else break;
 	}
@@ -191,7 +199,7 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 }
 
 /*数据接收完成,更新接收缓冲信息*/
-static inline void update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
+static inline int32_t update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 	uint32_t       size;
 	chk_bytechunk *head;
 	for(;bytes;) {
@@ -202,12 +210,15 @@ static inline void update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 		if(s->next_recv_pos >= head->cap) {
 			s->next_recv_pos = 0;
 			head = s->next_recv_buf;			
-			if(!head->next)
+			if(!head->next){
 				head->next = chk_bytechunk_new(NULL,s->option.recv_buffer_size);
+				if(!head->next) return -1;
+			}
 			s->next_recv_buf = chk_bytechunk_retain(head->next);
 			chk_bytechunk_release(head);					
 		}
 	};
+	return 0;
 }
 
 static void release_socket(chk_stream_socket *s) {
@@ -297,6 +308,7 @@ static void process_write(chk_stream_socket *s) {
 			s->status |= SOCKET_PEERCLOSE;
 			chk_disable_write(cast(chk_handle*,s));
 			s->cb(s,NULL,chk_error_stream_write);
+			chk_stream_socket_close(s,0);
 			CHK_SYSLOG(LOG_ERROR,"writev() failed errno:%d",errno);
 		}
 	}
@@ -307,6 +319,11 @@ static void process_read(chk_stream_socket *s) {
 	chk_decoder *decoder;
 	chk_bytebuffer *b;
 	bc    = prepare_recv(s);
+	if(bc <= 0) {
+		s->cb(s,NULL,chk_error_no_memory);
+		chk_stream_socket_close(s,0);		
+		return;
+	}
 	bytes = TEMP_FAILURE_RETRY(readv(s->fd,&s->wrecvbuf[0],bc));
 	if(bytes > 0 ) {
 		decoder = s->option.decoder;
@@ -319,7 +336,10 @@ static void process_read(chk_stream_socket *s) {
 				if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE)) 
 					break;
 			}else {
-				if(unpackerr) s->cb(s,NULL,chk_error_unpack);
+				if(unpackerr){
+					s->cb(s,NULL,chk_error_unpack);
+					chk_stream_socket_close(s,0);
+				}
 				break;
 			}
 		};
@@ -335,6 +355,7 @@ static void process_read(chk_stream_socket *s) {
 			error_code = chk_error_stream_read;
 		}
 		s->cb(s,NULL,error_code);
+		chk_stream_socket_close(s,0);
 	}
 }
 
@@ -416,7 +437,7 @@ static void on_events(chk_handle *h,int32_t events) {
 	}
 }
 
-void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *op) {
+int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *op) {
 	assert(s);
 	easy_close_on_exec(fd);
 	s->fd = fd;
@@ -425,13 +446,20 @@ void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_op
 	s->option = *op;
 	s->loop   = NULL;
 	s->create_by_new = 0;
-	if(!s->option.decoder) 
-		s->option.decoder = cast(chk_decoder*,default_decoder_new());	
+	if(!s->option.decoder) { 
+		s->option.decoder = cast(chk_decoder*,default_decoder_new());
+		if(!s->option.decoder) return -1;
+	}
+	return 0;	
 }
 
 chk_stream_socket *chk_stream_socket_new(int32_t fd,chk_stream_socket_option *op) {
 	chk_stream_socket *s = calloc(1,sizeof(*s));
-	chk_stream_socket_init(s,fd,op);
+	if(!s) return NULL;
+	if(0 != chk_stream_socket_init(s,fd,op)) {
+		free(s);
+		return NULL;
+	}
 	s->create_by_new = 1;
 	return s;
 }

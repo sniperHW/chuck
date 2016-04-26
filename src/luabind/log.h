@@ -7,6 +7,7 @@
 static int32_t lua_create_logfile(lua_State *L) {
 	const char *filename = luaL_checkstring(L,1);
 	chk_logfile *logfile = chk_create_logfile(filename);
+	if(!logfile) return 0;
 	lua_pushlightuserdata(L,logfile);
 	luaL_getmetatable(L, LOGFILE_METATABLE);
 	lua_setmetatable(L, -2);	

@@ -103,6 +103,12 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 		}
 		if(pk_total > d->size) break;//没有足够的数据	
 		ret = chk_bytebuffer_new_bychunk(head,d->spos,pk_total);
+
+		if(!ret) {
+			if(err) *err = chk_error_no_memory;
+			return NULL;
+		}
+
 		//调整pos及其b
 		do {
 			head = d->b;
@@ -510,6 +516,7 @@ static inline int32_t lua_new_wpacket(lua_State *L) {
 		luaL_error(L,"buffer is readonly");
 	}	
 	w = LUA_NEWUSERDATA(L,lua_wpacket);
+	if(!w) return 0;
 	w->buff = buff;
 	chk_bytebuffer_append_dword(buff,0);
 	luaL_getmetatable(L, WPACKET_METATABLE);
@@ -520,6 +527,7 @@ static inline int32_t lua_new_wpacket(lua_State *L) {
 static inline int32_t lua_new_rpacket(lua_State *L) {
 	chk_bytebuffer *buff = lua_checkbytebuffer(L,1);
 	lua_rpacket    *r = LUA_NEWUSERDATA(L,lua_rpacket);
+	if(!r) return 0;
 	r->cur = buff->head;
 	r->buff = buff;
 	r->data_remain = buff->datasize - sizeof(uint32_t);
@@ -537,8 +545,13 @@ static inline int32_t lua_new_rpacket(lua_State *L) {
 
 static inline int32_t lua_new_decoder(lua_State *L) {
 	uint32_t max = (uint32_t)luaL_optinteger(L,1,1024);
-	lua_pushlightuserdata(L,_decoder_new(max));
-	return 1;
+	_decoder *d = _decoder_new(max);
+	if(d){
+		lua_pushlightuserdata(L,d);
+		return 1;
+	}
+	else
+		return 0;
 }
 
 static void register_packet(lua_State *L) {

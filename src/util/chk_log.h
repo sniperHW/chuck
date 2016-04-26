@@ -53,6 +53,7 @@ int32_t chk_log_prefix_detail(char *buf,uint8_t loglev,const char *function,cons
 do{                                                                                             \
     if(LOGLEV >= g_loglev){                                                                     \
         char *xx___buf = malloc(CHK_MAX_LOG_SIZE);                                              \
+        if(!xx___buf) break;                                                                    \
         int32_t size = chk_log_prefix_detail(xx___buf,LOGLEV,__FUNCTION__,__FILE__,__LINE__);   \
         snprintf(&xx___buf[size],CHK_MAX_LOG_SIZE-size,__VA_ARGS__);                            \
         chk_log(LOGFILE,LOGLEV,xx___buf);                                                       \
@@ -63,6 +64,7 @@ do{                                                                             
 do{                                                                                             \
     if(LOGLEV >= g_loglev){                                                                     \
         char *xx___buf = malloc(CHK_MAX_LOG_SIZE);                                              \
+        if(!xx___buf) break;                                                                    \
         int32_t size = chk_log_prefix_detail(xx___buf,LOGLEV,__FUNCTION__,__FILE__,__LINE__);   \
         snprintf(&xx___buf[size],CHK_MAX_LOG_SIZE-size,__VA_ARGS__);                            \
         chk_syslog(LOGLEV,xx___buf);                                                            \
@@ -73,6 +75,7 @@ do{                                                                             
     typedef struct{chk_logfile *_logfile;}LOGNAME;                                              \
     static inline LOGNAME *LOGNAME##create_function(){                                          \
     	LOGNAME *tmp = calloc(1,sizeof(*tmp));                                                  \
+        if(!tmp) return NULL;                                                                   \
     	tmp->_logfile = chk_create_logfile(LOGFILENAME);                                        \
     	return tmp;                                                                             \
     }                                                                                           \

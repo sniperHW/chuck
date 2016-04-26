@@ -86,6 +86,7 @@ void chk_acceptor_finalize(chk_acceptor *a) {
 
 chk_acceptor *chk_acceptor_new(int32_t fd,void *ud) {
 	chk_acceptor *a = calloc(1,sizeof(*a));
+	if(!a) return NULL;
 	chk_acceptor_init(a,fd,ud);
 	return a;
 }

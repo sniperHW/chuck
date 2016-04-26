@@ -211,6 +211,7 @@ static void on_process_end() {
 
 void _write_log(chk_logfile *l,int32_t loglev,char *content) {
 	log_entry *entry = calloc(1,sizeof(*entry));
+	if(!entry) free(content);
 	entry->_logfile  = l;
 	entry->content   = content;
 	entry->lev       = loglev;
@@ -232,6 +233,7 @@ chk_logfile *chk_create_logfile(const char *filename) {
 	chk_logfile *l;
 	pthread_once(&g_log_key_once,log_once_routine);
 	l = calloc(1,sizeof(*l));
+	if(!l) return NULL;
 	strncpy(l->filename,filename,256);
 	LOCK();
 	chk_dlist_pushback(&g_log_file_list,cast(chk_dlist_entry*,l));

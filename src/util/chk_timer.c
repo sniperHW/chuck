@@ -81,7 +81,8 @@ static wheel *wheel_new(uint8_t type) {
 	wheel   *w;
 	int16_t  size,i;
 	if(type >  wheel_day) return NULL;
-	w = calloc(1,sizeof(*w)*wheel_size[type]*sizeof(chk_dlist));	
+	w = calloc(1,sizeof(*w)*wheel_size[type]*sizeof(chk_dlist));
+	if(!w) return NULL;	
 	w->type = type;
 	w->cur  = type == wheel_sec ? -1:0;
 	size = cast(uint16_t,wheel_size[type]);
@@ -152,19 +153,22 @@ static void fire(chk_timermgr *m,wheel *w,uint64_t tick) {
 		fire(m,m->wheels[w->type+1],tick);
 }
 
-void chk_timermgr_init(chk_timermgr *m) {
-	assert(m);
+int32_t chk_timermgr_init(chk_timermgr *m) {
 	int8_t i;
 	m->ptrtick = NULL;
-	for(i = 0; i <= wheel_day; ++i) m->wheels[i] = wheel_new(i);
+	for(i = 0; i <= wheel_day; ++i){
+		m->wheels[i] = wheel_new(i);
+		if(!m->wheels[i]) return -1;		
+	}
+	return 0;
 }
 
 void chk_timermgr_finalize(chk_timermgr *m) {
-	assert(m);
 	int16_t     i,j,size;
 	chk_dlist  *tlist;
 	chk_timer  *t;
 	for(i = 0; i <= wheel_day; ++i) {
+		if(!m->wheels[i]) break;
 		size = wheel_size[m->wheels[i]->type];
 		for(j = 0; j < size; ++j) {
 			tlist = &m->wheels[i]->tlist[j];
@@ -177,7 +181,12 @@ void chk_timermgr_finalize(chk_timermgr *m) {
 
 chk_timermgr *chk_timermgr_new() {
 	chk_timermgr *m = calloc(1,sizeof(*m));
-	chk_timermgr_init(m);
+	if(!m) return NULL;
+	if(0 != chk_timermgr_init(m)) {
+		chk_timermgr_finalize(m);
+		free(m);
+		return NULL;
+	}
 	return m;
 }
 
@@ -200,6 +209,7 @@ chk_timer *chk_timer_register(chk_timermgr *m,uint32_t ms,
 	chk_timer *t;
 	if(!cb) return NULL;
 	t = get_free_timer();
+	if(!t) return NULL;
 	t->timeout = ms > MAX_TIMEOUT ? MAX_TIMEOUT : (ms > 0 ? ms : 1);
 	t->cb = cb;
 	t->ud = ud;

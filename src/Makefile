@@ -42,8 +42,7 @@ source.lib =  util/chk_log.c\
 			  socket/chk_connector.c\
 			  event/chk_event_loop.c\
 			  redis/chk_client.c\
-			  thread/chk_thread.c\
-			  fiber/chk_fiber.c
+			  thread/chk_thread.c
 
 source.so =   util/chk_log.c\
 			  util/chk_timer.c\
@@ -82,8 +81,7 @@ testcase:
 	$(CC) $(CFLAGS) -o test/testexception test/testexception.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
 	$(CC) $(CFLAGS) -o test/testhttppacket test/testhttppacket.c $(LIBNAME) ../deps/http-parser/libhttp_parser.a $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 	$(CC) $(CFLAGS) -o test/testtimer test/testtimer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/testfiber test/testfiber.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 	$(CC) $(CFLAGS) -o test/test_objpool test/test_objpool.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 	$(CC) $(CFLAGS) -o test/teststring test/teststring.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
 	$(CC) $(CFLAGS) -o test/test_bytebuffer test/test_bytebuffer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	

@@ -17,10 +17,13 @@ typedef struct {
 static void PushBuffer(chk_luaPushFunctor *_,lua_State *L) {
 	luaBufferPusher *self = (luaBufferPusher*)_;
 	chk_bytebuffer *data = LUA_NEWUSERDATA(L,chk_bytebuffer);
-	chk_bytebuffer_init(data,self->data->head,self->data->spos,self->data->datasize,self->data->flags);
-	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
-	lua_setmetatable(L, -2);
-
+	if(data) {
+		chk_bytebuffer_init(data,self->data->head,self->data->spos,self->data->datasize,self->data->flags);
+		luaL_getmetatable(L, BYTEBUFFER_METATABLE);
+		lua_setmetatable(L, -2);
+	} else {
+		lua_pushnil(L);
+	}
 }
 
 static int32_t lua_new_bytebuffer(lua_State *L) {
@@ -30,11 +33,13 @@ static int32_t lua_new_bytebuffer(lua_State *L) {
 	if(lua_isstring(L,1)) {
 		str = lua_tolstring(L,1,&size);
 		b = LUA_NEWUSERDATA(L,chk_bytebuffer);		
+		if(!b) return 0;
 		chk_bytebuffer_init(b,chk_bytechunk_new((void*)str,(uint32_t)size),0,(uint32_t)size,0);
 	}
 	else {
 		size = (uint32_t)luaL_optinteger(L,1,64);
 		b = LUA_NEWUSERDATA(L,chk_bytebuffer);
+		if(!b) return 0;
 		chk_bytebuffer_init(b,NULL,0,size,0);
 	}
 	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
@@ -46,7 +51,8 @@ static int32_t lua_bytebuffer_clone(lua_State *L) {
 	chk_bytebuffer *self,*o;
 	self = lua_checkbytebuffer(L,1);
 	o = LUA_NEWUSERDATA(L,chk_bytebuffer);
-	chk_bytebuffer_share(o,self);
+	if(!o || o != chk_bytebuffer_share(o,self))
+		return 0;
 	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;

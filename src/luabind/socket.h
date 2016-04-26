@@ -11,7 +11,7 @@ void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud);
 
 void chk_acceptor_finalize(chk_acceptor *a);
 
-void chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *option);
+int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *option);
 
 #define lua_checkacceptor(L,I)	\
 	(chk_acceptor*)luaL_checkudata(L,I,ACCEPTOR_METATABLE)
@@ -86,7 +86,21 @@ static int32_t lua_listen_ip4(lua_State *L) {
 	if(!lua_isfunction(L,4)) 
 		return luaL_error(L,"argument 4 of dail must be lua function"); 
 	a   = LUA_NEWUSERDATA(L,chk_acceptor);
+
+	if(!a){
+		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
+		close(fd);	
+		return 0;
+	}
+
 	cb  = calloc(1,sizeof(*cb));
+
+	if(!cb) {
+		CHK_SYSLOG(LOG_ERROR,"calloc() failed");
+		close(fd);	
+		return 0;
+	}
+
 	*cb = chk_toluaRef(L,4); 	
 	chk_acceptor_init(a,fd,cb);
 	luaL_getmetatable(L, ACCEPTOR_METATABLE);
@@ -142,6 +156,14 @@ static int32_t lua_dail_ip4(lua_State *L) {
 	}
 
 	cb  = calloc(1,sizeof(*cb));
+
+	if(!cb) {
+		CHK_SYSLOG(LOG_ERROR,"calloc() failed");		
+		close(fd);
+		lua_pushstring(L,"connect error");
+		return 1;		
+	}
+
 	*cb = chk_toluaRef(L,4); 
 	timeout = (uint32_t)luaL_optinteger(L,5,0);
 	ret = chk_connect(fd,&remote,NULL,event_loop,dail_ip4_cb,cb,timeout);
@@ -186,6 +208,13 @@ static int32_t lua_stream_socket_bind(lua_State *L) {
 	s = lua_checkstreamsocket(L,1);
 	event_loop = lua_checkeventloop(L,2);
 	cb = calloc(1,sizeof(*cb));
+
+	if(!cb) {
+		CHK_SYSLOG(LOG_ERROR,"calloc() failed");		
+		lua_pushstring(L,"stream_socket_bind failed");
+		return 1;
+	}
+
 	*cb = chk_toluaRef(L,3);
 	chk_stream_socket_setUd(s,cb);
 	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)s,data_cb)) {
@@ -205,7 +234,14 @@ static int32_t lua_stream_socket_new(lua_State *L) {
 	option.recv_buffer_size = (uint32_t)luaL_optinteger(L,2,4096);
 	if(lua_islightuserdata(L,3)) option.decoder = lua_touserdata(L,3);
 	s = LUA_NEWUSERDATA(L,chk_stream_socket);
-	chk_stream_socket_init(s,fd,&option);
+	if(!s) {
+		CHK_SYSLOG(LOG_ERROR,"calloc() failed");
+		return 0;
+	}
+	if(0 != chk_stream_socket_init(s,fd,&option)) {
+		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_init() failed");
+		return 0;
+	}
 	luaL_getmetatable(L, STREAM_SOCKET_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -241,10 +277,12 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 	chk_stream_socket *s = lua_checkstreamsocket(L,1);
 	o = lua_checkbytebuffer(L,2);
 	if(NULL == o)
-	{
 		luaL_error(L,"need bytebuffer to send");
-	}
 	b = chk_bytebuffer_clone(o);
+	if(!b) {
+		lua_pushstring(L,"send error");		
+		return 1;
+	}
 	if(0 != chk_stream_socket_send(s,b)){
 		lua_pushstring(L,"send error");
 		return 1;
@@ -257,10 +295,12 @@ static int32_t lua_stream_socket_send_urgent(lua_State *L) {
 	chk_stream_socket *s = lua_checkstreamsocket(L,1);
 	o = lua_checkbytebuffer(L,2);
 	if(NULL == o)
-	{
 		luaL_error(L,"need bytebuffer to send");
-	}
 	b = chk_bytebuffer_clone(o);
+	if(!b) {
+		lua_pushstring(L,"send error");		
+		return 1;
+	}	
 	if(0 != chk_stream_socket_send_urgent(s,b)){
 		lua_pushstring(L,"send error");
 		return 1;

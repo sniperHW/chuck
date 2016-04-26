@@ -79,6 +79,7 @@ static void process_connect(chk_handle *h,int32_t events) {
 
 chk_connector *chk_connector_new(int32_t fd,void *ud,uint32_t timeout) {
 	chk_connector *c = calloc(1,sizeof(*c));
+	if(!c) return NULL;
 	c->fd = fd;
 	c->on_events  = process_connect;
 	c->handle_add = loop_add;

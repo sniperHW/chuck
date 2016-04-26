@@ -139,15 +139,22 @@ static int32_t parse_breply(parse_tree *current,char **str,char *end) {
 	    current->want = reply->len + 2;//加上\r\n
 	}
 
-	if(!reply->str && reply->len + 1 > SIZE_TMP_BUFF)
+	if(!reply->str && reply->len + 1 > SIZE_TMP_BUFF) {
 		reply->str = calloc(1,reply->len + 1);
+		if(!reply->str) return REDIS_ERR;
+	}
 	return parse_string(current,str,end);  
 }
 
 
 static parse_tree *parse_tree_new() {
 	parse_tree *tree = calloc(1,sizeof(*tree));
+	if(!tree) return NULL;
 	tree->reply = calloc(1,sizeof(*tree->reply));
+	if(!tree->reply) {
+		free(tree);
+		return NULL;
+	}
 	tree->break_ = '\r';
 	return tree;
 }
@@ -169,7 +176,7 @@ static int32_t parse(parse_tree *current,char **str,char *end);
 
 static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 	size_t  i;
-	int32_t ret;
+	int32_t ret,err;
 	char    c,termi;
 	redisReply *reply = current->reply;
 	if(!current->want) {
@@ -190,11 +197,41 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 	}
 
 	if(current->want > 0 && !current->childs) {
-		current->childs = calloc(current->want,sizeof(*current->childs));
-		reply->element = calloc(current->want,sizeof(*reply->element));
-		for(i = 0; i < current->want; ++i){
-			current->childs[i] = parse_tree_new();
-			reply->element[i] = current->childs[i]->reply;
+		err = 0;
+		do{
+			current->childs = calloc(current->want,sizeof(*current->childs));
+			if(!current->childs) {
+				err = 1;
+				break;
+			}
+			reply->element = calloc(current->want,sizeof(*reply->element));
+			if(!reply->element) {
+				err = 1;
+				break;
+			}
+			for(i = 0; i < current->want; ++i){
+				current->childs[i] = parse_tree_new();
+				if(!current->childs[i]) {
+					err = 1;
+					break;
+				}
+				reply->element[i] = current->childs[i]->reply;
+			}
+		}while(0);
+
+		if(err) {
+			if(current->childs){
+				for(i = 0; i < current->want; ++i) {
+					if(current->childs[i])
+						parse_tree_del(current->childs[i]);
+				}
+				free(current->childs);
+			}
+			if(reply->element)
+				free(reply->element);
+			current->childs = NULL;
+			reply->element = NULL;
+			return REDIS_ERR;
 		}
 	}
 
@@ -434,6 +471,11 @@ static void connect_callback(int32_t fd,void *ud,int32_t err) {
 	chk_redisclient *c = cast(chk_redisclient*,ud);
 	if(fd) {
 		c->sock = chk_stream_socket_new(fd,&option);
+		if(!c->sock) {
+			c->cntcb(NULL,c->ud,chk_error_no_memory);
+			free(c);
+			return;
+		}
 		chk_stream_socket_setUd(c->sock,c);
 		chk_loop_add_handle(c->loop,(chk_handle*)c->sock,data_cb);
 		c->cntcb(c,c->ud,0);	
@@ -447,8 +489,9 @@ int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_conn
 	chk_redisclient *c;
 	int32_t          fd;
 	if(!loop || !addr || !cntcb) return chk_error_invaild_argument;
-	fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 	c  = calloc(1,sizeof(*c));
+	if(!c) return chk_error_no_memory;
+	fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);	
 	c->cntcb  = cntcb;
 	c->ud     = ud;
 	c->loop   = loop;
@@ -478,6 +521,7 @@ int32_t chk_redis_execute(chk_redisclient *c,const char *str,chk_redis_reply_cb 
 		if(!buffer) break;
 		if(0 != chk_stream_socket_send(c->sock,buffer)) break;
 		repobj = calloc(1,sizeof(*repobj));
+		if(!repobj) break;
 		if(cb) {
 			repobj->cb = cb;
 			repobj->ud = ud;

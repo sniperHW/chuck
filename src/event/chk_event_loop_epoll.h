@@ -97,6 +97,12 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	e->tfd  = -1;
 	e->maxevents = 64;
 	e->events = calloc(1,(sizeof(*e->events)*e->maxevents));
+	if(!e->events) {
+		CHK_SYSLOG(LOG_ERROR,"create e->events failed,no memory");		
+		close(epfd);
+		chk_close_notify_channel(e->notifyfds);
+		return chk_error_no_memory;		
+	}
 	e->timermgr = NULL;
 	ev.data.fd = e->notifyfds[0];
 	ev.events = EPOLLIN;
@@ -224,6 +230,13 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 	        return NULL;				
 		}
 		e->timermgr = chk_timermgr_new();
+
+		if(!e->timermgr) {
+			CHK_SYSLOG(LOG_ERROR,"call chk_timermgr_new() failed");			
+	        close(e->tfd);
+	        e->tfd = -1;			
+			return NULL;
+		}
 	}
 	tick = chk_accurate_tick64();
 	return chk_timer_register(e->timermgr,timeout,cb,ud,tick); 

@@ -41,6 +41,7 @@ void chk_loop_end(chk_event_loop *e) {
 
 chk_event_loop *chk_loop_new() {
 	chk_event_loop *ep = calloc(1,sizeof(*ep));
+	if(!ep) return NULL;
 	if(chk_error_ok != chk_loop_init(ep)) {
 		CHK_SYSLOG(LOG_ERROR,"chk_loop_init() failed");
 		free(ep);

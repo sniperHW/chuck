@@ -154,6 +154,13 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	e->timermgr = NULL;
 	e->maxevents = 64;
 	e->events = calloc(1,(sizeof(*e->events)*e->maxevents));
+
+	if(!events) {
+		CHK_SYSLOG(LOG_ERROR,"create e->events failed,no memory");
+		close(kfd);
+		chk_close_notify_channel(e->notifyfds);
+		return chk_error_no_memory;
+	}
 	
 	EV_SET(&ke,e->notifyfds[0], EVFILT_READ, EV_ADD, 0, 0, (void*)(int64_t)e->notifyfds[0]);
 	if(0 != kevent(kfd, &ke, 1, NULL, 0, NULL)){
@@ -267,6 +274,10 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 	int32_t  flags =  EV_ADD | EV_ENABLE;
 	if(!e->timermgr){
 		e->timermgr = chk_timermgr_new();
+		if(!e->timermgr) {
+			CHK_SYSLOG(LOG_ERROR,"call chk_timermgr_new() failed");
+			return NULL;
+		}
 		e->tfd      = e->notifyfds[0];
 		EV_SET(&e->change, e->tfd, EVFILT_TIMER,flags, NOTE_USECONDS, 1000, e->timermgr);
 	}

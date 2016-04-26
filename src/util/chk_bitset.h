@@ -16,6 +16,7 @@ struct chk_bitset {
 static inline chk_bitset *chk_bitset_new(uint32_t size) {
 	uint32_t _size = size % sizeof(uint32_t) == 0 ? size/sizeof(uint32_t):size/sizeof(uint32_t)+1;
 	chk_bitset *bs = calloc(1,sizeof(*bs)+sizeof(uint32_t)*_size);
+	if(!bs) return NULL;
 	bs->size = size;
 	return bs;
 }
