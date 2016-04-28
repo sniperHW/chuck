@@ -349,7 +349,7 @@ static void process_read(chk_stream_socket *s) {
 		s->status |= SOCKET_PEERCLOSE;
 		//chk_disable_read(cast(chk_handle*,s));
 		if(bytes == 0)
-			error_code = chk_error_peer_close;
+			error_code = chk_error_stream_peer_close;
 		else {
 			CHK_SYSLOG(LOG_ERROR,"readv() failed errno:%d",errno);
 			error_code = chk_error_stream_read;
