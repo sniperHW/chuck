@@ -306,7 +306,7 @@ static void process_write(chk_stream_socket *s) {
 			s->status |= SOCKET_CLOSE;
 		else {
 			s->status |= SOCKET_PEERCLOSE;
-			chk_disable_write(cast(chk_handle*,s));
+			//chk_disable_write(cast(chk_handle*,s));
 			s->cb(s,NULL,chk_error_stream_write);
 			chk_stream_socket_close(s,0);
 			CHK_SYSLOG(LOG_ERROR,"writev() failed errno:%d",errno);
@@ -347,9 +347,9 @@ static void process_read(chk_stream_socket *s) {
 			update_next_recv_pos(s,bytes);
 	}else {
 		s->status |= SOCKET_PEERCLOSE;
-		chk_disable_read(cast(chk_handle*,s));
+		//chk_disable_read(cast(chk_handle*,s));
 		if(bytes == 0)
-			error_code = chk_error_stread_peer_close;
+			error_code = chk_error_peer_close;
 		else {
 			CHK_SYSLOG(LOG_ERROR,"readv() failed errno:%d",errno);
 			error_code = chk_error_stream_read;
