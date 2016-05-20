@@ -155,7 +155,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	e->maxevents = 64;
 	e->events = calloc(1,(sizeof(*e->events)*e->maxevents));
 
-	if(!events) {
+	if(!e->events) {
 		CHK_SYSLOG(LOG_ERROR,"create e->events failed,no memory");
 		close(kfd);
 		chk_close_notify_channel(e->notifyfds);
