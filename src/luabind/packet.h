@@ -3,6 +3,8 @@
 *  二进制数据表示法	|4字节数据长度|数据...|
 */
 
+#include "util/chk_list.h"
+
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
 #endif
@@ -26,6 +28,56 @@ typedef struct {
 }lua_rpacket;
 
 
+/*
+*	_lua_pack_table时用于检测table是否存在循环引用,
+*   如果出现循环引用将导致_lua_pack_table死循环
+*   
+*   循环引用的例子:
+*	t1 = {}
+*	t2 = {}
+*	t1[1] = 1
+*	t1[2] = t2
+*	t2[1] = 2
+*	t2[2] = t1
+*   todo:优化检测算法
+*/
+
+typedef struct {
+	chk_list_entry list_entry;
+	const	void  *p;
+}cycle_check_node;
+
+__thread chk_list cycle_check_list = {0,NULL,NULL};
+
+static void clean_cycle_check_list()
+{
+	cycle_check_node *node;
+	while(NULL != (node = (cycle_check_node*)chk_list_pop(&cycle_check_list))){
+		free(node);
+	}
+}
+
+static void check_cycle(lua_State *L,int32_t index)
+{
+	cycle_check_node *node;
+	const void *p = lua_topointer(L,index);
+	node = (cycle_check_node*)chk_list_begin(&cycle_check_list);
+	while(NULL != node){
+		if(p == node->p){
+			clean_cycle_check_list();
+			luaL_error(L,"table cycle ref");
+		}
+		node = (cycle_check_node*)((chk_list_entry*)node)->next;
+	}
+	node = calloc(1,sizeof(*node));
+	if(NULL == node){
+		clean_cycle_check_list();
+		luaL_error(L,"no enough memroy");	
+	}
+	node->p = p;
+	chk_list_pushback(&cycle_check_list,(chk_list_entry*)node);
+}
+
 #define lua_checkbytebuffer(L,I)	\
 	(chk_bytebuffer*)luaL_checkudata(L,I,BYTEBUFFER_METATABLE)
 
@@ -39,7 +91,6 @@ enum{
 	L_TABLE = 1,
 	L_STRING,
 	L_BOOL,
-	L_FLOAT,
 	L_DOUBLE,
 	L_UINT8,
 	L_UINT16,
@@ -226,7 +277,6 @@ static inline int32_t _lua_unpack_boolean(lua_rpacket *rpk,lua_State *L) {
 static inline int32_t _lua_unpack_number(lua_rpacket *rpk,lua_State *L,int type) {
 	lua_Integer   n;
 	switch(type){
-		case L_FLOAT:lua_pushnumber(L, LUA_RPACKET_READ(rpk,float));return 0;
 		case L_DOUBLE:lua_pushnumber(L, LUA_RPACKET_READ(rpk,double));return 0;
 		case L_UINT8:n  = LUA_RPACKET_READ(rpk,uint8_t);break;
 		case L_UINT16:n = chk_ntoh16(LUA_RPACKET_READ(rpk,uint16_t));break;
@@ -276,14 +326,14 @@ static int32_t _lua_unpack_table(lua_rpacket *rpk,lua_State *L) {
 		key_type = LUA_RPACKET_READ(rpk,int8_t);
 		if(key_type == L_STRING)
 			ret = _lua_unpack_string(rpk,L);
-		else if(key_type >= L_FLOAT && key_type <= L_INT64)
+		else if(key_type >= L_DOUBLE && key_type <= L_INT64)
 			ret = _lua_unpack_number(rpk,L,key_type);
 		if(ret != 0) return -1;
 		ret = -1;
 		value_type = LUA_RPACKET_READ(rpk,int8_t);
 		if(value_type == L_STRING)
 			ret = _lua_unpack_string(rpk,L);
-		else if(value_type >= L_FLOAT && value_type <= L_INT64)
+		else if(value_type >= L_DOUBLE && value_type <= L_INT64)
 			ret = _lua_unpack_number(rpk,L,value_type);
 		else if(value_type == L_BOOL)
 			ret = _lua_unpack_boolean(rpk,L);
@@ -322,22 +372,19 @@ static inline int32_t lua_wpacket_write(lua_wpacket *w,char *in,uint32_t size) {
 #define CHECK_WRITE_NUM(W,V,T)										\
 	do{																\
 		T _V = (V);													\
-		if(0!= lua_wpacket_write((W),(char*)&(_V),sizeof(T))) 		\
-			return luaL_error(L,"write beyond limited");			\
+		if(0!= lua_wpacket_write((W),(char*)&(_V),sizeof(T))){		\
+			clean_cycle_check_list();								\
+			luaL_error(L,"write beyond limited");					\
+		}															\
 	}while(0)
 
 #define CHECK_WRITE_STR(W,V,S)										\
 	do{																\
-		if(0!= lua_wpacket_write((W),(char*)(V),(uint32_t)(S)))		\
-			return luaL_error(L,"write beyond limited");			\
+		if(0!= lua_wpacket_write((W),(char*)(V),(uint32_t)(S))){	\
+			clean_cycle_check_list();								\
+			luaL_error(L,"write beyond limited");					\
+		}															\
 	}while(0)
-
-#define CHECK_WRITE_PACK(FUNC,W,L,I)								\
-	do{																\
-		if(0!= FUNC(W,L,I))											\
-			return luaL_error(L,"write beyond limited");			\
-	}while(0)
-
 
 static inline int32_t lua_wpacket_writeI8(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
@@ -388,7 +435,7 @@ static inline int32_t lua_wpacket_writeStr(lua_State *L) {
 }
 
 
-static inline int32_t _lua_pack_string(lua_wpacket *wpk,lua_State *L,int index) {
+static inline void _lua_pack_string(lua_wpacket *wpk,lua_State *L,int index) {
 	size_t      len;
 	uint32_t    size;
 	const char *data;
@@ -397,26 +444,19 @@ static inline int32_t _lua_pack_string(lua_wpacket *wpk,lua_State *L,int index) 
 	size = chk_hton32((uint32_t)len);
 	CHECK_WRITE_NUM(wpk,size,uint32_t);
 	CHECK_WRITE_STR(wpk,data,len);
-	return 0;	
 }
 
-static inline int32_t _lua_pack_boolean(lua_wpacket *wpk,lua_State *L,int index) {
+static inline void _lua_pack_boolean(lua_wpacket *wpk,lua_State *L,int index) {
 	CHECK_WRITE_NUM(wpk,L_BOOL,int8_t);
 	CHECK_WRITE_NUM(wpk,lua_toboolean(L,index),int8_t);
-	return 0;
 }
 
 
-static  int32_t _lua_pack_number(lua_wpacket *wpk,lua_State *L,int index) {
+static  void _lua_pack_number(lua_wpacket *wpk,lua_State *L,int index) {
 	lua_Number v = lua_tonumber(L,index);
 	if(v != cast(lua_Integer,v)){
-		if(v != cast(float,v)) {
-			CHECK_WRITE_NUM(wpk,L_FLOAT,int8_t);
-			CHECK_WRITE_NUM(wpk,v,float);
-		}else {
-			CHECK_WRITE_NUM(wpk,L_DOUBLE,int8_t);
-			CHECK_WRITE_NUM(wpk,v,double);
-		}
+		CHECK_WRITE_NUM(wpk,L_DOUBLE,int8_t);
+		CHECK_WRITE_NUM(wpk,v,double);
 	}else{
 		if(cast(int64_t,v) > 0){
 			uint64_t _v = cast(uint64_t,v);
@@ -450,20 +490,21 @@ static  int32_t _lua_pack_number(lua_wpacket *wpk,lua_State *L,int index) {
 			}
 		}
 	}
-	return 0;
 }
 
-static const int32_t _lua_pack_table(lua_wpacket *wpk,lua_State *L,int index) {
-	int32_t c   = 0;
-	int32_t top = lua_gettop(L);
+static void _lua_pack_table(lua_wpacket *wpk,lua_State *L,int index) {
+	int32_t c,top;
 	chk_bytechunk *chunk;
 	uint32_t pos,size = sizeof(c);
+	check_cycle(L,index);
+	top = lua_gettop(L);
 	CHECK_WRITE_NUM(wpk,L_TABLE,int8_t);
 	chunk = wpk->buff->tail;
 	pos   = wpk->buff->append_pos;
 	CHECK_WRITE_NUM(wpk,0,int32_t);
 	lua_pushnil(L);
-	do{		
+	c = 0;	
+	for(;;){		
 		if(!lua_next(L,index - 1)){
 			break;
 		}
@@ -471,39 +512,44 @@ static const int32_t _lua_pack_table(lua_wpacket *wpk,lua_State *L,int index) {
 		int32_t val_type = lua_type(L, -1);
 		if(VAILD_KEY_TYPE(key_type) && VAILD_VAILD_TYPE(val_type)){
 			if(key_type == LUA_TSTRING)
-				CHECK_WRITE_PACK(_lua_pack_string,wpk,L,-2);
+				_lua_pack_string(wpk,L,-2);
 			else
-				CHECK_WRITE_PACK(_lua_pack_number,wpk,L,-2);
+				_lua_pack_number(wpk,L,-2);
 
 			if(val_type == LUA_TSTRING)
-				CHECK_WRITE_PACK(_lua_pack_string,wpk,L,-1);
+				_lua_pack_string(wpk,L,-1);
 			else if(val_type == LUA_TNUMBER)
-				CHECK_WRITE_PACK(_lua_pack_number,wpk,L,-1);
+				_lua_pack_number(wpk,L,-1);
 			else if(val_type == LUA_TBOOLEAN)
-				CHECK_WRITE_PACK(_lua_pack_boolean,wpk,L,-1);
+				_lua_pack_boolean(wpk,L,-1);
 			else if(val_type == LUA_TTABLE){
 				if(0 != lua_getmetatable(L,index)){ 
-					return luaL_error(L,"contain metatable");
+					clean_cycle_check_list();
+					luaL_error(L,"contain metatable");
 				}
-				CHECK_WRITE_PACK(_lua_pack_table,wpk,L,-1);
+				_lua_pack_table(wpk,L,-1);
 			}else{
-				return luaL_error(L,"unsupport type");
+				clean_cycle_check_list();
+				luaL_error(L,"unsupport type");
 			}
 			++c;
 		}
 		lua_pop(L,1);
-	}while(1);
+	}
 	lua_settop(L,top);
 	c = chk_hton32(c);
 	chk_bytechunk_write(chunk,cast(char*,&c),&pos,&size);
-	return 0;
 }
+
+
 
 static inline int32_t lua_wpacket_writeTable(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
 	if(lua_type(L, 2) != LUA_TTABLE)
 		luaL_error(L,"argumen 2 of wpacket_writeTable must be table");
-	return _lua_pack_table(w,L,-1);
+	_lua_pack_table(w,L,-1);
+	clean_cycle_check_list();
+	return 0;
 }
 
 

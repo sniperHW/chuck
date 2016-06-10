@@ -1,3 +1,6 @@
+package.path = './lib/?.lua;'
+package.cpath = './lib/?.so;'
+
 local chuck = require("chuck")
 local packet = chuck.packet
 
@@ -10,7 +13,23 @@ w:WriteStr("hello")
 w:WriteStr("fasdfasdfasffdsafjklafklkfjklfjlkasfjaklfjfkjasfjaklf")
 w:WriteStr("fasdfasdfasffdsafjklafklkfjklfjlkasfjaklfjfkjasfjaklf")
 --w:WriteTable({-2,3,6273549})
-w:WriteTable({a=1,b=2.8})
+
+t1 = {}
+t2 = {}
+
+t1[1] = 1
+t1[2] = t2
+
+t2[1] = 2
+t2[2] = t1
+
+
+--t循环引用,WriteTable报错
+--w:WriteTable(t1)
+
+local d = 2.8
+
+w:WriteTable({a=1,b=d})
 
 local r = packet.Reader(buff)
 
@@ -25,4 +44,4 @@ local t = r:ReadTable()
 --	print(v)
 --end
 --local t = r:ReadTable()
-print(t.a,t.b)
+print(t.a,t.b,d)
