@@ -49,28 +49,26 @@ typedef struct {
 
 __thread chk_list cycle_check_list = {0,NULL,NULL};
 
-static void clean_cycle_check_list()
-{
+static void clean_cycle_check_list() {
 	cycle_check_node *node;
-	while(NULL != (node = (cycle_check_node*)chk_list_pop(&cycle_check_list))){
+	while(NULL != (node = (cycle_check_node*)chk_list_pop(&cycle_check_list))) {
 		free(node);
 	}
 }
 
-static void check_cycle(lua_State *L,int32_t index)
-{
+static void check_cycle(lua_State *L,int32_t index) {
 	cycle_check_node *node;
 	const void *p = lua_topointer(L,index);
 	node = (cycle_check_node*)chk_list_begin(&cycle_check_list);
-	while(NULL != node){
-		if(p == node->p){
+	while(NULL != node) {
+		if(p == node->p) {
 			clean_cycle_check_list();
 			luaL_error(L,"table cycle ref");
 		}
 		node = (cycle_check_node*)((chk_list_entry*)node)->next;
 	}
 	node = calloc(1,sizeof(*node));
-	if(NULL == node){
+	if(NULL == node) {
 		clean_cycle_check_list();
 		luaL_error(L,"no enough memroy");	
 	}
@@ -369,141 +367,215 @@ static inline int32_t lua_wpacket_write(lua_wpacket *w,char *in,uint32_t size) {
     return 0;
 }
 
-#define CHECK_WRITE_NUM(W,V,T)										\
-	do{																\
-		T _V = (V);													\
-		if(0!= lua_wpacket_write((W),(char*)&(_V),sizeof(T))){		\
-			clean_cycle_check_list();								\
-			luaL_error(L,"write beyond limited");					\
-		}															\
-	}while(0)
-
-#define CHECK_WRITE_STR(W,V,S)										\
-	do{																\
-		if(0!= lua_wpacket_write((W),(char*)(V),(uint32_t)(S))){	\
-			clean_cycle_check_list();								\
-			luaL_error(L,"write beyond limited");					\
-		}															\
-	}while(0)
-
 static inline int32_t lua_wpacket_writeI8(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
 	int8_t value = (int8_t)luaL_checkinteger(L,2);  
-    CHECK_WRITE_NUM(w,value,int8_t);
+    if(0 != lua_wpacket_write(w,(char*)&value,sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeI16(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1); 
     int16_t value = chk_hton16((int16_t)luaL_checkinteger(L,2));
-    CHECK_WRITE_NUM(w,value,int16_t);
+    if(0 != lua_wpacket_write(w,(char*)&value,sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;       
 }
 
 static inline int32_t lua_wpacket_writeI32(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);    
     int32_t value = chk_hton32((int32_t)luaL_checkinteger(L,2));
-    CHECK_WRITE_NUM(w,value,int32_t);
+    if(0 != lua_wpacket_write(w,(char*)&value,sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeI64(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);    
     int64_t value = chk_hton64((int64_t)luaL_checkinteger(L,2));
-    CHECK_WRITE_NUM(w,value,int64_t);
+    if(0 != lua_wpacket_write(w,(char*)&value,sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeDub(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
 	double value = luaL_checknumber(L,2);    
-    CHECK_WRITE_NUM(w,value,double);
+    if(0 != lua_wpacket_write(w,(char*)&value,sizeof(value)))
+    	return luaL_error(L,"write beyond limited");
     return 0;
 }
 
 static inline int32_t lua_wpacket_writeStr(lua_State *L) {
-	lua_wpacket *w = lua_checkwpacket(L,1);
 	const char  *str;
 	size_t       len;
 	uint32_t     size;
+	int32_t      ret;	
+	lua_wpacket *w = lua_checkwpacket(L,1);
 	if(!lua_isstring(L,2)) luaL_error(L,"argument 2 or lua_rpacket_readstr must be string");
 	str = lua_tolstring(L,2,&len);
 	size = chk_hton32((uint32_t)len);
-	CHECK_WRITE_NUM(w,size,uint32_t);
-	CHECK_WRITE_STR(w,str,len);
+	do{
+		if(0 != (ret = lua_wpacket_write(w,(char*)&size,sizeof(size))))
+			break;
+		if(0 != (ret = lua_wpacket_write(w,(char*)str,len)))
+			break;		
+	}while(0);
+
+	if(0 != ret)
+		return luaL_error(L,"write beyond limited");
+
 	return 0;
 }
 
 
-static inline void _lua_pack_string(lua_wpacket *wpk,lua_State *L,int index) {
+static inline int32_t _lua_pack_string(lua_wpacket *wpk,lua_State *L,int index) {
 	size_t      len;
 	uint32_t    size;
 	const char *data;
-	CHECK_WRITE_NUM(wpk,L_STRING,int8_t);
+	int8_t      type = L_STRING;
+
+	if(0 != lua_wpacket_write(wpk,(char*)&type,sizeof(type)))
+		return -1;
 	data = lua_tolstring(L,index,&len);
 	size = chk_hton32((uint32_t)len);
-	CHECK_WRITE_NUM(wpk,size,uint32_t);
-	CHECK_WRITE_STR(wpk,data,len);
+	
+	if(0 != lua_wpacket_write(wpk,(char*)&size,sizeof(size)))
+		return -1;
+	if(0 != lua_wpacket_write(wpk,(char*)data,len))
+		return -1;
+	return 0;
 }
 
-static inline void _lua_pack_boolean(lua_wpacket *wpk,lua_State *L,int index) {
-	CHECK_WRITE_NUM(wpk,L_BOOL,int8_t);
-	CHECK_WRITE_NUM(wpk,lua_toboolean(L,index),int8_t);
+static inline int32_t _lua_pack_boolean(lua_wpacket *wpk,lua_State *L,int index) {
+	
+	int8_t type = L_BOOL;
+	int8_t value = (int8_t)lua_toboolean(L,index);
+
+	if(0 != lua_wpacket_write(wpk,(char*)&type,sizeof(type)))
+		return -1;
+	if(0 != lua_wpacket_write(wpk,(char*)&value,value))
+		return -1;
+	return 0;	
 }
 
 
-static  void _lua_pack_number(lua_wpacket *wpk,lua_State *L,int index) {
+static  int32_t _lua_pack_number(lua_wpacket *wpk,lua_State *L,int index) {
+	int32_t    ret;
+	int8_t     type;
+	int64_t    vi64;
+	uint64_t   vu64;
+	int32_t    vi32;
+	uint32_t   vu32;
+	int16_t    vi16;
+	uint16_t   vu16;
+	int8_t     vi8;
+	uint8_t    vu8;
+
 	lua_Number v = lua_tonumber(L,index);
-	if(v != cast(lua_Integer,v)){
-		CHECK_WRITE_NUM(wpk,L_DOUBLE,int8_t);
-		CHECK_WRITE_NUM(wpk,v,double);
-	}else{
-		if(cast(int64_t,v) > 0){
-			uint64_t _v = cast(uint64_t,v);
-			if(_v <= 0xFF){
-				CHECK_WRITE_NUM(wpk,L_UINT8,int8_t);
-				CHECK_WRITE_NUM(wpk,cast(uint8_t,_v),uint8_t);				
-			}else if(_v <= 0xFFFF){
-				CHECK_WRITE_NUM(wpk,L_UINT16,int8_t);
-				CHECK_WRITE_NUM(wpk,cast(uint16_t,chk_hton16(_v)),uint16_t);					
-			}else if(_v <= 0xFFFFFFFF){
-				CHECK_WRITE_NUM(wpk,L_UINT32,int8_t);
-				CHECK_WRITE_NUM(wpk,cast(uint32_t,chk_hton32(_v)),uint32_t);					
+	do{
+		if(v != cast(lua_Integer,v)) {
+			type = L_DOUBLE;
+			if(0 != (ret = lua_wpacket_write(wpk,(char*)&type,sizeof(type))))
+				break;	
+			if(0 != (ret = lua_wpacket_write(wpk,(char*)&v,sizeof(v))))
+				break;
+		}else {
+			if(cast(int64_t,v) > 0){
+				vu64 = cast(uint64_t,v);
+				if(vu64 <= 0xFF){
+					type = L_UINT8;
+					vu8 = (uint8_t)vu64;					
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&type,sizeof(type))))
+						break;	
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&vu8,sizeof(vu8))))
+						break;				
+				}else if(vu64 <= 0xFFFF){
+					type = L_UINT16;
+					vu16 = chk_hton16((uint16_t)vu64);
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&type,sizeof(type))))
+						break;	
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&vu16,sizeof(vu16))))
+						break;						
+				}else if(vu64 <= 0xFFFFFFFF){
+					type = L_UINT32;
+					vu32 = chk_hton32((uint32_t)vu64);
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&type,sizeof(type))))
+						break;	
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&vu32,sizeof(vu32))))
+						break;										
+				}else{
+					type = L_INT64;
+					vi64 = chk_hton64((int64_t)vu64);
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&type,sizeof(type))))
+						break;	
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&vi64,sizeof(vi64))))
+						break;				
+				}
 			}else{
-				CHECK_WRITE_NUM(wpk,L_INT64,int8_t);
-				CHECK_WRITE_NUM(wpk,cast(int64_t,chk_hton64(_v)),int64_t);				
-			}
-		}else{
-			int64_t _v = cast(int64_t,v);
-			if(_v <= 0x80){
-				CHECK_WRITE_NUM(wpk,L_INT8,int8_t);
-				CHECK_WRITE_NUM(wpk,cast(int8_t,_v),int8_t);				
-			}else if(_v <= 0x8000){
-				CHECK_WRITE_NUM(wpk,L_INT16,int8_t);
-				CHECK_WRITE_NUM(wpk,cast(int16_t,chk_hton16(_v)),int16_t);					
-			}else if(_v < 0x80000000){
-				CHECK_WRITE_NUM(wpk,L_INT32,int8_t);
-				CHECK_WRITE_NUM(wpk,cast(int32_t,chk_hton32(_v)),int32_t);					
-			}else{
-				CHECK_WRITE_NUM(wpk,L_INT64,int8_t);
-				CHECK_WRITE_NUM(wpk,cast(int64_t,chk_hton64(_v)),int64_t);				
+				int64_t vi64 = (int64_t)v;
+				if(vi64 <= 0x80){
+					type = L_INT8;
+					vi8 = (int8_t)vi64;
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&type,sizeof(type))))
+						break;	
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&vi8,sizeof(vi8))))
+						break;						
+				}else if(vi64 <= 0x8000){
+					type = L_INT16;
+					vi16 = chk_hton16((int16_t)vi64);
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&type,sizeof(type))))
+						break;	
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&vi16,sizeof(vi16))))
+						break;						
+				}else if(vi64 < 0x80000000){
+					type = L_INT32;
+					vi32 = chk_hton32((int32_t)vi64);
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&type,sizeof(type))))
+						break;	
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&vi32,sizeof(vi32))))
+						break;					
+				}else{
+					type = L_INT64;
+					vi64 = chk_hton64((int64_t)vi64);
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&type,sizeof(type))))
+						break;	
+					if(0 != (ret = lua_wpacket_write(wpk,(char*)&vi64,sizeof(vi64))))
+						break;				
+				}
 			}
 		}
-	}
+	}while(0);
+
+	if(0 != ret)
+		return luaL_error(L,"write beyond limited");
+	return 0;
 }
 
-static void _lua_pack_table(lua_wpacket *wpk,lua_State *L,int index) {
-	int32_t c,top;
+static int32_t _lua_pack_table(lua_wpacket *wpk,lua_State *L,int index) {
+	int32_t c,top,ret;
 	chk_bytechunk *chunk;
+	int8_t  type;
 	uint32_t pos,size = sizeof(c);
 	check_cycle(L,index);
 	top = lua_gettop(L);
-	CHECK_WRITE_NUM(wpk,L_TABLE,int8_t);
+	type = L_TABLE;
+	
+	if(0 != lua_wpacket_write(wpk,(char*)&type,sizeof(type)))
+		return -1;		
+	
 	chunk = wpk->buff->tail;
 	pos   = wpk->buff->append_pos;
-	CHECK_WRITE_NUM(wpk,0,int32_t);
+	c 	  = 0;
+	
+	if(0 != lua_wpacket_write(wpk,(char*)&c,sizeof(c)))
+		return -1;	
+	
 	lua_pushnil(L);
-	c = 0;	
+
+	ret = 0;
+
 	for(;;){		
 		if(!lua_next(L,index - 1)){
 			break;
@@ -511,47 +583,64 @@ static void _lua_pack_table(lua_wpacket *wpk,lua_State *L,int index) {
 		int32_t key_type = lua_type(L, -2);
 		int32_t val_type = lua_type(L, -1);
 		if(VAILD_KEY_TYPE(key_type) && VAILD_VAILD_TYPE(val_type)){
-			if(key_type == LUA_TSTRING)
-				_lua_pack_string(wpk,L,-2);
-			else
-				_lua_pack_number(wpk,L,-2);
+			if(key_type == LUA_TSTRING) {
+				if(0 != (ret = _lua_pack_string(wpk,L,-2)))
+					break;
+			}
+			else {
+				if(0 != (ret = _lua_pack_number(wpk,L,-2)))
+					break;
+			}
 
-			if(val_type == LUA_TSTRING)
-				_lua_pack_string(wpk,L,-1);
-			else if(val_type == LUA_TNUMBER)
-				_lua_pack_number(wpk,L,-1);
-			else if(val_type == LUA_TBOOLEAN)
-				_lua_pack_boolean(wpk,L,-1);
-			else if(val_type == LUA_TTABLE){
+			if(val_type == LUA_TSTRING) {
+				if(0 != (ret = _lua_pack_string(wpk,L,-1)))
+					break;
+			}
+			else if(val_type == LUA_TNUMBER) {
+				if(0 != (ret = _lua_pack_number(wpk,L,-1)))
+					break;
+			}
+			else if(val_type == LUA_TBOOLEAN) {
+				if(0 != (ret = _lua_pack_boolean(wpk,L,-1)))
+					break;
+			}
+			else if(val_type == LUA_TTABLE) {
 				if(0 != lua_getmetatable(L,index)){ 
-					clean_cycle_check_list();
-					luaL_error(L,"contain metatable");
+					ret = -1;
+					break;
 				}
-				_lua_pack_table(wpk,L,-1);
-			}else{
-				clean_cycle_check_list();
-				luaL_error(L,"unsupport type");
+				if(0 != (ret = _lua_pack_table(wpk,L,-1)))
+					break;
+			}else {
+				ret = -1;
 			}
 			++c;
 		}
 		lua_pop(L,1);
 	}
-	lua_settop(L,top);
-	c = chk_hton32(c);
-	chk_bytechunk_write(chunk,cast(char*,&c),&pos,&size);
+
+	if(0 == ret) {
+		lua_settop(L,top);
+		c = chk_hton32(c);
+		chk_bytechunk_write(chunk,cast(char*,&c),&pos,&size);
+		return 0;
+	}
+
+	return -1;
 }
-
-
 
 static inline int32_t lua_wpacket_writeTable(lua_State *L) {
+	int32_t ret;
 	lua_wpacket *w = lua_checkwpacket(L,1);
 	if(lua_type(L, 2) != LUA_TTABLE)
-		luaL_error(L,"argumen 2 of wpacket_writeTable must be table");
-	_lua_pack_table(w,L,-1);
+		return luaL_error(L,"argumen 2 of wpacket_writeTable must be table");
+	ret = _lua_pack_table(w,L,-1);
 	clean_cycle_check_list();
+	if(0 != ret) {
+		return luaL_error(L,"write table error");
+	}
 	return 0;
 }
-
 
 /////
 
