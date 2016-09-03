@@ -9,7 +9,6 @@
 #include "util/chk_exception.h"
 #include "util/chk_list.h"
 #include "util/chk_log.h"
-#include "util/chk_refobj.h"
 #include "util/chk_time.h"
 #include "util/chk_timer.h"
 #include "util/chk_util.h"

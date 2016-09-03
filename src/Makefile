@@ -28,7 +28,6 @@ endif
 source.lib =  util/chk_log.c\
 			  util/chk_timer.c\
 			  util/chk_exception.c\
-			  util/chk_refobj.c\
 			  util/chk_bytechunk.c\
 			  util/chk_string.c\
 			  util/lookup8.c\
@@ -47,7 +46,6 @@ source.lib =  util/chk_log.c\
 source.so =   util/chk_log.c\
 			  util/chk_timer.c\
 			  util/chk_exception.c\
-			  util/chk_refobj.c\
 			  util/chk_bytechunk.c\
 			  util/chk_string.c\
 			  util/lookup8.c\
