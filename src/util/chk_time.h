@@ -12,9 +12,9 @@
 
 #ifdef _MACH
 #include <mach/mach_time.h>
-#define CLOCK_REALTIME 0
-#define CLOCK_MONOTONIC 0
-#define CLOCK_MONOTONIC_RAW 0
+#define CLOCK_REALTIME 1
+#define CLOCK_MONOTONIC 2
+#define CLOCK_MONOTONIC_RAW 3
 static inline int clock_gettime(int clk_id, struct timespec *t){
     
     if(clk_id == CLOCK_MONOTONIC || clk_id == CLOCK_MONOTONIC_RAW){
