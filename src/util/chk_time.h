@@ -11,6 +11,9 @@
 #include "util/chk_error.h"
 
 #ifdef _MACH
+
+#ifndef CLOCK_REALTIME
+
 #include <mach/mach_time.h>
 #define CLOCK_REALTIME 1
 #define CLOCK_MONOTONIC 2
@@ -41,6 +44,8 @@ static inline int clock_gettime(int clk_id, struct timespec *t){
 
     return chk_error_ok;
 }
+#endif
+
 #endif
 
 
