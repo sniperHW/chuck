@@ -357,6 +357,7 @@ static chk_bytebuffer *convert(uint32_t size,size_t space) {
 		for(i = 0; i < w->size;) *ptr1++ = w->buff[i++];
 		for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
 	}
+	buff->datasize = space;
 	return buff;
 }
 

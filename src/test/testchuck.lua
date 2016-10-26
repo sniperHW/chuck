@@ -1,3 +1,4 @@
+package.cpath = './lib/?.so;'
 local chuck = require("chuck")
 
 print("-----------chuck----------------")

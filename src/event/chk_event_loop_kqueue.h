@@ -20,7 +20,8 @@ static int32_t _add_event(chk_event_loop *e,chk_handle *h,int32_t event) {
 static int32_t _enable_event(chk_event_loop *e,chk_handle *h,int32_t event) {
 	struct kevent ke;
 	EV_SET(&ke, h->fd, event,EV_ENABLE, 0, 0, h);
-	if(0 != kevent(e->kfd, &ke, 1, NULL, 0, NULL) && errno == ENOENT){
+	errno = 0;
+	if(0 == kevent(e->kfd, &ke, 1, NULL, 0, NULL) || errno == ENOENT){
 		return _add_event(e,h,event);
 	}
 	else {
