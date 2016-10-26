@@ -292,6 +292,12 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 static void process_write(chk_stream_socket *s) {
 	int32_t bc,bytes;
 	bc = prepare_send(s);
+	
+	if(bc <= 0) {
+		CHK_SYSLOG(LOG_ERROR,"bc <= 0");
+		return;
+	}
+
 	if((bytes = TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc))) > 0) {
 		update_send_list(s,bytes);
 		/*没有数据需要发送了,停止写监听*/

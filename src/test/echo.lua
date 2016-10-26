@@ -27,7 +27,7 @@ end)
 if server then
 	log.SysLog(log.info,"server start")	
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
-		log.SysLog(log.error,"recv SIGINT stop server")
+		log.SysLog(log.info,"recv SIGINT stop server")
 		event_loop:Stop()
 	end)	
 	event_loop:Run()
