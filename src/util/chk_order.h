@@ -6,8 +6,10 @@
 
 #ifdef _LINUX
 # include <endian.h>
-#elif _FREEBSD
+#elif _MACH
 # include <machine/endian.h>
+#else
+# error "un support os!"
 #endif
 
 static inline uint16_t chk_swap16(uint16_t num) {
