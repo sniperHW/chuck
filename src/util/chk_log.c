@@ -4,6 +4,7 @@
 #include "util/chk_atomic.h"
 #include "util/chk_time.h"
 #include "thread/chk_thread.h"
+#include "sys/stat.h"
 
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
@@ -140,6 +141,7 @@ static void *log_routine(void *arg) {
 	struct timespec  tv;
 	struct tm        _tm;			
 	time_t           next_fulsh = time(NULL) + flush_interval;
+	int32_t          ret;
 
 	for(;;) {
 		if((entry = logqueue_fetch(stop?0:100))) {
@@ -151,7 +153,7 @@ static void *log_routine(void *arg) {
 				//创建文件
 				clock_gettime(CLOCK_REALTIME, &tv);
 				localtime_r(&tv.tv_sec, &_tm);
-				snprintf(filename,128,"%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
+				snprintf(filename,128,"./log/%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
 						 entry->_logfile->filename,
 						 getpid(),
 					     _tm.tm_year+1900,
@@ -161,7 +163,10 @@ static void *log_routine(void *arg) {
 					     _tm.tm_min,
 					     _tm.tm_sec,
 					     cast(int32_t,tv.tv_nsec/1000000));
-				entry->_logfile->file = fopen(filename,"w+");				
+				ret = mkdir("./log/",S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+				if(ret == 0 || errno == EEXIST){
+					entry->_logfile->file = fopen(filename,"w+");
+				}				
 			}
 			
 			if(entry->_logfile && entry->_logfile->file){
