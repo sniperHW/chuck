@@ -47,7 +47,7 @@ void redis_reply_cb(chk_redisclient *c,redisReply *reply,void *ud) {
 	//if(count == 689){
 	//	printf("fdasf");
 	//}
-	chk_redis_execute(c,"hmget chaid:1 chainfo skills",redis_reply_cb,NULL);
+	chk_redis_execute(c,"hmget chaid:1 chainfo skills",strlen("hmget chaid:1 chainfo skills"),redis_reply_cb,NULL);
 }
 
 void redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
@@ -68,14 +68,20 @@ void redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
 								  "fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
 								  "fasfasdfasdfasfasdfasdfasdfcvavasdfasdf");
 
-		int ret = chk_redis_execute(c,buff,NULL,NULL);
+		int ret = chk_redis_execute(c,buff,strlen(buff),NULL,NULL);
 		printf("%d\n",ret);
 	}
 
 	printf("start get\n");
 
 	chk_redis_set_disconnect_cb(c,chk_redis_disconnect,NULL);
-	for(i = 0; i < 1000; ++i) chk_redis_execute(c,"hmget chaid:1 chainfo skills",redis_reply_cb,NULL);
+	for(i = 0; i < 1000; ++i) {
+		chk_redis_execute(c,
+			              "hmget chaid:1 chainfo skills",
+			              strlen("hmget chaid:1 chainfo skills"),	
+						  redis_reply_cb,
+						  NULL);
+	}
 }
 
 int32_t on_timeout_cb(uint64_t tick,void*ud) {

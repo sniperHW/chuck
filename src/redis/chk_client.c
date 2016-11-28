@@ -362,13 +362,17 @@ static chk_bytebuffer *convert(uint32_t size,size_t space) {
 }
 
 //转换redis请求并写入到buffer中
-static chk_bytebuffer *build_request(const char *cmd) {
-	size_t len   = strlen(cmd);
+static chk_bytebuffer *build_request(const char *cmd,size_t len) {
 	token *w = NULL;
 	size_t i,j,space;
 	uint32_t idx  = 0;
 	char   quote  = 0;
 	char   c;
+
+	if(!cmd || 0 >= len) {
+		return NULL;
+	}
+
 	i = j = space = 0;
 	for(; i < len; ++i) {
 		c = cmd[i];
@@ -512,24 +516,26 @@ void    chk_redis_close(chk_redisclient *c,int32_t err) {
 		destroy_redisclient(c,err);
 }
 
-int32_t chk_redis_execute(chk_redisclient *c,const char *str,chk_redis_reply_cb cb,void *ud) {
+int32_t chk_redis_execute(chk_redisclient *c,const char *str,size_t len,chk_redis_reply_cb cb,void *ud) {
 	pending_reply  *repobj;
 	chk_bytebuffer *buffer;
 	int32_t         ret = chk_error_redis_request;
-	do {
-		if(c->status & CLIENT_CLOSE) break;
-		buffer = build_request(str);
-		if(!buffer) break;
-		if(0 != chk_stream_socket_send(c->sock,buffer)) break;
-		repobj = calloc(1,sizeof(*repobj));
-		if(!repobj) break;
-		if(cb) {
-			repobj->cb = cb;
-			repobj->ud = ud;
-		}	
-		chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
-		ret = chk_error_ok;
-	}while(0);
+	if(len > 0) {
+		do {
+			if(c->status & CLIENT_CLOSE) break;
+			buffer = build_request(str,len);
+			if(!buffer) break;
+			if(0 != chk_stream_socket_send(c->sock,buffer)) break;
+			repobj = calloc(1,sizeof(*repobj));
+			if(!repobj) break;
+			if(cb) {
+				repobj->cb = cb;
+				repobj->ud = ud;
+			}	
+			chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
+			ret = chk_error_ok;
+		}while(0);
+	}
 	return ret;
 }
 

@@ -68,6 +68,6 @@ void chk_redis_close(chk_redisclient *c,int32_t err);
  * @param ud 传递给cb的用户数据
  */
 
-int32_t chk_redis_execute(chk_redisclient*,const char *str,chk_redis_reply_cb cb,void *ud);
+int32_t chk_redis_execute(chk_redisclient*,const char *str,size_t str_len,chk_redis_reply_cb cb,void *ud);
 
 #endif    

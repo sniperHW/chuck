@@ -150,13 +150,19 @@ void lua_redis_reply_cb(chk_redisclient *_,redisReply *reply,void *ud) {
 
 static int32_t lua_redis_execute(lua_State *L) {
 	chk_luaRef *cb = NULL;
+	size_t     len = 0;
 	lua_redis_client *client = lua_checkredisclient(L,1);
-	const char *query_str = luaL_optstring(L,2,"");
+	const char *query_str = lua_tolstring(L,2,&len);
+	if(NULL == query_str) {
+		lua_pushstring(L,"redis_execute error");		
+		return 1;
+	}
+	//const char *query_str = luaL_optstring(L,2,"");
 	if(lua_isfunction(L,3)) {
 		cb = calloc(1,sizeof(*cb));
 		*cb = chk_toluaRef(L,3);
 	}
-	if(0 != chk_redis_execute(client->client,query_str,lua_redis_reply_cb,cb)) {
+	if(0 != chk_redis_execute(client->client,query_str,len,lua_redis_reply_cb,cb)) {
 		chk_luaRef_release(cb);
 		free(cb);
 		lua_pushstring(L,"redis_execute error");
