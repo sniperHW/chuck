@@ -98,7 +98,10 @@ static int32_t parse_integer(parse_tree *current,char **str,char *end) {
 		termi = current->break_;
 		for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 			if(c == '-') current->want = -1;
-			else if(!PARSE_NUM(integer)) return REDIS_ERR;
+			else if(!PARSE_NUM(integer)) {
+				CHK_SYSLOG(LOG_ERROR,"PARSE_NUM failed");	
+				return REDIS_ERR;
+			}
 		if(*str == end) return REDIS_RETRY;
 		++(*str);					
 	    if(termi == '\n') break;
@@ -116,7 +119,10 @@ static int32_t parse_breply(parse_tree *current,char **str,char *end) {
 			termi = current->break_;
 			for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 				if(c == '-') reply->type = REDIS_REPLY_NIL;
-				else if(!PARSE_NUM(len)) return REDIS_ERR;
+				else if(!PARSE_NUM(len)) {
+					CHK_SYSLOG(LOG_ERROR,"PARSE_NUM failed");		
+					return REDIS_ERR;
+				}
 			if(*str == end) return REDIS_RETRY;
 			++(*str);	
 		    if(termi == '\n') {
@@ -131,7 +137,10 @@ static int32_t parse_breply(parse_tree *current,char **str,char *end) {
 
 	if(!reply->str && reply->len + 1 > SIZE_TMP_BUFF) {
 		reply->str = calloc(1,reply->len + 1);
-		if(!reply->str) return REDIS_ERR;
+		if(!reply->str) {
+			CHK_SYSLOG(LOG_ERROR,"calloc parse_tree->str failed");	
+			return REDIS_ERR;
+		}
 	}
 	return parse_string(current,str,end);  
 }
@@ -139,9 +148,13 @@ static int32_t parse_breply(parse_tree *current,char **str,char *end) {
 
 static parse_tree *parse_tree_new() {
 	parse_tree *tree = calloc(1,sizeof(*tree));
-	if(!tree) return NULL;
+	if(!tree) { 
+		CHK_SYSLOG(LOG_ERROR,"calloc parse_tree failed");	
+		return NULL;
+	}
 	tree->reply = calloc(1,sizeof(*tree->reply));
 	if(!tree->reply) {
+		CHK_SYSLOG(LOG_ERROR,"calloc parse_tree->reply failed");		
 		free(tree);
 		return NULL;
 	}
@@ -152,12 +165,15 @@ static parse_tree *parse_tree_new() {
 static void parse_tree_del(parse_tree *tree) {
 	size_t i;
 	if(tree->childs) {
-		for(i = 0; i < tree->want; ++i)
+		for(i = 0; i < tree->want; ++i) {
 			parse_tree_del(tree->childs[i]);
+		}
 		free(tree->childs);
 		free(tree->reply->element);
 	}
-	if(tree->reply->str != tree->tmp_buff) free(tree->reply->str);
+	if(tree->reply->str != tree->tmp_buff) {
+		free(tree->reply->str);
+	}
 	free(tree->reply);
 	free(tree);
 }
@@ -174,7 +190,10 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 			termi = current->break_;				
 			for(c=**str;*str != end && c != termi; ++(*str),c=**str)
 				if(c == '-') reply->type = REDIS_REPLY_NIL;
-				else if(!PARSE_NUM(elements)) return REDIS_ERR;
+				else if(!PARSE_NUM(elements)){
+					CHK_SYSLOG(LOG_ERROR,"PARSE_NUM failed");
+					return REDIS_ERR;
+				}
 			if(*str == end) return REDIS_RETRY;
 			++(*str);		    
 		    if(termi == '\n'){
@@ -191,17 +210,20 @@ static int32_t parse_mbreply(parse_tree *current,char **str,char *end) {
 		do{
 			current->childs = calloc(current->want,sizeof(*current->childs));
 			if(!current->childs) {
+				CHK_SYSLOG(LOG_ERROR,"calloc current->childs failed");	
 				err = 1;
 				break;
 			}
 			reply->element = calloc(current->want,sizeof(*reply->element));
 			if(!reply->element) {
+				CHK_SYSLOG(LOG_ERROR,"calloc current->element failed");	
 				err = 1;
 				break;
 			}
 			for(i = 0; i < current->want; ++i){
 				current->childs[i] = parse_tree_new();
 				if(!current->childs[i]) {
+					CHK_SYSLOG(LOG_ERROR,"calloc current->childs[%d] failed",(int)i);	
 					err = 1;
 					break;
 				}
@@ -242,7 +264,10 @@ static int32_t parse(parse_tree *current,char **str,char *end) {
 	if(!current->type) {
 		char c = *(*str)++;
 		if(IS_OP_CODE(c)) current->type = c;
-		else return REDIS_ERR;
+		else {
+			CHK_SYSLOG(LOG_ERROR,"invaild opcode:%d",(int)c);	
+			return REDIS_ERR;
+		}
 	}
 	switch(current->type) {
 		case '+':{
@@ -271,8 +296,10 @@ static int32_t parse(parse_tree *current,char **str,char *end) {
 			ret = parse_mbreply(current,str,end);
 			break;
 		}							
-		default:
+		default:{
+			CHK_SYSLOG(LOG_ERROR,"invaild current->type:%d",(int)current->type);	
 			return REDIS_ERR;
+		}
 	}		
 	return ret;
 }
@@ -330,6 +357,7 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 				chunk = chunk->next;
 			}
 		}else if(parse_ret == REDIS_ERR){
+			CHK_SYSLOG(LOG_ERROR,"redis reply parse error");	
 			error = chk_error_redis_parse;
 			break;
 		}else {
@@ -351,6 +379,7 @@ static void connect_callback(int32_t fd,void *ud,int32_t err) {
 	if(fd) {
 		c->sock = chk_stream_socket_new(fd,&option);
 		if(!c->sock) {
+			CHK_SYSLOG(LOG_ERROR,"call chk_stream_socket_new failed");	
 			c->cntcb(NULL,c->ud,chk_error_no_memory);
 			free(c);
 			return;
@@ -367,9 +396,15 @@ static void connect_callback(int32_t fd,void *ud,int32_t err) {
 int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_connect_cb cntcb,void *ud) {
 	chk_redisclient *c;
 	int32_t          fd;
-	if(!loop || !addr || !cntcb) return chk_error_invaild_argument;
+	if(!loop || !addr || !cntcb) {
+		CHK_SYSLOG(LOG_ERROR,"invaild param loop:%p,addr:%p,cntcb:%p",loop,addr,cntcb);	
+		return chk_error_invaild_argument;
+	}
 	c  = calloc(1,sizeof(*c));
-	if(!c) return chk_error_no_memory;
+	if(!c) {
+		CHK_SYSLOG(LOG_ERROR,"calloc failed");	
+		return chk_error_no_memory;
+	}
 	fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);	
 	c->cntcb  = cntcb;
 	c->ud     = ud;
@@ -435,32 +470,45 @@ static int redisvFormatCommand(char **target, const char *format, va_list ap) {
     int j;
 
     /* Abort if there is not target to set */
-    if (target == NULL)
+    if (target == NULL){
+		CHK_SYSLOG(LOG_ERROR,"target == NULL");	
         return -1;
+    }
 
     /* Build the command string accordingly to protocol */
     curarg = sdsempty();
-    if (curarg == NULL)
+    if (curarg == NULL){
+		CHK_SYSLOG(LOG_ERROR,"call sdsempty() failed");	
         return -1;
+    }
 
     while(*c != '\0') {
         if (*c != '%' || c[1] == '\0') {
             if (*c == ' ') {
                 if (touched) {
                     newargv = realloc(curargv,sizeof(char*)*(argc+1));
-                    if (newargv == NULL) goto err;
+                    if (newargv == NULL){ 
+                    	CHK_SYSLOG(LOG_ERROR,"call realloc() failed:%d",(int)(sizeof(char*)*(argc+1)));	
+                    	goto err;
+                    }
                     curargv = newargv;
                     curargv[argc++] = curarg;
                     totlen += bulklen(sdslen(curarg));
 
                     /* curarg is put in argv so it can be overwritten. */
                     curarg = sdsempty();
-                    if (curarg == NULL) goto err;
+                    if (curarg == NULL) { 
+                    	CHK_SYSLOG(LOG_ERROR,"call sdsempty() failed");	
+                    	goto err;
+                    }
                     touched = 0;
                 }
             } else {
                 newarg = sdscatlen(curarg,c,1);
-                if (newarg == NULL) goto err;
+                if (newarg == NULL){
+                	CHK_SYSLOG(LOG_ERROR,"call sdscatlen() failed");	
+                	goto err;
+                }
                 curarg = newarg;
                 touched = 1;
             }
@@ -534,6 +582,7 @@ static int redisvFormatCommand(char **target, const char *format, va_list ap) {
                             va_arg(ap,int); /* char gets promoted to int */
                             goto fmt_valid;
                         }
+                        CHK_SYSLOG(LOG_ERROR,"invaild fmt");	
                         goto fmt_invalid;
                     }
 
@@ -544,6 +593,7 @@ static int redisvFormatCommand(char **target, const char *format, va_list ap) {
                             va_arg(ap,int); /* short gets promoted to int */
                             goto fmt_valid;
                         }
+                        CHK_SYSLOG(LOG_ERROR,"invaild fmt");	
                         goto fmt_invalid;
                     }
 
@@ -554,6 +604,7 @@ static int redisvFormatCommand(char **target, const char *format, va_list ap) {
                             va_arg(ap,long long);
                             goto fmt_valid;
                         }
+                        CHK_SYSLOG(LOG_ERROR,"invaild fmt");	
                         goto fmt_invalid;
                     }
 
@@ -564,6 +615,7 @@ static int redisvFormatCommand(char **target, const char *format, va_list ap) {
                             va_arg(ap,long);
                             goto fmt_valid;
                         }
+                        CHK_SYSLOG(LOG_ERROR,"invaild fmt");	
                         goto fmt_invalid;
                     }
 
@@ -588,7 +640,10 @@ static int redisvFormatCommand(char **target, const char *format, va_list ap) {
                 }
             }
 
-            if (newarg == NULL) goto err;
+            if (newarg == NULL){
+            	CHK_SYSLOG(LOG_ERROR,"newarg == NULL");	
+            	goto err;
+            }
             curarg = newarg;
 
             touched = 1;
@@ -600,7 +655,10 @@ static int redisvFormatCommand(char **target, const char *format, va_list ap) {
     /* Add the last argument if needed */
     if (touched) {
         newargv = realloc(curargv,sizeof(char*)*(argc+1));
-        if (newargv == NULL) goto err;
+        if (newargv == NULL){
+        	CHK_SYSLOG(LOG_ERROR,"realloc failed:%d",(int)(sizeof(char*)*(argc+1)));	
+        	goto err;
+        }
         curargv = newargv;
         curargv[argc++] = curarg;
         totlen += bulklen(sdslen(curarg));
@@ -616,7 +674,10 @@ static int redisvFormatCommand(char **target, const char *format, va_list ap) {
 
     /* Build the command at protocol level */
     cmd = malloc(totlen+1);
-    if (cmd == NULL) goto err;
+    if (cmd == NULL){
+    	CHK_SYSLOG(LOG_ERROR,"calloc failed:%d",(int)(totlen+1));	
+    	goto err;
+    }
 
     pos = sprintf(cmd,"*%d\r\n",argc);
     for (j = 0; j < argc; j++) {
@@ -657,17 +718,20 @@ static inline int redisvAppendCommand(const char *format, va_list ap,chk_bytebuf
 
     len = redisvFormatCommand(&cmd,format,ap);
     if (len == -1) {
+    	CHK_SYSLOG(LOG_ERROR,"call redisvFormatCommand failed");	
         return -1;
     }
 
     (*bytebuffer) = chk_bytebuffer_new(len);
 
     if(!(*bytebuffer)) {
+    	CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_new failed:%d",len);	
     	free(cmd);
     	return -1;
     }
 
     if(chk_bytebuffer_append((*bytebuffer),(uint8_t*)cmd,(uint32_t)len) != chk_error_ok) {
+    	CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_append failed");	
     	chk_bytebuffer_del((*bytebuffer));
     	(*bytebuffer) = NULL;
     	free(cmd);
@@ -689,6 +753,7 @@ int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,cons
     va_end(ap);
 
     if(0 != ret) {
+    	CHK_SYSLOG(LOG_ERROR,"call redisvAppendCommand() failed");	
     	return chk_error_redis_request;
     }
 
@@ -696,11 +761,13 @@ int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,cons
 	repobj = calloc(1,sizeof(*repobj));
 	
 	if(!repobj){ 
+    	CHK_SYSLOG(LOG_ERROR,"calloc repobj failed");	
 		chk_bytebuffer_del(buffer);
 		return chk_error_redis_request;
 	}
 
-	if(0 != chk_stream_socket_send(c->sock,buffer)) {
+	if(0 != (ret = chk_stream_socket_send(c->sock,buffer))) {
+    	CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);	
 		free(repobj);
 		chk_bytebuffer_del(buffer);
 		return chk_error_redis_request;
@@ -766,22 +833,25 @@ int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply
 {
 	pending_reply  *repobj  = NULL;
 	chk_bytebuffer *buffer  = NULL;
-	int32_t         i,idx,type;
+	int32_t         i,idx,type,ret;
 	const char     *str;
 	size_t          str_len;
 
 	buffer = chk_bytebuffer_new(512);
 
 	if(!buffer) {
+    	CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_new(512) failed");	
 		return chk_error_redis_request;
 	}
 
 	if(0 != append_head(buffer,param_size+1)) {
+    	CHK_SYSLOG(LOG_ERROR,"append_head failed:%d",param_size+1);	
 		chk_bytebuffer_del(buffer);
 		return chk_error_redis_request;	
 	}
 
 	if(0 != append_str(buffer,cmd,strlen(cmd))) {
+    	CHK_SYSLOG(LOG_ERROR,"append_str failed:%s",cmd);	
 		chk_bytebuffer_del(buffer);
 		return chk_error_redis_request;		
 	}
@@ -794,6 +864,12 @@ int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply
 			case LUA_TSTRING: {
 				str = lua_tolstring(L,idx,&str_len);
 				if(!str || 0 != append_str(buffer,str,(uint32_t)str_len)) {
+					if(!str) {
+						CHK_SYSLOG(LOG_ERROR,"str == NULL,param:%d",i);	
+					}
+					else {
+						CHK_SYSLOG(LOG_ERROR,"append_str failed,param:%d",i);	
+					}
 					chk_bytebuffer_del(buffer);
 					return chk_error_redis_request;		
 				}
@@ -801,6 +877,7 @@ int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply
 			break;
 			case LUA_TNUMBER: {
 				if(0 != append_number(buffer,L,idx)) {
+					CHK_SYSLOG(LOG_ERROR,"append_number failed,param:%d",i);	
 					chk_bytebuffer_del(buffer);
 					return chk_error_redis_request;			
 				}
@@ -816,12 +893,14 @@ int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply
 
 	repobj = calloc(1,sizeof(*repobj));
 	
-	if(!repobj){ 
+	if(!repobj){
+		CHK_SYSLOG(LOG_ERROR,"calloc repobj failed");	
 		chk_bytebuffer_del(buffer);
 		return chk_error_redis_request;
 	}
 
-	if(0 != chk_stream_socket_send(c->sock,buffer)) {
+	if(0 != (ret = chk_stream_socket_send(c->sock,buffer))) {
+		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);
 		free(repobj);
 		chk_bytebuffer_del(buffer);
 		return chk_error_redis_request;

@@ -154,12 +154,12 @@ static int32_t lua_redis_execute(lua_State *L) {
 	const char *cmd = lua_tostring(L,3); 
 
 	if(!client) {
-		lua_pushstring(L,"redis_execute error");		
+		lua_pushstring(L,"redis_client == NULL");		
 		return 1;
 	}
 
 	if(!cmd) {
-		lua_pushstring(L,"redis_execute error");		
+		lua_pushstring(L,"cmd == NULL");		
 		return 1;		
 	}
 
