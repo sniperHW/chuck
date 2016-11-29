@@ -72,7 +72,7 @@ $(HTTP_PARSER):
 	cd ../deps/http-parser/;$(MAKE) package
 
 chuck.so:$(source.so) $(HTTP_PARSER)
-	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE)
+	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE) -DCHUCK_LUA
 	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(JEMALLOC) $(LDFLAGS) $(LIBRARY)
 	rm *.o
 

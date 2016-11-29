@@ -784,6 +784,8 @@ int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,cons
 	return 0;
 }
 
+#ifdef CHUCK_LUA
+
 static int32_t append_head(chk_bytebuffer *buffer, uint32_t num) {
 	char buff[64] = {0};
 	int len = sprintf(buff,"*%u\r\n",num);
@@ -917,4 +919,4 @@ int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply
 	return 0;
 }
 
-
+#endif
