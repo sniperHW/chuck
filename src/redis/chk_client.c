@@ -3,9 +3,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include "util/chk_list.h"
 #include "util/chk_error.h"
 #include "util/chk_log.h"
+#include "util/sds.h"
 #include "redis/chk_client.h"
 #include "socket/chk_stream_socket.h"
 #include "socket/chk_connector.h"
@@ -23,14 +25,7 @@ enum{
 };
 
 typedef struct parse_tree parse_tree;
-
-typedef struct token token;
-
 typedef struct pending_reply pending_reply;
-
-__thread token    *array_token;
-__thread uint32_t  array_token_size = 0;
-__thread uint32_t  initsize = 64;//initsize for array_token
 
 struct parse_tree {
 	redisReply         *reply;
@@ -40,11 +35,6 @@ struct parse_tree {
 	char                type;
 	char                break_;
 	char   				tmp_buff[SIZE_TMP_BUFF]; 	 	
-};
-
-struct token {
-	char          *buff;
-	size_t         size;
 };
 
 struct pending_reply {
@@ -287,122 +277,6 @@ static int32_t parse(parse_tree *current,char **str,char *end) {
 	return ret;
 }
 
-static inline size_t digitcount(uint32_t num) {
-	if(num < 10) return 1;
-	else if(num < 100) return 2;
-	else if(num < 1000) return 3;
-	else if(num < 10000) return 4;
-	else if(num < 100000) return 5;
-	else if(num < 1000000) return 6;
-	else if(num < 10000000) return 7;
-	else if(num < 100000000) return 8;
-	else if(num < 1000000000) return 9;
-	else return 10;
-}
-
-static inline void u2s(uint32_t num,char **ptr) {
-	char *tmp = *ptr + digitcount(num);
-	do {
-		*--tmp = '0'+(char)(num%10);
-		(*ptr)++;
-	}while(num/=10);	
-}
-
-static inline int32_t expand_array_token() {
-	int32_t  ret = 0;
-	uint32_t newsize;
-	token   *tmp;
-	if(!array_token) {
-		array_token = calloc(initsize,sizeof(*array_token));
-		if(array_token) array_token_size = initsize;
-		else ret = -1;
-	} else {
-		newsize = array_token_size << 1;
-		tmp = realloc(array_token,newsize*sizeof(*array_token));
-		if(!tmp) ret = -1;
-		array_token      = tmp;
-		array_token_size = newsize;
-	}
-	return ret;
-}
-
-static inline token *gettoken(uint32_t idx) {
-	assert(idx > 0);
-	if(idx > array_token_size && 0 != expand_array_token())
-		return NULL;
-	return &array_token[idx-1];
-}
-
-//for request
-static chk_bytebuffer *convert(uint32_t size,size_t space) {
-	static char *end = "\r\n";
-	chk_bytebuffer *buff;
-	chk_bytechunk  *chunk;
-	char *ptr,*ptr1;
-	token *w;
-	size_t i;
-	uint32_t idx = 0;		
-	space += (digitcount(size) + 3);//plus head *,tail \r\n
-	buff   =  chk_bytebuffer_new(space);
-	chunk  =  buff->head;
-	ptr1 = chunk->data;
-	*ptr1++ = '*';
-	u2s(size,&ptr1);
-	for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
-	for(; idx < size; ++idx) {
-		w = &array_token[idx];
-		*ptr1++ = '$';
-		u2s((uint32_t)w->size,&ptr1);
-		for(ptr=end;*ptr;)*ptr1++ = *ptr++;		
-		for(i = 0; i < w->size;) *ptr1++ = w->buff[i++];
-		for(ptr=end;*ptr;)*ptr1++ = *ptr++;	
-	}
-	buff->datasize = space;
-	return buff;
-}
-
-//转换redis请求并写入到buffer中
-static chk_bytebuffer *build_request(const char *cmd,size_t len) {
-	token *w = NULL;
-	size_t i,j,space;
-	uint32_t idx  = 0;
-	char   quote  = 0;
-	char   c;
-
-	if(!cmd || 0 >= len) {
-		return NULL;
-	}
-
-	i = j = space = 0;
-	for(; i < len; ++i) {
-		c = cmd[i];
-		if(c == '\"' || c == '\''){
-			if(!quote) quote = c;
-			else if(c == quote) quote = 0;
-		}
-		if(c != ' ') {
-			if(!w){ 
-				w = gettoken(++idx);
-				if(!w) return NULL;
-				w->buff = (char*)&cmd[i];
-			}
-		}else if(!quote && w){
-			//token finish
-			w->size = &cmd[i] - w->buff;
-			space += digitcount((uint32_t)w->size) + 3;//plus head $,tail \r\n
-			space += w->size + 2;//plus tail \r\n	
-			w = NULL;
-			--i;
-		}
-	}
-	if(w) {
-		w->size = &cmd[i] - w->buff;
-		space += digitcount((uint32_t)w->size) + 3;//plus head $,tail \r\n
-		space += w->size + 2;//plus tail \r\n
-	}
-	return convert(idx,space);
-}
-
 static redisReply  connection_lose = {
 	.type = REDIS_REPLY_ERROR,
 	.str  = "client disconnected",
@@ -516,26 +390,452 @@ void    chk_redis_close(chk_redisclient *c,int32_t err) {
 		destroy_redisclient(c,err);
 }
 
-int32_t chk_redis_execute(chk_redisclient *c,const char *str,size_t len,chk_redis_reply_cb cb,void *ud) {
-	pending_reply  *repobj;
-	chk_bytebuffer *buffer;
-	int32_t         ret = chk_error_redis_request;
-	if(len > 0) {
-		do {
-			if(c->status & CLIENT_CLOSE) break;
-			buffer = build_request(str,len);
-			if(!buffer) break;
-			if(0 != chk_stream_socket_send(c->sock,buffer)) break;
-			repobj = calloc(1,sizeof(*repobj));
-			if(!repobj) break;
-			if(cb) {
-				repobj->cb = cb;
-				repobj->ud = ud;
-			}	
-			chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
-			ret = chk_error_ok;
-		}while(0);
+/* Calculate the number of bytes needed to represent an integer as string. */
+static inline int intlen(int64_t num) {
+	if(num < 0)
+	{
+		return 1 + intlen(-num);
 	}
-	return ret;
+	if(num < 10) return 1;
+	else if(num < 100) return 2;
+	else if(num < 1000) return 3;
+	else if(num < 10000) return 4;
+	else if(num < 100000) return 5;
+	else if(num < 1000000) return 6;
+	else if(num < 10000000) return 7;
+	else if(num < 100000000) return 8;
+	else if(num < 1000000000) return 9;
+	else if(num < 10000000000) return 10;
+	else if(num < 100000000000) return 11;		
+	else if(num < 1000000000000) return 12;
+	else if(num < 10000000000000) return 13;
+	else if(num < 100000000000000) return 14;
+	else if(num < 1000000000000000) return 15;		
+	else if(num < 10000000000000000) return 16;
+	else if(num < 100000000000000000) return 17;
+	else if(num < 1000000000000000000) return 18;				
+	else return 19;
 }
+
+
+/* Helper that calculates the bulk length given a certain string length. */
+static inline size_t bulklen(size_t len) {
+    return 1+intlen(len)+2+len+2;
+}
+
+static int redisvFormatCommand(char **target, const char *format, va_list ap) {
+    const char *c = format;
+    char *cmd = NULL; /* final command */
+    int pos; /* position in final command */
+    sds curarg, newarg; /* current argument */
+    int touched = 0; /* was the current argument touched? */
+    char **curargv = NULL, **newargv = NULL;
+    int argc = 0;
+    int totlen = 0;
+    int j;
+
+    /* Abort if there is not target to set */
+    if (target == NULL)
+        return -1;
+
+    /* Build the command string accordingly to protocol */
+    curarg = sdsempty();
+    if (curarg == NULL)
+        return -1;
+
+    while(*c != '\0') {
+        if (*c != '%' || c[1] == '\0') {
+            if (*c == ' ') {
+                if (touched) {
+                    newargv = realloc(curargv,sizeof(char*)*(argc+1));
+                    if (newargv == NULL) goto err;
+                    curargv = newargv;
+                    curargv[argc++] = curarg;
+                    totlen += bulklen(sdslen(curarg));
+
+                    /* curarg is put in argv so it can be overwritten. */
+                    curarg = sdsempty();
+                    if (curarg == NULL) goto err;
+                    touched = 0;
+                }
+            } else {
+                newarg = sdscatlen(curarg,c,1);
+                if (newarg == NULL) goto err;
+                curarg = newarg;
+                touched = 1;
+            }
+        } else {
+            char *arg;
+            size_t size;
+
+            /* Set newarg so it can be checked even if it is not touched. */
+            newarg = curarg;
+
+            switch(c[1]) {
+            case 's':
+                arg = va_arg(ap,char*);
+                size = strlen(arg);
+                if (size > 0)
+                    newarg = sdscatlen(curarg,arg,size);
+                break;
+            case 'b':
+                arg = va_arg(ap,char*);
+                size = va_arg(ap,size_t);
+                if (size > 0)
+                    newarg = sdscatlen(curarg,arg,size);
+                break;
+            case '%':
+                newarg = sdscat(curarg,"%");
+                break;
+            default:
+                /* Try to detect printf format */
+                {
+                    static const char intfmts[] = "diouxX";
+                    char _format[16];
+                    const char *_p = c+1;
+                    size_t _l = 0;
+                    va_list _cpy;
+
+                    /* Flags */
+                    if (*_p != '\0' && *_p == '#') _p++;
+                    if (*_p != '\0' && *_p == '0') _p++;
+                    if (*_p != '\0' && *_p == '-') _p++;
+                    if (*_p != '\0' && *_p == ' ') _p++;
+                    if (*_p != '\0' && *_p == '+') _p++;
+
+                    /* Field width */
+                    while (*_p != '\0' && isdigit(*_p)) _p++;
+
+                    /* Precision */
+                    if (*_p == '.') {
+                        _p++;
+                        while (*_p != '\0' && isdigit(*_p)) _p++;
+                    }
+
+                    /* Copy va_list before consuming with va_arg */
+                    va_copy(_cpy,ap);
+
+                    /* Integer conversion (without modifiers) */
+                    if (strchr(intfmts,*_p) != NULL) {
+                        va_arg(ap,int);
+                        goto fmt_valid;
+                    }
+
+                    /* Double conversion (without modifiers) */
+                    if (strchr("eEfFgGaA",*_p) != NULL) {
+                        va_arg(ap,double);
+                        goto fmt_valid;
+                    }
+
+                    /* Size: char */
+                    if (_p[0] == 'h' && _p[1] == 'h') {
+                        _p += 2;
+                        if (*_p != '\0' && strchr(intfmts,*_p) != NULL) {
+                            va_arg(ap,int); /* char gets promoted to int */
+                            goto fmt_valid;
+                        }
+                        goto fmt_invalid;
+                    }
+
+                    /* Size: short */
+                    if (_p[0] == 'h') {
+                        _p += 1;
+                        if (*_p != '\0' && strchr(intfmts,*_p) != NULL) {
+                            va_arg(ap,int); /* short gets promoted to int */
+                            goto fmt_valid;
+                        }
+                        goto fmt_invalid;
+                    }
+
+                    /* Size: long long */
+                    if (_p[0] == 'l' && _p[1] == 'l') {
+                        _p += 2;
+                        if (*_p != '\0' && strchr(intfmts,*_p) != NULL) {
+                            va_arg(ap,long long);
+                            goto fmt_valid;
+                        }
+                        goto fmt_invalid;
+                    }
+
+                    /* Size: long */
+                    if (_p[0] == 'l') {
+                        _p += 1;
+                        if (*_p != '\0' && strchr(intfmts,*_p) != NULL) {
+                            va_arg(ap,long);
+                            goto fmt_valid;
+                        }
+                        goto fmt_invalid;
+                    }
+
+                fmt_invalid:
+                    va_end(_cpy);
+                    goto err;
+
+                fmt_valid:
+                    _l = (_p+1)-c;
+                    if (_l < sizeof(_format)-2) {
+                        memcpy(_format,c,_l);
+                        _format[_l] = '\0';
+                        newarg = sdscatvprintf(curarg,_format,_cpy);
+
+                        /* Update current position (note: outer blocks
+                         * increment c twice so compensate here) */
+                        c = _p-1;
+                    }
+
+                    va_end(_cpy);
+                    break;
+                }
+            }
+
+            if (newarg == NULL) goto err;
+            curarg = newarg;
+
+            touched = 1;
+            c++;
+        }
+        c++;
+    }
+
+    /* Add the last argument if needed */
+    if (touched) {
+        newargv = realloc(curargv,sizeof(char*)*(argc+1));
+        if (newargv == NULL) goto err;
+        curargv = newargv;
+        curargv[argc++] = curarg;
+        totlen += bulklen(sdslen(curarg));
+    } else {
+        sdsfree(curarg);
+    }
+
+    /* Clear curarg because it was put in curargv or was free'd. */
+    curarg = NULL;
+
+    /* Add bytes needed to hold multi bulk count */
+    totlen += 1+intlen(argc)+2;
+
+    /* Build the command at protocol level */
+    cmd = malloc(totlen+1);
+    if (cmd == NULL) goto err;
+
+    pos = sprintf(cmd,"*%d\r\n",argc);
+    for (j = 0; j < argc; j++) {
+        pos += sprintf(cmd+pos,"$%zu\r\n",sdslen(curargv[j]));
+        memcpy(cmd+pos,curargv[j],sdslen(curargv[j]));
+        pos += sdslen(curargv[j]);
+        sdsfree(curargv[j]);
+        cmd[pos++] = '\r';
+        cmd[pos++] = '\n';
+    }
+    assert(pos == totlen);
+    cmd[pos] = '\0';
+
+    free(curargv);
+    *target = cmd;
+    return totlen;
+
+err:
+    while(argc--)
+        sdsfree(curargv[argc]);
+    free(curargv);
+
+    if (curarg != NULL)
+        sdsfree(curarg);
+
+    /* No need to check cmd since it is the last statement that can fail,
+     * but do it anyway to be as defensive as possible. */
+    if (cmd != NULL)
+        free(cmd);
+
+    return -1;
+}
+
+
+static inline int redisvAppendCommand(const char *format, va_list ap,chk_bytebuffer **bytebuffer) {
+    char *cmd;
+    int   len;
+
+    len = redisvFormatCommand(&cmd,format,ap);
+    if (len == -1) {
+        return -1;
+    }
+
+    (*bytebuffer) = chk_bytebuffer_new(len);
+
+    if(!(*bytebuffer)) {
+    	free(cmd);
+    	return -1;
+    }
+
+    if(chk_bytebuffer_append((*bytebuffer),(uint8_t*)cmd,(uint32_t)len) != chk_error_ok) {
+    	chk_bytebuffer_del((*bytebuffer));
+    	(*bytebuffer) = NULL;
+    	free(cmd);
+    	return -1;    	
+    }
+
+    free(cmd);
+    return 0;
+}
+
+int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,const char *fmt,...) {
+	pending_reply  *repobj = NULL;
+	chk_bytebuffer *buffer = NULL;
+	int32_t         ret    = 0;
+
+    va_list ap;
+    va_start(ap,fmt);
+    ret = redisvAppendCommand(fmt,ap,&buffer);
+    va_end(ap);
+
+    if(0 != ret) {
+    	return chk_error_redis_request;
+    }
+
+
+	repobj = calloc(1,sizeof(*repobj));
+	
+	if(!repobj){ 
+		chk_bytebuffer_del(buffer);
+		return chk_error_redis_request;
+	}
+
+	if(0 != chk_stream_socket_send(c->sock,buffer)) {
+		free(repobj);
+		chk_bytebuffer_del(buffer);
+		return chk_error_redis_request;
+	}
+
+
+	if(cb) {
+		repobj->cb = cb;
+		repobj->ud = ud;
+	}
+
+	chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
+
+	return 0;
+}
+
+static int32_t append_head(chk_bytebuffer *buffer, uint32_t num) {
+	char buff[64] = {0};
+	int len = sprintf(buff,"*%u\r\n",num);
+	return chk_bytebuffer_append(buffer,(uint8_t*)buff,(uint32_t)len);
+
+}
+
+static int32_t append_str(chk_bytebuffer *buffer,const char *str,size_t str_len) {
+	char buff[64] = {0};
+	int len = sprintf(buff,"$%u\r\n",(uint32_t)str_len);
+	if(0 != chk_bytebuffer_append(buffer,(uint8_t*)buff,(uint32_t)len)) {
+		return -1;
+	}
+
+	if(0 != chk_bytebuffer_append(buffer,(uint8_t*)str,(uint32_t)str_len)) {
+		return -1;
+	}
+
+	if(0 != chk_bytebuffer_append(buffer,(uint8_t*)"\r\n",2)){
+		return -1;
+	}	
+	return 0;
+}
+
+
+static int32_t append_int(chk_bytebuffer *buffer,int64_t num) {
+	char buff[64] = {0};
+	int  num_len  = intlen(num);	
+	int  len = sprintf(buff,"$%d\r\n%lld\r\n",num_len,(long long int)num);
+	return chk_bytebuffer_append(buffer,(uint8_t*)buff,(uint32_t)len);
+}
+
+static int32_t append_number(chk_bytebuffer *buffer,lua_State *L,int32_t index) {
+	char buff[64] = {0};
+	char num[64]  = {0};
+	lua_Number v  = lua_tonumber(L,index);
+	if(v != cast(lua_Integer,v)) {
+		int num_len = sprintf(num,"%f",v);
+		int len = sprintf(buff,"$%d\r\n%s\r\n",num_len,num);
+		return chk_bytebuffer_append(buffer,(uint8_t*)buff,(uint32_t)len);
+	} else {
+		return append_int(buffer,cast(int64_t,v));
+	}
+}
+
+int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size)
+{
+	pending_reply  *repobj  = NULL;
+	chk_bytebuffer *buffer  = NULL;
+	int32_t         i,idx,type;
+	const char     *str;
+	size_t          str_len;
+
+	buffer = chk_bytebuffer_new(512);
+
+	if(!buffer) {
+		return chk_error_redis_request;
+	}
+
+	if(0 != append_head(buffer,param_size+1)) {
+		chk_bytebuffer_del(buffer);
+		return chk_error_redis_request;	
+	}
+
+	if(0 != append_str(buffer,cmd,strlen(cmd))) {
+		chk_bytebuffer_del(buffer);
+		return chk_error_redis_request;		
+	}
+
+
+	for(i = 0; i < param_size; ++i) {
+		idx = start_idx + i;
+		type = lua_type(L, idx);
+		switch(type) {
+			case LUA_TSTRING: {
+				str = lua_tolstring(L,idx,&str_len);
+				if(!str || 0 != append_str(buffer,str,(uint32_t)str_len)) {
+					chk_bytebuffer_del(buffer);
+					return chk_error_redis_request;		
+				}
+			}
+			break;
+			case LUA_TNUMBER: {
+				if(0 != append_number(buffer,L,idx)) {
+					chk_bytebuffer_del(buffer);
+					return chk_error_redis_request;			
+				}
+			}
+			break;
+			default: {
+				chk_bytebuffer_del(buffer);
+				return chk_error_redis_request;	
+			}
+			break;
+		}
+	}
+
+	repobj = calloc(1,sizeof(*repobj));
+	
+	if(!repobj){ 
+		chk_bytebuffer_del(buffer);
+		return chk_error_redis_request;
+	}
+
+	if(0 != chk_stream_socket_send(c->sock,buffer)) {
+		free(repobj);
+		chk_bytebuffer_del(buffer);
+		return chk_error_redis_request;
+	}
+
+
+	if(cb) {
+		repobj->cb = cb;
+		repobj->ud = ud;
+	}
+
+	chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
+
+	return 0;
+}
+
 

@@ -9,24 +9,24 @@ local query_cb = nil
 
 redis.Connect_ip4(event_loop,"127.0.0.1",6379,function (conn)
 	for i = 1,1000 do
-		local cmd = string.format("hmset chaid:%d chainfo %s skills %s",i,
-								  "fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
-								  "fasfasdfasdfasfasdfasdfasdfcvavasdfasdf")
-		conn:Execute(cmd)
+		local key = string.format("chaid:%d",i)
+		conn:Execute(query_cb,"hmset",key,"chainfo","fasdfasfasdfasdfasdfasfasdfasfasdfdsaf","skills","fasfasdfasdfasfasdfasdfasdfcvavasdfasdf")
+
 	end
+
 	query_cb = function (reply)
 		if reply then
 			count = count + 1
 		else
 			print("reply = nil")
 		end
-		local cmd = string.format("hmget chaid:%d chainfo skills",math.random(1,1000))
-		conn:Execute(cmd,query_cb)
+		local key = string.format("chaid:%d",math.random(1,1000))
+		conn:Execute(query_cb,"hmget",key,"chainfo","skills")
 	end
 
 	for i=1,1000 do
-		local cmd = string.format("hmget chaid:%d chainfo skills",math.random(1,1000))
-		conn:Execute(cmd,query_cb)
+		local key = string.format("chaid:%d",math.random(1,1000))
+		conn:Execute(query_cb,"hmget",key,"chainfo","skills")
 	end
 
 end)

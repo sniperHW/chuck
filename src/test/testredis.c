@@ -44,10 +44,7 @@ void chk_redis_disconnect(chk_redisclient *c,void *ud,int32_t err) {
 void redis_reply_cb(chk_redisclient *c,redisReply *reply,void *ud) {
 	//show_reply(reply);
 	++count;
-	//if(count == 689){
-	//	printf("fdasf");
-	//}
-	chk_redis_execute(c,"hmget chaid:1 chainfo skills",strlen("hmget chaid:1 chainfo skills"),redis_reply_cb,NULL);
+	chk_redis_execute(c,redis_reply_cb,NULL,"hmget %s %s %s","chaid:1","chainfo","skills");
 }
 
 void redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
@@ -63,25 +60,17 @@ void redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
 	printf("redis_connect_cb\n");
 	
 	for(i = 0; i < 1000; ++i){
-		
-		snprintf(buff,1024,"hmset chaid:%d chainfo %s skills %s",i,
-								  "fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
-								  "fasfasdfasdfasfasdfasdfasdfcvavasdfasdf");
-
-		int ret = chk_redis_execute(c,buff,strlen(buff),NULL,NULL);
-		printf("%d\n",ret);
+		snprintf(buff,1024,"chaid:%d",i);
+		chk_redis_execute(c,NULL,NULL,"hmget %s %s %s %s",buff,"chainfo","fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
+						  "skills","fasfasdfasdfasfasdfasdfasdfcvavasdfasdf");
 	}
 
 	printf("start get\n");
 
 	chk_redis_set_disconnect_cb(c,chk_redis_disconnect,NULL);
 	for(i = 0; i < 1000; ++i) {
-		chk_redis_execute(c,
-			              "hmget chaid:1 chainfo skills",
-			              strlen("hmget chaid:1 chainfo skills"),	
-						  redis_reply_cb,
-						  NULL);
-	}
+		chk_redis_execute(c,redis_reply_cb,NULL,"hmget %s %s %s","chaid:1","chainfo","skills");
+	}	
 }
 
 int32_t on_timeout_cb(uint64_t tick,void*ud) {
@@ -96,9 +85,6 @@ int main() {
 	if(0 != easy_sockaddr_ip4(&server,"127.0.0.1",6379)) {
 		return 0;
 	}
-
-	printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",ENOMEM,EMFILE,ENFILE,EACCES,EFAULT,EBADF,EINTR,EINVAL,ENOENT,ENOMEM,ESRCH);
-	getchar();
 	chk_redis_connect(loop,&server,redis_connect_cb,NULL);
 	chk_loop_addtimer(loop,1000,on_timeout_cb,NULL);
 	chk_loop_run(loop);

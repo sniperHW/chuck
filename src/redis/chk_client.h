@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 #include "event/chk_event_loop.h"
-#include "socket/chk_socket_helper.h"  
+#include "socket/chk_socket_helper.h"
+#include "lua/chk_lua.h"  
 
 
 #define REDIS_REPLY_STRING  1
@@ -50,6 +51,13 @@ struct redisReply {
 
 int32_t chk_redis_connect(chk_event_loop *e,chk_sockaddr *addr,chk_redis_connect_cb cntcb,void *ud);
 
+/**
+ * 设置redis连接断开处理函数    
+ * @param c redis连接
+ * @param cb 连接断开后的回调函数
+ * @param ud 回调参数
+ */
+
 void    chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,void *ud);
 
 /**
@@ -61,13 +69,24 @@ void    chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb c
 void chk_redis_close(chk_redisclient *c,int32_t err);
 
 /**
- * 执行redis命令
+ * 执行redis命令(二进制安全)
  * @param c redis连接
- * @param str redis命令字符串
  * @param cb 请求执行回调(成功/出错)
  * @param ud 传递给cb的用户数据
  */
 
-int32_t chk_redis_execute(chk_redisclient*,const char *str,size_t str_len,chk_redis_reply_cb cb,void *ud);
+int32_t chk_redis_execute(chk_redisclient*,chk_redis_reply_cb cb,void *ud,const char *fmt,...);
+
+/**
+ * 执行redis命令(二进制安全)
+ * @param c redis连接
+ * @param cmd redis命令
+ * @param cb 请求执行回调(成功/出错)
+ * @param ud 传递给cb的用户数据
+ * @param L  lua状态
+ * @param start_idx 参数在lua栈中的起始位置
+ * @param param_size 参数的数量
+ */
+int32_t chk_redis_execute_lua(chk_redisclient*,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size);
 
 #endif    
