@@ -155,7 +155,7 @@ static int32_t getdetail(char *str,char *output,int32_t size) {
 	int   i,j;
 	char *so = strstr(str,".so");
 	if(so){
-		strncpy(path,str,(so-str)+3);
+		strncpy(path,str,sizeof(path) - 1);
 		if(!(addr = getaddr(str))) return -1;
 		if(!(addr = getsoaddr(path,addr))) return -1;
 	}

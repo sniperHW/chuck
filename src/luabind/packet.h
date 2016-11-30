@@ -63,14 +63,16 @@ static void check_cycle(lua_State *L,int32_t index) {
 	while(NULL != node) {
 		if(p == node->p) {
 			clean_cycle_check_list();
-			luaL_error(L,"table cycle ref");
+			CHK_SYSLOG(LOG_ERROR,"check_cycle() table has cycle ref");	
+			luaL_error(L,"check_cycle() table has cycle ref");
 		}
 		node = (cycle_check_node*)((chk_list_entry*)node)->next;
 	}
 	node = calloc(1,sizeof(*node));
 	if(NULL == node) {
 		clean_cycle_check_list();
-		luaL_error(L,"no enough memroy");	
+		CHK_SYSLOG(LOG_ERROR,"check_cycle() calloc(node) failed");		
+		luaL_error(L,"check_cycle() not enough memroy");	
 	}
 	node->p = p;
 	chk_list_pushback(&cycle_check_list,(chk_list_entry*)node);
@@ -146,7 +148,7 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 		}
 		pk_total = size + pk_len;		
 		if(pk_total > d->max) {
-			CHK_SYSLOG(LOG_ERROR,"pk_total > d->max");
+			CHK_SYSLOG(LOG_ERROR,"pk_total > d->max,pk_total:%d,max:%d",pk_total,d->max);
 			if(err) *err = chk_error_packet_too_large;//数据包操作限制大小
 			break;
 		}
@@ -154,6 +156,7 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 		ret = chk_bytebuffer_new_bychunk(head,d->spos,pk_total);
 
 		if(!ret) {
+			CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_new_bychunk() failed");
 			if(err) *err = chk_error_no_memory;
 			return NULL;
 		}
@@ -184,6 +187,12 @@ static inline void _dctor(chk_decoder *_) {
 
 static inline _decoder *_decoder_new(uint32_t max) {
 	_decoder *d = calloc(1,sizeof(*d));
+
+	if(!d) {
+		CHK_SYSLOG(LOG_ERROR,"calloc(_decoder) failed");		
+		return NULL;
+	}
+
 	d->update = _update;
 	d->unpack = _unpack;
 	d->max    = max;

@@ -5,13 +5,7 @@
 
 static int32_t lua_bytebuffer_gc(lua_State *L) {
 	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
-	if(b) {
-		chk_bytebuffer_finalize(b);
-	}
-	else {
-		CHK_SYSLOG(LOG_ERROR,"lua_checkbytebuffer() failed");
-		return luaL_error(L,"lua_checkbytebuffer() failed"); 				
-	}
+	chk_bytebuffer_finalize(b);
 	return 0;
 }
 
@@ -73,11 +67,6 @@ static int32_t lua_bytebuffer_clone(lua_State *L) {
 	chk_bytebuffer *self,*o;
 	self = lua_checkbytebuffer(L,1);
 
-	if(!self) {
-		CHK_SYSLOG(LOG_ERROR,"lua_checkbytebuffer() failed");
-		return luaL_error(L,"lua_checkbytebuffer() failed");
-	}
-
 	o = LUA_NEWUSERDATA(L,chk_bytebuffer);
 	
 	if(!o){	
@@ -100,11 +89,6 @@ static int32_t lua_bytebuffer_readall(lua_State *L) {
 	luaL_Buffer     lb;
 	char           *in;
 
-	if(!b) {
-		CHK_SYSLOG(LOG_ERROR,"lua_checkbytebuffer() failed");
-		return luaL_error(L,"lua_checkbytebuffer() failed");		
-	}
-
 #if LUA_VERSION_NUM >= 503	
 	in = luaL_buffinitsize(L,&lb,(size_t)b->datasize);
 	chk_bytebuffer_read(b,in,b->datasize);
@@ -126,12 +110,6 @@ static int32_t lua_bytebuffer_append_string(lua_State *L) {
 	str = lua_tolstring(L,2,&len);
 
 	do{
-
-		if(!b) {
-			CHK_SYSLOG(LOG_ERROR,"lua_checkbytebuffer() failed");	
-			return luaL_error(L,"lua_checkbytebuffer() failed");		
-		}
-
 		if(str && len > 0) {
 			if(0 != chk_bytebuffer_append(b,(uint8_t*)str,(uint32_t)len)){
 				CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_append() failed");

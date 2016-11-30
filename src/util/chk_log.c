@@ -24,6 +24,8 @@ static chk_thread      *g_log_thd;
 
 #define LOCK() while (__sync_lock_test_and_set(&lock,1)) {}
 #define UNLOCK() __sync_lock_release(&lock);
+#define MAX_FILE_NAME 256
+
 
 const char *log_lev_str[] = {
 	"INFO",
@@ -35,7 +37,7 @@ const char *log_lev_str[] = {
 
 struct chk_logfile {
 	chk_dlist_entry   entry;
-	char              filename[256];
+	char              filename[MAX_FILE_NAME];
 	FILE             *file;
 	uint32_t          total_size;
 };
@@ -137,7 +139,7 @@ static void *log_routine(void *arg) {
 	chk_logfile     *l;
 	chk_dlist_entry *n;	
 	int32_t          size;
-	char             filename[128] = {0};
+	char             filename[MAX_FILE_NAME] = {0};
 	char             buf[128] = {0};
 	struct timespec  tv;
 	struct tm        _tm;			
@@ -240,7 +242,7 @@ chk_logfile *chk_create_logfile(const char *filename) {
 	pthread_once(&g_log_key_once,log_once_routine);
 	l = calloc(1,sizeof(*l));
 	if(!l) return NULL;
-	strncpy(l->filename,filename,256);
+	strncpy(l->filename,filename,sizeof(l->filename) - 1);
 	LOCK();
 	chk_dlist_pushback(&g_log_file_list,cast(chk_dlist_entry*,l));
 	UNLOCK();	

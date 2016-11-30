@@ -31,18 +31,13 @@ static int32_t lua_write_log(lua_State *L) {
 	const char *str;	
 	chk_logfile *logfile = lua_checklogfile(L,1);
 
-	if(!logfile) {
-		CHK_SYSLOG(LOG_ERROR,"lua_checklogfile() failed");		
-		return luaL_error(L,"lua_checklogfile() failed");
-	}
-
 	int32_t loglev = luaL_checkinteger(L,2);
 	if(loglev >= chk_current_loglev()) {
 		str = luaL_checkstring(L,3);
 		buff = calloc(CHK_MAX_LOG_SIZE,sizeof(char));
 
 		if(!buff) {
-			CHK_SYSLOG(LOG_ERROR,"malloc(CHK_MAX_LOG_SIZE) failed");			
+			CHK_SYSLOG(LOG_ERROR,"calloc(CHK_MAX_LOG_SIZE) failed");			
 			return 0;
 		}
 
@@ -63,7 +58,7 @@ static int32_t lua_sys_log(lua_State *L) {
 		buff = calloc(CHK_MAX_LOG_SIZE,sizeof(char));
 		
 		if(!buff) {
-			CHK_SYSLOG(LOG_ERROR,"malloc(CHK_MAX_LOG_SIZE) failed");			
+			CHK_SYSLOG(LOG_ERROR,"calloc(CHK_MAX_LOG_SIZE) failed");			
 			return 0;
 		}
 
