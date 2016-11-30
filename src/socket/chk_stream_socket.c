@@ -481,7 +481,7 @@ static void on_events(chk_handle *h,int32_t events) {
 	}
 }
 
-int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *op) {
+int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,const chk_stream_socket_option *op) {
 	assert(s);
 	easy_close_on_exec(fd);
 	s->fd = fd;
@@ -500,7 +500,7 @@ int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket
 	return 0;	
 }
 
-chk_stream_socket *chk_stream_socket_new(int32_t fd,chk_stream_socket_option *op) {
+chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_option *op) {
 	chk_stream_socket *s = calloc(1,sizeof(*s));
 	if(!s) {
 		CHK_SYSLOG(LOG_ERROR,"calloc chk_stream_socket failed");			

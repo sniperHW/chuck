@@ -27,7 +27,7 @@ struct chk_stream_socket_option {
  * @param option 相关选项
  */
 
-chk_stream_socket *chk_stream_socket_new(int32_t fd,chk_stream_socket_option *option);
+chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_option *option);
 
 /**
  * 关闭stream_socket,同时关联的fd被关闭,当stream_socket完成关闭后将其销毁

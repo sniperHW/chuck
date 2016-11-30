@@ -77,19 +77,19 @@ chuck.so:$(source.so) $(HTTP_PARSER)
 	rm *.o
 
 testcase:
-	$(CC) $(CFLAGS) -o test/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/testexception test/testexception.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/testhttppacket test/testhttppacket.c $(LIBNAME) ../deps/http-parser/libhttp_parser.a $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/testtimer test/testtimer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/test_objpool test/test_objpool.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/teststring test/teststring.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
-	$(CC) $(CFLAGS) -o test/test_bytebuffer test/test_bytebuffer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/echoclient test/echoclient.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/testredis test/testredis.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
-	$(CC) $(CFLAGS) -o test/testlua test/testlua.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl $(LIBRARY)
+	$(CC) $(CFLAGS) -o test/bin/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/testexception test/testexception.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/testhttppacket test/testhttppacket.c $(LIBNAME) ../deps/http-parser/libhttp_parser.a $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/testtimer test/testtimer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/test_objpool test/test_objpool.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/teststring test/teststring.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
+	$(CC) $(CFLAGS) -o test/bin/test_bytebuffer test/test_bytebuffer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/echoclient test/echoclient.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/testredis test/testredis.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
+	$(CC) $(CFLAGS) -o test/bin/testlua test/testlua.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl $(LIBRARY)
 
 clean:
 	rm *.o

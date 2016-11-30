@@ -5,3 +5,6 @@
 core
 *.core
 *.dSYM
+*.txt
+*.DS_Store
+src/test/bin
