@@ -33,8 +33,9 @@ static int32_t _accept(chk_acceptor *a,chk_sockaddr *addr,int32_t *fd) {
 #endif
 			continue;
 		else{
-			if(errno != EAGAIN)
+			if(errno != EAGAIN){
 		    	CHK_SYSLOG(LOG_ERROR,"accept() failed errno:%d",errno); 			
+			}
 			return errno;
 		}
 	}
@@ -54,8 +55,10 @@ static void process_accept(chk_handle *h,int32_t events) {
 		ret = _accept(acceptor,&addr,&fd);
 		if(ret == 0)
 		   acceptor->cb(acceptor,fd,&addr,acceptor->ud,0);
-		else if(ret != EAGAIN)
+		else if(ret != EAGAIN){
+		   CHK_SYSLOG(LOG_ERROR,"_accept() failed ret:%d",ret);	
 		   acceptor->cb(acceptor,-1,NULL,acceptor->ud,chk_error_accept);
+		}
 	}while(0 == ret && chk_is_read_enable(h));	      
 }
 
@@ -86,7 +89,10 @@ void chk_acceptor_finalize(chk_acceptor *a) {
 
 chk_acceptor *chk_acceptor_new(int32_t fd,void *ud) {
 	chk_acceptor *a = calloc(1,sizeof(*a));
-	if(!a) return NULL;
+	if(!a){
+		CHK_SYSLOG(LOG_ERROR,"calloc chk_acceptor failed");	
+		return NULL;
+	}
 	chk_acceptor_init(a,fd,ud);
 	return a;
 }
@@ -113,8 +119,10 @@ chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t por
 	int32_t       fd,ret;
 	chk_acceptor *a = NULL;
 	do {
-		if(chk_error_ok != easy_sockaddr_ip4(&server,ip,port)) 
+		if(chk_error_ok != easy_sockaddr_ip4(&server,ip,port)){ 
+			CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed %s:%d",ip,port);
 			break;
+		}
 		if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))){
 		    CHK_SYSLOG(LOG_ERROR,"socket() failed errno:%d",errno); 			
 			break;

@@ -79,7 +79,10 @@ static void process_connect(chk_handle *h,int32_t events) {
 
 chk_connector *chk_connector_new(int32_t fd,void *ud,uint32_t timeout) {
 	chk_connector *c = calloc(1,sizeof(*c));
-	if(!c) return NULL;
+	if(!c){
+		CHK_SYSLOG(LOG_ERROR,"calloc chk_connector failed");	
+		return NULL;
+	}
 	c->fd = fd;
 	c->on_events  = process_connect;
 	c->handle_add = loop_add;
@@ -101,8 +104,15 @@ int32_t chk_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local,
 		ret = easy_connect(fd,server,local);
 		if(chk_error_ok == ret){
 			c   = chk_connector_new(fd,ud,timeout);
-			chk_loop_add_handle(e,cast(chk_handle*,c),cast(chk_event_callback,cb));
+			if(c) {
+				chk_loop_add_handle(e,cast(chk_handle*,c),cast(chk_event_callback,cb));
+			}
+			else {
+				CHK_SYSLOG(LOG_ERROR,"call chk_connector_new() failed");
+				close(fd);
+			}
 		}else {
+			CHK_SYSLOG(LOG_ERROR,"easy_connect() failed ret:%d",ret);	
 			close(fd);
 		}
 	}

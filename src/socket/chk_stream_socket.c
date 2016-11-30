@@ -48,6 +48,7 @@ static chk_bytebuffer *default_unpack(chk_decoder *d,int32_t *err) {
 	if(_d->b) {
 		ret = chk_bytebuffer_new_bychunk_readonly(_d->b,_d->spos,_d->size);
 		if(!ret) {
+			CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_new_bychunk_readonly() failed size:%d",_d->size);  
 			*err = chk_error_no_memory;
 			return NULL;
 		}
@@ -58,7 +59,10 @@ static chk_bytebuffer *default_unpack(chk_decoder *d,int32_t *err) {
 
 static default_decoder *default_decoder_new() {
 	default_decoder *d = calloc(1,sizeof(*d));
-	if(!d) return NULL;
+	if(!d){
+		CHK_SYSLOG(LOG_ERROR,"calloc default_decoder failed");		 
+		return NULL;
+	}
 	d->update = default_update;
 	d->unpack = default_unpack;
 	d->dctor  = (void (*)(chk_decoder*))free;
@@ -178,7 +182,10 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 	recv_buffer_size = s->option.recv_buffer_size;
 	if(!s->next_recv_buf) {
 		s->next_recv_buf = chk_bytechunk_new(NULL,recv_buffer_size);
-		if(!s->next_recv_buf) return -1;
+		if(!s->next_recv_buf){
+			CHK_SYSLOG(LOG_ERROR,"chk_bytechunk_new() failed recv_buffer_size:%d",recv_buffer_size);
+			return -1;
+		}
 		s->next_recv_pos = 0;
 	}
 	for(pos = s->next_recv_pos,chunk = s->next_recv_buf;;) {
@@ -190,7 +197,10 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 			pos = 0;
 			if(!chunk->next){ 
 				chunk->next = chk_bytechunk_new(NULL,recv_buffer_size);
-				if(!chunk->next) return -1;
+				if(!chunk->next){
+					CHK_SYSLOG(LOG_ERROR,"chk_bytechunk_new() failed recv_buffer_size:%d",recv_buffer_size);				
+					return -1;
+				}
 			}
 			chunk = chunk->next;
 		}else break;
@@ -212,7 +222,10 @@ static inline int32_t update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 			head = s->next_recv_buf;			
 			if(!head->next){
 				head->next = chk_bytechunk_new(NULL,s->option.recv_buffer_size);
-				if(!head->next) return -1;
+				if(!head->next){
+					CHK_SYSLOG(LOG_ERROR,"chk_bytechunk_new() failed recv_buffer_size:%d",s->option.recv_buffer_size);						
+					return -1;
+				}
 			}
 			s->next_recv_buf = chk_bytechunk_retain(head->next);
 			chk_bytechunk_release(head);					
@@ -274,10 +287,25 @@ void *chk_stream_socket_getUd(chk_stream_socket *s) {
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret,flags;
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
-	if(!e || !h || !cb)
+	if(!e || !h || !cb){		
+		if(!e) {
+			CHK_SYSLOG(LOG_ERROR,"chk_event_loop == NULL");				
+		}
+
+		if(!h) {
+			CHK_SYSLOG(LOG_ERROR,"chk_handle == NULL");				
+		}
+
+		if(!cb) {
+			CHK_SYSLOG(LOG_ERROR,"chk_event_callback == NULL");				
+		}				
+
 		return chk_error_invaild_argument;
-	if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE))
+	}
+	if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE)){
+		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket close");			
 		return chk_error_socket_close;
+	}
 	if(!send_list_empty(s))
 		flags = CHK_EVENT_READ | CHK_EVENT_WRITE;
 	else
@@ -285,6 +313,9 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	if(chk_error_ok == (ret = chk_watch_handle(e,h,flags))) {
 		easy_noblock(h->fd,1);
 		s->cb = cast(chk_stream_socket_cb,cb);
+	}
+	else {
+		CHK_SYSLOG(LOG_ERROR,"chk_watch_handle() failed:%d",ret);		
 	}
 	return ret;
 }
@@ -343,6 +374,7 @@ static void process_read(chk_stream_socket *s) {
 					break;
 			}else {
 				if(unpackerr){
+					CHK_SYSLOG(LOG_ERROR,"decoder->unpack error:%d",unpackerr);					
 					s->cb(s,NULL,chk_error_unpack);
 					chk_stream_socket_close(s,0);
 				}
@@ -369,15 +401,18 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
 	int32_t ret = chk_error_ok;
 
 	if(b->flags & READ_ONLY) {
+		CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer is read only");		
 		return chk_error_buffer_read_only;
 	}
 
 	if(b->datasize == 0) {
+		CHK_SYSLOG(LOG_ERROR,"b->datasize == 0");		
 		return chk_error_invaild_buffer;
 	}
 	
 	do {
 		if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE | SOCKET_PEERCLOSE)) {
+			CHK_SYSLOG(LOG_ERROR,"chk_stream_socket close");	
 			chk_bytebuffer_del(b);	
 			ret = chk_error_socket_close;
 			break;
@@ -395,15 +430,18 @@ int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b) {
 	int32_t ret = chk_error_ok;
 
 	if(b->flags & READ_ONLY) {
+		CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer is read only");		
 		return chk_error_buffer_read_only;
 	}
 
 	if(b->datasize == 0) {
+		CHK_SYSLOG(LOG_ERROR,"b->datasize == 0");		
 		return chk_error_invaild_buffer;
 	}
 	
 	do {
 		if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE | SOCKET_PEERCLOSE)) {
+			CHK_SYSLOG(LOG_ERROR,"chk_stream_socket close");			
 			chk_bytebuffer_del(b);	
 			ret = chk_error_socket_close;
 			break;
@@ -454,14 +492,20 @@ int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket
 	s->create_by_new = 0;
 	if(!s->option.decoder) { 
 		s->option.decoder = cast(chk_decoder*,default_decoder_new());
-		if(!s->option.decoder) return -1;
+		if(!s->option.decoder) { 
+			CHK_SYSLOG(LOG_ERROR,"default_decoder_new() failed");			
+			return -1;
+		}
 	}
 	return 0;	
 }
 
 chk_stream_socket *chk_stream_socket_new(int32_t fd,chk_stream_socket_option *op) {
 	chk_stream_socket *s = calloc(1,sizeof(*s));
-	if(!s) return NULL;
+	if(!s) {
+		CHK_SYSLOG(LOG_ERROR,"calloc chk_stream_socket failed");			
+		return NULL;
+	}
 	if(0 != chk_stream_socket_init(s,fd,op)) {
 		free(s);
 		return NULL;
