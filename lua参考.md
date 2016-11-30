@@ -1,4 +1,10 @@
-### select (index, ···)
+[select](#select)
+
+
+
+
+
+### <span id='select'>select (index, ···)</span>
 
 如果index是一个正整数，返回非固定参数从左边数index开始的所有参数，例如：
 
