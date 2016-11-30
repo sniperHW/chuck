@@ -11,7 +11,12 @@ void chk_loop_finalize(chk_event_loop *loop);
 
 static int32_t lua_event_loop_gc(lua_State *L) {
 	chk_event_loop *event_loop = lua_checkeventloop(L,1);
-	chk_loop_finalize(event_loop);
+	if(event_loop) {
+		chk_loop_finalize(event_loop);
+	}
+	else {
+		return luaL_error(L,"lua_checkeventloop() failed");		
+	}
 	return 0;
 }
 
@@ -36,18 +41,35 @@ static int32_t lua_event_loop_run(lua_State *L) {
 	int32_t         ms,ret;
 	event_loop = lua_checkeventloop(L,1);
 	ms = (int32_t)luaL_optinteger(L,2,-1);
-	if(ms == -1) ret = chk_loop_run(event_loop);
-	else ret = chk_loop_run_once(event_loop,ms);
+
+	if(!event_loop) {
+		CHK_SYSLOG(LOG_ERROR,"lua_checkeventloop() failed");
+		return luaL_error(L,"lua_checkeventloop() failed");	
+	}
+
+	if(ms == -1){
+		ret = chk_loop_run(event_loop);
+	}
+	else { 
+		ret = chk_loop_run_once(event_loop,ms);
+	}
+
 	if(ret != 0) {
 		lua_pushinteger(L,ret);
 		return 1;
 	}
+
 	return 0;
 }
 
 static int32_t lua_event_loop_end(lua_State *L) {
 	chk_event_loop *event_loop = lua_checkeventloop(L,1);
-	chk_loop_end(event_loop);
+	if(event_loop) {
+		chk_loop_end(event_loop);
+	}
+	else {
+		return luaL_error(L,"lua_checkeventloop() failed");			
+	}
 	return 0;
 }
 
@@ -57,8 +79,16 @@ static int32_t lua_event_loop_addtimer(lua_State *L) {
 	chk_luaRef      cb;
 	chk_event_loop *event_loop = lua_checkeventloop(L,1);
 	ms = (uint32_t)luaL_optinteger(L,2,1);
-	if(!lua_isfunction(L,3)) 
+
+	if(!event_loop) {
+		CHK_SYSLOG(LOG_ERROR,"lua_checkeventloop() failed");
+		return luaL_error(L,"lua_checkeventloop() failed"); 			
+	}
+
+	if(!lua_isfunction(L,3)) {
+		CHK_SYSLOG(LOG_ERROR,"argument 3 of event_loop_addtimer must be lua function");		
 		return luaL_error(L,"argument 3 of event_loop_addtimer must be lua function"); 
+	}
 	cb = chk_toluaRef(L,3);
 
 	luatimer = LUA_NEWUSERDATA(L,lua_timer);
@@ -98,6 +128,11 @@ static void signal_callback(void *ud) {
 static int32_t lua_watch_signal(lua_State *L) {
 	chk_event_loop *event_loop = lua_checkeventloop(L,1);
 	int32_t signo = (int32_t)luaL_checkinteger(L,2);
+
+	if(!event_loop) {
+		return luaL_error(L,"lua_checkeventloop() failed");			
+	}
+
 	if(!lua_isfunction(L,3))
 		return luaL_error(L,"argument 3 must be lua function");
 

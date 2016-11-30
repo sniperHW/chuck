@@ -49,6 +49,12 @@ typedef struct {
 
 static int32_t lua_http_connection_gc(lua_State *L) {
 	http_connection *conn = lua_check_http_connection(L,1);
+
+	if(!conn) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_connection() failed");		
+		return luaL_error(L,"lua_check_http_connection() failed");	
+	}
+
 	if(conn->packet) chk_http_packet_release(conn->packet);
 	if(conn->url) chk_string_destroy(conn->url);
 	if(conn->status) chk_string_destroy(conn->status);
@@ -65,7 +71,13 @@ static int32_t lua_http_connection_gc(lua_State *L) {
 
 static int32_t lua_http_packet_gc(lua_State *L) {
 	lua_http_packet *packet = lua_check_http_packet(L,1);
-	chk_http_packet_release(packet->packet);
+	if(packet) {
+		chk_http_packet_release(packet->packet);
+	}
+	else {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");		
+	}
 	return 0;
 }
 	
@@ -166,9 +178,15 @@ typedef struct {
 void lua_push_http_packet(chk_luaPushFunctor *self,lua_State *L) {
 	lua_http_packet_PushFunctor *pushFunctor = (lua_http_packet_PushFunctor*)self;
 	lua_http_packet *lua_packet = LUA_NEWUSERDATA(L,lua_http_packet);
-	lua_packet->packet = chk_http_packet_retain(pushFunctor->packet);
-	luaL_getmetatable(L, HTTP_PACKET_METATABLE);
-	lua_setmetatable(L, -2);
+
+	if(lua_packet) {
+		lua_packet->packet = chk_http_packet_retain(pushFunctor->packet);
+		luaL_getmetatable(L, HTTP_PACKET_METATABLE);
+		lua_setmetatable(L, -2);
+	}
+	else {
+		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() lua_http_packet failed");				
+	}
 
 }
 
@@ -204,7 +222,10 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 	uint32_t    spos,size_remain,size;
 	chk_bytechunk *chunk;
 	http_connection *conn = (http_connection*)chk_stream_socket_getUd(s);
-	if(!conn) return;
+	if(!conn){ 
+		CHK_SYSLOG(LOG_ERROR,"http_connection == NULL");		
+		return;
+	}
 	if(data) {
 		chunk = data->head;
 		spos  = data->spos;
@@ -226,6 +247,7 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 				
 				if(conn->check_size > conn->max_header_size && 
 				   conn->packet && !conn->packet->body) {
+					CHK_SYSLOG(LOG_ERROR,"conn->check_size > conn->max_header_size,check_size:%d,max_header_size:%d",conn->check_size,conn->max_header_size);
 					error = chk_error_http_packet;
 					break;					
 				}
@@ -267,7 +289,20 @@ static int32_t lua_new_http_connection(lua_State *L) {
 	max_header_size = MAX((uint32_t)luaL_checkinteger(L,2),option.recv_buffer_size);
 	max_content_size = (uint32_t)luaL_checkinteger(L,3);
 	s = chk_stream_socket_new(fd,&option);
+
+	if(!s) {
+		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_new() failed");		
+		return 0;
+	}
+
 	conn = LUA_NEWUSERDATA(L,http_connection);
+
+	if(!conn) {
+		chk_stream_socket_close(s,0);
+		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");			
+		return 0;
+	}
+
 	conn->settings.on_message_begin = on_message_begin;
 	conn->settings.on_url = on_url;
 	conn->settings.on_status = on_status;
@@ -291,14 +326,38 @@ static int32_t lua_http_connection_bind(lua_State *L) {
 	chk_event_loop    *event_loop;
 	http_connection   *conn;
 	chk_stream_socket *s;
-	if(!lua_isfunction(L,3)) 
+	int32_t            ret;
+	
+	if(!lua_isfunction(L,3)) { 
+		CHK_SYSLOG(LOG_ERROR,"argument 3 of http_connection_bind must be lua function");		
 		return luaL_error(L,"argument 3 of http_connection_bind must be lua function");
+	}
+
 	event_loop = lua_checkeventloop(L,2);
-	conn       = lua_check_http_connection(L,1);
-	s          = conn->socket;
-	if(!s) return luaL_error(L,"http connection is close");
+
+	if(!event_loop) {
+		CHK_SYSLOG(LOG_ERROR,"lua_checkeventloop() failed");		
+		return luaL_error(L,"lua_checkeventloop() failed");		
+	}
+
+
+	conn = lua_check_http_connection(L,1);
+
+	if(!conn) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_connection() failed");		
+		return luaL_error(L,"lua_check_http_connection() failed");			
+	}
+	
+	s = conn->socket;
+	
+	if(!s){
+		CHK_SYSLOG(LOG_ERROR,"http connection is close");		 
+		return luaL_error(L,"http connection is close");
+	}
+
 	conn->cb   = chk_toluaRef(L,3);
-	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)s,data_event_cb)) {
+	if(0 != (ret = chk_loop_add_handle(event_loop,(chk_handle*)s,data_event_cb))) {
+		CHK_SYSLOG(LOG_ERROR,"http_connection_bind failed:%d",ret);			
 		lua_pushstring(L,"http_connection_bind failed");
 		return 1;
 	}
@@ -346,7 +405,7 @@ static void write_http_body(chk_bytebuffer *b,chk_http_packet *packet) {
 	BYTEBUFFER_APPEND_CSTR(b,"\r\n");
 }
 
-static void push_bytebuffer(lua_State *L,chk_bytebuffer *buffer) {
+static int32_t push_bytebuffer(lua_State *L,chk_bytebuffer *buffer) {
 	uint32_t spos,chunk_data_size,size_remain;
 	struct luaL_Buffer b;
 	char *in;
@@ -357,6 +416,13 @@ static void push_bytebuffer(lua_State *L,chk_bytebuffer *buffer) {
  	luaL_buffinit(L, &b);
  	in = luaL_prepbuffsize(&b,(size_t)buffer->datasize);
 #endif
+
+ 	if(!in) {
+ 		CHK_SYSLOG(LOG_ERROR,"prepbuff failed:%d",buffer->datasize);	
+ 		return -1;
+ 	}
+
+
 	head = buffer->head;
 	spos = buffer->spos;
 	size_remain = buffer->datasize;
@@ -375,6 +441,8 @@ static void push_bytebuffer(lua_State *L,chk_bytebuffer *buffer) {
 	luaL_addsize(&b,(size_t)buffer->datasize);	
 	luaL_pushresult(&b);
 #endif	
+
+	return 0;
 }
 
 static int32_t lua_http_connection_send_request(lua_State *L) {	
@@ -383,16 +451,37 @@ static int32_t lua_http_connection_send_request(lua_State *L) {
 	chk_bytebuffer    *b;	
 	const char        *http_version,*path,*host,*method;
 	conn   = lua_check_http_connection(L,1);
+
+	if(!conn) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_connection() failed");		
+		return luaL_error(L,"lua_check_http_connection() failed");	
+	}
+
 	if(!conn->socket) {
+		CHK_SYSLOG(LOG_ERROR,"http connection is close");			
 		lua_pushstring(L,"http connection is close");
 		return 1;
 	}
+
 	http_version = luaL_checkstring(L,2);
 	host = luaL_checkstring(L,3);
 	method = luaL_checkstring(L,4);
 	path = luaL_checkstring(L,5);
-	packet = lua_check_http_packet(L,6);	
+	packet = lua_check_http_packet(L,6);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");		
+	}
+
 	b = chk_bytebuffer_new(4096);
+
+	if(!b) {
+		CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_new(4096) failed");		
+		lua_pushstring(L,"not enough memory");
+		return 1;		
+	}
+
 	BYTEBUFFER_APPEND_CSTR(b,method);
 	BYTEBUFFER_APPEND_CSTR(b," ");
 	BYTEBUFFER_APPEND_CSTR(b,path);
@@ -427,8 +516,22 @@ static int32_t lua_http_connection_send_response(lua_State *L) {
 	http_version = luaL_checkstring(L,2);
 	status = luaL_checkstring(L,3);
 	phase = luaL_checkstring(L,4);
+
 	packet = lua_check_http_packet(L,5);	
+	
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");		
+	}
+
 	b = chk_bytebuffer_new(4096);
+
+	if(!b) {
+		CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_new(4096) failed");		
+		lua_pushstring(L,"not enough memory");
+		return 1;		
+	}	
+	
 	BYTEBUFFER_APPEND_CSTR(b,"HTTP/");
 	BYTEBUFFER_APPEND_CSTR(b,http_version);
 	BYTEBUFFER_APPEND_CSTR(b," ");
@@ -452,6 +555,13 @@ static int32_t lua_http_connection_send_response(lua_State *L) {
 
 static int32_t lua_http_connection_close(lua_State *L) {
 	http_connection   *conn = lua_check_http_connection(L,1);
+
+	if(!conn) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_connection() failed");		
+		return luaL_error(L,"lua_check_http_connection() failed");	
+	}
+
+
 	if(conn->socket) {
 		chk_stream_socket_setUd(conn->socket,NULL);
 		//delay 5秒关闭,尽量将数据发送出去				
@@ -463,6 +573,12 @@ static int32_t lua_http_connection_close(lua_State *L) {
 
 static int32_t lua_http_packet_get_method(lua_State *L) {
 	lua_http_packet *packet = lua_check_http_packet(L,1);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");	
+	}
+	
 	const char *method = chk_http_method2name(chk_http_get_method(packet->packet));
 	if(!method) return 0;
 	lua_pushstring(L,method);
@@ -471,6 +587,12 @@ static int32_t lua_http_packet_get_method(lua_State *L) {
 
 static int32_t lua_http_packet_get_status(lua_State *L) {
 	lua_http_packet *packet = lua_check_http_packet(L,1);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");	
+	}
+
 	const char *status = chk_http_get_status(packet->packet);
 	if(!status) return 0;
 	lua_pushstring(L,status);
@@ -479,6 +601,12 @@ static int32_t lua_http_packet_get_status(lua_State *L) {
 
 static int32_t lua_http_packet_get_url(lua_State *L) {
 	lua_http_packet *packet = lua_check_http_packet(L,1);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");	
+	}
+
 	const char *url = chk_http_get_url(packet->packet);
 	if(!url) return 0;
 	lua_pushstring(L,url);
@@ -488,15 +616,37 @@ static int32_t lua_http_packet_get_url(lua_State *L) {
 static int32_t lua_http_packet_get_body(lua_State *L) {
 
 	lua_http_packet *packet = lua_check_http_packet(L,1);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");	
+	}	
+
 	chk_bytebuffer  *body   = chk_http_get_body(packet->packet);
 	if(!body || !body->head) return 0;
-	push_bytebuffer(L,body);
-	return 1;
+	if(0 == push_bytebuffer(L,body)) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
 }
 
 static int32_t lua_http_packet_get_header(lua_State *L) {
 	lua_http_packet *packet = lua_check_http_packet(L,1);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");	
+	}
+	
 	const char *field = luaL_checkstring(L,2);
+		
+	if(!field) {
+		CHK_SYSLOG(LOG_ERROR,"field == NULL");		
+		return luaL_error(L,"field == NULL");	
+	}	
+
 	const char *value = chk_http_get_header(packet->packet,field);	
 	if(!value) return 0;
 	lua_pushstring(L,value);
@@ -507,6 +657,12 @@ static int32_t lua_http_packet_get_headers(lua_State *L) {
 	int32_t c;
 	chk_http_header_iterator iterator;
 	lua_http_packet *packet = lua_check_http_packet(L,1);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");	
+	}
+
 	if(0 == chk_http_header_begin(packet->packet,&iterator)) {
 		//{{f,v},{f,v}...}
 		lua_newtable(L);
@@ -526,10 +682,41 @@ static int32_t lua_http_packet_get_headers(lua_State *L) {
 
 static int32_t lua_http_packet_set_header(lua_State *L) {
 	lua_http_packet *packet = lua_check_http_packet(L,1);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");	
+	}
+
 	const char *field = luaL_checkstring(L,2);
+
+	if(!field) {
+		CHK_SYSLOG(LOG_ERROR,"field == NULL");		
+		return luaL_error(L,"arg 2 of http_packet_set_header is not a string");	
+	}
+
 	const char *value = luaL_checkstring(L,3);
+
+	if(!value) {
+		CHK_SYSLOG(LOG_ERROR,"value == NULL");		
+		return luaL_error(L,"arg 3 of http_packet_set_header is not a string");		
+	}
+	
 	chk_string *str_field = chk_string_new(field,strlen(field)); 
-	chk_string *str_value = chk_string_new(value,strlen(value)); 
+	
+	if(!str_field) {
+		CHK_SYSLOG(LOG_ERROR,"chk_string_new() failed");	
+		return 0;
+	}
+
+	chk_string *str_value = chk_string_new(value,strlen(value));
+
+	if(!str_value) {
+		chk_string_destroy(str_field);
+		CHK_SYSLOG(LOG_ERROR,"chk_string_new() failed");	
+		return 0;		
+	} 
+	
 	chk_http_set_header(packet->packet,str_field,str_value);
 	return 0;
 }
@@ -537,14 +724,38 @@ static int32_t lua_http_packet_set_header(lua_State *L) {
 static int32_t lua_http_packet_append_body(lua_State *L) {
 	size_t len;
 	lua_http_packet *packet = lua_check_http_packet(L,1);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"lua_check_http_packet() failed");		
+		return luaL_error(L,"lua_check_http_packet() failed");	
+	}
+
 	const char *str = luaL_checklstring(L,2,&len);
+	
+	if(!str) {
+		CHK_SYSLOG(LOG_ERROR,"str == NULL");		
+		return luaL_error(L,"argument 2 of http_packet_append_body is not a string");		
+	}
+
 	chk_http_append_body(packet->packet,str,len);
 	return 0;
 }
 
 static int32_t lua_http_packet_new(lua_State *L) {
 	lua_http_packet *packet = LUA_NEWUSERDATA(L,lua_http_packet);
+
+	if(!packet) {
+		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA(lua_http_packet) failed");		
+		return 0;
+	}
+
 	packet->packet = chk_http_packet_new();
+
+	if(!packet->packet) {
+		CHK_SYSLOG(LOG_ERROR,"chk_http_packet_new() failed");		
+		return 0;
+	}
+
 	luaL_getmetatable(L, HTTP_PACKET_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;	

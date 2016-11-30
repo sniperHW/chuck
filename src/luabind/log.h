@@ -6,8 +6,19 @@
 
 static int32_t lua_create_logfile(lua_State *L) {
 	const char *filename = luaL_checkstring(L,1);
+
+	if(!filename) {
+		CHK_SYSLOG(LOG_ERROR,"NULL == filename");		
+		return luaL_error(L,"arg 1 of create_logfile is not a string");		
+	}
+
 	chk_logfile *logfile = chk_create_logfile(filename);
-	if(!logfile) return 0;
+	
+	if(!logfile) { 
+		CHK_SYSLOG(LOG_ERROR,"chk_create_logfile() failed");		
+		return 0;
+	}
+
 	lua_pushlightuserdata(L,logfile);
 	luaL_getmetatable(L, LOGFILE_METATABLE);
 	lua_setmetatable(L, -2);	
@@ -19,10 +30,22 @@ static int32_t lua_write_log(lua_State *L) {
 	char *buff;
 	const char *str;	
 	chk_logfile *logfile = lua_checklogfile(L,1);
+
+	if(!logfile) {
+		CHK_SYSLOG(LOG_ERROR,"lua_checklogfile() failed");		
+		return luaL_error(L,"lua_checklogfile() failed");
+	}
+
 	int32_t loglev = luaL_checkinteger(L,2);
 	if(loglev >= chk_current_loglev()) {
 		str = luaL_checkstring(L,3);
 		buff = malloc(CHK_MAX_LOG_SIZE);
+
+		if(!buff) {
+			CHK_SYSLOG(LOG_ERROR,"malloc(CHK_MAX_LOG_SIZE) failed");			
+			return 0;
+		}
+
         size = chk_log_prefix(buff,loglev);
         snprintf(&buff[size],CHK_MAX_LOG_SIZE-size,"%s",str);	
 		chk_log(logfile,loglev,buff);
@@ -38,6 +61,12 @@ static int32_t lua_sys_log(lua_State *L) {
 	if(loglev >= chk_current_loglev()) {
 		str = luaL_checkstring(L,2);
 		buff = malloc(CHK_MAX_LOG_SIZE);
+		
+		if(!buff) {
+			CHK_SYSLOG(LOG_ERROR,"malloc(CHK_MAX_LOG_SIZE) failed");			
+			return 0;
+		}
+
         size = chk_log_prefix(buff,loglev);
         snprintf(&buff[size],CHK_MAX_LOG_SIZE-size,"%s",str);	
 		chk_syslog(loglev,buff);

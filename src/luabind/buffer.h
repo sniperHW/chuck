@@ -5,7 +5,13 @@
 
 static int32_t lua_bytebuffer_gc(lua_State *L) {
 	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
-	chk_bytebuffer_finalize(b);
+	if(b) {
+		chk_bytebuffer_finalize(b);
+	}
+	else {
+		CHK_SYSLOG(LOG_ERROR,"lua_checkbytebuffer() failed");
+		return luaL_error(L,"lua_checkbytebuffer() failed"); 				
+	}
 	return 0;
 }
 
@@ -22,24 +28,40 @@ static void PushBuffer(chk_luaPushFunctor *_,lua_State *L) {
 		luaL_getmetatable(L, BYTEBUFFER_METATABLE);
 		lua_setmetatable(L, -2);
 	} else {
+		CHK_SYSLOG(LOG_ERROR,"newuserdata() chk_bytebuffer failed");	
 		lua_pushnil(L);
 	}
 }
 
 static int32_t lua_new_bytebuffer(lua_State *L) {
 	chk_bytebuffer *b;
+	chk_bytechunk  *chunk;
 	size_t size = 0;
 	const char *str = NULL;
 	if(lua_isstring(L,1)) {
 		str = lua_tolstring(L,1,&size);
 		b = LUA_NEWUSERDATA(L,chk_bytebuffer);		
-		if(!b) return 0;
-		chk_bytebuffer_init(b,chk_bytechunk_new((void*)str,(uint32_t)size),0,(uint32_t)size,0);
+		if(!b){	
+			CHK_SYSLOG(LOG_ERROR,"newuserdata() chk_bytebuffer failed");
+			return 0;
+		}
+
+		chunk = chk_bytechunk_new((void*)str,(uint32_t)size);
+
+		if(!chunk) {
+			CHK_SYSLOG(LOG_ERROR,"chk_bytechunk_new() failed:%d",size);			
+			return 0;
+		}
+
+		chk_bytebuffer_init(b,chunk,0,(uint32_t)size,0);
 	}
 	else {
 		size = (uint32_t)luaL_optinteger(L,1,64);
 		b = LUA_NEWUSERDATA(L,chk_bytebuffer);
-		if(!b) return 0;
+		if(!b){	
+			CHK_SYSLOG(LOG_ERROR,"newuserdata() chk_bytebuffer failed");
+			return 0;
+		}
 		chk_bytebuffer_init(b,NULL,0,size,0);
 	}
 	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
@@ -50,9 +72,24 @@ static int32_t lua_new_bytebuffer(lua_State *L) {
 static int32_t lua_bytebuffer_clone(lua_State *L) {
 	chk_bytebuffer *self,*o;
 	self = lua_checkbytebuffer(L,1);
+
+	if(!self) {
+		CHK_SYSLOG(LOG_ERROR,"lua_checkbytebuffer() failed");
+		return luaL_error(L,"lua_checkbytebuffer() failed");
+	}
+
 	o = LUA_NEWUSERDATA(L,chk_bytebuffer);
-	if(!o || o != chk_bytebuffer_share(o,self))
+	
+	if(!o){	
+		CHK_SYSLOG(LOG_ERROR,"newuserdata() chk_bytebuffer failed");
 		return 0;
+	}
+
+	if(o != chk_bytebuffer_share(o,self)) {
+		CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_share() failed");		
+		return 0;
+	}
+
 	luaL_getmetatable(L, BYTEBUFFER_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -62,6 +99,12 @@ static int32_t lua_bytebuffer_readall(lua_State *L) {
 	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
 	luaL_Buffer     lb;
 	char           *in;
+
+	if(!b) {
+		CHK_SYSLOG(LOG_ERROR,"lua_checkbytebuffer() failed");
+		return luaL_error(L,"lua_checkbytebuffer() failed");		
+	}
+
 #if LUA_VERSION_NUM >= 503	
 	in = luaL_buffinitsize(L,&lb,(size_t)b->datasize);
 	chk_bytebuffer_read(b,in,b->datasize);
@@ -81,7 +124,14 @@ static int32_t lua_bytebuffer_append_string(lua_State *L) {
 	size_t len = 0;
 	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
 	str = lua_tolstring(L,2,&len);
+
 	do{
+
+		if(!b) {
+			CHK_SYSLOG(LOG_ERROR,"lua_checkbytebuffer() failed");	
+			return luaL_error(L,"lua_checkbytebuffer() failed");		
+		}
+
 		if(str && len > 0) {
 			if(0 != chk_bytebuffer_append(b,(uint8_t*)str,(uint32_t)len)){
 				CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer_append() failed");
@@ -89,6 +139,7 @@ static int32_t lua_bytebuffer_append_string(lua_State *L) {
 			}
 			return 0;
 		}
+
 	}while(0);
 	lua_pushstring(L,"append string failed");
 	return 1;
