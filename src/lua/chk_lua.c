@@ -7,7 +7,7 @@
 # define  cast(T,P) ((T)(P))
 #endif
 
-static __thread char lua_errmsg[4096];
+static __thread char lua_errmsg[4096] = {0};
 
 static inline int __traceback (lua_State *L) {
   const char *msg = lua_tostring(L, 1);
@@ -80,7 +80,7 @@ const char *chk_lua_pcall(lua_State *L,const char *fmt,...) {
 			break;
 		}
 		default:{
-			snprintf(lua_errmsg,4096,"invaild operation(%c)",*fmt);
+			snprintf(lua_errmsg,sizeof(lua_errmsg) - 1,"invaild operation(%c)",*fmt);
 			errmsg = lua_errmsg;
 			goto end;
 		}}
@@ -94,7 +94,7 @@ arg_end:
 	ret = lua_pcall(L,narg,nres,base);
 	lua_remove(L,base);
 	if(ret){
-		strncpy(lua_errmsg,lua_tostring(L,-1),4096);
+		strncpy(lua_errmsg,lua_tostring(L,-1),sizeof(lua_errmsg) - 1);
 		return lua_errmsg;
 	}else if(nres){
 		top = lua_gettop(L);
@@ -132,7 +132,7 @@ arg_end:
 				break;
 			}
 			default: {
-				snprintf(lua_errmsg,4096,"invaild operation(%c)",*fmt);
+				snprintf(lua_errmsg,sizeof(lua_errmsg) - 1,"invaild operation(%c)",*fmt);
 				errmsg = lua_errmsg;
 				goto end;					
 			}}			
@@ -179,7 +179,7 @@ const char *LuaRef_Get(luaRef tab,const char *fmt,...)
 			case 'p':lua_pushlightuserdata(L,va_arg(vl,void*));break;
 			case 'r':lua_rawgeti(L,LUA_REGISTRYINDEX,va_arg(vl,luaRef).rindex);break;
 			default:{
-				snprintf(lua_errmsg,4096,"invaild operation(%c)",fmt[k]);
+				snprintf(lua_errmsg,sizeof(lua_errmsg) - 1,"invaild operation(%c)",fmt[k]);
 				errmsg = lua_errmsg;
 				goto end;	
 			}
@@ -201,7 +201,7 @@ const char *LuaRef_Get(luaRef tab,const char *fmt,...)
 				break;
 			}
 			default:{
-				snprintf(lua_errmsg,4096,"invaild operation(%c)",fmt[v]);
+				snprintf(lua_errmsg,sizeof(lua_errmsg) - 1,"invaild operation(%c)",fmt[v]);
 				errmsg = lua_errmsg;
 				goto end;					
 			}
@@ -227,13 +227,13 @@ const char *LuaRef_Set(luaRef tab,const char *fmt,...)
     oldtop = lua_gettop(L);
 	lua_rawgeti(L,LUA_REGISTRYINDEX,tab.rindex);
 	if(!lua_istable(L,-1)){
-		snprintf(lua_errmsg,4096,"arg1 is not a lua table");		
+		snprintf(lua_errmsg,sizeof(lua_errmsg) - 1,"arg1 is not a lua table");		
 		errmsg = lua_errmsg;
 		goto end;	
 	}
 	size = strlen(fmt);
 	if(size < 2){
-		snprintf(lua_errmsg,4096,"fmt invaild(kvkvkv...)");
+		snprintf(lua_errmsg,sizeof(lua_errmsg) - 1,"fmt invaild(kvkvkv...)");
 		errmsg = lua_errmsg;
 		goto end;		
 	}
@@ -255,7 +255,7 @@ const char *LuaRef_Set(luaRef tab,const char *fmt,...)
 					break;
 				}
 			default:{
-				snprintf(lua_errmsg,4096,"invaild operation(%c)",fmt[k]);
+				snprintf(lua_errmsg,sizeof(lua_errmsg) - 1,"invaild operation(%c)",fmt[k]);
 				errmsg = lua_errmsg;
 				goto end;	
 			}
@@ -277,7 +277,7 @@ const char *LuaRef_Set(luaRef tab,const char *fmt,...)
 					break;
 				}
 			default:{
-				snprintf(lua_errmsg,4096,"invaild operation(%c)",fmt[k]);
+				snprintf(lua_errmsg,sizeof(lua_errmsg) - 1,"invaild operation(%c)",fmt[k]);
 				errmsg = lua_errmsg;
 				goto end;	
 			}

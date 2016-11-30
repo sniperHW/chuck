@@ -15,14 +15,14 @@ static __thread chk_expn_thd *_exception_st = NULL;
 static void _log_stack(int32_t logLev,int32_t start,const char *prefix,void **bt);
 
 void chk_exp_log_exption_stack() {
-	char    buff[256];
+	char    buff[256] = {0};
 	chk_expn_thd *expthd = chk_exp_get_thread_expn();
 	if(!expthd->sz) return;
     if(expthd->exception == segfault)
-    	snprintf(buff,256," [exception:%s <invaild access addr:%p>]",
+    	snprintf(buff,sizeof(buff) - 1," [exception:%s <invaild access addr:%p>]",
                  segfault,expthd->addr);
     else
-    	snprintf(buff,256," [exception:%s]",expthd->exception);	
+    	snprintf(buff,sizeof(buff) - 1," [exception:%s]",expthd->exception);	
 	_log_stack(LOG_ERROR,3,buff,expthd->bt);
 }
 
@@ -124,10 +124,10 @@ static void *getsoaddr(char *path,void *addr) {
 	int32_t i =0;
 	char *ptr = path + strlen(path);
 	for(;ptr != path;--ptr) if((*ptr) == '/'){ ++ptr;break;}
-	snprintf(buff,1024,"pmap -x %d",getpid());
+	snprintf(buff,sizeof(buff) - 1,"pmap -x %d",getpid());
 	pipe = popen(buff, "r");
 	if(!pipe) return NULL;
-	for(; i < 1024; ++i){
+	for(; i < sizeof(buff); ++i){
 		if(1 != fread(&buff[i],1,1,pipe)){
 			pclose(pipe);
 			return NULL;
@@ -165,7 +165,7 @@ static int32_t getdetail(char *str,char *output,int32_t size) {
 		else if(!(addr = getaddr(str))) return -1;
 	}
 
-	snprintf(cmd,1024,"addr2line -fCse %s %p", path,addr);
+	snprintf(cmd,sizeof(cmd) - 1,"addr2line -fCse %s %p", path,addr);
 	pipe = popen(cmd, "r");
 	if(!pipe) return -1;
 	i = fread(output,1,size-1,pipe);	
@@ -181,9 +181,9 @@ static void _log_stack(int32_t logLev,int32_t start,const char *prefix,void **bt
 	int32_t                 i,f;
 	int32_t 				size;	
 	char                   *logbuf;
-	char                    buf[1024];
+	char                    buf[1024] = {0};
 	char 				   *ptr;
-	void                   *_bt[LOG_STACK_SIZE];
+	void                   *_bt[LOG_STACK_SIZE] = {0};
 
     if(chk_current_loglev() > logLev) return;    
     logbuf = malloc(CHK_MAX_LOG_SIZE);
@@ -196,15 +196,15 @@ static void _log_stack(int32_t logLev,int32_t start,const char *prefix,void **bt
 		sz      = backtrace(_bt, LOG_STACK_SIZE);
 		strings = backtrace_symbols(_bt, sz);
 	}
-	if(prefix) size += snprintf(&logbuf[size],CHK_MAX_LOG_SIZE,"%s\n",prefix);	    		    			
+	if(prefix) size += snprintf(&logbuf[size],CHK_MAX_LOG_SIZE-size-1,"%s\n",prefix);	    		    			
 	for(i = start,f = 0; i < sz; ++i) {
 		if(strstr(strings[i],"main+")) break;
 		ptr  = logbuf + size;
 		if(0 == getdetail(strings[i],buf,1024))
-			size += snprintf(ptr,CHK_MAX_LOG_SIZE-size,
+			size += snprintf(ptr,CHK_MAX_LOG_SIZE-size-1,
 				"\t% 2d: %s %s\n",++f,strings[i],buf);
 		else
-			size += snprintf(ptr,CHK_MAX_LOG_SIZE-size,
+			size += snprintf(ptr,CHK_MAX_LOG_SIZE-size-1,
 				"\t% 2d: %s\n",++f,strings[i]);		
 	}
 	chk_syslog(logLev,logbuf);

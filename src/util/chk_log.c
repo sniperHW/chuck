@@ -137,7 +137,8 @@ static void *log_routine(void *arg) {
 	chk_logfile     *l;
 	chk_dlist_entry *n;	
 	int32_t          size;
-	char             filename[128],buf[128];
+	char             filename[128] = {0};
+	char             buf[128] = {0};
 	struct timespec  tv;
 	struct tm        _tm;			
 	time_t           next_fulsh = time(NULL) + flush_interval;
@@ -153,7 +154,7 @@ static void *log_routine(void *arg) {
 				//创建文件
 				clock_gettime(CLOCK_REALTIME, &tv);
 				localtime_r(&tv.tv_sec, &_tm);
-				snprintf(filename,128,"./log/%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
+				snprintf(filename,sizeof(filename) - 1,"./log/%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
 						 entry->_logfile->filename,
 						 getpid(),
 					     _tm.tm_year+1900,
@@ -196,7 +197,7 @@ static void *log_routine(void *arg) {
 		l = cast(chk_logfile*,n);
 		if(l->file) {
 			size = chk_log_prefix(buf,LOG_INFO);
-			snprintf(&buf[size],128-size,"log close success");
+			snprintf(&buf[size],sizeof(buf)-size-1,"log close success");
 			fprintf(l->file,"%s\n",buf);
 			fflush(l->file);
 			fclose(l->file);

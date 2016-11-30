@@ -39,7 +39,7 @@ static int32_t lua_write_log(lua_State *L) {
 	int32_t loglev = luaL_checkinteger(L,2);
 	if(loglev >= chk_current_loglev()) {
 		str = luaL_checkstring(L,3);
-		buff = malloc(CHK_MAX_LOG_SIZE);
+		buff = calloc(CHK_MAX_LOG_SIZE,sizeof(char));
 
 		if(!buff) {
 			CHK_SYSLOG(LOG_ERROR,"malloc(CHK_MAX_LOG_SIZE) failed");			
@@ -47,7 +47,7 @@ static int32_t lua_write_log(lua_State *L) {
 		}
 
         size = chk_log_prefix(buff,loglev);
-        snprintf(&buff[size],CHK_MAX_LOG_SIZE-size,"%s",str);	
+        snprintf(&buff[size],CHK_MAX_LOG_SIZE-size-1,"%s",str);	
 		chk_log(logfile,loglev,buff);
 	}
 	return 0;
@@ -60,7 +60,7 @@ static int32_t lua_sys_log(lua_State *L) {
 	int32_t loglev = luaL_checkinteger(L,1);
 	if(loglev >= chk_current_loglev()) {
 		str = luaL_checkstring(L,2);
-		buff = malloc(CHK_MAX_LOG_SIZE);
+		buff = calloc(CHK_MAX_LOG_SIZE,sizeof(char));
 		
 		if(!buff) {
 			CHK_SYSLOG(LOG_ERROR,"malloc(CHK_MAX_LOG_SIZE) failed");			
@@ -68,7 +68,7 @@ static int32_t lua_sys_log(lua_State *L) {
 		}
 
         size = chk_log_prefix(buff,loglev);
-        snprintf(&buff[size],CHK_MAX_LOG_SIZE-size,"%s",str);	
+        snprintf(&buff[size],CHK_MAX_LOG_SIZE-size-1,"%s",str);	
 		chk_syslog(loglev,buff);
 	}	
 	return 0;	

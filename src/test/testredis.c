@@ -56,11 +56,11 @@ void redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
 	}
 
 	int i = 0;
-	char buff[1024];
+	char buff[1024] = {0};
 	printf("redis_connect_cb\n");
 	
 	for(i = 0; i < 1000; ++i){
-		snprintf(buff,1024,"chaid:%d",i);
+		snprintf(buff,sizeof(buff) - 1,"chaid:%d",i);
 		chk_redis_execute(c,NULL,NULL,"hmget %s %s %s %s",buff,"chainfo","fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
 						  "skills","fasfasdfasdfasfasdfasdfasdfcvavasdfasdf");
 	}

@@ -377,7 +377,7 @@ static void write_http_header(chk_bytebuffer *b,chk_http_packet *packet) {
 }
 
 static void write_http_body(chk_bytebuffer *b,chk_http_packet *packet) {
-	char body_length[64];
+	char body_length[64] = {0};
 	uint32_t spos,chunk_data_size,size_remain;
 	chk_bytechunk  *head;	
 	chk_bytebuffer *body = chk_http_get_body(packet);
@@ -385,7 +385,7 @@ static void write_http_body(chk_bytebuffer *b,chk_http_packet *packet) {
 		if(!body || !body->head || 0 == body->datasize)
 			break;
 		head = body->head;
-		snprintf(body_length,64,"%u",body->datasize);
+		snprintf(body_length,sizeof(body_length) - 1,"%u",body->datasize);
 		BYTEBUFFER_APPEND_CSTR(b,"Content-Length: ");
 		BYTEBUFFER_APPEND_CSTR(b,body_length);
 		BYTEBUFFER_APPEND_CSTR(b," \r\n\r\n");
