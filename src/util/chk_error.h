@@ -17,6 +17,7 @@ enum {
 	chk_error_iterate_end,                                /*迭代到达末尾*/
 	chk_error_invaild_size,                               /*size参数大小非法*/
 	chk_error_eof,                                        /*读到文件结尾*/
+	chk_error_add_timer,
 	/*buffef相关错误码*/
 	chk_error_buffer_read_only,                           /*只读buffer*/
 	chk_error_invaild_buffer,                             /*非法buffer*/

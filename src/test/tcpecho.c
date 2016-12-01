@@ -103,6 +103,10 @@ static void signal_int(void *ud) {
 	chk_loop_end(loop);
 }
 
+static void on_idle() {
+	printf("idle\n");
+}
+
 int main(int argc,char **argv) {
 	signal(SIGPIPE,SIG_IGN);
 	loop = chk_loop_new();
@@ -116,6 +120,9 @@ int main(int argc,char **argv) {
 		printf("server start error\n");
 	else{
 		CHK_SYSLOG(LOG_INFO,"server start");
+
+		chk_loop_set_idle_func(loop,on_idle);
+
 		chk_loop_run(loop);
 	}
 	chk_loop_del(loop);

@@ -58,4 +58,11 @@
 #define CHK_MAX_LOG_SIZE  4096
 
 
+/*
+*  idle定时器的间隔,在空闲的情况下event_loop每CHK_IDLE_TIMER_TIMEOUT时间触发一次idle回调(如果有设置)
+*/
+
+#define CHK_IDLE_TIMER_TIMEOUT 100
+
+
 #endif

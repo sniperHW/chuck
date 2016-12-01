@@ -67,4 +67,15 @@ int32_t         chk_loop_add_handle(chk_event_loop *loop,chk_handle *handle,chk_
 
 int32_t         chk_loop_remove_handle(chk_handle *handle);
 
+
+int32_t         chk_loop_set_idle_func(chk_event_loop *loop,void (*idle_cb)());
+
+#if CHUCK_LUA
+
+#include "lua/chk_lua.h"
+
+int32_t         chk_loop_set_idle_func_lua(chk_event_loop *loop,chk_luaRef idle_cb);
+
+#endif
+
 #endif

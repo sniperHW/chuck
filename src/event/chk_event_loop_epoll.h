@@ -134,6 +134,7 @@ void chk_loop_finalize(chk_event_loop *e) {
 	close(e->epfd);
 	chk_close_notify_channel(e->notifyfds);
 	free(e->events);
+	chk_idle_finalize(e);
 }
 
 int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
@@ -186,7 +187,8 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 			CHK_SYSLOG(LOG_ERROR,"epoll_wait() failed errno:%d",errno);
 			ret = chk_error_loop_run;
 			break;
-		}	
+		}
+		chk_check_idle(e);	
 	}while(!once);
 
 loopend:	

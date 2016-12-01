@@ -18,6 +18,51 @@ enum {
 	CLOSING =  1 << 2,
 };
 
+
+static inline void chk_idle_finalize(chk_event_loop *e) {
+	if(e->idle.idle_timer) {
+		chk_timer_unregister(e->idle.idle_timer);
+	}
+
+#ifdef CHUCK_LUA
+	if(e->idle.on_idle.L) {
+		chk_luaRef_release(&e->idle.on_idle);
+	}
+#endif
+
+}
+
+static inline void chk_check_idle(chk_event_loop *e) {
+
+/*
+*	当前实际时间与定时器到器时间相差小于等于1ms,表明系统没有太多事情需要干
+*/	
+
+#ifdef CHUCK_LUA
+
+	if(e->idle.on_idle.L) {
+		uint64_t now_tick = chk_systick64();
+		if(now_tick - e->idle.fire_tick <= 1) {	
+			const char   *error; 
+			if(NULL != (error = chk_Lua_PCallRef(e->idle.on_idle,":"))) {
+				CHK_SYSLOG(LOG_ERROR,"error on idle %s",error);
+			}
+		}
+	}
+
+#else
+
+	if(e->idle.on_idle) {
+		uint64_t now_tick = chk_systick64();
+		if(now_tick - e->idle.fire_tick <= 1) {	
+			e->idle.on_idle();
+		}
+	}
+
+#endif
+
+}
+
 #ifdef _LINUX
 #	include "chk_event_loop_epoll.h"
 #elif  _MACH
@@ -25,6 +70,7 @@ enum {
 #else
 #	error "un support platform!"		
 #endif
+
 
 int32_t chk_loop_run_once(chk_event_loop *e,uint32_t ms) {
 	return _loop_run(e,ms,1);
@@ -71,3 +117,71 @@ int32_t chk_loop_remove_handle(chk_handle *h) {
 	return chk_unwatch_handle(h);
 }
 
+
+static int32_t on_idle_timer_timeout(uint64_t tick,void*ud) {
+	chk_event_loop *loop = (chk_event_loop*)ud;
+
+#ifdef CHUCK_LUA
+	if(!loop->idle.on_idle.L)
+#else
+	if(!loop->idle.on_idle)
+#endif
+	{	
+		//on_idle被置空,取消定时器
+		loop->idle.idle_timer = NULL;
+		return -1;
+	}
+	else {
+		/*
+		 *  定时器的执行顺序是不确定的，所以这里不会立刻执行空闲判断，而是把预期的触发时间记录下来
+		 *  在循环的最后再判定是否空闲 
+		 *  
+		*/
+		loop->idle.fire_tick = tick;
+		return 0;
+	}
+}
+
+#ifdef CHUCK_LUA
+
+int32_t chk_loop_set_idle_func_lua(chk_event_loop *loop,chk_luaRef idle_cb) {
+	if(!loop) {
+		return chk_error_invaild_argument;
+	}
+
+	loop->idle.on_idle = idle_cb;
+
+	if(loop->idle.on_idle.L) {
+		if(!loop->idle.idle_timer) {
+			loop->idle.idle_timer = chk_loop_addtimer(loop,CHK_IDLE_TIMER_TIMEOUT,on_idle_timer_timeout,loop);
+			if(!loop->idle.idle_timer) {
+				chk_luaRef_release(&loop->idle.on_idle);
+				return chk_error_add_timer;
+			}
+		}
+	}
+	return 0;
+}
+
+#else
+
+int32_t chk_loop_set_idle_func(chk_event_loop *loop,void (*idle_cb)()) {
+	if(!loop) {
+		return chk_error_invaild_argument;
+	}
+
+	loop->idle.on_idle = idle_cb;
+
+	if(loop->idle.on_idle) {
+		if(!loop->idle.idle_timer) {
+			loop->idle.idle_timer = chk_loop_addtimer(loop,CHK_IDLE_TIMER_TIMEOUT,on_idle_timer_timeout,loop);
+			if(!loop->idle.idle_timer) {
+				loop->idle.on_idle = NULL;
+				return chk_error_add_timer;
+			}
+		}
+	}
+	return 0;
+}
+
+#endif

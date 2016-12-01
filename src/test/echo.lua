@@ -26,6 +26,11 @@ end)
 
 if server then
 	log.SysLog(log.info,"server start")	
+
+	event_loop:SetIdle(function ()
+		print("idle")
+	end)
+
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
 		log.SysLog(log.info,"recv SIGINT stop server")
 		event_loop:Stop()

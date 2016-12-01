@@ -61,15 +61,27 @@ static inline chk_timer *get_free_timer() {
 		if(!timer_pool) {
 			pthread_key_create(&timer_pool_key,key_destructor);
 			timer_pool = malloc(sizeof(*timer_pool));
+			if(!timer_pool) {
+				return NULL;
+			}
 			chk_dlist_init(timer_pool);
 		}
 		for(i = 0;i < INIT_FREE_TIMER_SIZE; ++i) {
 			t = calloc(1,sizeof(*t));
-			chk_dlist_pushback(timer_pool,cast(chk_dlist_entry*,t));
+			if(t) {
+				chk_dlist_pushback(timer_pool,cast(chk_dlist_entry*,t));
+			}
+			else {
+				break;
+			}
 		}
 	}
+	
 	t = cast(chk_timer*,chk_dlist_pop(timer_pool));
-	memset(t,0,sizeof(*t));
+	if(t) {
+		memset(t,0,sizeof(*t));
+	}
+	
 	return t;
 }
 
@@ -135,7 +147,6 @@ static void fire(chk_timermgr *m,wheel *w,uint64_t tick) {
 			while((t = cast(chk_timer*,chk_dlist_pop(&tlist)))) {
 				t->status |= INCB;
 				assert(tick == t->expire);
-				//printf("%lld,%lld,%lld\n",tick,t->expire,chk_accurate_tick64());
 				ret = t->cb(tick,t->ud);
 				t->status ^= INCB;
 				if(!(t->status & RELEASING) && ret >= 0) {

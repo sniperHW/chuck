@@ -89,6 +89,22 @@ static int32_t lua_event_loop_addtimer(lua_State *L) {
 	return 1;
 }
 
+static int32_t lua_event_loop_set_idle(lua_State *L) {
+	chk_luaRef      cb = {NULL,-1};
+	chk_event_loop *event_loop = lua_checkeventloop(L,1);
+	if(!lua_isfunction(L,2)) {
+		CHK_SYSLOG(LOG_ERROR,"argument 2 of lua_event_loop_set_idle must be lua function");		
+		return luaL_error(L,"argument 2 of lua_event_loop_set_idle must be lua function"); 
+	}
+	cb = chk_toluaRef(L,2);
+	if(0 != chk_loop_set_idle_func_lua(event_loop,cb)) {
+		lua_pushstring(L,"set_idle failed");
+		return 1;
+	}
+
+	return 0;
+}
+
 static void signal_ud_dctor(void *ud) {
 	chk_luaRef *cb = (chk_luaRef*)ud;
 	chk_luaRef_release(cb);
@@ -144,6 +160,7 @@ static void register_event_loop(lua_State *L) {
 		{"Run",    	     lua_event_loop_run},
 		{"Stop",         lua_event_loop_end},
 		{"AddTimer",     lua_event_loop_addtimer},
+		{"SetIdle",      lua_event_loop_set_idle},
 		{NULL,     NULL}
 	};
 
