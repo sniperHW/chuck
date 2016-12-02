@@ -39,19 +39,19 @@ local function do_command(str)
 end
 
 local function read_command()
-	io.stdout:write(">>")
-
 	local chunk = ""
 
+	local prompt = ">>"
+
 	while true do
-		local cmd_line = io.stdin:read("L")
+		local cmd_line = chuck.Readline(prompt)
 		if #cmd_line > 1 then
-			if string.byte(cmd_line,#cmd_line-1) ~= 92 then
+			if string.byte(cmd_line,#cmd_line) ~= 92 then
 				chunk = chunk .. cmd_line
 				break
 			else
-			  	chunk = chunk .. string.sub(cmd_line,1,#cmd_line-2) .. "\n"
-				io.stdout:write(">>>")
+			  	chunk = chunk .. string.sub(cmd_line,1,#cmd_line-1) .. "\n"
+				prompt = ">>>"
 			end
 		else
 			break
@@ -75,7 +75,7 @@ else
    	if not redis_conn then
    		print(string.format("connect to redis server %s:%d failed",ip,port))
    	else
-   		print("hello to redis-cli.lua! use \ to sperate mutil line!")
+   		print("hello to redis-cli.lua! use \\ to sperate mutil line!")
    	end
    end)
 

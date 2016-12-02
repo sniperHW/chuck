@@ -27,6 +27,7 @@
 #include "http.h"
 #include "log.h"
 
+
 #define REGISTER_MODULE(L,N,F) do {	\
 	lua_pushstring(L,N);			\
 	F(L);							\
@@ -68,6 +69,28 @@ void register_signum(lua_State *L) {
 
 }
 
+#include "readline/readline.h"
+#include "readline/history.h"
+
+int32_t chk_lua_readline(lua_State *L)
+{
+	const char *prompt = lua_tostring(L,1);
+	if(!prompt) {
+		return 0;
+	}
+
+	const char *line = readline(prompt);
+
+	if(NULL != line) {
+		lua_pushstring(L,line);
+		return 1;
+	}
+	else {
+		return 0;
+	}
+
+}
+
 int32_t luaopen_chuck(lua_State *L)
 {
 	signal(SIGPIPE,SIG_IGN);
@@ -80,6 +103,9 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"packet",register_packet);
 	REGISTER_MODULE(L,"http",register_http);		
 	REGISTER_MODULE(L,"signal",register_signum);
-	REGISTER_MODULE(L,"log",register_log);		
+	REGISTER_MODULE(L,"log",register_log);
+	SET_FUNCTION(L,"Readline",chk_lua_readline);
+
+
 	return 1;
 }

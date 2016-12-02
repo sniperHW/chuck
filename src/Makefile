@@ -1,13 +1,15 @@
 CFLAGS  = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lm
 DEPDIR  = 
-INCLUDE = -I./ -I../deps/lua-5.3.0/src -I../deps -I../
+INCLUDE = -I./ -I../deps/lua-5.3.0/src -I../deps -I../ -I../deps/
 DEFINE  = -DUSE_BUFFER_POOL
 LIBNAME = libchuck.a
 MAKE    =
 CC      =
 LIBRARY = -L../deps/lua-5.3.0/src
 HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
+READLINE = ../deps/readline/libreadline.a
+HISTROY = ../deps/readline/libhistory.a
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),Linux)
@@ -71,9 +73,12 @@ $(LIBNAME):$(source.lib)
 $(HTTP_PARSER):
 	cd ../deps/http-parser/;$(MAKE) package
 
-chuck.so:$(source.so) $(HTTP_PARSER)
+$(READLINE):
+	cd ../deps/readline/;./configure;$(MAKE)	
+
+chuck.so:$(source.so) $(HTTP_PARSER) $(READLINE)
 	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE) -DCHUCK_LUA
-	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(JEMALLOC) $(LDFLAGS) $(LIBRARY)
+	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(READLINE) $(LDFLAGS) $(LIBRARY)
 	rm *.o
 
 testcase:
