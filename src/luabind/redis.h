@@ -17,12 +17,8 @@ static int32_t lua_redisclient_gc(lua_State *L) {
 }
 
 static void lua_redis_disconnect_cb(chk_redisclient *_,void *ud,int32_t err) {
-	chk_luaRef *cb = (chk_luaRef*)ud;
-	const char *error;
-	if(NULL != (error = chk_Lua_PCallRef(*cb,"i",err)))
-		CHK_SYSLOG(LOG_ERROR,"error on redis_disconnect_cb %s",error);
-	chk_luaRef_release(cb);
-	free(cb);	
+	lua_redis_client *c = (lua_redis_client*)ud;
+	c->client = NULL;	
 }
 
 typedef struct {
@@ -36,6 +32,7 @@ static void PushRedis(chk_luaPushFunctor *_,lua_State *L) {
 		lua_redis_client *luaclient = LUA_NEWUSERDATA(L,lua_redis_client);
 		if(luaclient) {
 			luaclient->client = self->c;
+			chk_redis_set_disconnect_cb(self->c,lua_redis_disconnect_cb,(void*)luaclient);
 			luaL_getmetatable(L, REDIS_METATABLE);
 			lua_setmetatable(L, -2);
 		}else {
@@ -60,18 +57,6 @@ static void lua_redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on lua_redis_connect_cb %s",error);				
 	chk_luaRef_release(cb);
 	free(cb);
-}
-
-
-static int32_t lua_redis_set_disconnect_cb(lua_State *L) {
-	chk_luaRef       *cb;
-	lua_redis_client *c = lua_checkredisclient(L,1);
-	if(!lua_isfunction(L,2)) 
-		return luaL_error(L,"argument 2 of redis_set_disconnect_cb must be lua function");
-	cb  = calloc(1,sizeof(*cb));
-	*cb = chk_toluaRef(L,2);
-	chk_redis_set_disconnect_cb(c->client,lua_redis_disconnect_cb,cb);
-	return 0;
 }
 
 static int32_t lua_redis_close(lua_State *L) {
@@ -151,7 +136,11 @@ void lua_redis_reply_cb(chk_redisclient *_,redisReply *reply,void *ud) {
 			redis_err_str = reply->str;
 		}
 		error = chk_Lua_PCallRef(*cb,"fs",(chk_luaPushFunctor*)&pusher,redis_err_str);	
-	}else error = chk_Lua_PCallRef(*cb,"p",NULL);
+	}
+	else{
+		error = chk_Lua_PCallRef(*cb,"p",NULL);
+	}
+	
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on redis_reply_cb %s",error);	
 	chk_luaRef_release(cb);
 	free(cb);
@@ -198,7 +187,6 @@ static void register_redis(lua_State *L) {
 	luaL_Reg redis_methods[] = {
 		{"Execute",          lua_redis_execute},
 		{"Close",            lua_redis_close},
-		{"SetDisconnectedCb",lua_redis_set_disconnect_cb},
 		{NULL,     NULL}
 	};
 

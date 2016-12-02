@@ -323,47 +323,51 @@ static void destroy_redisclient(chk_redisclient *c,int32_t err) {
 
 static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	char *begin;
-	uint32_t         datasize = data->datasize;
+	uint32_t         datasize;
 	uint32_t         size,pos;
 	int32_t          parse_ret;
 	pending_reply   *stcb;
-	chk_bytechunk   *chunk    = data->head;
-	chk_redisclient *c        = cast(chk_redisclient*,chk_stream_socket_getUd(s));
-	if(data) for(pos = data->spos;datasize;) {
-		begin = chunk->data + pos;
-		size  = chunk->cap  - pos;
-		size  = size > datasize ? datasize : size;
-		if(!c->tree) c->tree = parse_tree_new();
-		parse_ret = parse(c->tree,&begin,begin + size);
-		if(REDIS_OK == parse_ret) {
-			stcb = cast(pending_reply*,chk_list_pop(&c->waitreplys));
-			if(stcb->cb) {
-				c->status |= CLIENT_INCB;					
-				stcb->cb(c,c->tree->reply,stcb->ud);
-				c->status ^= CLIENT_INCB;
-			}	
-			free(stcb);
-			parse_tree_del(c->tree);
-			c->tree   = NULL;
-			size      = (uint32_t)(begin - (chunk->data + pos));
-			pos      += size;
-			datasize -= size;
-			if(c->status & CLIENT_CLOSE) {
-				destroy_redisclient(c,0);
-				return;
+	chk_bytechunk   *chunk;
+	chk_redisclient *c = cast(chk_redisclient*,chk_stream_socket_getUd(s));
+	if(data) { 
+		datasize = data->datasize;
+		chunk = data->head;
+		for(pos = data->spos;datasize;) {
+			begin = chunk->data + pos;
+			size  = chunk->cap  - pos;
+			size  = size > datasize ? datasize : size;
+			if(!c->tree) c->tree = parse_tree_new();
+			parse_ret = parse(c->tree,&begin,begin + size);
+			if(REDIS_OK == parse_ret) {
+				stcb = cast(pending_reply*,chk_list_pop(&c->waitreplys));
+				if(stcb->cb) {
+					c->status |= CLIENT_INCB;					
+					stcb->cb(c,c->tree->reply,stcb->ud);
+					c->status ^= CLIENT_INCB;
+				}	
+				free(stcb);
+				parse_tree_del(c->tree);
+				c->tree   = NULL;
+				size      = (uint32_t)(begin - (chunk->data + pos));
+				pos      += size;
+				datasize -= size;
+				if(c->status & CLIENT_CLOSE) {
+					destroy_redisclient(c,0);
+					return;
+				}
+				if(datasize && pos >= chunk->cap) {
+					pos = 0;
+					chunk = chunk->next;
+				}
+			}else if(parse_ret == REDIS_ERR){
+				CHK_SYSLOG(LOG_ERROR,"redis reply parse error");	
+				error = chk_error_redis_parse;
+				break;
+			}else {
+				pos       = 0;
+				datasize -= size;
+				chunk     = chunk->next;
 			}
-			if(datasize && pos >= chunk->cap) {
-				pos = 0;
-				chunk = chunk->next;
-			}
-		}else if(parse_ret == REDIS_ERR){
-			CHK_SYSLOG(LOG_ERROR,"redis reply parse error");	
-			error = chk_error_redis_parse;
-			break;
-		}else {
-			pos       = 0;
-			datasize -= size;
-			chunk     = chunk->next;
 		}
 	}
 	if(error != 0) chk_redis_close(c,error);
