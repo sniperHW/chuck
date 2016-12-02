@@ -15,17 +15,17 @@ lua是一种自动管理内存的语言。通过运行一个垃圾收集器回�
 如果v为nil或false,用message作为参数调用[error](),没有message则缺省使用"assertion failed!"。否则返回传递给assert的所有参数。示例:
 
 ```lua
-	print(assert(nil,"test error"))
-	>>>
-	lua: test.lua:1: test error
-	stack traceback:
-	        [C]: in function 'assert'
-	        test.lua:1: in main chunk
-	        [C]: ?
+print(assert(nil,"test error"))
+>>>
+lua: test.lua:1: test error
+stack traceback:
+	[C]: in function 'assert'
+	test.lua:1: in main chunk
+	[C]: ?
 
-	print(assert(1,"test error"))
-	>>>
-	1       test error
+print(assert(1,"test error"))
+>>>
+1       test error
 
 ```
 
@@ -49,13 +49,19 @@ lua垃圾回收的通用接口函数，根据参数opt的值执行不同的操�
 
 如果index是一个正整数，返回非固定参数从左边数index开始的所有参数，例如：
 
-`print(select(2,1,2,3,4,5))  -> 2 3 4 5`
+```lua
+print(select(2,1,2,3,4,5))  -> 2 3 4 5
+```
 
 如果index是一个负整数，返回非固定参数中从右边数-index开始的所有参数，例如：
 
-`print(select(-2,1,2,3,4,5)) -> 4 5`
+```lua
+print(select(-2,1,2,3,4,5)) -> 4 5
+```
 
 否则index必须是字符串"#",返回非固定参数的数量，例如：
 
-`print(select("#","a","b","c","d","e")) -> 5`
+```lua
+print(select("#","a","b","c","d","e")) -> 5
+```
 
