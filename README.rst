@@ -82,7 +82,7 @@ examples
 		event_loop:Run()
 	end
 
-**roadcast_svr.lua**
+**broadcast_svr.lua**
 
 .. code-block:: lua
 
