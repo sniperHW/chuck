@@ -59,7 +59,11 @@ local function read_command()
 	end
 
 	if chunk ~= "" then
-		do_command(chunk)
+		if chunk == "exit" then
+			redis_conn = nil
+		else
+			do_command(chunk)
+		end
 	end
 end
 
@@ -75,7 +79,7 @@ else
    	if not redis_conn then
    		print(string.format("connect to redis server %s:%d failed",ip,port))
    	else
-   		print("hello to redis-cli.lua! use \\ to sperate mutil line!")
+   		print("hello to redis-cli.lua! use \\ to sperate mutil line!use exit to terminate!")
    	end
    end)
 

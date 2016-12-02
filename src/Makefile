@@ -74,9 +74,12 @@ $(HTTP_PARSER):
 	cd ../deps/http-parser/;$(MAKE) package
 
 $(READLINE):
-	cd ../deps/readline/;./configure;$(MAKE)	
+	cd ../deps/readline/;./configure;$(MAKE)
 
-chuck.so:$(source.so) $(HTTP_PARSER) $(READLINE)
+$(HISTROY):		
+	cd ../deps/readline/;./configure;$(MAKE)
+
+chuck.so:$(source.so) $(HTTP_PARSER) $(READLINE) $(HISTROY)
 	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE) -DCHUCK_LUA
 	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(READLINE) $(LDFLAGS) $(LIBRARY)
 	rm *.o

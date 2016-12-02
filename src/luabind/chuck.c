@@ -79,10 +79,15 @@ int32_t chk_lua_readline(lua_State *L)
 		return 0;
 	}
 
-	const char *line = readline(prompt);
+	char *line = readline(prompt);
 
 	if(NULL != line) {
+
+		if(*line) {
+			add_history(line);
+		}
 		lua_pushstring(L,line);
+		free(line);
 		return 1;
 	}
 	else {
