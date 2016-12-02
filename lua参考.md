@@ -14,6 +14,7 @@ lua是一种自动管理内存的语言。通过运行一个垃圾收集器回�
 
 如果v为nil或false,用message作为参数调用[error](),没有message则缺省使用"assertion failed!"。否则返回传递给assert的所有参数。示例:
 
+```lua
 	print(assert(nil,"test error"))
 	>>>
 	lua: test.lua:1: test error
@@ -25,6 +26,8 @@ lua是一种自动管理内存的语言。通过运行一个垃圾收集器回�
 	print(assert(1,"test error"))
 	>>>
 	1       test error
+
+```
 
 ###collectgarbage ([opt [, arg]])
 
