@@ -376,7 +376,7 @@ static	const chk_stream_socket_option redis_socket_option = {
 
 static void connect_callback(int32_t fd,void *ud,int32_t err) {
 	chk_redisclient *c = cast(chk_redisclient*,ud);
-	if(fd) {
+	if(fd >= 0) {
 		c->sock = chk_stream_socket_new(fd,&redis_socket_option);
 		if(!c->sock) {
 			CHK_SYSLOG(LOG_ERROR,"call chk_stream_socket_new failed");	

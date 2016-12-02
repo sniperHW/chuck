@@ -32,15 +32,20 @@ typedef struct {
 
 static void PushRedis(chk_luaPushFunctor *_,lua_State *L) {
 	luaRedisPusher *self = (luaRedisPusher*)_;
-	lua_redis_client *luaclient = LUA_NEWUSERDATA(L,lua_redis_client);
-	if(luaclient) {
-		luaclient->client = self->c;
-		luaL_getmetatable(L, REDIS_METATABLE);
-		lua_setmetatable(L, -2);
-	}else {
+	if(self->c){
+		lua_redis_client *luaclient = LUA_NEWUSERDATA(L,lua_redis_client);
+		if(luaclient) {
+			luaclient->client = self->c;
+			luaL_getmetatable(L, REDIS_METATABLE);
+			lua_setmetatable(L, -2);
+		}else {
+			chk_redis_close(self->c,0);   
+			lua_pushnil(L);
+		}		
+	}
+	else {
 		lua_pushnil(L);
 	}
-
 }
 
 static void lua_redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
@@ -136,12 +141,16 @@ static void PushReply(chk_luaPushFunctor *_,lua_State *L) {
 void lua_redis_reply_cb(chk_redisclient *_,redisReply *reply,void *ud) {
 	chk_luaRef *cb = (chk_luaRef*)ud;
 	const char *error = NULL;
+	const char *redis_err_str = NULL;
 	ReplyPusher pusher;
 	if(!cb) return;
 	if(reply){
 		pusher.reply = reply;
 		pusher.Push = PushReply;
-		error = chk_Lua_PCallRef(*cb,"f",(chk_luaPushFunctor*)&pusher);	
+		if(reply->type == REDIS_REPLY_ERROR) {
+			redis_err_str = reply->str;
+		}
+		error = chk_Lua_PCallRef(*cb,"fs",(chk_luaPushFunctor*)&pusher,redis_err_str);	
 	}else error = chk_Lua_PCallRef(*cb,"p",NULL);
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on redis_reply_cb %s",error);	
 	chk_luaRef_release(cb);
