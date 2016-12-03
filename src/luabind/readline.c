@@ -26,7 +26,7 @@ int32_t chk_lua_readline(lua_State *L)
 
 }
 
-int32_t luaopen_chuck(lua_State *L)
+int32_t luaopen_readline(lua_State *L)
 {
 	//lua_newtable(L);
 	//SET_FUNCTION(L,"Readline",chk_lua_readline);
