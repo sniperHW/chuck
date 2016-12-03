@@ -52,38 +52,44 @@ register_netcmd_handler(netcmd.CMD_SC_BEGIN_SEE,function(session,msg)
 	print("see " .. userID)
 end)
 
+if not arg then
 
-socket.stream.ip4.dail(event_loop,config.server_ip,config.server_port,function (fd,errCode)
-	if 0 ~= errCode then
-		print("connect error:" .. errCode)
-		return
-	end
-	local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
-	if conn then
-		conn:Start(event_loop,function (data)
-			if data then 
-				local rpacket = packet.Reader(data)
-				local cmd = rpacket:ReadI16()
-				on_netcmd(conn,cmd,rpacket)
-			else
-				print("client disconnected") 
-				conn:Close()
-			end
-		end)
-	end
+	print("useage lua testclient.lua userID")
 
-	--发送login
-	local buff = chuck.buffer.New()
-	local w = packet.Writer(buff)
-	w:WriteI16(netcmd.CMD_CS_LOGIN)
-	w:WriteStr("abcdef")
-	conn:Send(buff)	
+else
+	socket.stream.ip4.dail(event_loop,config.server_ip,config.server_port,function (fd,errCode)
+		if 0 ~= errCode then
+			print("connect error:" .. errCode)
+			return
+		end
+		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
+		if conn then
+			conn:Start(event_loop,function (data)
+				if data then 
+					local rpacket = packet.Reader(data)
+					local cmd = rpacket:ReadI16()
+					on_netcmd(conn,cmd,rpacket)
+				else
+					print("client disconnected") 
+					conn:Close()
+				end
+			end)
+		end
 
-end)
+		--发送login
+		local buff = chuck.buffer.New()
+		local w = packet.Writer(buff)
+		w:WriteI16(netcmd.CMD_CS_LOGIN)
+		w:WriteStr(arg[1])--userID
+		conn:Send(buff)	
 
-event_loop:WatchSignal(chuck.signal.SIGINT,function()
-	print("recv SIGINT stop client")
-	event_loop:Stop()
-end)
+	end)
 
-event_loop:Run()
+	event_loop:WatchSignal(chuck.signal.SIGINT,function()
+		print("recv SIGINT stop client")
+		event_loop:Stop()
+	end)
+
+	event_loop:Run()
+
+end
