@@ -274,7 +274,14 @@ examples
 	   end
 	end
 
-.. image:: img/redis_cli.png	
+.. image:: img/redis_cli.png
+
+
+~~~~~	
+more
+~~~~~
+
+`a sample gameserver <gameserver>`
 
 ~~~~~~~~
 customer
