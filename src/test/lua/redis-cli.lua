@@ -33,9 +33,14 @@ function redis_execute(cmd,...)
 end
 
 local function do_command(str)
-	local func = load(str)
+	local func,err = load(str)
 	if func then
-		func()
+		local ret,err = pcall(func)
+		if not ret then
+			print("command error:" .. err)
+		end
+	elseif err then
+		print("command error:" .. err)
 	end
 end
 
@@ -100,3 +105,5 @@ redis_execute("hmset","chaid:1","chainfo","fasdfasfasdfasdfasdfasfasdfasfasdfdsa
 result = redis_execute("hmget","chaid:1","chainfo","skills")\
 print(result[1],result[2])
 ]]--
+
+--cas print(redis_execute("eval","if not redis.call('get',KEYS[1]) then redis.call('set',KEYS[1],ARGV[1]) end return ARGV[1]","1","foo2","boo2"))
