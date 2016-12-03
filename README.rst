@@ -281,8 +281,7 @@ examples
 more
 ~~~~~
 
-`a sample gameserver <gameserver>`
-
+`a sample gameserver <gameserver>`_
 ~~~~~~~~
 customer
 ~~~~~~~~
