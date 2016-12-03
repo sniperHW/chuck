@@ -69,33 +69,6 @@ void register_signum(lua_State *L) {
 
 }
 
-#include "readline/readline.h"
-#include "readline/history.h"
-
-int32_t chk_lua_readline(lua_State *L)
-{
-	const char *prompt = lua_tostring(L,1);
-	if(!prompt) {
-		return 0;
-	}
-
-	char *line = readline(prompt);
-
-	if(NULL != line) {
-
-		if(*line) {
-			add_history(line);
-		}
-		lua_pushstring(L,line);
-		free(line);
-		return 1;
-	}
-	else {
-		return 0;
-	}
-
-}
-
 int32_t luaopen_chuck(lua_State *L)
 {
 	signal(SIGPIPE,SIG_IGN);
@@ -109,8 +82,5 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"http",register_http);		
 	REGISTER_MODULE(L,"signal",register_signum);
 	REGISTER_MODULE(L,"log",register_log);
-	SET_FUNCTION(L,"Readline",chk_lua_readline);
-
-
 	return 1;
 }

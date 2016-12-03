@@ -79,10 +79,15 @@ $(READLINE):
 $(HISTROY):		
 	cd ../deps/readline/;./configure;$(MAKE)
 
-chuck.so:$(source.so) $(HTTP_PARSER) $(READLINE) $(HISTROY)
+chuck.so:$(source.so) $(HTTP_PARSER)
 	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE) -DCHUCK_LUA
-	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(READLINE) $(LDFLAGS) $(LIBRARY)
+	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(LDFLAGS) $(LIBRARY)
 	rm *.o
+
+readline.so:$(READLINE) $(HISTROY)
+	$(CC) -fpic $(CFLAGS) -c luabind/readline.c $(INCLUDE) $(DEFINE) -DCHUCK_LUA
+	$(CC) $(CFLAGS) $(SHAREFLAGS) -o readline.so *.o $(READLINE) $(HISTROY) $(LDFLAGS) $(LIBRARY)
+	rm *.o	
 
 testcase:
 	$(CC) $(CFLAGS) -o test/bin/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)

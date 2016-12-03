@@ -1,6 +1,7 @@
 package.cpath = 'lib/?.so;'
 
 local chuck = require("chuck")
+local readline = require("readline")
 local event_loop = chuck.event_loop.New()
 local redis = chuck.redis
 local redis_conn
@@ -44,7 +45,7 @@ local function read_command()
 	local prompt = ">>"
 
 	while true do
-		local cmd_line = chuck.Readline(prompt)
+		local cmd_line = readline(prompt)
 		if #cmd_line > 1 then
 			if string.byte(cmd_line,#cmd_line) ~= 92 then
 				chunk = chunk .. cmd_line
