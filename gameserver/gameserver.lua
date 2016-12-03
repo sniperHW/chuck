@@ -59,7 +59,7 @@ local function create_user(session,userid)
 	local key = "user:" .. userid
 	local val = userid
 
-	local ret = db.execute(function (reply,err)
+	local reply_cb = function (reply,err)
 		if reply then
 			if reply == 1 then
 				GameLog:Log(log.info,string.format("创建用户:%s",userid))
@@ -72,11 +72,17 @@ local function create_user(session,userid)
 				session:Close()
 			end
 		else
+			if err then
+				GameLog:Log(log.error,string.format("db error on create_user user:%s error:%s",userid,err))
+			end
 			session:Close()
-		end
-	end,"eval",str,"1",key,val)
+		end	
+	end
 
-	if ret then 
+	local err = db.execute(reply_cb,"eval",str,"1",key,val)
+
+	if err then 
+		GameLog:Log(log.error,string.format("create_user() db.execute error:%s",err))		
 		session:Close()
 	end	
 
@@ -84,7 +90,7 @@ end
 
 local function load_from_db(session,userid)
 	--从数据库载入用户数据，如果是新用户创建
-	local ret = db.execute(function (reply,err)
+	local reply_cb = function (reply,err)
 		if err then
 			GameLog:Log(log.error,string.format("db error on load user:%s error:%s",userid,err))
 			session:Close()
@@ -101,10 +107,13 @@ local function load_from_db(session,userid)
 				--通告登录成功
 				notify_login_result(session,user)
 			end			
-		end
-	end,"get","user:" .. userid)
+		end	
+	end
 
-	if ret then 
+	local err = db.execute(reply_cb,"get","user:" .. userid)
+
+	if err then
+		GameLog:Log(log.error,string.format("load_from_db() db.execute error:%s",err))	 
 		session:Close()
 	end
 
@@ -243,7 +252,7 @@ local function start_server()
 		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 		if conn then
 			local session = user_session.New(conn)
-			conn:Start(event_loop,function (data)
+			local conn_cb = function (data)
 				if data then
 					--接收到数据包，执行处理
 					local rpacket = packet.Reader(data)
@@ -252,7 +261,14 @@ local function start_server()
 				else
 					OnConnLose(session)
 				end
-			end)			
+			end
+
+			local err = conn:Start(event_loop,conn_cb)
+
+			if err then
+				GameLog:Log(log.error,"conn:Start() error:" .. err)
+				session:Close()
+			end
 		end
 	end)
 
