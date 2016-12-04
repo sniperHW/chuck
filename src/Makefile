@@ -1,7 +1,7 @@
 CFLAGS  = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lm
 DEPDIR  = 
-INCLUDE = -I./ -I../deps/lua-5.3.0/src -I../deps -I../ -I../deps/
+INCLUDE = -I./ -I../deps/lua-5.3.0/src -I../deps -I../ -I../deps/ -I../deps/linenoise
 DEFINE  = -DUSE_BUFFER_POOL
 LIBNAME = libchuck.a
 MAKE    =
@@ -79,15 +79,23 @@ $(READLINE):
 $(HISTROY):		
 	cd ../deps/readline/;./configure;$(MAKE)
 
+../deps/linenoise/linenoise.o:
+	cd ../deps/linenoise/;$(MAKE)	
+
 chuck.so:$(source.so) $(HTTP_PARSER)
 	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE) -DCHUCK_LUA
 	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(LDFLAGS) $(LIBRARY)
 	rm *.o
 
-readline.so:$(READLINE) $(HISTROY)
+#readline.so:$(READLINE) $(HISTROY)
+#	$(CC) -fpic $(CFLAGS) -c luabind/readline.c $(INCLUDE) $(DEFINE) -DCHUCK_LUA
+#	$(CC) $(CFLAGS) $(SHAREFLAGS) -o readline.so *.o $(READLINE) $(HISTROY) $(LDFLAGS) $(LIBRARY)
+#	rm *.o
+
+readline.so:
 	$(CC) -fpic $(CFLAGS) -c luabind/readline.c $(INCLUDE) $(DEFINE) -DCHUCK_LUA
-	$(CC) $(CFLAGS) $(SHAREFLAGS) -o readline.so *.o $(READLINE) $(HISTROY) $(LDFLAGS) $(LIBRARY)
-	rm *.o	
+	$(CC) $(CFLAGS) $(SHAREFLAGS) -o readline.so readline.o ../deps/linenoise/linenoise.o $(LDFLAGS) $(LIBRARY)
+	rm *.o		
 
 testcase:
 	$(CC) $(CFLAGS) -o test/bin/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
