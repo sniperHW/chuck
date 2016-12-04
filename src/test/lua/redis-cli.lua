@@ -32,7 +32,7 @@ function redis_execute(cmd,...)
 	end
 end
 
-local function do_command(str)
+local function execute_chunk(str)
 	local func,err = load(str)
 	if func then
 		local ret,err = pcall(func)
@@ -44,7 +44,7 @@ local function do_command(str)
 	end
 end
 
-local function read_command()
+local function repl()
 	local chunk = ""
 
 	local prompt = ">>"
@@ -68,7 +68,7 @@ local function read_command()
 		if chunk == "exit" then
 			redis_conn = nil
 		else
-			do_command(chunk)
+			execute_chunk(chunk)
 		end
 	end
 end
@@ -94,7 +94,7 @@ else
    end
 
    while redis_conn do
-   		read_command()	
+   		repl()	
    end
 end	
 

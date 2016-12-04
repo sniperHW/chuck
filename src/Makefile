@@ -8,8 +8,7 @@ MAKE    =
 CC      =
 LIBRARY = -L../deps/lua-5.3.0/src
 HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
-READLINE = ../deps/readline/libreadline.a
-HISTROY = ../deps/readline/libhistory.a
+
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 ifeq ($(uname_S),Linux)
@@ -73,12 +72,6 @@ $(LIBNAME):$(source.lib)
 $(HTTP_PARSER):
 	cd ../deps/http-parser/;$(MAKE) package
 
-$(READLINE):
-	cd ../deps/readline/;./configure;$(MAKE)
-
-$(HISTROY):		
-	cd ../deps/readline/;./configure;$(MAKE)
-
 ../deps/linenoise/linenoise.o:
 	cd ../deps/linenoise/;$(MAKE)	
 
@@ -87,12 +80,7 @@ chuck.so:$(source.so) $(HTTP_PARSER)
 	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(LDFLAGS) $(LIBRARY)
 	rm *.o
 
-#readline.so:$(READLINE) $(HISTROY)
-#	$(CC) -fpic $(CFLAGS) -c luabind/readline.c $(INCLUDE) $(DEFINE) -DCHUCK_LUA
-#	$(CC) $(CFLAGS) $(SHAREFLAGS) -o readline.so *.o $(READLINE) $(HISTROY) $(LDFLAGS) $(LIBRARY)
-#	rm *.o
-
-readline.so:
+readline.so:../deps/linenoise/linenoise.o
 	$(CC) -fpic $(CFLAGS) -c luabind/readline.c $(INCLUDE) $(DEFINE) -DCHUCK_LUA
 	$(CC) $(CFLAGS) $(SHAREFLAGS) -o readline.so readline.o ../deps/linenoise/linenoise.o $(LDFLAGS) $(LIBRARY)
 	rm *.o		
