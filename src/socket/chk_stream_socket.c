@@ -529,6 +529,47 @@ void  chk_stream_socket_resume(chk_stream_socket *s) {
 	}
 }
 
+/*
+int32_t chk_ssl_connect(chk_stream_socket *s) {
+	SSL_CTX *ctx = SSL_CTX_new(SSLv23_client_method());
+	if (ctx == NULL) {
+	    ERR_print_errors_fp(stdout);
+	    return -1;
+	}
+	s->ctx.ssl = SSL_new(ctx);
+	if(!s->ctx.ssl) {
+		SSL_CTX_free(ctx);
+		return -1;
+	}
+	s->ctx.ctx = ctx;
+	SSL_set_fd(s->ctx.ssl,s->fd);
+	if(SSL_connect(s->ctx.ssl) == -1){
+		ERR_print_errors_fp(stderr);
+		SSL_CTX_free(ctx);
+       	SSL_free(s->ctx.ssl);
+       	s->ctx.ssl = NULL;
+       	s->ctx.ctx = NULL;		
+		return -1;
+	}
+	return 0;
+}
+
+int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
+	s->ctx.ssl = SSL_new(ctx);
+	if(!s->ctx.ssl) {
+	    ERR_print_errors_fp(stdout);		
+		return -1;
+	}
+	SSL_set_fd(s->ctx.ssl,s->fd);
+	if(SSL_accept(s->ctx.ssl) == -1) {
+		SSL_free(s->ctx.ssl);
+		s->ctx.ssl = NULL;
+	    ERR_print_errors_fp(stdout);
+		return -1;
+	}
+	return 0;
+}
+*/
 
 /*
 #ifdef _LINUX_ET

@@ -2,6 +2,7 @@
 
 #include "../config.h"
 
+
 struct chk_stream_socket {
 	_chk_handle;
 	chk_stream_socket_option option;
@@ -17,7 +18,7 @@ struct chk_stream_socket {
     chk_stream_socket_cb cb;
     int8_t               create_by_new;
     int8_t               sending_urgent;        //标识当前是否正在发送urgent_list中的buffer
-
+    //struct ssl_ctx       ssl;
 };
 
 #endif

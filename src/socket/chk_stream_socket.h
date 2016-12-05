@@ -10,6 +10,15 @@
 #include "util/chk_timer.h"
 #include "socket/chk_decoder.h"
 
+/*#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+struct ssl_ctx {
+    SSL_CTX *ctx;
+    SSL *ssl;
+};
+*/
+
 typedef struct chk_stream_socket chk_stream_socket;
 
 typedef struct chk_stream_socket_option chk_stream_socket_option;
@@ -28,6 +37,10 @@ struct chk_stream_socket_option {
  */
 
 chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_option *option);
+
+//int32_t chk_ssl_connect(chk_stream_socket *);
+
+//int32_t chk_ssl_accept(chk_stream_socket *,SSL_CTX*);
 
 /**
  * 关闭stream_socket,同时关联的fd被关闭,当stream_socket完成关闭后将其销毁
