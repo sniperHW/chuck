@@ -288,6 +288,7 @@ static int32_t lua_stream_socket_bind(lua_State *L) {
 	*cb = chk_toluaRef(L,3);
 	chk_stream_socket_setUd(s,cb);
 	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)s,data_cb)) {
+		CHK_SYSLOG(LOG_ERROR,"chk_loop_add_handle() failed");
 		lua_pushstring(L,"stream_socket_bind failed");
 		return 1;
 	}

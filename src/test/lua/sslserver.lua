@@ -63,10 +63,12 @@ if ssl_ctx then
 				return
 			end
 
+			print("new client")			
+
 			conn:Start(event_loop,function (data)
 				if data then
-					conn:Close()
-					--conn:Send(data)
+					--conn:Close()
+					conn:Send(data)
 				else
 					print("client disconnected") 
 					conn:Close()

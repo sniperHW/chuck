@@ -83,7 +83,7 @@ $(CRYPTO):
 ../deps/linenoise/linenoise.o:
 	cd ../deps/linenoise/;$(MAKE)	
 
-chuck.so:$(source.so) $(HTTP_PARSER)
+chuck.so:$(source.so) $(HTTP_PARSER) $(OPENSSL) $(CRYPTO)
 	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE) -DCHUCK_LUA
 	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(OPENSSL) $(CRYPTO) $(LDFLAGS) $(LIBRARY)
 	rm *.o

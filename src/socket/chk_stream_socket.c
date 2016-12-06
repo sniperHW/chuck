@@ -343,16 +343,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	return ret;
 }
 
-static int32_t ssl_write_again(int32_t ssl_error) {
-	if(ssl_error == SSL_ERROR_WANT_WRITE || ssl_error == SSL_ERROR_WANT_READ) {
-		return 1;
-	}
-	else {
-		return 0;
-	}
-}
-
-static int32_t ssl_read_again(int32_t ssl_error) {
+static int32_t ssl_again(int32_t ssl_error) {
 	if(ssl_error == SSL_ERROR_WANT_WRITE || ssl_error == SSL_ERROR_WANT_READ) {
 		return 1;
 	}
@@ -366,10 +357,11 @@ static int32_t do_write(chk_stream_socket *s,int32_t bc) {
 	if(s->ssl.ssl) {
 		int32_t bytes_transfer = TEMP_FAILURE_RETRY(SSL_write(s->ssl.ssl,s->wsendbuf[0].iov_base,s->wsendbuf[0].iov_len));
 		int ssl_error = SSL_get_error(s->ssl.ssl,bytes_transfer);
-		if(bytes_transfer <= 0 && ssl_write_again(ssl_error)){
+		if(bytes_transfer <= 0 && ssl_again(ssl_error)){
 			errno = EAGAIN;
+			//printf("do_write ssl_again\n");
 			return 0;
-		}
+		}		
 		return bytes_transfer;
 	}
 	else{
@@ -416,8 +408,9 @@ static int32_t do_read(chk_stream_socket *s,int32_t bc) {
 	if(s->ssl.ssl) {
 		int32_t bytes_transfer = TEMP_FAILURE_RETRY(SSL_read(s->ssl.ssl,s->wrecvbuf[0].iov_base,s->wrecvbuf[0].iov_len));
 		int ssl_error = SSL_get_error(s->ssl.ssl,bytes_transfer);
-		if(bytes_transfer <= 0 && ssl_read_again(ssl_error)){
+		if(bytes_transfer <= 0 && ssl_again(ssl_error)){
 			errno = EAGAIN;
+			//printf("do_read ssl_again\n");			
 			return 0;
 		}
 		return 	bytes_transfer;	
@@ -626,6 +619,26 @@ int32_t chk_ssl_connect(chk_stream_socket *s) {
        	s->ssl.ctx = NULL;		
 	}
 
+/*	int32_t ret = SSL_connect(s->ssl.ssl);
+	if(ret > 0) {
+		return 0;
+	}
+	else {
+		int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
+		if(ssl_again(ssl_error)){
+			return 0;
+		}
+		else {
+			ERR_print_errors_fp(stdout);
+			SSL_CTX_free(ctx);
+       		SSL_free(s->ssl.ssl);
+       		s->ssl.ssl = NULL;
+       		s->ssl.ctx = NULL;		
+			return -1;			
+		}
+	}
+*/
+
 	easy_noblock(s->fd,0);
 
 	if(SSL_connect(s->ssl.ssl) == -1){
@@ -637,6 +650,7 @@ int32_t chk_ssl_connect(chk_stream_socket *s) {
 		return -1;
 	}
 	return 0;
+
 }
 
 int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
@@ -654,8 +668,29 @@ int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
 		return -1;
 	}
 
-	easy_noblock(s->fd,0);	
+	/*easy_noblock(s->fd,1);	
 
+	int32_t ret = SSL_accept(s->ssl.ssl);
+
+	if(ret > 0) {
+		return 0;
+	}
+	else {
+		int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
+		if(ssl_again(ssl_error)){
+			return 0;
+		}
+		else {
+			printf("SSL_accept() error:%d\n",SSL_get_error(s->ssl.ssl,ret));	
+			SSL_free(s->ssl.ssl);
+			s->ssl.ssl = NULL;
+	    	ERR_print_errors_fp(stdout);
+			return -1;			
+		}
+	}*/
+
+	easy_noblock(s->fd,0);
+	
 	int32_t ret = SSL_accept(s->ssl.ssl);
 
 	if(ret != 1) {
@@ -667,133 +702,3 @@ int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
 	}
 	return 0;
 }
-
-
-/*
-#ifdef _LINUX_ET
-
-//for edge trigger
-
-int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
-	int32_t ret = 0;
-	int32_t status = s->status;
-	do {
-		if((status & SOCKET_CLOSE) || (status & SOCKET_RCLOSE) || 
-		   (status & SOCKET_PEERCLOSE)) {
-			chk_bytebuffer_del(b);	
-			ret = -1;
-			break;
-		}
-		if(b) chk_list_pushback(&s->send_list,cast(chk_list_entry*,b));
-		ret = process_write(s);
-	}while(0);
-	return ret;	
-}
-
-int32_t chk_stream_socket_put(chk_stream_socket *s,chk_bytebuffer *b) {
-	int32_t ret = 0;
-	int32_t status = s->status;
-	do {
-		if((status & SOCKET_CLOSE) || (status & SOCKET_RCLOSE) || 
-		   (status & SOCKET_PEERCLOSE)) {
-			chk_bytebuffer_del(b);	
-			ret = -1;
-			break;
-		}
-		if(b) chk_list_pushback(&s->send_list,cast(chk_list_entry*,b));
-	}while(0);
-	return ret;
-}
-
-int32_t chk_stream_socket_flush(chk_stream_socket *s) {
-	return chk_stream_socket_send(s,NULL);
-}
-
-static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
-	int32_t ret;
-	chk_stream_socket *s = cast(chk_stream_socket*,h);
-	if(!e || !h || !cb || s->status & SOCKET_CLOSE || s->status & SOCKET_RCLOSE)
-		return -1;
-	ret = chk_watch_handle(e,h,CHK_EVENT_READ | CHK_EVENT_WRITE | EPOLLET);
-	if(ret == 0) {
-		easy_noblock(h->fd,1);
-		s->cb = cast(chk_stream_socket_cb,cb);
-	}
-	return ret;
-}
-
-static int32_t process_write(chk_stream_socket *s) {
-	int32_t  bc,bytes,ret = 0;
-	uint32_t send_buff_size;
-	for(;;) {
-		if(0 == (bc = prepare_send(s,&send_buff_size))) return 0;
-		errno = 0;
-		if((bytes = TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc))) > 0) {
-			update_send_list(s,bytes);
-			if(bytes != send_buff_size) break;
-			if(chk_list_empty(&s->send_list)) {
-			 	if(s->status & SOCKET_RCLOSE) {
-					s->status |= SOCKET_CLOSE;
-					ret = -1;
-			 	}
-				break;
-			}	
-		}else {
-			if(errno != EAGAIN) {
-				if(s->status & SOCKET_RCLOSE) 
-					s->status |= SOCKET_CLOSE;
-				else {
-					s->status |= SOCKET_PEERCLOSE;
-					chk_disable_write(cast(chk_handle*,s));
-					s->cb(s,errno,NULL);
-				}
-				ret = -1;
-			}
-			break;
-		}
-	}
-	return ret;
-}
-
-static void process_read(chk_stream_socket *s) {
-	int32_t  bc,bytes,unpackerr;
-	uint32_t recv_buff_size;
-	chk_decoder *decoder;
-	chk_bytebuffer *b;
-	for(;;) {
-		if(0 == (bc = prepare_recv(s,&recv_buff_size))) break;
-		errno = 0;
-		bytes = TEMP_FAILURE_RETRY(readv(s->fd,&s->wrecvbuf[0],bc));
-		if(bytes > 0) {
-			decoder = s->option.decoder;
-			decoder->update(decoder,s->next_recv_buf,s->next_recv_pos,bytes);
-			for(;;) {
-				unpackerr = 0;
-				if((b = decoder->unpack(decoder,&unpackerr))) {
-					s->cb(s,0,b);
-					chk_bytebuffer_del(b);
-					if(s->status & SOCKET_CLOSE || s->status & SOCKET_RCLOSE) 
-						return;
-				}else {
-					if(unpackerr) s->cb(s,unpackerr,NULL);
-					break;
-				}
-			};
-			if(!(s->status & SOCKET_CLOSE || s->status & SOCKET_RCLOSE))
-				update_next_recv_pos(s,bytes);
-			if(bytes != recv_buff_size) break;
-		}else {
-			if(errno != EAGAIN) {
-				s->status |= SOCKET_PEERCLOSE;
-				chk_disable_read(cast(chk_handle*,s));
-				s->cb(s,errno,NULL);
-			}
-			return;
-		}
-	}
-}
-
-
-#else
-
-*/
