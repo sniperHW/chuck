@@ -18,13 +18,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	ret = chk_watch_handle(e,h,CHK_EVENT_READ);
 	if(ret == chk_error_ok) {
 		easy_noblock(h->fd,1);
-		if(acceptor->ctx) {
-			acceptor->ssl_cb = cast(chk_ssl_acceptor_cb,cb);
-		}
-		else {
-			acceptor->cb = cast(chk_acceptor_cb,cb);			
-		}
-
+		acceptor->cb = cast(chk_acceptor_cb,cb);			
 	}
 	return ret;
 }
@@ -50,12 +44,7 @@ static int32_t _accept(chk_acceptor *a,chk_sockaddr *addr,int32_t *fd) {
 }
 
 static void do_callback(chk_acceptor *acceptor,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err){
-	if(acceptor->ctx){
-		acceptor->ssl_cb(acceptor,acceptor->ctx,fd,addr,acceptor->ud,err);
-	}
-	else {
-		acceptor->cb(acceptor,fd,addr,acceptor->ud,err);
-	}
+	acceptor->cb(acceptor,fd,addr,acceptor->ud,err);
 }
 
 static void process_accept(chk_handle *h,int32_t events) {
@@ -165,7 +154,7 @@ chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t por
 	return a;
 }
 
-chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_ssl_acceptor_cb cb,void *ud) {
+chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_acceptor_cb cb,void *ud) {
 	chk_sockaddr  server;
 	int32_t       fd,ret;
 	chk_acceptor *a = NULL;
@@ -185,12 +174,12 @@ chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t
 				close(fd);
 				break;
 			}
-			a->ctx = ctx;
 			if(0 != chk_loop_add_handle(loop,(chk_handle*)a,cb)) {
 				free(a);
 				close(fd);
 				break;
 			}
+			a->ctx = ctx;
 		}else { 
 			close(fd);
 		}
@@ -198,61 +187,10 @@ chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t
 	return a;	
 }
 
-#if 0
-chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_ssl_acceptor_cb cb,const char *certificate,const char *privatekey,void *ud) {
-	chk_sockaddr  server;
-	int32_t       fd,ret;
-	chk_acceptor *a = NULL;
-	SSL_CTX      *ctx = NULL;
-	do {
-		if(chk_error_ok != easy_sockaddr_ip4(&server,ip,port)){ 
-			CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed %s:%d",ip,port);
-			break;
-		}
-		if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))){
-		    CHK_SYSLOG(LOG_ERROR,"socket() failed errno:%d",errno); 			
-			break;
-		}
-		easy_addr_reuse(fd,1);
-
-	    ctx = SSL_CTX_new(SSLv23_server_method());
-	    /* 也可以用 SSLv2_server_method() 或 SSLv3_server_method() 单独表示 V2 或 V3标准 */
-	    if (ctx == NULL) {
-	        ERR_print_errors_fp(stdout);
-	        break;
-	    }
-	    /* 载入用户的数字证书， 此证书用来发送给客户端。 证书里包含有公钥 */
-	    if (SSL_CTX_use_certificate_file(ctx,certificate, SSL_FILETYPE_PEM) <= 0) {
-	        ERR_print_errors_fp(stdout);
-	        break;
-	    }
-	    /* 载入用户私钥 */
-	    if (SSL_CTX_use_PrivateKey_file(ctx, privatekey, SSL_FILETYPE_PEM) <= 0) {
-	        ERR_print_errors_fp(stdout);
-	        break;
-	    }
-	    /* 检查用户私钥是否正确 */
-	    if (!SSL_CTX_check_private_key(ctx)) {
-	        ERR_print_errors_fp(stdout);
-	        break;
-	    }	
-
-		if(chk_error_ok == (ret = easy_listen(fd,&server))){
-			a = chk_acceptor_new(fd,ud);
-			a->ctx = ctx;
-			chk_loop_add_handle(loop,(chk_handle*)a,cb);
-		}
-
-	}while(0);	
-	
-	if(NULL == a) {
-		close(fd);
-		if(ctx) {
-	        SSL_CTX_free(ctx);			
-		}
+SSL_CTX *chk_acceptor_get_ssl_ctx(chk_acceptor *a) {
+	if(!a) {
+		return NULL;
 	}
-
-	return a;
-
+	return a->ctx;
 }
-#endif
+

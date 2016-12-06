@@ -26,6 +26,7 @@
 #include "packet.h"
 #include "http.h"
 #include "log.h"
+#include "ssl.h"
 
 
 #define REGISTER_MODULE(L,N,F) do {	\
@@ -82,5 +83,6 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"http",register_http);		
 	REGISTER_MODULE(L,"signal",register_signum);
 	REGISTER_MODULE(L,"log",register_log);
+	REGISTER_MODULE(L,"ssl",register_ssl);	
 	return 1;
 }

@@ -18,11 +18,13 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	}
 }
 
-void accept_cb_ssl(chk_acceptor *a,SSL_CTX *ssl_ctx,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
+void accept_cb_ssl(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
 	
 	if(fd >= 0) {
 
 		chk_stream_socket *s = chk_stream_socket_new(fd,&option);
+
+		SSL_CTX *ssl_ctx = chk_acceptor_get_ssl_ctx(a);
 
 		if(0 == chk_ssl_accept(s,ssl_ctx)){
 			chk_loop_add_handle(loop,(chk_handle*)s,data_event_cb);

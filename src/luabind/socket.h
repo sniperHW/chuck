@@ -6,6 +6,8 @@
 
 #define STREAM_SOCKET_METATABLE "lua_stream_socket"
 
+#define SSL_CTX_METATABLE "lua_ssl_ctx"
+
 
 void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud);
 
@@ -18,6 +20,9 @@ int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket
 
 #define lua_checkstreamsocket(L,I)	\
 	(chk_stream_socket*)luaL_checkudata(L,I,STREAM_SOCKET_METATABLE)
+
+#define lua_check_ssl_ctx(L,I)	\
+	(SSL_CTX*)luaL_checkudata(L,I,SSL_CTX_METATABLE)
 
 
 static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
@@ -51,6 +56,71 @@ static int32_t lua_acceptor_resume(lua_State *L) {
 	chk_acceptor *a = lua_checkacceptor(L,1);
 	chk_acceptor_resume(a);
 	return 0;
+}
+
+static int32_t lua_listen_ip4_ssl(lua_State *L) {
+	chk_luaRef     *cb;
+	chk_sockaddr    server;
+	int32_t         fd;
+	const char     *ip;
+	int16_t         port;
+	chk_event_loop *event_loop;
+	chk_acceptor   *a; 
+	SSL_CTX        *ssl_ctx;
+
+	ssl_ctx = lua_check_ssl_ctx(L,2);
+
+	if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) {
+		CHK_SYSLOG(LOG_ERROR,"socket() failed");
+		return 0;
+	}
+
+	event_loop = lua_checkeventloop(L,1);
+	ip = luaL_checkstring(L,3);
+	port = (int16_t)luaL_checkinteger(L,4);
+	
+	if(0 != easy_sockaddr_ip4(&server,ip,port)) {
+		CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed,%s:%d",ip,port);
+		close(fd);
+		return 0;
+	}	
+
+	easy_addr_reuse(fd,1);
+	if(0 != easy_listen(fd,&server)){
+		CHK_SYSLOG(LOG_ERROR,"easy_listen() failed,%s:%d",ip,port);
+		close(fd);
+		return 0;
+	}	
+
+	if(!lua_isfunction(L,5)) 
+		return luaL_error(L,"argument 5 of lua_listen_ip4_ssl must be lua function"); 
+	a   = LUA_NEWUSERDATA(L,chk_acceptor);
+
+	if(!a){
+		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
+		close(fd);	
+		return 0;
+	}
+
+	cb  = calloc(1,sizeof(*cb));
+
+	if(!cb) {
+		CHK_SYSLOG(LOG_ERROR,"calloc() failed");
+		close(fd);	
+		return 0;
+	}
+
+	*cb = chk_toluaRef(L,4); 	
+	chk_acceptor_init(a,fd,cb);
+	luaL_getmetatable(L, ACCEPTOR_METATABLE);
+	lua_setmetatable(L, -2);
+	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a,lua_acceptor_cb)) {
+		close(fd);
+		CHK_SYSLOG(LOG_ERROR,"event_loop add acceptor failed %s:%d",ip,port);
+		return 0;
+	}
+	a->ctx = ssl_ctx;
+	return 1;
 }
 
 static int32_t lua_listen_ip4(lua_State *L) {
@@ -361,6 +431,7 @@ static void register_socket(lua_State *L) {
 	lua_newtable(L);
 	SET_FUNCTION(L,"dail",lua_dail_ip4);
 	SET_FUNCTION(L,"listen",lua_listen_ip4);
+	SET_FUNCTION(L,"listen_ssl",lua_listen_ip4_ssl);
 	lua_settable(L,-3);
 
 	lua_settable(L,-3);

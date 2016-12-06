@@ -494,7 +494,7 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
 		}
 		b->internal = b->datasize;//记录最初需要发送的数据大小
 		chk_list_pushback(&s->send_list,cast(chk_list_entry*,b));
-		if(!chk_is_write_enable(cast(chk_handle*,s))) 
+		if(s->loop && !chk_is_write_enable(cast(chk_handle*,s))) 
 			chk_enable_write(cast(chk_handle*,s));
 	}while(0);
 	return ret;	
@@ -523,7 +523,7 @@ int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b) {
 		}
 		b->internal = b->datasize;//记录最初需要发送的数据大小		
 		chk_list_pushback(&s->urgent_list,cast(chk_list_entry*,b));
-		if(!chk_is_write_enable(cast(chk_handle*,s))) 
+		if(s->loop && !chk_is_write_enable(cast(chk_handle*,s))) 
 			chk_enable_write(cast(chk_handle*,s));
 	}while(0);
 	return ret;	

@@ -9,8 +9,6 @@ typedef struct chk_acceptor chk_acceptor;
 
 typedef void (*chk_acceptor_cb)(chk_acceptor*,int32_t fd,chk_sockaddr*,void *ud,int32_t err);
 
-typedef void (*chk_ssl_acceptor_cb)(chk_acceptor*, SSL_CTX*,int32_t fd,chk_sockaddr*,void *ud,int32_t err);
-
 /**
  * 恢复acceptor的执行
  * @param a 接受器
@@ -52,12 +50,14 @@ void chk_acceptor_del(chk_acceptor *a);
 
 chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb cb,void *ud);
 
-chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_ssl_acceptor_cb cb,void *ud);
+chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_acceptor_cb cb,void *ud);
 
 int32_t chk_acceptor_get_fd(chk_acceptor *a);
 
 void *chk_acceptor_get_ud(chk_acceptor *a);
 
 void chk_acceptor_set_ud(chk_acceptor *a,void *ud);
+
+SSL_CTX *chk_acceptor_get_ssl_ctx(chk_acceptor *a);
 
 #endif
