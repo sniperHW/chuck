@@ -14,10 +14,17 @@
 
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret;
+    chk_acceptor *acceptor = cast(chk_acceptor*,h);	
 	ret = chk_watch_handle(e,h,CHK_EVENT_READ);
 	if(ret == chk_error_ok) {
 		easy_noblock(h->fd,1);
-		cast(chk_acceptor*,h)->cb = cast(chk_acceptor_cb,cb);
+		if(acceptor->ctx) {
+			acceptor->ssl_cb = cast(chk_ssl_acceptor_cb,cb);
+		}
+		else {
+			acceptor->cb = cast(chk_acceptor_cb,cb);			
+		}
+
 	}
 	return ret;
 }
@@ -42,55 +49,33 @@ static int32_t _accept(chk_acceptor *a,chk_sockaddr *addr,int32_t *fd) {
 	return 0;
 }
 
-static void _process_accept(chk_handle *h,int32_t events) {
-	int32_t 	 fd;
-	int32_t      ret;
-    chk_sockaddr addr;
-    chk_acceptor *acceptor = cast(chk_acceptor*,h);
-	if(events == CHK_EVENT_LOOPCLOSE){
-		acceptor->cb(acceptor,-1,NULL,acceptor->ud,chk_error_loop_close);
-		return;
+static void do_callback(chk_acceptor *acceptor,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err){
+	if(acceptor->ctx){
+		acceptor->ssl_cb(acceptor,acceptor->ctx,fd,addr,acceptor->ud,err);
 	}
-    do {
-		ret = _accept(acceptor,&addr,&fd);
-		if(ret == 0)
-		   acceptor->cb(acceptor,fd,&addr,acceptor->ud,0);
-		else if(ret != EAGAIN){
-		   CHK_SYSLOG(LOG_ERROR,"_accept() failed ret:%d",ret);	
-		   acceptor->cb(acceptor,-1,NULL,acceptor->ud,chk_error_accept);
-		}
-	}while(0 == ret && chk_is_read_enable(h));		
+	else {
+		acceptor->cb(acceptor,fd,addr,acceptor->ud,err);
+	}
 }
 
-/*
-static void _ssl_process_accept(chk_handle *h,int32_t events) {
+static void process_accept(chk_handle *h,int32_t events) {
 	int32_t 	 fd;
 	int32_t      ret;
     chk_sockaddr addr;
     chk_acceptor *acceptor = cast(chk_acceptor*,h);
 	if(events == CHK_EVENT_LOOPCLOSE){
-		acceptor->ssl_cb(acceptor,NULL,-1,NULL,acceptor->ud,chk_error_loop_close);
+		do_callback(acceptor,-1,NULL,acceptor->ud,chk_error_loop_close);
 		return;
 	}
     do {
 		ret = _accept(acceptor,&addr,&fd);
 		if(ret == 0)
-		   acceptor->ssl_cb(acceptor,acceptor->ctx,fd,&addr,acceptor->ud,0);
+		   do_callback(acceptor,fd,&addr,acceptor->ud,0);
 		else if(ret != EAGAIN){
 		   CHK_SYSLOG(LOG_ERROR,"_accept() failed ret:%d",ret);	
-		   acceptor->ssl_cb(acceptor,NULL,-1,NULL,acceptor->ud,chk_error_accept);
+		   do_callback(acceptor,-1,NULL,acceptor->ud,chk_error_accept);
 		}
-	}while(0 == ret && chk_is_read_enable(h));		
-}*/
-
-static void process_accept(chk_handle *h,int32_t events) {
-	//chk_acceptor *acceptor = cast(chk_acceptor*,h);
-	//if(acceptor->ctx) {
-	//	_ssl_process_accept(h,events);
-	//}   
-	//else {
-		_process_accept(h,events);
-	//}   
+	}while(0 == ret && chk_is_read_enable(h));
 }
 
 int32_t chk_acceptor_resume(chk_acceptor *a) {
@@ -115,6 +100,9 @@ void chk_acceptor_finalize(chk_acceptor *a) {
 	if(a->fd >= 0) {
 		close(a->fd);
 		a->fd = -1;
+	}
+	if(a->ctx) {
+		SSL_CTX_free(a->ctx);
 	}
 }
 
@@ -161,10 +149,53 @@ chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t por
 		easy_addr_reuse(fd,1);
 		if(chk_error_ok == (ret = easy_listen(fd,&server))){
 			a = chk_acceptor_new(fd,ud);
-			chk_loop_add_handle(loop,(chk_handle*)a,cb);
-		}else close(fd);
+			if(!a) {
+				close(fd);
+				break;
+			}
+			if(0 != chk_loop_add_handle(loop,(chk_handle*)a,cb)){
+				free(a);
+				close(fd);
+				break;	
+			}
+		}else{ 
+			close(fd);
+		}
 	}while(0);	
 	return a;
+}
+
+chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_ssl_acceptor_cb cb,void *ud) {
+	chk_sockaddr  server;
+	int32_t       fd,ret;
+	chk_acceptor *a = NULL;
+	do {
+		if(chk_error_ok != easy_sockaddr_ip4(&server,ip,port)){ 
+			CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed %s:%d",ip,port);
+			break;
+		}
+		if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))){
+		    CHK_SYSLOG(LOG_ERROR,"socket() failed errno:%d",errno); 			
+			break;
+		}
+		easy_addr_reuse(fd,1);
+		if(chk_error_ok == (ret = easy_listen(fd,&server))){
+			a = chk_acceptor_new(fd,ud);
+			if(!a){
+				close(fd);
+				break;
+			}
+			a->ctx = ctx;
+			if(0 != chk_loop_add_handle(loop,(chk_handle*)a,cb)) {
+				free(a);
+				close(fd);
+				break;
+			}
+		}else { 
+			close(fd);
+		}
+	}while(0);	
+	return a;	
 }
 
 #if 0

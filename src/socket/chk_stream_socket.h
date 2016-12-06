@@ -10,14 +10,14 @@
 #include "util/chk_timer.h"
 #include "socket/chk_decoder.h"
 
-/*#include <openssl/ssl.h>
+#include <openssl/ssl.h>
 #include <openssl/err.h>
 
 struct ssl_ctx {
     SSL_CTX *ctx;
     SSL *ssl;
 };
-*/
+
 
 typedef struct chk_stream_socket chk_stream_socket;
 

@@ -1,13 +1,15 @@
 CFLAGS  = -g -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lm
 DEPDIR  = 
-INCLUDE = -I./ -I../deps/lua-5.3.0/src -I../deps -I../ -I../deps/ -I../deps/linenoise
+INCLUDE = -I./ -I../deps/lua-5.3.0/src -I../deps -I../ -I../deps/ -I../deps/linenoise -I../deps/openssl-1.1.0c/include
 DEFINE  = -DUSE_BUFFER_POOL
 LIBNAME = libchuck.a
 MAKE    =
 CC      =
 LIBRARY = -L../deps/lua-5.3.0/src
 HTTP_PARSER = ../deps/http-parser/libhttp_parser.a
+OPENSSL = ../deps/openssl-1.1.0c/libssl.a
+CRYPTO = ../deps/openssl-1.1.0c/libcrypto.a
 
 # Platform-specific overrides
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
@@ -72,12 +74,18 @@ $(LIBNAME):$(source.lib)
 $(HTTP_PARSER):
 	cd ../deps/http-parser/;$(MAKE) package
 
+$(OPENSSL):
+	cd ../deps/openssl-1.1.0c/;./config;$(MAKE)
+
+$(CRYPTO):
+	cd ../deps/openssl-1.1.0c/;./config;$(MAKE)		
+
 ../deps/linenoise/linenoise.o:
 	cd ../deps/linenoise/;$(MAKE)	
 
 chuck.so:$(source.so) $(HTTP_PARSER)
 	$(CC) -fpic $(CFLAGS) -c luabind/chuck.c $(source.so) $(INCLUDE) $(DEFINE) -DCHUCK_LUA
-	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(LDFLAGS) $(LIBRARY)
+	$(CC) $(CFLAGS) $(SHAREFLAGS) -o chuck.so *.o  $(HTTP_PARSER) $(OPENSSL) $(CRYPTO) $(LDFLAGS) $(LIBRARY)
 	rm *.o
 
 readline.so:../deps/linenoise/linenoise.o

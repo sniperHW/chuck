@@ -2,14 +2,14 @@
 #define _CHK_ACCEPTOR_H
 
 #include "socket/chk_socket_helper.h"
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 typedef struct chk_acceptor chk_acceptor;
 
-//typedef struct SSL_CTX SSL_CTX;
-
 typedef void (*chk_acceptor_cb)(chk_acceptor*,int32_t fd,chk_sockaddr*,void *ud,int32_t err);
 
-//typedef void (*chk_ssl_acceptor_cb)(chk_acceptor*, SSL_CTX*,int32_t fd,chk_sockaddr*,void *ud,int32_t err);
+typedef void (*chk_ssl_acceptor_cb)(chk_acceptor*, SSL_CTX*,int32_t fd,chk_sockaddr*,void *ud,int32_t err);
 
 /**
  * 恢复acceptor的执行
@@ -52,7 +52,7 @@ void chk_acceptor_del(chk_acceptor *a);
 
 chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb cb,void *ud);
 
-//chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_ssl_acceptor_cb cb,const char *certificate,const char *privatekey,void *ud);
+chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_ssl_acceptor_cb cb,void *ud);
 
 int32_t chk_acceptor_get_fd(chk_acceptor *a);
 

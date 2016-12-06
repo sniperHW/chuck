@@ -141,6 +141,11 @@ static inline int32_t prepare_send(chk_stream_socket *s) {
 			send_size   += size;
 			s->wsendbuf[i].iov_len = size;
 			++i;
+
+			if(s->ssl.ssl) {
+				break;
+			}
+
 			chunk = chunk->next;
 			pos = 0;
 		}
@@ -165,6 +170,9 @@ static inline int32_t prepare_send(chk_stream_socket *s) {
 			send_size   += size;
 			s->wsendbuf[i].iov_len = size;
 			++i;
+			if(s->ssl.ssl) {
+				break;
+			}			
 			chunk = chunk->next;
 			pos = 0;
 		}
@@ -193,6 +201,9 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 		s->wrecvbuf[i].iov_len  = recv_size;
 		s->wrecvbuf[i].iov_base = chunk->data + pos;
 		++i;
+		if(s->ssl.ssl) {
+			break;
+		}
 		if(recv_size != recv_buffer_size) {
 			pos = 0;
 			if(!chunk->next){ 
@@ -243,7 +254,19 @@ static void release_socket(chk_stream_socket *s) {
 	if(s->timer) chk_timer_unregister(s->timer);
 	while((b = cast(chk_bytebuffer*,chk_list_pop(&s->send_list))))
 		chk_bytebuffer_del(b);
-	if(s->fd >= 0) close(s->fd);
+
+	if(s->fd >= 0) { 
+		close(s->fd);
+	}
+
+	if(s->ssl.ctx) {
+		SSL_CTX_free(s->ssl.ctx);
+	}
+
+	if(s->ssl.ssl) {
+       	SSL_free(s->ssl.ssl);
+	}
+
 	if(s->create_by_new) free(s); /*stream_socket是通过new接口创建的，需要释放内存*/
 }
 
@@ -320,6 +343,26 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	return ret;
 }
 
+static int32_t do_write(chk_stream_socket *s,int32_t bc) {
+	errno = 0;
+	if(s->ssl.ssl) {
+		int32_t bytes_transfer = TEMP_FAILURE_RETRY(SSL_write(s->ssl.ssl,&s->wsendbuf[0].iov_base,s->wsendbuf[0].iov_len));
+		int ssl_error = SSL_get_error(s->ssl.ssl,bytes_transfer);
+		//if(bytes_transfer < 0 && (ssl_error == SSL_ERROR_WANT_WRITE ||
+		//			ssl_error == SSL_ERROR_WANT_READ ||
+		//			ssl_error == SSL_ERROR_WANT_X509_LOOKUP)){
+		if(bytes_transfer <= 0 && (ssl_error == SSL_ERROR_WANT_WRITE || ssl_error == SSL_ERROR_WANT_READ)){
+			errno = EAGAIN;
+			return 0;
+		}
+		return bytes_transfer;
+	}
+	else{
+		return TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc));
+	}
+}
+
+
 static void process_write(chk_stream_socket *s) {
 	int32_t bc,bytes;
 	bc = prepare_send(s);
@@ -329,7 +372,7 @@ static void process_write(chk_stream_socket *s) {
 		return;
 	}
 
-	if((bytes = TEMP_FAILURE_RETRY(writev(s->fd,&s->wsendbuf[0],bc))) > 0) {
+	if((bytes = do_write(s,bc)) > 0) {
 		update_send_list(s,bytes);
 		/*没有数据需要发送了,停止写监听*/
 		if(send_list_empty(s)) {
@@ -339,15 +382,33 @@ static void process_write(chk_stream_socket *s) {
 		 		chk_disable_write(cast(chk_handle*,s));
 		}	
 	}else {
+		if(errno == EAGAIN){
+			return;
+		}
 		if(s->status & SOCKET_RCLOSE)
 			s->status |= SOCKET_CLOSE;
 		else {
 			s->status |= SOCKET_PEERCLOSE;
-			//chk_disable_write(cast(chk_handle*,s));
 			s->cb(s,NULL,chk_error_stream_write);
 			chk_stream_socket_close(s,0);
 			CHK_SYSLOG(LOG_ERROR,"writev() failed errno:%d",errno);
 		}
+	}
+}
+
+static int32_t do_read(chk_stream_socket *s,int32_t bc) {
+	errno = 0;
+	if(s->ssl.ssl) {
+		int32_t bytes_transfer = TEMP_FAILURE_RETRY(SSL_read(s->ssl.ssl,&s->wrecvbuf[0].iov_base,s->wrecvbuf[0].iov_len));
+		int ssl_error = SSL_get_error(s->ssl.ssl,bytes_transfer);
+		if(bytes_transfer <= 0 && (ssl_error == SSL_ERROR_WANT_WRITE || ssl_error == SSL_ERROR_WANT_READ)){
+			errno = EAGAIN;
+			return 0;
+		}
+		return 	bytes_transfer;	
+	}
+	else {
+		return TEMP_FAILURE_RETRY(readv(s->fd,&s->wrecvbuf[0],bc));
 	}
 }
 
@@ -361,7 +422,7 @@ static void process_read(chk_stream_socket *s) {
 		chk_stream_socket_close(s,0);		
 		return;
 	}
-	bytes = TEMP_FAILURE_RETRY(readv(s->fd,&s->wrecvbuf[0],bc));
+	bytes =  do_read(s,bc);
 	if(bytes > 0 ) {
 		decoder = s->option.decoder;
 		decoder->update(decoder,s->next_recv_buf,s->next_recv_pos,bytes);
@@ -385,7 +446,6 @@ static void process_read(chk_stream_socket *s) {
 			update_next_recv_pos(s,bytes);
 	}else {
 		s->status |= SOCKET_PEERCLOSE;
-		//chk_disable_read(cast(chk_handle*,s));
 		if(bytes == 0)
 			error_code = chk_error_stream_peer_close;
 		else {
@@ -529,47 +589,62 @@ void  chk_stream_socket_resume(chk_stream_socket *s) {
 	}
 }
 
-/*
+
 int32_t chk_ssl_connect(chk_stream_socket *s) {
 	SSL_CTX *ctx = SSL_CTX_new(SSLv23_client_method());
 	if (ctx == NULL) {
 	    ERR_print_errors_fp(stdout);
 	    return -1;
 	}
-	s->ctx.ssl = SSL_new(ctx);
-	if(!s->ctx.ssl) {
+	s->ssl.ssl = SSL_new(ctx);
+	if(!s->ssl.ssl) {
 		SSL_CTX_free(ctx);
 		return -1;
 	}
-	s->ctx.ctx = ctx;
-	SSL_set_fd(s->ctx.ssl,s->fd);
-	if(SSL_connect(s->ctx.ssl) == -1){
+	s->ssl.ctx = ctx;
+	
+	if(1 != SSL_set_fd(s->ssl.ssl,s->fd)) {
 		ERR_print_errors_fp(stderr);
 		SSL_CTX_free(ctx);
-       	SSL_free(s->ctx.ssl);
-       	s->ctx.ssl = NULL;
-       	s->ctx.ctx = NULL;		
+       	SSL_free(s->ssl.ssl);
+       	s->ssl.ssl = NULL;
+       	s->ssl.ctx = NULL;		
+	}
+
+	if(SSL_connect(s->ssl.ssl) == -1){
+		ERR_print_errors_fp(stderr);
+		SSL_CTX_free(ctx);
+       	SSL_free(s->ssl.ssl);
+       	s->ssl.ssl = NULL;
+       	s->ssl.ctx = NULL;		
 		return -1;
 	}
 	return 0;
 }
 
 int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
-	s->ctx.ssl = SSL_new(ctx);
-	if(!s->ctx.ssl) {
+	s->ssl.ssl = SSL_new(ctx);
+	if(!s->ssl.ssl) {
 	    ERR_print_errors_fp(stdout);		
 		return -1;
 	}
-	SSL_set_fd(s->ctx.ssl,s->fd);
-	if(SSL_accept(s->ctx.ssl) == -1) {
-		SSL_free(s->ctx.ssl);
-		s->ctx.ssl = NULL;
+
+	if(1 != SSL_set_fd(s->ssl.ssl,s->fd)){
+		ERR_print_errors_fp(stderr);		
+		SSL_free(s->ssl.ssl);
+		s->ssl.ssl = NULL;		
+		return -1;
+	}
+
+	if(SSL_accept(s->ssl.ssl) == -1) {
+		SSL_free(s->ssl.ssl);
+		s->ssl.ssl = NULL;
 	    ERR_print_errors_fp(stdout);
 		return -1;
 	}
 	return 0;
 }
-*/
+
 
 /*
 #ifdef _LINUX_ET
