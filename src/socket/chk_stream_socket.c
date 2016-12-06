@@ -343,15 +343,30 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	return ret;
 }
 
+static int32_t ssl_write_again(int32_t ssl_error) {
+	if(ssl_error == SSL_ERROR_WANT_WRITE || ssl_error == SSL_ERROR_WANT_READ) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+static int32_t ssl_read_again(int32_t ssl_error) {
+	if(ssl_error == SSL_ERROR_WANT_WRITE || ssl_error == SSL_ERROR_WANT_READ) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
 static int32_t do_write(chk_stream_socket *s,int32_t bc) {
 	errno = 0;
 	if(s->ssl.ssl) {
-		int32_t bytes_transfer = TEMP_FAILURE_RETRY(SSL_write(s->ssl.ssl,&s->wsendbuf[0].iov_base,s->wsendbuf[0].iov_len));
+		int32_t bytes_transfer = TEMP_FAILURE_RETRY(SSL_write(s->ssl.ssl,s->wsendbuf[0].iov_base,s->wsendbuf[0].iov_len));
 		int ssl_error = SSL_get_error(s->ssl.ssl,bytes_transfer);
-		//if(bytes_transfer < 0 && (ssl_error == SSL_ERROR_WANT_WRITE ||
-		//			ssl_error == SSL_ERROR_WANT_READ ||
-		//			ssl_error == SSL_ERROR_WANT_X509_LOOKUP)){
-		if(bytes_transfer <= 0 && (ssl_error == SSL_ERROR_WANT_WRITE || ssl_error == SSL_ERROR_WANT_READ)){
+		if(bytes_transfer <= 0 && ssl_write_again(ssl_error)){
 			errno = EAGAIN;
 			return 0;
 		}
@@ -399,9 +414,9 @@ static void process_write(chk_stream_socket *s) {
 static int32_t do_read(chk_stream_socket *s,int32_t bc) {
 	errno = 0;
 	if(s->ssl.ssl) {
-		int32_t bytes_transfer = TEMP_FAILURE_RETRY(SSL_read(s->ssl.ssl,&s->wrecvbuf[0].iov_base,s->wrecvbuf[0].iov_len));
+		int32_t bytes_transfer = TEMP_FAILURE_RETRY(SSL_read(s->ssl.ssl,s->wrecvbuf[0].iov_base,s->wrecvbuf[0].iov_len));
 		int ssl_error = SSL_get_error(s->ssl.ssl,bytes_transfer);
-		if(bytes_transfer <= 0 && (ssl_error == SSL_ERROR_WANT_WRITE || ssl_error == SSL_ERROR_WANT_READ)){
+		if(bytes_transfer <= 0 && ssl_read_again(ssl_error)){
 			errno = EAGAIN;
 			return 0;
 		}
@@ -449,7 +464,7 @@ static void process_read(chk_stream_socket *s) {
 		if(bytes == 0)
 			error_code = chk_error_stream_peer_close;
 		else {
-			CHK_SYSLOG(LOG_ERROR,"readv() failed errno:%d",errno);
+			CHK_SYSLOG(LOG_ERROR,"read failed errno:%d",errno);
 			error_code = chk_error_stream_read;
 		}
 		s->cb(s,NULL,error_code);
@@ -604,15 +619,17 @@ int32_t chk_ssl_connect(chk_stream_socket *s) {
 	s->ssl.ctx = ctx;
 	
 	if(1 != SSL_set_fd(s->ssl.ssl,s->fd)) {
-		ERR_print_errors_fp(stderr);
+		ERR_print_errors_fp(stdout);
 		SSL_CTX_free(ctx);
        	SSL_free(s->ssl.ssl);
        	s->ssl.ssl = NULL;
        	s->ssl.ctx = NULL;		
 	}
 
+	easy_noblock(s->fd,0);
+
 	if(SSL_connect(s->ssl.ssl) == -1){
-		ERR_print_errors_fp(stderr);
+		ERR_print_errors_fp(stdout);
 		SSL_CTX_free(ctx);
        	SSL_free(s->ssl.ssl);
        	s->ssl.ssl = NULL;
@@ -630,13 +647,19 @@ int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
 	}
 
 	if(1 != SSL_set_fd(s->ssl.ssl,s->fd)){
-		ERR_print_errors_fp(stderr);		
+		printf("SSL_set_fd() error\n");
+		ERR_print_errors_fp(stdout);		
 		SSL_free(s->ssl.ssl);
 		s->ssl.ssl = NULL;		
 		return -1;
 	}
 
-	if(SSL_accept(s->ssl.ssl) == -1) {
+	easy_noblock(s->fd,0);	
+
+	int32_t ret = SSL_accept(s->ssl.ssl);
+
+	if(ret != 1) {
+		printf("SSL_accept() error:%d\n",SSL_get_error(s->ssl.ssl,ret));	
 		SSL_free(s->ssl.ssl);
 		s->ssl.ssl = NULL;
 	    ERR_print_errors_fp(stdout);

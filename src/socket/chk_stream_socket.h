@@ -109,4 +109,10 @@ void  chk_stream_socket_pause(chk_stream_socket *s);
 
 void  chk_stream_socket_resume(chk_stream_socket *s);
 
+
+int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx);
+
+int32_t chk_ssl_connect(chk_stream_socket *s);
+
+
 #endif

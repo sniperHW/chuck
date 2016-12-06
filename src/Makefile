@@ -17,7 +17,7 @@ ifeq ($(uname_S),Linux)
 	MAKE += make
 	CC += gcc
 	DEFINE += -D_LINUX
-	LDFLAGS += -lrt
+	LDFLAGS += -lrt -ldl
 	SHAREFLAGS += -shared
 endif
 
@@ -94,19 +94,21 @@ readline.so:../deps/linenoise/linenoise.o
 	rm *.o		
 
 testcase:
-	$(CC) $(CFLAGS) -o test/bin/testlog test/testlog.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/testexception test/testexception.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/testhttppacket test/testhttppacket.c $(LIBNAME) ../deps/http-parser/libhttp_parser.a $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/testtimer test/testtimer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/tcpecho test/tcpecho.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/test_objpool test/test_objpool.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/teststring test/teststring.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
-	$(CC) $(CFLAGS) -o test/bin/test_bytebuffer test/test_bytebuffer.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/echobrocast test/echobrocast.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/echoclient test/echoclient.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/testconnect test/testconnect.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/testredis test/testredis.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
-	$(CC) $(CFLAGS) -o test/bin/testlua test/testlua.c $(LIBNAME) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl $(LIBRARY)
+	$(CC) $(CFLAGS) -o test/bin/sslserver test/sslserver.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/sslclient test/sslclient.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/testlog test/testlog.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/testexception test/testexception.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/testhttppacket test/testhttppacket.c $(LIBNAME) $(HTTP_PARSER) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/testtimer test/testtimer.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/tcpecho test/tcpecho.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/test_objpool test/test_objpool.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/teststring test/teststring.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
+	$(CC) $(CFLAGS) -o test/bin/test_bytebuffer test/test_bytebuffer.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/echobrocast test/echobrocast.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/echoclient test/echoclient.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o test/bin/testconnect test/testconnect.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test/bin/testredis test/testredis.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
+	$(CC) $(CFLAGS) -o test/bin/testlua test/testlua.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl $(LIBRARY)
 
 clean:
 	rm *.o
