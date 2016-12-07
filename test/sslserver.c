@@ -46,8 +46,8 @@ static void signal_int(void *ud) {
 
 int main(int argc,char **argv) {
 
-	const char *certificate = "cacert.pem";
-	const char *privatekey = "privkey.pem";
+	const char *certificate = "./test/cacert.pem";
+	const char *privatekey = "./test/privkey.pem";
 
 	signal(SIGPIPE,SIG_IGN);
 	loop = chk_loop_new();

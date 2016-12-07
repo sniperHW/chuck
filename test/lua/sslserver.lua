@@ -18,14 +18,14 @@ local function init_ssl()
 		return nil 
 	end
 
-	local err = ssl.SSL_CTX_use_certificate_file(_ssl_ctx,"cacert.pem")
+	local err = ssl.SSL_CTX_use_certificate_file(_ssl_ctx,"./test/cacert.pem")
 
 	if err then
 		print("SSL_CTX_use_certificate_file failed:" .. err)
 		return nil
 	end
 
-	err = ssl.SSL_CTX_use_PrivateKey_file(_ssl_ctx,"privkey.pem")
+	err = ssl.SSL_CTX_use_PrivateKey_file(_ssl_ctx,"./test/privkey.pem")
 
 	if err then
 		print("SSL_CTX_use_PrivateKey_file failed:" .. err)		
