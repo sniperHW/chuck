@@ -20,6 +20,7 @@ enum{
 	SOCKET_RCLOSE    = 1 << 2,  /*本端读关闭,写等剩余包发完关闭*/
 	SOCKET_PEERCLOSE = 1 << 3,  /*对端关闭*/
 	SOCKET_INLOOP    = 1 << 4,
+	SOCKET_SSL_HANDSHAKE = 1 << 5,
 };
 
 /*
@@ -281,7 +282,7 @@ int32_t last_timer_cb(uint64_t tick,void*ud) {
 void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
 	if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE))
 		return;
-	
+
 	if(delay > 0 && 
 	   !(s->status & SOCKET_PEERCLOSE) && 
 	   !send_list_empty(s) && s->loop) {
@@ -424,6 +425,25 @@ static void process_read(chk_stream_socket *s) {
 	int32_t bc,bytes,unpackerr,error_code;
 	chk_decoder *decoder;
 	chk_bytebuffer *b;
+
+	if(s->status & SOCKET_SSL_HANDSHAKE) {
+		int32_t ret;
+		if(s->ssl.ctx) {
+			ret = chk_ssl_connect(s);
+		}
+		else {
+			ret = chk_ssl_accept(s,s->ssl.ctx);
+		}
+
+		if(ret != 0){
+			s->cb(s,NULL,chk_error_ssl_error);
+			chk_stream_socket_close(s,0);					
+			CHK_SYSLOG(LOG_ERROR,"ssl handshake error");
+		}
+		return;
+
+	}
+
 	bc    = prepare_recv(s);
 	if(bc <= 0) {
 		s->cb(s,NULL,chk_error_no_memory);
@@ -599,106 +619,134 @@ void  chk_stream_socket_resume(chk_stream_socket *s) {
 
 
 int32_t chk_ssl_connect(chk_stream_socket *s) {
-	SSL_CTX *ctx = SSL_CTX_new(SSLv23_client_method());
-	if (ctx == NULL) {
-	    ERR_print_errors_fp(stdout);
-	    return -1;
-	}
-	s->ssl.ssl = SSL_new(ctx);
-	if(!s->ssl.ssl) {
-		SSL_CTX_free(ctx);
-		return -1;
-	}
-	s->ssl.ctx = ctx;
-	
-	if(1 != SSL_set_fd(s->ssl.ssl,s->fd)) {
-		ERR_print_errors_fp(stdout);
-		SSL_CTX_free(ctx);
-       	SSL_free(s->ssl.ssl);
-       	s->ssl.ssl = NULL;
-       	s->ssl.ctx = NULL;		
-	}
 
-/*	int32_t ret = SSL_connect(s->ssl.ssl);
-	if(ret > 0) {
-		return 0;
-	}
-	else {
-		int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
-		if(ssl_again(ssl_error)){
+	if(!s->ssl.ssl){
+		//printf("chk_ssl_connect\n");
+		SSL_CTX *ctx = SSL_CTX_new(SSLv23_client_method());
+		if (ctx == NULL) {
+		    ERR_print_errors_fp(stdout);
+		    return -1;
+		}
+		s->ssl.ssl = SSL_new(ctx);
+		if(!s->ssl.ssl) {
+			SSL_CTX_free(ctx);
+			return -1;
+		}
+		s->ssl.ctx = ctx;
+		
+		int32_t ret = SSL_set_fd(s->ssl.ssl,s->fd);
+
+		if(1 != ret) {
+			CHK_SYSLOG(LOG_ERROR,"SSL_set_fd() error:%d",SSL_get_error(s->ssl.ssl,ret));				
+			ERR_print_errors_fp(stdout);
+			SSL_CTX_free(ctx);
+	       	SSL_free(s->ssl.ssl);
+	       	s->ssl.ssl = NULL;
+	       	s->ssl.ctx = NULL;
+	       	return -1;		
+		}		
+
+		ret = SSL_connect(s->ssl.ssl);
+		if(ret > 0) {
 			return 0;
 		}
 		else {
-			ERR_print_errors_fp(stdout);
-			SSL_CTX_free(ctx);
-       		SSL_free(s->ssl.ssl);
-       		s->ssl.ssl = NULL;
-       		s->ssl.ctx = NULL;		
-			return -1;			
+			int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
+			if(ssl_again(ssl_error)){
+				s->status |= SOCKET_SSL_HANDSHAKE;
+				return 0;
+			}
+			else {
+				CHK_SYSLOG(LOG_ERROR,"SSL_connect() error:%d",SSL_get_error(s->ssl.ssl,ret));					
+				ERR_print_errors_fp(stdout);
+				SSL_CTX_free(ctx);
+	       		SSL_free(s->ssl.ssl);
+	       		s->ssl.ssl = NULL;
+	       		s->ssl.ctx = NULL;		
+				return -1;			
+			}
 		}
 	}
-*/
-
-	easy_noblock(s->fd,0);
-
-	if(SSL_connect(s->ssl.ssl) == -1){
-		ERR_print_errors_fp(stdout);
-		SSL_CTX_free(ctx);
-       	SSL_free(s->ssl.ssl);
-       	s->ssl.ssl = NULL;
-       	s->ssl.ctx = NULL;		
-		return -1;
+	else {
+		int32_t ret = SSL_connect(s->ssl.ssl);
+		if(ret > 0) {
+			s->status ^= SOCKET_SSL_HANDSHAKE;
+			return 0;
+		}
+		else {
+			int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
+			if(ssl_again(ssl_error)){
+				s->status |= SOCKET_SSL_HANDSHAKE;
+				return 0;
+			}
+			else {
+				CHK_SYSLOG(LOG_ERROR,"SSL_connect() error:%d",SSL_get_error(s->ssl.ssl,ret));	
+				ERR_print_errors_fp(stdout);	
+				return -1;			
+			}
+		}
 	}
-	return 0;
-
 }
 
 int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
-	s->ssl.ssl = SSL_new(ctx);
+
 	if(!s->ssl.ssl) {
-	    ERR_print_errors_fp(stdout);		
-		return -1;
-	}
+		s->ssl.ssl = SSL_new(ctx);
+		if(!s->ssl.ssl) {
+		    ERR_print_errors_fp(stdout);		
+			return -1;
+		}
 
-	if(1 != SSL_set_fd(s->ssl.ssl,s->fd)){
-		printf("SSL_set_fd() error\n");
-		ERR_print_errors_fp(stdout);		
-		SSL_free(s->ssl.ssl);
-		s->ssl.ssl = NULL;		
-		return -1;
-	}
+		int32_t ret = SSL_set_fd(s->ssl.ssl,s->fd);
 
-	/*easy_noblock(s->fd,1);	
+		if(1 != ret){
+			CHK_SYSLOG(LOG_ERROR,"SSL_set_fd() error:%d",SSL_get_error(s->ssl.ssl,ret));		
+			ERR_print_errors_fp(stdout);		
+			SSL_free(s->ssl.ssl);
+			s->ssl.ssl = NULL;		
+			return -1;
+		}
 
-	int32_t ret = SSL_accept(s->ssl.ssl);
+		easy_noblock(s->fd,1);
 
-	if(ret > 0) {
-		return 0;
-	}
-	else {
-		int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
-		if(ssl_again(ssl_error)){
+		ret = SSL_accept(s->ssl.ssl);
+
+		if(ret > 0) {
 			return 0;
 		}
 		else {
-			printf("SSL_accept() error:%d\n",SSL_get_error(s->ssl.ssl,ret));	
-			SSL_free(s->ssl.ssl);
-			s->ssl.ssl = NULL;
-	    	ERR_print_errors_fp(stdout);
-			return -1;			
+			int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
+			if(ssl_again(ssl_error)){
+				s->status |= SOCKET_SSL_HANDSHAKE;
+				return 0;
+			}
+			else {
+				CHK_SYSLOG(LOG_ERROR,"SSL_accept() error:%d",SSL_get_error(s->ssl.ssl,ret));	
+				SSL_free(s->ssl.ssl);
+				s->ssl.ssl = NULL;
+		    	ERR_print_errors_fp(stdout);
+				return -1;			
+			}
 		}
-	}*/
-
-	easy_noblock(s->fd,0);
-	
-	int32_t ret = SSL_accept(s->ssl.ssl);
-
-	if(ret != 1) {
-		printf("SSL_accept() error:%d\n",SSL_get_error(s->ssl.ssl,ret));	
-		SSL_free(s->ssl.ssl);
-		s->ssl.ssl = NULL;
-	    ERR_print_errors_fp(stdout);
-		return -1;
 	}
-	return 0;
+	else {
+		int32_t ret = SSL_accept(s->ssl.ssl);
+		if(ret > 0) {
+			s->status ^= SOCKET_SSL_HANDSHAKE;			
+			return 0;
+		}
+		else {
+			int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
+			if(ssl_again(ssl_error)){
+				s->status |= SOCKET_SSL_HANDSHAKE;
+				return 0;
+			}
+			else {
+				CHK_SYSLOG(LOG_ERROR,"SSL_accept() error:%d",SSL_get_error(s->ssl.ssl,ret));	
+		    	ERR_print_errors_fp(stdout);
+				return -1;			
+			}
+		}		
+
+	}
 }
