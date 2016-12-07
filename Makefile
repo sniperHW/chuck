@@ -3,4 +3,6 @@ chuck:
 libchuck.a:
 	cd src;$(MAKE) libchuck.a
 readline:
-	cd src;$(MAKE) readline.so;mv readline.so ../lib		
+	cd src;$(MAKE) readline.so;mv readline.so ../lib
+testcase:
+	cd src;$(MAKE) testcase		

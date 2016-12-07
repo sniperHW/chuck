@@ -70,6 +70,7 @@ $(LIBNAME):$(source.lib)
 	$(CC) -fpic $(CFLAGS) -c $(source.lib) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
 	rm *.o
+	cp $(LIBNAME) ../lib
 
 $(HTTP_PARSER):
 	cd ../deps/http-parser/;$(MAKE) package
@@ -94,21 +95,21 @@ readline.so:../deps/linenoise/linenoise.o
 	rm *.o		
 
 testcase:
-	$(CC) $(CFLAGS) -o test/bin/sslserver test/sslserver.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/sslclient test/sslclient.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/testlog test/testlog.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/testexception test/testexception.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/testhttppacket test/testhttppacket.c $(LIBNAME) $(HTTP_PARSER) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/testtimer test/testtimer.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/tcpecho test/tcpecho.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/test_objpool test/test_objpool.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/teststring test/teststring.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
-	$(CC) $(CFLAGS) -o test/bin/test_bytebuffer test/test_bytebuffer.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/echobrocast test/echobrocast.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/echoclient test/echoclient.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o test/bin/testconnect test/testconnect.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o test/bin/testredis test/testredis.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
-	$(CC) $(CFLAGS) -o test/bin/testlua test/testlua.c $(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl $(LIBRARY)
+	$(CC) $(CFLAGS) -o ../test/bin/sslserver ../test/sslserver.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o ../test/bin/sslclient ../test/sslclient.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o ../test/bin/testlog ../test/testlog.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o ../test/bin/testexception ../test/testexception.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o ../test/bin/testhttppacket ../test/testhttppacket.c ../lib/$(LIBNAME) $(HTTP_PARSER) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o ../test/bin/testtimer ../test/testtimer.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o ../test/bin/tcpecho ../test/tcpecho.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o ../test/bin/test_objpool ../test/test_objpool.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o ../test/bin/teststring ../test/teststring.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
+	$(CC) $(CFLAGS) -o ../test/bin/test_bytebuffer ../test/test_bytebuffer.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o ../test/bin/echobrocast ../test/echobrocast.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o ../test/bin/echoclient ../test/echoclient.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+	$(CC) $(CFLAGS) -o ../test/bin/testconnect ../test/testconnect.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o ../test/bin/testredis ../test/testredis.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
+	$(CC) $(CFLAGS) -o ../test/bin/testlua ../test/testlua.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl $(LIBRARY)
 
 clean:
 	rm *.o
