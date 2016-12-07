@@ -281,7 +281,7 @@ examples
 more
 ~~~~~
 
-`a sample gameserver <gameserver>`_
+`a sample gameserver <test/lua/gameserver>`_
 ~~~~~~~~
 customer
 ~~~~~~~~
