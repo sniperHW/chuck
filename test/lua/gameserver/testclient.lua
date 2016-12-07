@@ -1,5 +1,5 @@
 package.cpath = './lib/?.so;'
-package.path = './gameserver/?.lua;'
+package.path = './test/lua/gameserver/?.lua;'
 
 local chuck = require("chuck")
 local socket = chuck.socket

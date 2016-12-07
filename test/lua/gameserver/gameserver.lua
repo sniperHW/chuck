@@ -1,6 +1,6 @@
 --暂不使用数据库
 package.cpath = './lib/?.so;'
-package.path = './gameserver/?.lua;'
+package.path = './test/lua/gameserver/?.lua;'
 
 local chuck = require("chuck")
 local socket = chuck.socket
