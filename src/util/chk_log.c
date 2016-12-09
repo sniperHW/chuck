@@ -13,6 +13,8 @@
 CHK_DEF_LOG(chk_sys_log,CHK_SYSLOG_NAME);
 CHK_IMP_LOG(chk_sys_log);
 
+char    g_syslog_file_prefix[MAX_LOG_FILE_NAME] = {0};
+
 static pthread_once_t 	g_log_key_once      = PTHREAD_ONCE_INIT;
 static pid_t          	g_pid               = -1;
 static uint32_t         flush_interval      = 1;  //flush every 1 second
@@ -24,7 +26,7 @@ static chk_thread      *g_log_thd;
 
 #define LOCK() while (__sync_lock_test_and_set(&lock,1)) {}
 #define UNLOCK() __sync_lock_release(&lock);
-#define MAX_FILE_NAME 256
+
 
 
 const char *log_lev_str[] = {
@@ -37,7 +39,7 @@ const char *log_lev_str[] = {
 
 struct chk_logfile {
 	chk_dlist_entry   entry;
-	char              filename[MAX_FILE_NAME];
+	char              filename[MAX_LOG_FILE_NAME];
 	FILE             *file;
 	uint32_t          total_size;
 };
@@ -66,6 +68,13 @@ static void  write_console(int8_t loglev,char *content) {
 		case LOG_CRITICAL : printf("\033[5;31;40m%s\033[0m\n",content); break;
 		default           : break;		
  	}
+}
+
+void chk_set_syslog_file_prefix(const char *prefix){
+	if(prefix)	{
+		strncpy(g_syslog_file_prefix,prefix,MAX_LOG_FILE_NAME-1);
+		g_syslog_file_prefix[MAX_LOG_FILE_NAME - 1] = 0;
+	}
 }
 
 void logqueue_push(log_entry *item) {
@@ -139,7 +148,7 @@ static void *log_routine(void *arg) {
 	chk_logfile     *l;
 	chk_dlist_entry *n;	
 	int32_t          size;
-	char             filename[MAX_FILE_NAME] = {0};
+	char             filename[MAX_LOG_FILE_NAME] = {0};
 	char             buf[128] = {0};
 	struct timespec  tv;
 	struct tm        _tm;			

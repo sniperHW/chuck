@@ -5,6 +5,11 @@
 --look for packages one folder up.
 package.path = package.path .. ";;;./?.lua;./?/init.lua"
 package.cpath = package.cpath .. ";;;./lib/?.so;"
+local chuck = require("chuck")
+local chk_log = chuck.log
+
+chk_log.SetSysLogPrefix("minilumen-test.lua")
+
 
 local sched = require "minilumen.sched"
 --require "log".setlevel('ALL')

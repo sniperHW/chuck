@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include "util/chk_singleton.h"
 #include "../config.h"
 
@@ -21,6 +22,8 @@ enum{
 typedef struct chk_logfile chk_logfile;
 
 extern int32_t g_loglev;
+
+extern char    g_syslog_file_prefix[MAX_LOG_FILE_NAME];
 
 chk_logfile *chk_create_logfile(const char *filename);
 
@@ -46,6 +49,8 @@ void    chk_syslog(int32_t loglev,char *content);
 int32_t chk_log_prefix(char *buf,uint8_t loglev);
 
 int32_t chk_log_prefix_detail(char *buf,uint8_t loglev,const char *function,const char *file,int32_t line);
+
+void    chk_set_syslog_file_prefix(const char *prefix);
 
 
 //日志格式[INFO|ERROR]yyyy-mm-dd-hh:mm:ss.ms:content
@@ -74,9 +79,18 @@ do{                                                                             
 #define CHK_DEF_LOG(LOGNAME,LOGFILENAME)                                                        \
     typedef struct{chk_logfile *_logfile;}LOGNAME;                                              \
     static inline LOGNAME *LOGNAME##create_function(){                                          \
-    	LOGNAME *tmp = calloc(1,sizeof(*tmp));                                                  \
+    	char buff[MAX_LOG_FILE_NAME]={0};                                                       \
+        LOGNAME *tmp = calloc(1,sizeof(*tmp));                                                  \
         if(!tmp) return NULL;                                                                   \
-    	tmp->_logfile = chk_create_logfile(LOGFILENAME);                                        \
+    	if(0 != strncmp(g_syslog_file_prefix,"",MAX_LOG_FILE_NAME-1)) {                         \
+            snprintf(buff,MAX_LOG_FILE_NAME-1,"%s-%s",LOGFILENAME,g_syslog_file_prefix);        \
+            buff[MAX_LOG_FILE_NAME-1] = 0;                                                      \
+        }                                                                                       \
+        else {                                                                                  \
+            snprintf(buff,MAX_LOG_FILE_NAME-1,"%s",LOGFILENAME);                                \
+        }                                                                                       \
+        buff[MAX_LOG_FILE_NAME-1] = 0;                                                          \
+        tmp->_logfile = chk_create_logfile((const char*)buff);                                  \
     	return tmp;                                                                             \
     }                                                                                           \
     CHK_DECLARE_SINGLETON(LOGNAME)

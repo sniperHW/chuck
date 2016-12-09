@@ -64,5 +64,7 @@
 
 #define CHK_IDLE_TIMER_TIMEOUT 100
 
+#define MAX_LOG_FILE_NAME 256
+
 
 #endif
