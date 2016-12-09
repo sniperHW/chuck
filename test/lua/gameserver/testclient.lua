@@ -50,6 +50,19 @@ register_netcmd_handler(netcmd.CMD_SC_BEGIN_SEE,function(session,msg)
 	--服务器完成进入,客户端完成进入通告服务器
 	local userID = msg:ReadStr()
 	print("see " .. userID)
+
+	local pos = {}
+	pos.x = msg:ReadNum()
+	pos.y = msg:ReadNum()
+	pos.z = msg:ReadNum()
+
+	print(pos.x,pos.y,pos.z)
+
+	--user.avatar.pos.x = msg:ReadNum()
+	--user.avatar.pos.y = msg:ReadNum()
+	--user.avatar.pos.z = msg:ReadNum()
+
+
 end)
 
 if not arg then

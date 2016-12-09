@@ -22,7 +22,7 @@ function room.new(id)
 end
 
 function room:RandPos()
-	return {x=0,y=0,z=0}
+	return {x=0.21,y=0.31,z=0.41}
 end
 
 function room:BroadCastMsg(msg,except)
@@ -116,7 +116,6 @@ function room:Relive(user,msg)
 		local buff = chuck.buffer.New()
 		local w = packet.Writer(buff)
 		w:WriteI16(netcmd.CMD_SC_BEGIN_SEE)
-		w:WriteStr(user.userid)
 		PackAvatar(user,w)	
 		self:BroadCastMsg(buff)		
 	end
@@ -155,7 +154,6 @@ function room:ClientEnter(user)
 		local buff = chuck.buffer.New()
 		local w = packet.Writer(buff)
 		w:WriteI16(netcmd.CMD_SC_BEGIN_SEE)
-		w:WriteStr(user.userid)
 		PackAvatar(user,w)	
 		self:BroadCastMsg(buff,user)
 
@@ -165,7 +163,6 @@ function room:ClientEnter(user)
 				local buff = chuck.buffer.New()
 				local w = packet.Writer(buff)
 				w:WriteI16(netcmd.CMD_SC_BEGIN_SEE)
-				w:WriteStr(v.userid)
 				PackAvatar(v,w)						
 				user.session:Send(buff)
 			end
