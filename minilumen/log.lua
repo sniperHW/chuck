@@ -97,8 +97,22 @@ M.timestampformat = '%Y/%m/%d %H:%M:%S'--nil
 -- @param msg string containing the message to log.
 -- @function displaylogger
 -------------------------------------------------------------------------------
-M.displaylogger = function(_, _, ...)
-    if base.print then base.print(...) end
+
+M.displaylogger = function(severity,...)
+    if severity == 'NONE' then
+        severity = chk_log.info
+    elseif severity == "ERROR" then
+        severity = chk_log.error
+    elseif severity == "WARNING" then
+        severity = chk_log.warning    
+    elseif severity == "INFO" then
+        severity = chk_log.info 
+    elseif severity == "DEBUG" then
+        severity = chk_log.debug
+    else
+        severity = chk_log.info
+    end
+    chk_log.SysLog(severity,...)
 end
 
 -------------------------------------------------------------------------------
@@ -126,9 +140,9 @@ M.storelogger = nil
 -------------------------------------------------------------------------------
 M.format = nil
 
-local function loggers(...)
-    if M.displaylogger then M.displaylogger(...) end
-    if M.storelogger then M.storelogger(...) end
+local function loggers(_,severity,...)
+    if M.displaylogger then M.displaylogger(severity,...) end
+    if M.storelogger then M.storelogger(severity,...) end
 end
 
 -------------------------------------------------------------------------------
@@ -165,17 +179,7 @@ function M.trace(module, severity, fmt, ...)
 
     local c, s = pcall(string.format, fmt, ...)
     if c then
-        local t
-        local function sub(p)
-            if     p=="l" then return s
-            elseif p=="t" then t = t or tostring(os.date(M.timestampformat)) return t
-            elseif p=="T" then t = t or tostring(os_time()) return t
-						elseif p=="m" then return module
-            elseif p=="s" then return severity
-            else return p end
-        end
-        local out = (M.format or "%t %m-%s: %l"):gsub("%%(%a)", sub)
-        loggers(module, severity, out)
+        loggers(module, severity,string.format("%s-%s : %s",module,severity,s))
     else -- fallback printing when the formating failed. The fallback printing allow to safely print what was given to the log function, without crashing the thread !
         local args = {}
         local t = table.pack(...)
