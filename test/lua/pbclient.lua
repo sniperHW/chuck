@@ -37,7 +37,13 @@ socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 		local buff = chuck.buffer.New()
 		local code = protobuf.encode("tutorial.Person", addressbook)
 		buff:AppendStr(code)
-		conn:Send(buff)
+		conn:Send(buff,function ()
+			conn:Close()
+			print("send finish")
+			print("PendingSendSize:" .. conn:PendingSendSize())
+			event_loop:Stop()
+		end)
+		print("PendingSendSize:" .. conn:PendingSendSize())
 
 		conn:Start(event_loop,function (data)
 			if data then 
@@ -47,9 +53,7 @@ socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 				print("client disconnected") 
 				conn:Close()
 			end
-			event_loop:Stop()
 		end)
-
 	end
 end)
 

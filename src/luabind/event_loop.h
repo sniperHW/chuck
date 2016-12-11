@@ -107,8 +107,7 @@ static int32_t lua_event_loop_set_idle(lua_State *L) {
 
 static void signal_ud_dctor(void *ud) {
 	chk_luaRef *cb = (chk_luaRef*)ud;
-	chk_luaRef_release(cb);
-	free(cb);
+	POOL_RELEASE_LUAREF(cb);
 }
 
 static void signal_callback(void *ud) {
@@ -126,7 +125,7 @@ static int32_t lua_watch_signal(lua_State *L) {
 	if(!lua_isfunction(L,3))
 		return luaL_error(L,"argument 3 must be lua function");
 
-	chk_luaRef *cb = calloc(1,sizeof(*cb));
+	chk_luaRef *cb = POOL_NEW_LUAREF();//calloc(1,sizeof(*cb));
 	if(!cb) {
 		CHK_SYSLOG(LOG_ERROR,"calloc() failed");
 		lua_pushstring(L,"no memory");

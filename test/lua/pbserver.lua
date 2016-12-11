@@ -25,7 +25,6 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd
 				for k,v in pairs(decode.phone) do
 					print("number:" .. v.number .. " " .. v.type or "")
 				end
-				conn:Close()
 			else
 				log.SysLog(log.info,"client disconnected") 
 				conn:Close() 

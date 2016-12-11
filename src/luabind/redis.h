@@ -55,8 +55,9 @@ static void lua_redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
 		error = chk_Lua_PCallRef(*cb,"fi",(chk_luaPushFunctor*)&pusher,err);	
 	}else error = chk_Lua_PCallRef(*cb,"pi",NULL,err);
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on lua_redis_connect_cb %s",error);				
-	chk_luaRef_release(cb);
-	free(cb);
+	POOL_RELEASE_LUAREF(cb);
+	//chk_luaRef_release(cb);
+	//free(cb);
 }
 
 static int32_t lua_redis_close(lua_State *L) {
@@ -82,11 +83,17 @@ static int32_t lua_redis_connect_ip4(lua_State *L) {
 		lua_pushstring(L,"redis_connect_ip4 invaild address or port");
 		return 1;
 	}
-	cb  = calloc(1,sizeof(*cb));
+
+	cb = POOL_NEW_LUAREF();
+
+	if(!cb) {
+		lua_pushstring(L,"new luaref failed");
+		return 1;
+	}
+
 	*cb = chk_toluaRef(L,4);
 	if(0 != chk_redis_connect(event_loop,&server,lua_redis_connect_cb,cb)){
-		chk_luaRef_release(cb);
-		free(cb);
+		POOL_RELEASE_LUAREF(cb);
 		lua_pushstring(L,"redis_connect_ip4 connect error");
 		return 1;
 	}
@@ -142,8 +149,7 @@ void lua_redis_reply_cb(chk_redisclient *_,redisReply *reply,void *ud) {
 	}
 	
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on redis_reply_cb %s",error);	
-	chk_luaRef_release(cb);
-	free(cb);
+	POOL_RELEASE_LUAREF(cb);
 }
 
 static int32_t lua_redis_execute(lua_State *L) {
@@ -162,15 +168,18 @@ static int32_t lua_redis_execute(lua_State *L) {
 	}
 
 	if(lua_isfunction(L,2)) {
-		cb = calloc(1,sizeof(*cb));
+		cb = POOL_NEW_LUAREF();
+		if(!cb) {
+			lua_pushstring(L,"new luaref failed");
+			return 1;
+		}
 		*cb = chk_toluaRef(L,2);
 	}
 
 	int32_t param_size = lua_gettop(L) - 3;
 	
 	if(0 != chk_redis_execute_lua(client->client,cmd,lua_redis_reply_cb,(void*)cb,L,4,param_size)) {
-		chk_luaRef_release(cb);
-		free(cb);
+		POOL_RELEASE_LUAREF(cb);
 		lua_pushstring(L,"redis_execute error");
 		return 1;
 	}

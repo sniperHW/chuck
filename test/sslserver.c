@@ -11,7 +11,7 @@ chk_stream_socket_option option = {
 void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	if(data){
 		printf("recv request:%s\n",data->head->data);
-		chk_stream_socket_send(s,chk_bytebuffer_clone(data));
+		chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,NULL);
 	}
 	else{
 		printf("socket close:%d\n",error);

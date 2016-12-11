@@ -25,6 +25,8 @@ typedef struct chk_stream_socket_option chk_stream_socket_option;
 
 typedef void (*chk_stream_socket_cb)(chk_stream_socket*,chk_bytebuffer*,int32_t error);
 
+typedef void (*chk_send_cb)(chk_stream_socket *s,void *ud,int32_t error);
+
 struct chk_stream_socket_option {
 	uint32_t     recv_buffer_size;       //接收缓冲大小
 	chk_decoder *decoder;
@@ -60,7 +62,7 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay);
  * @param b 待发送缓冲,调用chk_stream_socket_send之后b不能再被别处使用
  */
 
-int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b);
+int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
 
 
 /**
@@ -78,7 +80,7 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b);
  *
  */
 
-int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b);
+int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
 
 /**
  * 设置chk_stream_socket关联的用户数据
@@ -101,6 +103,12 @@ void *chk_stream_socket_getUd(chk_stream_socket *s);
  */
 
 void  chk_stream_socket_pause(chk_stream_socket *s);
+
+/**
+ * 返回待发送数据字节数
+ */
+
+uint32_t chk_stream_socket_pending_send_size(chk_stream_socket *s);
 
 /**
  * 恢复事件处理

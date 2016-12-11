@@ -770,7 +770,7 @@ int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,cons
 		return chk_error_redis_request;
 	}
 
-	if(0 != (ret = chk_stream_socket_send(c->sock,buffer))) {
+	if(0 != (ret = chk_stream_socket_send(c->sock,buffer,NULL,NULL))) {
     	CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);	
 		free(repobj);
 		chk_bytebuffer_del(buffer);
@@ -905,7 +905,7 @@ int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply
 		return chk_error_redis_request;
 	}
 
-	if(0 != (ret = chk_stream_socket_send(c->sock,buffer))) {
+	if(0 != (ret = chk_stream_socket_send(c->sock,buffer,NULL,NULL))) {
 		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);
 		free(repobj);
 		chk_bytebuffer_del(buffer);

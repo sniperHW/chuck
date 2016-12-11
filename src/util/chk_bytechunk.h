@@ -63,8 +63,8 @@ extern chk_bytebuffer_pool *bytebuffer_pool;
 
 extern int32_t lock_bytebuffer_pool;
 
-#define LOCK(L) while (__sync_lock_test_and_set(&lock_bytebuffer_pool,1)) {}
-#define UNLOCK(L) __sync_lock_release(&lock_bytebuffer_pool);
+#define BUFFER_POOL_LOCK(L) while (__sync_lock_test_and_set(&lock_bytebuffer_pool,1)) {}
+#define BUFFER_POOL_UNLOCK(L) __sync_lock_release(&lock_bytebuffer_pool);
 
 #ifndef INIT_BYTEBUFFER_POOL_SIZE
 #define INIT_BYTEBUFFER_POOL_SIZE 4096
@@ -72,19 +72,19 @@ extern int32_t lock_bytebuffer_pool;
 
 #define NEW_BYTEBUFFER()         ({                                             \
     chk_bytebuffer *bytebuffer;                                                 \
-    LOCK();                                                                     \
+    BUFFER_POOL_LOCK();                                                         \
     if(NULL == bytebuffer_pool) {                                               \
         bytebuffer_pool = chk_bytebuffer_pool_new(INIT_BYTEBUFFER_POOL_SIZE);   \
     }                                                                           \
     bytebuffer = chk_bytebuffer_new_obj(bytebuffer_pool);                       \
-    UNLOCK();                                                                   \
+    BUFFER_POOL_UNLOCK();                                                       \
     bytebuffer;                                                                 \
 })
 
 #define FREE_BYTEBUFFER(BYTEBUFFER) do{                                         \
-    LOCK();                                                                     \
+    BUFFER_POOL_LOCK();                                                         \
     chk_bytebuffer_release_obj(bytebuffer_pool,BYTEBUFFER);                     \
-    UNLOCK();                                                                   \
+    BUFFER_POOL_UNLOCK();                                                       \
 }while(0)
 
 #else

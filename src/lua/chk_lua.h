@@ -156,6 +156,40 @@ const char *chk_lua_pcall(lua_State *L,const char *fmt,...);
 	}								       						   \
 	__result;												     })
 
+#include "util/chk_obj_pool.h"
+
+DECLARE_OBJPOOL(chk_luaRef)
+
+extern chk_luaRef_pool *luaRef_pool;
+
+extern int32_t lock_luaRef_pool;
+
+#define LUAREF_POOL_LOCK(L) while (__sync_lock_test_and_set(&lock_luaRef_pool,1)) {}
+#define LUAREF_POOL_UNLOCK(L) __sync_lock_release(&lock_luaRef_pool);
+
+#ifndef INIT_LUAREF_POOL_SIZE
+#define INIT_LUAREF_POOL_SIZE 4096
+#endif
+
+#define POOL_NEW_LUAREF()         ({                                 \
+    chk_luaRef *ref;                                                 \
+    LUAREF_POOL_LOCK();                                              \
+    if(NULL == luaRef_pool) {                                        \
+        luaRef_pool = chk_luaRef_pool_new(INIT_LUAREF_POOL_SIZE);    \
+    }                                                                \
+    ref = chk_luaRef_new_obj(luaRef_pool);                       	 \
+    LUAREF_POOL_UNLOCK();                                            \
+    ref;                                                             \
+})
+
+#define POOL_RELEASE_LUAREF(LUA_REF) do{                             \
+	chk_luaRef_release(LUA_REF);									 \
+    LUAREF_POOL_LOCK();                                              \
+    chk_luaRef_release_obj(luaRef_pool,LUA_REF);                     \
+    LUAREF_POOL_UNLOCK();                                            \
+}while(0)
+
+
 #if 0
 
 /* 当ref是一个table时，可通过调用以下两个函数获取和设置table字段
