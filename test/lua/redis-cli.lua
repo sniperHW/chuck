@@ -15,6 +15,9 @@ function redis_execute(cmd,...)
 			print("Execute ok")
 		else
 			print("Execute error:" .. err)
+			redis_conn:Close()
+			redis_conn = nil
+			return
 		end
 		result = reply
 		execute_return = true

@@ -42,9 +42,15 @@ void chk_redis_disconnect(chk_redisclient *c,void *ud,int32_t err) {
 }
 
 void redis_reply_cb(chk_redisclient *c,redisReply *reply,void *ud) {
-	//show_reply(reply);
+	if(!reply) {
+		chk_redis_close(c);
+		return;
+	}
 	++count;
-	chk_redis_execute(c,redis_reply_cb,NULL,"hmget %s %s %s","chaid:1","chainfo","skills");
+	if(0 != chk_redis_execute(c,redis_reply_cb,NULL,"hmget %s %s %s","chaid:1","chainfo","skills")) {
+		chk_redis_close(c);
+		return;
+	}
 }
 
 void redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
@@ -55,21 +61,29 @@ void redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
 		exit(0);
 	}
 
+	chk_redis_set_disconnect_cb(c,chk_redis_disconnect,NULL);	
+
 	int i = 0;
 	char buff[1024] = {0};
 	printf("redis_connect_cb\n");
 	
 	for(i = 0; i < 1000; ++i){
 		snprintf(buff,sizeof(buff) - 1,"chaid:%d",i);
-		chk_redis_execute(c,NULL,NULL,"hmget %s %s %s %s",buff,"chainfo","fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
-						  "skills","fasfasdfasdfasfasdfasdfasdfcvavasdfasdf");
+		if(0 != chk_redis_execute(c,NULL,NULL,"hmget %s %s %s %s",buff,"chainfo","fasdfasfasdfasdfasdfasfasdfasfasdfdsaf",
+						  "skills","fasfasdfasdfasfasdfasdfasdfcvavasdfasdf")) {
+			chk_redis_close(c);
+			return;
+		}
 	}
 
 	printf("start get\n");
 
-	chk_redis_set_disconnect_cb(c,chk_redis_disconnect,NULL);
+
 	for(i = 0; i < 1000; ++i) {
-		chk_redis_execute(c,redis_reply_cb,NULL,"hmget %s %s %s","chaid:1","chainfo","skills");
+		if(0 != chk_redis_execute(c,redis_reply_cb,NULL,"hmget %s %s %s","chaid:1","chainfo","skills")) {
+			chk_redis_close(c);
+		}
+		return;
 	}	
 }
 
