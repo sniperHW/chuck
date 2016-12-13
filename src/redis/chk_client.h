@@ -63,10 +63,9 @@ void    chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb c
 /**
  * 关闭redis连接,当连接结构销毁时回调dcntcb
  * @param c redis连接
- * @param err 错误码
  */
 
-void chk_redis_close(chk_redisclient *c,int32_t err);
+void chk_redis_close(chk_redisclient *c);
 
 /**
  * 执行redis命令(二进制安全)

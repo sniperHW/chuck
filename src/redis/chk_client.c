@@ -50,7 +50,7 @@ struct chk_redisclient {
     chk_event_loop          *loop;
     void                    *ud;	
     chk_redis_connect_cb     cntcb;
-    chk_redis_disconnect_cb  dcntcb;
+    chk_redis_disconnect_cb  dcntcb;        //被动关闭时时回调
     chk_list                 waitreplys;
 };
 
@@ -310,14 +310,14 @@ static redisReply  connection_lose = {
 	.len  = 19,
 };   
 
-static void destroy_redisclient(chk_redisclient *c,int32_t err) {
+static void destroy_redisclient(chk_redisclient *c) {
 	pending_reply *stcb;
 	if(c->tree) parse_tree_del(c->tree);
 	while((stcb = cast(pending_reply*,chk_list_pop(&c->waitreplys)))) {
 		stcb->cb(c,&connection_lose,stcb->ud);
 		free(stcb);
 	}
-	if(c->dcntcb) c->dcntcb(c,c->ud,err);
+	chk_stream_socket_close(c->sock,0);	
 	free(c);
 }
 
@@ -352,7 +352,7 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 				pos      += size;
 				datasize -= size;
 				if(c->status & CLIENT_CLOSE) {
-					destroy_redisclient(c,0);
+					destroy_redisclient(c);
 					return;
 				}
 				if(datasize && pos >= chunk->cap) {
@@ -360,8 +360,12 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 					chunk = chunk->next;
 				}
 			}else if(parse_ret == REDIS_ERR){
+				//parse出错,直接关闭连接
+				c->status |= CLIENT_CLOSE;
+				if(c->dcntcb){
+					c->dcntcb(c,c->ud,chk_error_redis_parse);
+				}
 				CHK_SYSLOG(LOG_ERROR,"redis reply parse error");	
-				error = chk_error_redis_parse;
 				break;
 			}else {
 				pos       = 0;
@@ -370,7 +374,16 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 			}
 		}
 	}
-	if(error != 0) chk_redis_close(c,error);
+	else {
+		c->status |= CLIENT_CLOSE;
+		if(c->dcntcb){
+			c->dcntcb(c,c->ud,error);
+		}
+	}
+
+	if(c->status & CLIENT_CLOSE) {
+		destroy_redisclient(c);
+	}
 }
 
 static	const chk_stream_socket_option redis_socket_option = {
@@ -421,12 +434,11 @@ void chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,v
 	c->ud = ud;
 }
 
-void    chk_redis_close(chk_redisclient *c,int32_t err) {
+void    chk_redis_close(chk_redisclient *c) {
 	if(c->status & CLIENT_CLOSE) return;
 	c->status |= CLIENT_CLOSE;
-	chk_stream_socket_close(c->sock,0);
 	if(!(c->status & CLIENT_INCB))
-		destroy_redisclient(c,err);
+		destroy_redisclient(c);
 }
 
 /* Calculate the number of bytes needed to represent an integer as string. */

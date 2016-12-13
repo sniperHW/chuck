@@ -10,7 +10,7 @@ typedef struct {
 static int32_t lua_redisclient_gc(lua_State *L) {
 	lua_redis_client *client = lua_checkredisclient(L,1);
 	if(client->client) {
-		chk_redis_close(client->client,0);
+		chk_redis_close(client->client);
 		client->client = NULL;
 	}
 	return 0;
@@ -36,7 +36,7 @@ static void PushRedis(chk_luaPushFunctor *_,lua_State *L) {
 			luaL_getmetatable(L, REDIS_METATABLE);
 			lua_setmetatable(L, -2);
 		}else {
-			chk_redis_close(self->c,0);   
+			chk_redis_close(self->c);   
 			lua_pushnil(L);
 		}		
 	}
@@ -56,14 +56,14 @@ static void lua_redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
 	}else error = chk_Lua_PCallRef(*cb,"pi",NULL,err);
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on lua_redis_connect_cb %s",error);				
 	POOL_RELEASE_LUAREF(cb);
-	//chk_luaRef_release(cb);
-	//free(cb);
 }
 
 static int32_t lua_redis_close(lua_State *L) {
-	lua_redis_client *c = lua_checkredisclient(L,1);
-	int32_t err = (int32_t)luaL_optinteger(L,2,0);
-	chk_redis_close(c->client,err);
+	lua_redis_client *c = lua_checkredisclient(L,1);	
+	if(c->client) {
+		chk_redis_close(c->client);
+		c->client = NULL;
+	}
 	return 0;
 }
 
