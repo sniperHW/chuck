@@ -152,7 +152,10 @@ void lua_redis_reply_cb(chk_redisclient *_,redisReply *reply,void *ud) {
 	POOL_RELEASE_LUAREF(cb);
 }
 
-static int32_t lua_redis_execute(lua_State *L) {
+typedef int32_t (*redis_execute_lua)(chk_redisclient*,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size);
+
+
+static int32_t _lua_redis_execute(redis_execute_lua fn,lua_State *L) {
 	chk_luaRef *cb = NULL;
 	lua_redis_client *client = lua_checkredisclient(L,1);
 	const char *cmd = lua_tostring(L,3); 
@@ -178,13 +181,30 @@ static int32_t lua_redis_execute(lua_State *L) {
 
 	int32_t param_size = lua_gettop(L) - 3;
 	
-	if(0 != chk_redis_execute_lua(client->client,cmd,lua_redis_reply_cb,(void*)cb,L,4,param_size)) {
+	if(0 != fn(client->client,cmd,lua_redis_reply_cb,(void*)cb,L,4,param_size)) {
 		POOL_RELEASE_LUAREF(cb);
 		lua_pushstring(L,"redis_execute error");
 		return 1;
 	}
 
 	return 0;
+}
+
+static int32_t lua_redis_execute(lua_State *L) {
+	return _lua_redis_execute(chk_redis_execute_lua,L);
+}
+
+static int32_t lua_redis_delay_execute(lua_State *L) {
+	return _lua_redis_execute(chk_redis_execute_delay_lua,L);
+}
+
+static int32_t lua_redis_flush(lua_State *L) {
+	lua_redis_client *client = lua_checkredisclient(L,1);
+	if(0 != chk_redis_flush(client->client)) {
+		lua_pushstring(L,"redis_fulsh error");
+		return 1;
+	}
+	return 0;	
 }
 
 static void register_redis(lua_State *L) {
@@ -195,6 +215,8 @@ static void register_redis(lua_State *L) {
 
 	luaL_Reg redis_methods[] = {
 		{"Execute",          lua_redis_execute},
+		{"DelayExecute",     lua_redis_delay_execute},
+		{"Flush",            lua_redis_flush},		
 		{"Close",            lua_redis_close},
 		{NULL,     NULL}
 	};

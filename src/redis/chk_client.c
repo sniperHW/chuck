@@ -758,8 +758,36 @@ static inline int redisvAppendCommand(const char *format, va_list ap,chk_bytebuf
     return 0;
 }
 
-int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,const char *fmt,...) {
+typedef int32_t (*fn_socket_send)(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
+
+static int32_t _chk_redis_execute(fn_socket_send fn,chk_redisclient *c,chk_bytebuffer *buffer,chk_redis_reply_cb cb,void *ud) {
 	pending_reply  *repobj = NULL;
+	int32_t         ret    = 0;
+	repobj = calloc(1,sizeof(*repobj));
+	if(!repobj){ 
+    	CHK_SYSLOG(LOG_ERROR,"calloc repobj failed");	
+		chk_bytebuffer_del(buffer);
+		return chk_error_redis_request;
+	}
+
+	if(0 != (ret = fn(c->sock,buffer,NULL,NULL))) {
+    	CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);	
+		free(repobj);
+		return chk_error_redis_request;
+	}
+
+
+	if(cb) {
+		repobj->cb = cb;
+		repobj->ud = ud;
+	}
+
+	chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
+
+	return 0;
+}
+
+int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,const char *fmt,...) {
 	chk_bytebuffer *buffer = NULL;
 	int32_t         ret    = 0;
 
@@ -773,31 +801,28 @@ int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,cons
     	return chk_error_redis_request;
     }
 
-
-	repobj = calloc(1,sizeof(*repobj));
-	
-	if(!repobj){ 
-    	CHK_SYSLOG(LOG_ERROR,"calloc repobj failed");	
-		chk_bytebuffer_del(buffer);
-		return chk_error_redis_request;
-	}
-
-	if(0 != (ret = chk_stream_socket_send(c->sock,buffer,NULL,NULL))) {
-    	CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);	
-		free(repobj);
-		chk_bytebuffer_del(buffer);
-		return chk_error_redis_request;
-	}
+	return _chk_redis_execute(chk_stream_socket_send,c,buffer,cb,ud);
+}
 
 
-	if(cb) {
-		repobj->cb = cb;
-		repobj->ud = ud;
-	}
+int32_t chk_redis_execute_delay(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,const char *fmt,...){
+	chk_bytebuffer *buffer = NULL;
+	int32_t         ret    = 0;
 
-	chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
+    va_list ap;
+    va_start(ap,fmt);
+    ret = redisvAppendCommand(fmt,ap,&buffer);
+    va_end(ap);
 
-	return 0;
+    if(0 != ret) {
+    	CHK_SYSLOG(LOG_ERROR,"call redisvAppendCommand() failed");	
+    	return chk_error_redis_request;
+    }
+	return _chk_redis_execute(chk_stream_socket_delay_send,c,buffer,cb,ud);
+}
+
+int32_t chk_redis_flush(chk_redisclient *c) {
+	return chk_stream_socket_flush(c->sock);
 }
 
 #ifdef CHUCK_LUA
@@ -847,7 +872,7 @@ static int32_t append_number(chk_bytebuffer *buffer,lua_State *L,int32_t index) 
 	}
 }
 
-int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size)
+static int32_t _chk_redis_execute_lua(fn_socket_send fn,chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size)
 {
 	pending_reply  *repobj  = NULL;
 	chk_bytebuffer *buffer  = NULL;
@@ -917,10 +942,9 @@ int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply
 		return chk_error_redis_request;
 	}
 
-	if(0 != (ret = chk_stream_socket_send(c->sock,buffer,NULL,NULL))) {
+	if(0 != (ret = fn(c->sock,buffer,NULL,NULL))) {
 		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);
 		free(repobj);
-		chk_bytebuffer_del(buffer);
 		return chk_error_redis_request;
 	}
 
@@ -934,5 +958,16 @@ int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply
 
 	return 0;
 }
+
+int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size) {
+	return _chk_redis_execute_lua(chk_stream_socket_send,c,cmd,cb,ud,L,start_idx,param_size);
+}
+
+
+int32_t chk_redis_execute_delay_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size) {
+	return _chk_redis_execute_lua(chk_stream_socket_delay_send,c,cmd,cb,ud,L,start_idx,param_size);
+}
+
+
 
 #endif
