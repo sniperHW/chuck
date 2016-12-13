@@ -40,10 +40,6 @@ struct chk_stream_socket_option {
 
 chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_option *option);
 
-//int32_t chk_ssl_connect(chk_stream_socket *);
-
-//int32_t chk_ssl_accept(chk_stream_socket *,SSL_CTX*);
-
 /**
  * 关闭stream_socket,同时关联的fd被关闭,当stream_socket完成关闭后将其销毁
  * @param s stream_socket
@@ -57,7 +53,7 @@ chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_opti
 void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay);
 
 /**
- * 发送一个buffer
+ * 发送一个buffer,如果当前没有待发送的数据，会立刻尝试发送
  * @param s stream_socket
  * @param b 待发送缓冲,调用chk_stream_socket_send之后b不能再被别处使用
  */
@@ -66,7 +62,7 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_c
 
 
 /**
- * 发送一个紧急buffer
+ * 发送一个紧急buffer,如果当前没有待发送的数据，会立刻尝试发送
  * @param s stream_socket
  * @param b 待发送缓冲,调用chk_stream_socket_send之后b不能再被别处使用
  *
@@ -81,6 +77,18 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_c
  */
 
 int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
+
+/*
+*  延迟发送,bytebuffer仅被入列,不会立即尝试发送,只在执行flush或下一次循环中检测到套接字可写时
+*  执行发送。对于小数据包通过执行多次delay_send,然后统一调用flush可提高性能
+*/
+int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
+
+/*
+*  尝试将排队的buffer发送出去	 
+*/
+
+int32_t chk_stream_socket_flush(chk_stream_socket *s);
 
 /**
  * 设置chk_stream_socket关联的用户数据

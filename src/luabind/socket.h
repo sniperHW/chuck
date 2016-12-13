@@ -352,6 +352,42 @@ static void chk_lua_send_cb(chk_stream_socket *s,void *ud,int32_t err) {
 	POOL_RELEASE_LUAREF(cb);
 }
 
+
+static int32_t lua_stream_socket_delay_send(lua_State *L) {
+	chk_bytebuffer    *b,*o;
+	chk_send_cb        send_cb = NULL;
+	chk_luaRef        *lua_cb = NULL;
+	chk_stream_socket *s = lua_checkstreamsocket(L,1);
+	o = lua_checkbytebuffer(L,2);
+	if(NULL == o)
+		luaL_error(L,"need bytebuffer to send");
+	b = chk_bytebuffer_clone(o);
+	if(!b) {
+		lua_pushstring(L,"send error");		
+		return 1;
+	}
+
+	if(lua_isfunction(L,3)){
+		lua_cb = POOL_NEW_LUAREF();
+		if(!lua_cb) {
+			chk_bytebuffer_del(b);
+			lua_pushstring(L,"not enough memory");
+			return 1;
+		}
+		*lua_cb = chk_toluaRef(L,3);
+		send_cb = chk_lua_send_cb;
+	} 
+
+	if(0 != chk_stream_socket_delay_send(s,b,send_cb,lua_cb)){
+		if(lua_cb){
+			POOL_RELEASE_LUAREF(lua_cb);
+		}
+		lua_pushstring(L,"send error");
+		return 1;
+	}
+	return 0;
+}
+
 static int32_t lua_stream_socket_send(lua_State *L) {
 	chk_bytebuffer    *b,*o;
 	chk_send_cb        send_cb = NULL;
@@ -422,6 +458,15 @@ static int32_t lua_stream_socket_send_urgent(lua_State *L) {
 	return 0;
 }
 
+static int32_t lua_stream_socket_flush(lua_State *L) {
+	chk_stream_socket *s = lua_checkstreamsocket(L,1);
+	if(0 != chk_stream_socket_flush(s)) {
+		lua_pushstring(L,"flush error");
+		return 1;
+	}
+	return 0;
+}
+
 static int32_t lua_stream_socket_pending_send_size(lua_State *L) {
 	chk_stream_socket *s = lua_checkstreamsocket(L,1);
 	lua_pushinteger(L,chk_stream_socket_pending_send_size(s));
@@ -449,6 +494,8 @@ static void register_socket(lua_State *L) {
 	luaL_Reg stream_socket_methods[] = {
 		{"Send",    	lua_stream_socket_send},
 		{"SendUrgent",	lua_stream_socket_send_urgent},
+		{"DelaySend",	lua_stream_socket_delay_send},
+		{"Flush",		lua_stream_socket_flush},
 		{"Start",   	lua_stream_socket_bind},
 		{"Pause",   	lua_stream_socket_pause},
 		{"Resume",		lua_stream_socket_resume},		

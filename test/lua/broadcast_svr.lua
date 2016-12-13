@@ -20,7 +20,12 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd
 			if data then
 				for k,v in pairs(clients) do
 					packet_count = packet_count + 1
-					v:Send(data)
+					--[[
+					广播的时候一个套接口可能会连续发送很多包,
+					所以这里使用DelaySend尽量合并包一次性发送以提升性能
+					(注意这里没有地方调用Flush,所以数据包会在下一次循环检测到套接口可写时执行实际的发送)
+					]]--
+					v:DelaySend(data)
 				end
 			else
 				client_count = client_count - 1
