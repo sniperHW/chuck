@@ -125,9 +125,8 @@ static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 			bytes -= b->datasize;
 			send_cb_head = cast(st_send_cb*,chk_list_begin(&s->send_cb_list));
 			if(send_cb_head && send_cb_head->buffer == b) {
-				send_cb_head->cb(s,send_cb_head->ud,0);
 				chk_list_pop(&s->send_cb_list);
-				POOL_RELEASE_SEND_CB(send_cb_head);
+				chk_list_pushback(&s->finish_send_list,cast(chk_list_entry*,send_cb_head));
 			}
 			chk_bytebuffer_del(b);
 		}else {
@@ -297,6 +296,11 @@ static void release_socket(chk_stream_socket *s) {
 		send_cb->cb(s,send_cb->ud,chk_error_socket_close);
 		POOL_RELEASE_SEND_CB(send_cb);
 	}
+	while((send_cb = cast(st_send_cb*,chk_list_begin(&s->finish_send_list)))) {
+		chk_list_pop(&s->finish_send_list);
+		send_cb->cb(s,send_cb->ud,chk_error_socket_close);
+		POOL_RELEASE_SEND_CB(send_cb);
+	}
 
 	if(s->fd >= 0) { 
 		close(s->fd);
@@ -440,7 +444,7 @@ static void process_write(chk_stream_socket *s) {
 		else {
 			s->status |= SOCKET_PEERCLOSE;
 			s->cb(s,NULL,chk_error_stream_write);
-			chk_stream_socket_close(s,0);
+			//chk_stream_socket_close(s,0);
 			CHK_SYSLOG(LOG_ERROR,"writev() failed errno:%d",errno);
 		}
 	}
@@ -479,7 +483,7 @@ static void process_read(chk_stream_socket *s) {
 
 		if(ret != 0){
 			s->cb(s,NULL,chk_error_ssl_error);
-			chk_stream_socket_close(s,0);					
+			//chk_stream_socket_close(s,0);					
 			CHK_SYSLOG(LOG_ERROR,"ssl handshake error");
 		}
 		return;
@@ -489,7 +493,7 @@ static void process_read(chk_stream_socket *s) {
 	bc    = prepare_recv(s);
 	if(bc <= 0) {
 		s->cb(s,NULL,chk_error_no_memory);
-		chk_stream_socket_close(s,0);		
+		//chk_stream_socket_close(s,0);		
 		return;
 	}
 	bytes =  do_read(s,bc);
@@ -507,7 +511,7 @@ static void process_read(chk_stream_socket *s) {
 				if(unpackerr){
 					CHK_SYSLOG(LOG_ERROR,"decoder->unpack error:%d",unpackerr);					
 					s->cb(s,NULL,chk_error_unpack);
-					chk_stream_socket_close(s,0);
+					//chk_stream_socket_close(s,0);
 				}
 				break;
 			}
@@ -523,7 +527,7 @@ static void process_read(chk_stream_socket *s) {
 			error_code = chk_error_stream_read;
 		}
 		s->cb(s,NULL,error_code);
-		chk_stream_socket_close(s,0);
+		//chk_stream_socket_close(s,0);
 	}
 }
 
@@ -565,7 +569,8 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_c
 	chk_list_pushback(&s->send_list,cast(chk_list_entry*,b));
 	if(send_cb) {
 		chk_list_pushback(&s->send_cb_list,cast(chk_list_entry*,send_cb));
-	}	
+	}
+
 	if(s->loop && !chk_is_write_enable(cast(chk_handle*,s))) 
 		chk_enable_write(cast(chk_handle*,s));
 
@@ -624,6 +629,7 @@ uint32_t chk_stream_socket_pending_send_size(chk_stream_socket *s) {
 }
 
 static void on_events(chk_handle *h,int32_t events) {
+	st_send_cb *send_cb_head = NULL;
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
 	if(!s->loop || s->status & SOCKET_CLOSE)
 		return;
@@ -644,6 +650,13 @@ static void on_events(chk_handle *h,int32_t events) {
 		}		
 		if(events & CHK_EVENT_WRITE) process_write(s);			
 	}while(0);
+
+	while((send_cb_head = cast(st_send_cb*,chk_list_begin(&s->finish_send_list)))) {
+		chk_list_pop(&s->finish_send_list);
+		send_cb_head->cb(s,send_cb_head->ud,0);
+		POOL_RELEASE_SEND_CB(send_cb_head);
+	}
+
 	s->status ^= SOCKET_INLOOP;
 	if(s->status & SOCKET_CLOSE) {
 		release_socket(s);		

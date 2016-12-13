@@ -23,7 +23,8 @@ struct chk_stream_socket {
     void                *ud;        
     chk_list             send_list;             //待发送的包
     chk_list             urgent_list;           //紧急发送列表
-    chk_list             send_cb_list;          
+    chk_list             send_cb_list;
+    chk_list             finish_send_list;          
     chk_timer           *timer;                 //用于最后的发送处理
     chk_stream_socket_cb cb;
     int8_t               create_by_new;
