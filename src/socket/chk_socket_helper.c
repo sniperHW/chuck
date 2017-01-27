@@ -85,8 +85,8 @@ int32_t easy_noblock(int32_t fd,int32_t noblock) {
 
 int32_t easy_close_on_exec(int32_t fd) {
 	int32_t flags;;
-    if((flags = fcntl(fd, F_GETFL, 0)) == -1){
-        CHK_SYSLOG(LOG_ERROR,"fcntl(F_GETFL) failed errno:%d",errno);         
+    if((flags = fcntl(fd, F_GETFD, 0)) == -1){
+        CHK_SYSLOG(LOG_ERROR,"fcntl(F_GETFD) failed errno:%d",errno);         
     	return chk_error_fcntl;
 	}
 	
