@@ -132,7 +132,7 @@ function http_client.new(eventLoop,host,fd)
   end
   o.host = host
   o.pendingResponse = {}
-  local ret = o.conn:Bind(eventLoop,function (httpPacket)
+  local ret = o.conn:Start(eventLoop,function (httpPacket)
 	if not httpPacket then
 		if o.pendingResponse then
 			o.pendingResponse(nil,"connection lose") --通告对端关闭	
