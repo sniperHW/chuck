@@ -200,8 +200,6 @@ loopend:
 
 chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb cb,void *ud) {
 	struct   itimerspec spec;
-    struct   timespec now;
-    int64_t  nosec;
     uint64_t tick;
 	struct   epoll_event ev = {0};   
 	if(e->tfd < 0) {
@@ -210,14 +208,12 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 	    	CHK_SYSLOG(LOG_ERROR,"timerfd_create failed errno:%d",errno);
 	    	return NULL;
 	    }
-	    clock_gettime(CLOCK_MONOTONIC, &now);      
-    	nosec = (now.tv_sec)*1000*1000*1000 + now.tv_nsec + 1*1000*1000;
-    	spec.it_value.tv_sec = nosec/(1000*1000*1000);
-        spec.it_value.tv_nsec = nosec%(1000*1000*1000);
+    	spec.it_value.tv_sec = 0;
+        spec.it_value.tv_nsec = 1*1000*1000;
         spec.it_interval.tv_sec = 0;
         spec.it_interval.tv_nsec = 1*1000*1000;  
 	    
-	    if(0 != timerfd_settime(e->tfd,TFD_TIMER_ABSTIME,&spec,0)) {
+	    if(0 != timerfd_settime(e->tfd,0,&spec,0)) {
 	    	CHK_SYSLOG(LOG_ERROR,"timerfd_settime failed errno:%d",errno);
 	        close(e->tfd);
 	        e->tfd = -1;
