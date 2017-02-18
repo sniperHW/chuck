@@ -94,6 +94,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 		return chk_error_create_notify_channel;		
 	}		
 	e->epfd = epfd;
+	e->idle.fire_tick = 0;
 	e->tfd  = -1;
 	e->maxevents = 64;
 	e->events = calloc(1,(sizeof(*e->events)*e->maxevents));

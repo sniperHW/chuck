@@ -34,6 +34,10 @@ static inline void chk_idle_finalize(chk_event_loop *e) {
 
 static inline void chk_check_idle(chk_event_loop *e) {
 
+	if(e->idle.fire_tick == 0) {
+		return;
+	}
+
 /*
 *	当前实际时间与定时器到器时间相差小于等于2ms,表明系统没有太多事情需要干
 */	
@@ -60,6 +64,8 @@ static inline void chk_check_idle(chk_event_loop *e) {
 	}
 
 #endif
+
+	e->idle.fire_tick = 0;
 
 }
 
@@ -137,7 +143,7 @@ static int32_t on_idle_timer_timeout(uint64_t tick,void*ud) {
 		 *  在循环的最后再判定是否空闲 
 		 *  
 		*/
-		loop->idle.fire_tick = tick;
+		loop->idle.fire_tick = chk_systick64();
 		return 0;
 	}
 }

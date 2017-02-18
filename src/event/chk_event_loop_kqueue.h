@@ -153,6 +153,7 @@ int32_t chk_loop_init(chk_event_loop *e) {
 		return chk_error_create_notify_channel;		
 	}
 	e->kfd = kfd;
+	e->idle.fire_tick = 0;
 	e->tfd  = -1;
 	e->timermgr = NULL;
 	e->maxevents = 64;
