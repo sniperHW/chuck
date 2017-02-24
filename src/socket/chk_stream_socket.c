@@ -295,7 +295,8 @@ static void release_socket(chk_stream_socket *s) {
 	chk_unwatch_handle(cast(chk_handle*,s));	
 	if(s->next_recv_buf) chk_bytechunk_release(s->next_recv_buf);
 	if(d && d->dctor) d->dctor(d);
-	if(s->timer) chk_timer_unregister(s->timer);
+	if(s->send_timer) chk_timer_unregister(s->send_timer);
+	if(s->last_send_timer) chk_timer_unregister(s->last_send_timer);
 	
 	while((b = cast(chk_bytebuffer*,chk_list_pop(&s->send_list))))
 		chk_bytebuffer_del(b);
@@ -332,12 +333,37 @@ static void release_socket(chk_stream_socket *s) {
 	if(s->create_by_new) free(s); /*stream_socket是通过new接口创建的，需要释放内存*/
 }
 
-int32_t last_timer_cb(uint64_t tick,void*ud) {
+static int32_t last_timer_cb(uint64_t tick,void *ud) {
 	chk_stream_socket *s = cast(chk_stream_socket*,ud);
-	s->timer   = NULL;
+	s->last_send_timer   = NULL;
 	/*timer事件在所有套接口事件之后才处理,所以这里释放是安全的*/
 	release_socket(s);
 	return -1;
+}
+
+static int32_t send_timer_cb(uint64_t tick,void *ud){
+	chk_stream_socket *s = cast(chk_stream_socket*,ud);
+	s->send_timer   = NULL;
+	if(s->cb){
+		s->cb(s,NULL,chk_error_send_timeout);
+	}
+	return -1;
+}
+
+static void set_send_timeout_timer(chk_stream_socket *s){
+
+	if(s->status & (SOCKET_CLOSE|SOCKET_RCLOSE|SOCKET_PEERCLOSE)){
+		return;
+	}
+	if(s->send_timer){
+		chk_timer_unregister(s->send_timer);
+	}
+	s->send_timer = chk_loop_addtimer(s->loop,SEND_TIME_OUT,send_timer_cb,s);
+}
+
+static void enable_write(chk_stream_socket *s){
+	set_send_timeout_timer(s);
+	chk_enable_write(cast(chk_handle*,s));
 }
 
 void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
@@ -350,8 +376,14 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
 		s->status |= SOCKET_RCLOSE;
 		chk_disable_read(cast(chk_handle*,s));
 		shutdown(s->fd,SHUT_RD);
+
+		if(s->send_timer){
+			chk_timer_unregister(s->send_timer);
+			s->send_timer = NULL;
+		}
+
 		/*数据还没发送完,设置delay豪秒超时等待数据发送出去*/
-		s->timer = chk_loop_addtimer(s->loop,delay,last_timer_cb,s);
+		s->last_send_timer = chk_loop_addtimer(s->loop,delay,last_timer_cb,s);
 	}else {
 		s->status |= SOCKET_CLOSE;		
 		if(!(s->status & SOCKET_INLOOP)){
@@ -441,6 +473,11 @@ static void process_write(chk_stream_socket *s) {
 	}
 
 	if((bytes = do_write(s,bc)) > 0) {
+		if(s->send_timer){
+			//成功发送数据清除发送定时器
+			chk_timer_unregister(s->send_timer);
+			s->send_timer = NULL;
+		}
 		update_send_list(s,bytes);
 		/*没有数据需要发送了,停止写监听*/
 		if(send_list_empty(s)) {
@@ -448,6 +485,9 @@ static void process_write(chk_stream_socket *s) {
 				s->status |= SOCKET_CLOSE;
 			else
 		 		chk_disable_write(cast(chk_handle*,s));
+		}else{
+			//尚有数据待发送，注册新的定时器
+			set_send_timeout_timer(s);
 		}	
 	}else {
 		if(errno == EAGAIN){
@@ -604,7 +644,7 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 			if(bc <= 0) {
 				CHK_SYSLOG(LOG_ERROR,"bc <= 0");
 				if(!chk_is_write_enable(cast(chk_handle*,s))) 
-					chk_enable_write(cast(chk_handle*,s));				
+					enable_write(s);				
 				return ret;
 			}
 			if((bytes = do_write(s,bc)) > 0) {
@@ -618,7 +658,7 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 				else {
 					//如果有数据需要发送但没有监听写，开启写监听
 					if(!chk_is_write_enable(cast(chk_handle*,s))) 
-						chk_enable_write(cast(chk_handle*,s));	
+						enable_write(s);	
 				}
 			}else {
 				if(errno == EAGAIN){
@@ -685,7 +725,7 @@ int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,chk_
 	}
 
 	if(s->loop && !chk_is_write_enable(cast(chk_handle*,s)))
-		chk_enable_write(cast(chk_handle*,s));
+		enable_write(s);
 	
 	return ret;
 
@@ -703,7 +743,7 @@ int32_t chk_stream_socket_flush(chk_stream_socket *s) {
 	if(bc <= 0) {
 		CHK_SYSLOG(LOG_ERROR,"bc <= 0");
 		if(!chk_is_write_enable(cast(chk_handle*,s))) 
-			chk_enable_write(cast(chk_handle*,s));				
+			enable_write(s);				
 		return ret;
 	}
 
@@ -718,7 +758,7 @@ int32_t chk_stream_socket_flush(chk_stream_socket *s) {
 		else {
 			//如果有数据需要发送但没有监听写，开启写监听
 			if(!chk_is_write_enable(cast(chk_handle*,s))) 
-				chk_enable_write(cast(chk_handle*,s));	
+				enable_write(s);	
 		}
 	}else {
 		if(errno == EAGAIN){
@@ -814,7 +854,7 @@ void  chk_stream_socket_resume(chk_stream_socket *s) {
 	if(s->loop) {
 		chk_enable_read(cast(chk_handle*,s));
 		if(!send_list_empty(s))
-			chk_enable_write(cast(chk_handle*,s));
+			enable_write(s);
 	}
 }
 

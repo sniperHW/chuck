@@ -33,18 +33,13 @@ socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 				{ number = "87654321", type = "WORK" },
 			}
 		}
-
-		local buff = chuck.buffer.New()
-		local code = protobuf.encode("tutorial.Person", addressbook)
-		buff:AppendStr(code)
-		conn:Send(buff,function ()
-			conn:Close()
-			print("send finish " .. i)
-			print("PendingSendSize:" .. conn:PendingSendSize())
-			event_loop:Stop()
-		end)
-		print("PendingSendSize:" .. conn:PendingSendSize())
-
+		--发送大量数据填满socket send buff,这样将导致触发chk_error_send_timeout
+		for i = 1,100000 do
+			local buff = chuck.buffer.New()
+			local code = protobuf.encode("tutorial.Person", addressbook)
+			buff:AppendStr(code)
+			conn:Send(buff)
+		end
 		conn:Start(event_loop,function (data,errno)
 			if data then 
 				print("got response")

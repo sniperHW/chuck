@@ -66,5 +66,7 @@
 
 #define MAX_LOG_FILE_NAME 256
 
+#define SEND_TIME_OUT 5*1000
+
 
 #endif

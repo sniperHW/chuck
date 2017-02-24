@@ -57,6 +57,7 @@ enum {
 	chk_error_stream_write,
 	chk_error_stream_read,
 	chk_error_stream_peer_close,
+	chk_error_send_timeout,
 	chk_error_ssl_error,
 	/*packet相关错误码*/
 	chk_error_packet_too_large,                           /*数据包太大*/
