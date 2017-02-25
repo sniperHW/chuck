@@ -35,7 +35,7 @@ struct chk_stream_socket {
     chk_timer           *send_timer;         
     chk_timer           *last_send_timer;       //用于最后的发送处理
     chk_stream_socket_cb cb;
-    int8_t               create_by_new;
+//    int8_t               create_by_new;
     int8_t               sending_urgent;        //标识当前是否正在发送urgent_list中的buffer
     struct ssl_ctx       ssl;
     uint32_t             pending_send_size;     //尚未完成发送的数据字节数

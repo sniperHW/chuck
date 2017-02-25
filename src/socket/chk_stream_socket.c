@@ -330,7 +330,8 @@ static void release_socket(chk_stream_socket *s) {
        	SSL_free(s->ssl.ssl);
 	}
 
-	if(s->create_by_new) free(s); /*stream_socket是通过new接口创建的，需要释放内存*/
+	//if(s->create_by_new) free(s); /*stream_socket是通过new接口创建的，需要释放内存*/
+	free(s);
 }
 
 static int32_t last_timer_cb(uint64_t tick,void *ud) {
@@ -818,7 +819,7 @@ int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,const chk_stream_
 	s->handle_add = loop_add;
 	s->option = *op;
 	s->loop   = NULL;
-	s->create_by_new = 0;
+	//s->create_by_new = 0;
 	if(!s->option.decoder) { 
 		s->option.decoder = cast(chk_decoder*,default_decoder_new());
 		if(!s->option.decoder) { 
@@ -839,7 +840,7 @@ chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_opti
 		free(s);
 		return NULL;
 	}
-	s->create_by_new = 1;
+	//s->create_by_new = 1;
 	return s;
 }
 

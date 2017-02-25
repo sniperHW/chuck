@@ -85,8 +85,11 @@ int32_t lua_SSL_CTX_check_private_key(lua_State *L) {
 //chk_stream_socket *s,SSL_CTX *ctx
 
 int32_t lua_ssl_connect(lua_State *L) {
-	chk_stream_socket *s = lua_checkstreamsocket(L,1);
-	if(0 == chk_ssl_connect(s)) {
+	lua_stream_socket *s = lua_checkstreamsocket(L,1);
+	if(!s->c_stream_socket){
+		luaL_error(L,"invaild lua_stream_socket");
+	}
+	if(0 == chk_ssl_connect(s->c_stream_socket)) {
 		return 0;
 	}
 	else {
@@ -96,9 +99,12 @@ int32_t lua_ssl_connect(lua_State *L) {
 }
 
 int32_t lua_ssl_accept(lua_State *L) {
-	chk_stream_socket *s = lua_checkstreamsocket(L,1);
+	lua_stream_socket *s = lua_checkstreamsocket(L,1);
+	if(!s->c_stream_socket){
+		return luaL_error(L,"invaild lua_stream_socket");
+	}
 	SSL_CTX *ctx = lua_check_ssl_ctx(L,2);
-	if(0 == chk_ssl_accept(s,ctx)) {
+	if(0 == chk_ssl_accept(s->c_stream_socket,ctx)) {
 		return 0;
 	}
 	else {
