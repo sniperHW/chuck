@@ -142,6 +142,7 @@ extern int32_t easy_noblock(int32_t fd,int32_t noblock);
 
 int32_t chk_loop_init(chk_event_loop *e) {
 	struct kevent ke;	
+	//different from epoll,The queue is not inherited by a child created with fork(2)
 	int32_t kfd = kqueue();
 	if(kfd < 0) {
 		CHK_SYSLOG(LOG_ERROR,"kevent() failed errno:%d",errno);
