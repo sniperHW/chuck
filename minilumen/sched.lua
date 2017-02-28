@@ -327,8 +327,10 @@ M.run = function ( task, ... )
 	else
 		taskd = task
 	end
-	--M.set_pause(taskd, false)
-	--step_task(taskd, ...)  --FIXME can get the task killed: still in new_tasks
+  new_tasks[taskd] = nil
+  M.tasks[taskd] = true
+	M.set_pause(taskd, false)
+	step_task(taskd, ...)
 	return taskd
 end
 
@@ -484,7 +486,6 @@ M.step = function ()
     new_tasks[k]=nil
     M.tasks[k]=true
   end
-  
   --register all ready&not waiting to run
   --if find one waiting&timeouting, wake it --and finish
 	for taskd, _ in pairs (M.tasks) do
