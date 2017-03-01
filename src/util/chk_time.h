@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <signal.h>  
 #include <pthread.h>
+#include <assert.h>
 #include "util/chk_util.h"
 #include "util/chk_error.h"
 
@@ -57,7 +58,9 @@ struct _clock {
 static __thread struct _clock *__t_clock = NULL;
 
 static inline void _clock_gettime_boot(struct timespec *ts) {
-    if(chk_likely(ts)) clock_gettime(CLOCK_MONOTONIC_RAW, ts);
+    if(chk_likely(ts)){
+        assert(0 == clock_gettime(CLOCK_MONOTONIC_RAW, ts));
+    }
 }
 
 #define NN_CLOCK_PRECISION 1000000
