@@ -18,10 +18,9 @@
 #include <mach/mach_time.h>
 #define CLOCK_REALTIME 1
 #define CLOCK_MONOTONIC 2
-#define CLOCK_MONOTONIC_RAW 3
 static inline int clock_gettime(int clk_id, struct timespec *t){
     
-    if(clk_id == CLOCK_MONOTONIC || clk_id == CLOCK_MONOTONIC_RAW){
+    if(clk_id == CLOCK_MONOTONIC){
         mach_timebase_info_data_t timebase;
         mach_timebase_info(&timebase);
         uint64_t time;
@@ -59,7 +58,7 @@ static __thread struct _clock *__t_clock = NULL;
 
 static inline void _clock_gettime_boot(struct timespec *ts) {
     if(chk_likely(ts)){
-        assert(0 == clock_gettime(CLOCK_MONOTONIC_RAW, ts));
+        assert(0 == clock_gettime(CLOCK_MONOTONIC, ts));
     }
 }
 
