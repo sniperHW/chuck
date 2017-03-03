@@ -117,7 +117,7 @@ static int32_t lua_listen_ip4_ssl(lua_State *L) {
 		close(fd);	
 		return 0;
 	}
-	memset(a,sizeof(*a),0);
+	memset(a,0,sizeof(*a));
 
 	a->c_acceptor = chk_acceptor_new(fd,&a->lua_cb);
 
@@ -181,7 +181,7 @@ static int32_t lua_listen_ip4(lua_State *L) {
 		return 0;
 	}
 
-	memset(a,sizeof(*a),0);
+	memset(a,0,sizeof(*a));
 
 	a->c_acceptor = chk_acceptor_new(fd,&a->lua_cb);
 
@@ -349,7 +349,7 @@ static int32_t lua_stream_socket_new(lua_State *L) {
 		return 0;
 	}
 
-	memset(s,sizeof(*s),0);
+	memset(s,0,sizeof(*s));
 
 	c_stream_socket = chk_stream_socket_new(fd,&option);
 
