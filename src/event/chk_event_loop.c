@@ -32,21 +32,20 @@ static inline void chk_idle_finalize(chk_event_loop *e) {
 
 }
 
-static inline void chk_check_idle(chk_event_loop *e) {
+static inline void chk_check_idle(chk_event_loop *e,uint64_t elapse) {
 
 	if(e->idle.fire_tick == 0) {
 		return;
 	}
 
 /*
-*	当前实际时间与定时器到器时间相差小于等于2ms,表明系统没有太多事情需要干
+*	当前实际时间与定时器到器时间相差小于1ms,表明系统没有太多事情需要干
 */	
 
 #ifdef CHUCK_LUA
 
 	if(e->idle.on_idle.L) {
-		uint64_t now_tick = chk_systick64();
-		if(now_tick - e->idle.fire_tick <= 2) {	
+		if(elapse < 1) {	
 			const char   *error; 
 			if(NULL != (error = chk_Lua_PCallRef(e->idle.on_idle,":"))) {
 				CHK_SYSLOG(LOG_ERROR,"error on idle %s",error);
@@ -57,8 +56,7 @@ static inline void chk_check_idle(chk_event_loop *e) {
 #else
 
 	if(e->idle.on_idle) {
-		uint64_t now_tick = chk_systick64();
-		if(now_tick - e->idle.fire_tick <= 2) {	
+		if(elapse < 1) {	
 			e->idle.on_idle();
 		}
 	}

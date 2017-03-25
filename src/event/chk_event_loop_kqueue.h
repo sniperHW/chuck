@@ -202,7 +202,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 	chk_dlist        ready_list;
 	chk_dlist_entry *read_entry;
 	struct timespec ts,*pts;
-	uint64_t msec;
+	uint64_t msec,t;
 	struct kevent   *tmp;
 	if(once){
 		msec = ms%1000;
@@ -218,6 +218,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 		ticktimer = 0;
 		chk_dlist_init(&ready_list);
 		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd >= 0 ? 1 : 0, e->events,e->maxevents,pts));
+		t = chk_systick64();
 		if(nfds > 0) {
 			e->status |= INLOOP;
 			for(i=0; i < nfds ; ++i) {
@@ -226,8 +227,9 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 					int32_t _;
 					while(TEMP_FAILURE_RETRY(read(e->notifyfds[0],&_,sizeof(_))) > 0);
 					goto loopend;	
-				}else if(event->udata == e->timermgr)
+				}else if(event->udata == e->timermgr){
 					ticktimer = 1;//优先处理其它事件,定时器事件最后处理
+				}
 				else {
 					h = cast(chk_handle*,event->udata);
 					
@@ -265,7 +267,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 			ret = chk_error_loop_run;
 			break;
 		}
-		chk_check_idle(e);	
+		chk_check_idle(e,chk_systick64() - t);	
 	}while(!once);
 
 loopend:	
@@ -285,8 +287,8 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 			CHK_SYSLOG(LOG_ERROR,"call chk_timermgr_new() failed");
 			return NULL;
 		}
-		e->tfd      = e->notifyfds[0];
-		EV_SET(&e->change, e->tfd, EVFILT_TIMER,flags, NOTE_USECONDS, 1000, e->timermgr);
+		e->tfd      = 1;
+		EV_SET(&e->change, e->tfd, EVFILT_TIMER,flags, NOTE_USECONDS | NOTE_ABSOLUTE, 1000, e->timermgr);
 	}
 	tick = chk_accurate_tick64();
 	return chk_timer_register(e->timermgr,timeout,cb,ud,tick); 

@@ -66,11 +66,11 @@ source.so =   util/chk_log.c\
 			  redis/chk_client.c\
 			  thread/chk_thread.c
 
-$(LIBNAME):$(source.lib)
+$(LIBNAME):
 	$(CC) -fpic $(CFLAGS) -c $(source.lib) $(INCLUDE) $(DEFINE)
 	ar -rc $(LIBNAME) *.o
 	rm *.o
-	cp $(LIBNAME) ../lib
+	mv $(LIBNAME) ../lib/$(LIBNAME)
 
 $(HTTP_PARSER):
 	cd ../deps/http-parser/;$(MAKE) package

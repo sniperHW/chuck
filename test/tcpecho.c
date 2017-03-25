@@ -3,6 +3,8 @@
 
 chk_event_loop *loop;
 
+uint32_t   packet_count = 0;
+
 chk_stream_socket_option option = {
 	.recv_buffer_size = 4096,
 	.decoder = NULL,
@@ -72,10 +74,13 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	struct client_connection *c = chk_stream_socket_getUd(s);
 
 	if(data){
+
+		++packet_count;
+
 		c->last_recv = chk_systick64();
-		if(0!= chk_bytebuffer_append(data,(uint8_t*)"hello",strlen("hello"))){
+		/*if(0!= chk_bytebuffer_append(data,(uint8_t*)"hello",strlen("hello"))){
 			printf("data is readonly\n");
-		}
+		}*/
 		chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,NULL);
 	}
 	else{
@@ -103,8 +108,14 @@ static void signal_int(void *ud) {
 	chk_loop_end(loop);
 }
 
-static void on_idle() {
+/*static void on_idle() {
 	printf("idle\n");
+}*/
+
+int32_t on_timeout_cb1(uint64_t tick,void*ud) {
+	printf("packet_count:%u/s\n",packet_count);
+	packet_count = 0; 
+	return 0; 
 }
 
 int main(int argc,char **argv) {
@@ -121,7 +132,9 @@ int main(int argc,char **argv) {
 	else{
 		CHK_SYSLOG(LOG_INFO,"server start");
 
-		chk_loop_set_idle_func(loop,on_idle);
+		chk_loop_addtimer(loop,1000,on_timeout_cb1,NULL);
+
+		//chk_loop_set_idle_func(loop,on_idle);
 
 		chk_loop_run(loop);
 	}
