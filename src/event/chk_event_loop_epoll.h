@@ -172,6 +172,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 			while((read_entry = chk_dlist_pop(&ready_list))) {
 				h = READY_TO_HANDLE(read_entry);
 				h->on_events(h,h->active_evetns);
+				//这里之后不能访问h,因为h在on_events中可能被释放
 			}
 			if(ticktimer) chk_timer_tick(e->timermgr,chk_accurate_tick64());
 			e->status ^= INLOOP;

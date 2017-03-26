@@ -232,7 +232,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 				}
 				else {
 					h = cast(chk_handle*,event->udata);
-					
+					h->active_evetns = 0;
 					if(event->filter == EVFILT_READ){
 						h->active_evetns |= CHK_EVENT_READ;
 					}
@@ -247,7 +247,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 			while((read_entry = chk_dlist_pop(&ready_list))) {
 				h = READY_TO_HANDLE(read_entry);
 				h->on_events(h,h->active_evetns);
-				h->active_evetns = 0;
+				//这里之后不能访问h,因为h在on_events中可能被释放
 			}
 			if(ticktimer) chk_timer_tick(e->timermgr,chk_accurate_tick64());
 			e->status ^= INLOOP;
