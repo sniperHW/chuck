@@ -12,10 +12,10 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	}else{
 		++packet_count;
 		chk_bytebuffer *buffer = chk_bytebuffer_new(64);
-		uint16_t len = 64 - sizeof(len);
+		uint32_t len = 64 - sizeof(len);
 		char data[64-sizeof(len)];
 		memset(data,0,sizeof(data));
-		len = chk_hton16(len);
+		len = chk_hton32(len);
 		chk_bytebuffer_append(buffer,(uint8_t*)&len,sizeof(len));
 		chk_bytebuffer_append(buffer,(uint8_t*)data,64-sizeof(len));	
 		if(0 != chk_stream_socket_send(s,buffer,NULL,NULL))
@@ -55,12 +55,13 @@ int main(int argc,char **argv) {
 			chk_loop_add_handle(loop,(chk_handle*)s,data_event_cb);
 
 			chk_bytebuffer *buffer = chk_bytebuffer_new(64);
-			uint16_t len = 64 - sizeof(len);
+			uint32_t len = 64 - sizeof(len);
 			char data[64-sizeof(len)];
 			memset(data,0,sizeof(data));
-			len = chk_hton16(len);
+			len = chk_hton32(len);
 			chk_bytebuffer_append(buffer,(uint8_t*)&len,sizeof(len));
 			chk_bytebuffer_append(buffer,(uint8_t*)data,64-sizeof(len));	
+
 			if(0 != chk_stream_socket_send(s,buffer,NULL,NULL))
 			{
 				printf("send error\n");

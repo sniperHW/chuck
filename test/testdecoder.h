@@ -1,4 +1,4 @@
-//一个解包器,包头2字节,表示后面数据大小.
+//一个解包器,包头4字节,表示后面数据大小.
 typedef struct _decoder {
 	void (*update)(chk_decoder*,chk_bytechunk *b,uint32_t spos,uint32_t size);
 	chk_bytebuffer *(*unpack)(chk_decoder*,int32_t *err);
@@ -23,14 +23,14 @@ static inline chk_bytebuffer *_unpack(chk_decoder *_,int32_t *err) {
 	_decoder *d = ((_decoder*)_);
 	chk_bytebuffer *ret  = NULL;
 	chk_bytechunk  *head = d->b;
-	uint16_t        pk_len;
+	uint32_t        pk_len;
 	uint32_t        pk_total,size,pos;
 	do {
 		if(d->size <= sizeof(pk_len)) break;
 		size = sizeof(pk_len);
 		pos  = d->spos;
 		chk_bytechunk_read(head,(char*)&pk_len,&pos,&size);//读取payload大小
-		pk_len = chk_ntoh16(pk_len);
+		pk_len = chk_ntoh32(pk_len);
 		if(pk_len == 0) {
 			if(err) *err = chk_error_invaild_packet_size;
 			break;

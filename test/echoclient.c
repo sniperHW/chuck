@@ -19,10 +19,10 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 int32_t on_timeout_cb(uint64_t tick,void*ud) {
 	chk_stream_socket *s = (chk_stream_socket*)ud;
 	chk_bytebuffer *buffer = chk_bytebuffer_new(64);
-	uint16_t len = 64 - sizeof(len);
+	uint32_t len = 64 - sizeof(len);
 	char data[64-sizeof(len)];
 	memset(data,0,sizeof(data));
-	len = chk_hton16(len);
+	len = chk_hton32(len);
 	chk_bytebuffer_append(buffer,(uint8_t*)&len,sizeof(len));
 	chk_bytebuffer_append(buffer,(uint8_t*)data,64-sizeof(len));	
 	if(0 != chk_stream_socket_send(s,buffer,NULL,NULL))
