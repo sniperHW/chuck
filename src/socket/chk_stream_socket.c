@@ -59,7 +59,7 @@ static int32_t lock_send_cb_pool = 0;
 typedef struct default_decoder {
 	void (*update)(chk_decoder*,chk_bytechunk *b,uint32_t spos,uint32_t size);
 	chk_bytebuffer *(*unpack)(chk_decoder*,int32_t *err);
-	void (*dctor)(chk_decoder*);
+	void (*release)(chk_decoder*);
 	uint32_t       spos;
 	uint32_t       size;
 	chk_bytechunk *b;
@@ -96,7 +96,7 @@ static default_decoder *default_decoder_new() {
 	}
 	d->update = default_update;
 	d->unpack = default_unpack;
-	d->dctor  = (void (*)(chk_decoder*))free;
+	d->release  = (void (*)(chk_decoder*))free;
 	return d;
 }
 
@@ -294,7 +294,7 @@ static void release_socket(chk_stream_socket *s) {
 	chk_decoder *d = s->option.decoder;	
 	chk_unwatch_handle(cast(chk_handle*,s));	
 	if(s->next_recv_buf) chk_bytechunk_release(s->next_recv_buf);
-	if(d && d->dctor) d->dctor(d);
+	if(d && d->release) d->release(d);
 	if(s->send_timer) chk_timer_unregister(s->send_timer);
 	if(s->last_send_timer) chk_timer_unregister(s->last_send_timer);
 	

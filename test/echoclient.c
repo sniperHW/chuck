@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "chuck.h"
-#include "testdecoder.h"
 
 chk_event_loop *loop;
 uint32_t   packet_count = 0;
@@ -35,7 +34,7 @@ int32_t on_timeout_cb(uint64_t tick,void*ud) {
 void connect_callback(int32_t fd,void *ud,int32_t err) {
 	chk_stream_socket_option option = {
 		.recv_buffer_size = 1024*64,
-		.decoder = (chk_decoder*)_decoder_new(4096),
+		.decoder = (chk_decoder*)packet_decoder_new(4096),
 	};
 	if(fd) {
 		chk_stream_socket *s = chk_stream_socket_new(fd,&option);

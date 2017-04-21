@@ -28,10 +28,33 @@ struct chk_decoder {
 	chk_bytebuffer *(*unpack)(chk_decoder *d,int32_t *err);
 
 	/**
-	 * 解包器清理函数(如果解包器销毁时有特殊清理动作必须提供此函数)
+	 * 解包器释放函数
 	 * @param d 解包器
 	 */	
-	void (*dctor)(chk_decoder *d);
+	void (*release)(chk_decoder *d);
+
 };
+
+
+//一个解包器,包头4字节,表示后面数据大小.
+typedef struct {
+	void (*update)(chk_decoder*,chk_bytechunk *b,uint32_t spos,uint32_t size);
+	chk_bytebuffer *(*unpack)(chk_decoder*,int32_t *err);
+	void (*release)(chk_decoder*);
+	uint32_t       spos;
+	uint32_t       size;
+	uint32_t       max;
+	chk_bytechunk *b;
+}packet_decoder;
+
+void packet_decoder_update(chk_decoder *_,chk_bytechunk *b,uint32_t spos,uint32_t size);
+
+chk_bytebuffer *packet_decoder_unpack(chk_decoder *_,int32_t *err);
+
+void packet_decoder_release(chk_decoder *_);
+
+packet_decoder *packet_decoder_new(uint32_t max);
+
+
 
 #endif
