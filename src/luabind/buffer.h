@@ -32,7 +32,10 @@ static int32_t lua_new_bytebuffer(lua_State *L) {
 	chk_bytechunk  *chunk;
 	size_t size = 0;
 	const char *str = NULL;
-	if(lua_isstring(L,1)) {
+
+
+
+	if(lua_type(L,1) == LUA_TSTRING) {
 		str = lua_tolstring(L,1,&size);
 		b = LUA_NEWUSERDATA(L,chk_bytebuffer);		
 		if(!b){	
