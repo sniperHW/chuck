@@ -3,6 +3,7 @@ local chuck = require("chuck")
 local socket = chuck.socket
 local buffer = chuck.buffer
 local packet = chuck.packet
+local log = chuck.log
 
 local cmd_ping = 1
 local cmd_request = 2
@@ -12,6 +13,10 @@ local M = {}
 M.recvbuff = 4096
 M.max_packet_size = 65535
 M.seq = 1
+M.keepalive = 10 --10秒内没收到心跳响应认为连接断开
+M.heartbeat = M.keepalive/2
+
+local logger = log.CreateLogfile("RPC")
 
 local method = {}
 
@@ -53,6 +58,7 @@ end
 local function callMethod(methodName,args,response)
 	local func = method[methodName]
 	if nil == func then
+		logger:Log(log.error,string.format("callMethod method not found:%s",methodName))
 		sendResponse(response,nil,"method not found:" .. methodName)
 	else
 		local errmsg
@@ -60,6 +66,7 @@ local function callMethod(methodName,args,response)
 		    	errmsg = err
 			end,response,table.unpack(args))
 		if nil ~= errmsg then
+			logger:Log(log.error,string.format("error on callMethod:%s",errmsg))
 			sendResponse(response,nil,errmsg)
 		end
 	end
@@ -81,7 +88,7 @@ local function onRequest(conn,msg)
 		local response = newResponse(conn,seqno)
 		callMethod(name,args,response)
 	else
-		--unknow cmd
+		logger:Log(log.error,string.format("onRequest unkonw cmd:%d",cmd))
 	end
 end
 
@@ -123,15 +130,23 @@ function rpcClient:onPacket(msg)
 		if cb then
 			self.callbacks[seqno]= nil
 			local resp = rpacket:ReadTable()
-			cb(resp.err,resp.ret)
+			xpcall(cb,function (err)
+			    logger:Log(log.error,string.format("error on rpc callback:%s",err))
+			end,resp.err,resp.ret)
 		end
+	elseif cmd == cmd_ping then
+		self.lastHeartBeat = os.time() * 1000
+	else 
+		logger:Log(log.error,string.format("rpcClient:onPacket unkonw cmd:%d",cmd))
 	end
 end
 
 function rpcClient:onDisconnected()
 
 	for k,cb in pairs(self.callbacks) do
-		cb("connection loss",nil)
+		xpcall(cb,function (err)
+			logger:Log(log.error,string.format("error on rpc callback:%s",err))
+		end,"connection loss",nil)
 	end
 
 	if self.disconnectCB then
@@ -143,8 +158,29 @@ function rpcClient:Close()
 	if self.conn then
 		self.conn:Close()
 		self.conn = nil
+		if self.timer then
+			self.timer:UnRegister()
+			self.timer = nil
+		end
 		self:onDisconnected()
 	end
+end
+
+function rpcClient:startHeartBeat(eventLoop)
+	self.lastHeartBeat = os.time() * 1000
+	self.timer = eventLoop:AddTimer(1000*M.heartbeat,function ()
+		local now = os.time() * 1000
+		if now - self.lastHeartBeat >= M.keepalive * 1000 then
+			self.timer = nil
+			self:Close()
+			return -1	
+		else
+			local buff = buffer.New(64)
+			local writer = packet.Writer(buff)
+			writer:WriteI8(cmd_ping)
+			self.conn:SendUrgent(buff)
+		end		
+	end)
 end
 
 function rpcClient:Call(methodName,callback,...)
@@ -192,6 +228,7 @@ function M.connectServer(eventLoop,ip,port,connectCB,onDisconnected)
 		local conn = socket.stream.New(fd,M.recvbuff,packet.Decoder(M.max_packet_size))
 		if conn then
 			local client = newClient(conn,onDisconnected)
+			client:startHeartBeat(eventLoop)
 			conn:Start(eventLoop,function (data)
 				if data then 
 					client:onPacket(data)
