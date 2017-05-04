@@ -8,6 +8,8 @@
 #include "util/chk_error.h"
 #include "util/chk_log.h"
 #include "util/sds.h"
+#include "util/chk_timer.h"
+#include "util/chk_time.h"
 #include "redis/chk_client.h"
 #include "socket/chk_stream_socket.h"
 #include "socket/chk_connector.h"
@@ -39,6 +41,7 @@ struct parse_tree {
 
 struct pending_reply {
 	chk_list_entry entry;
+	uint64_t deadline;
 	void   (*cb)(chk_redisclient*,redisReply*,void *ud);
 	void    *ud;
 };
@@ -52,6 +55,8 @@ struct chk_redisclient {
     chk_redis_connect_cb     cntcb;
     chk_redis_disconnect_cb  dcntcb;        //被动关闭时时回调
     chk_list                 waitreplys;
+    chk_timer               *timer;
+    int32_t                  timeout_count;
 };
 
 #define IS_NUM(CC) (CC >= '0' && CC <= '9')
@@ -308,16 +313,27 @@ static redisReply  connection_lose = {
 	.type = REDIS_REPLY_ERROR,
 	.str  = "client disconnected",
 	.len  = 19,
+};
+
+static redisReply execute_timeout = {
+	.type = REDIS_REPLY_ERROR,
+	.str  = "timeout",
+	.len  = 7,	
 };   
 
 static void destroy_redisclient(chk_redisclient *c) {
 	pending_reply *stcb;
 	if(c->tree) parse_tree_del(c->tree);
 	while((stcb = cast(pending_reply*,chk_list_pop(&c->waitreplys)))) {
-		stcb->cb(c,&connection_lose,stcb->ud);
+		if(stcb->cb) {
+			stcb->cb(c,&connection_lose,stcb->ud);
+		}
 		free(stcb);
 	}
 	chk_stream_socket_close(c->sock,0);	
+	if(c->timer) {
+		chk_timer_unregister(c->timer);
+	}
 	free(c);
 }
 
@@ -339,13 +355,18 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 			if(!c->tree) c->tree = parse_tree_new();
 			parse_ret = parse(c->tree,&begin,begin + size);
 			if(REDIS_OK == parse_ret) {
-				stcb = cast(pending_reply*,chk_list_pop(&c->waitreplys));
-				if(stcb->cb) {
-					c->status |= CLIENT_INCB;					
-					stcb->cb(c,c->tree->reply,stcb->ud);
-					c->status ^= CLIENT_INCB;
-				}	
-				free(stcb);
+				if(c->timeout_count > 0) {
+					//忽略超时的返回
+					--c->timeout_count;
+				}else {
+					stcb = cast(pending_reply*,chk_list_pop(&c->waitreplys));
+					if(stcb->cb) {
+						c->status |= CLIENT_INCB;					
+						stcb->cb(c,c->tree->reply,stcb->ud);
+						c->status ^= CLIENT_INCB;
+					}	
+					free(stcb);
+				}
 				parse_tree_del(c->tree);
 				c->tree   = NULL;
 				size      = (uint32_t)(begin - (chunk->data + pos));
@@ -760,6 +781,33 @@ static inline int redisvAppendCommand(const char *format, va_list ap,chk_bytebuf
 
 typedef int32_t (*fn_socket_send)(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
 
+
+static int32_t timeout_cb(uint64_t tick,void*ud) {
+	chk_redisclient *c = (chk_redisclient*)ud;
+	uint64_t now = chk_systick();
+	pending_reply  *repobj;
+	if(!(c->status & CLIENT_INCB))
+	while(NULL != (repobj = (pending_reply*)chk_list_begin(&c->waitreplys))) {
+		if(now >= repobj->deadline) {
+			chk_list_pop(&c->waitreplys);
+			c->timeout_count++;//记录超时的数量，当收到返回时跳过对应的cb调用
+			if(repobj->cb) {
+				c->status |= CLIENT_INCB;					
+				repobj->cb(c,&execute_timeout,repobj->ud);
+				c->status ^= CLIENT_INCB;
+				free(repobj);
+				if(c->status & CLIENT_CLOSE) {
+					destroy_redisclient(c);
+					break;
+				}
+			}			
+		} else {
+			break;
+		}
+	}
+	return 0; 
+}
+
 static int32_t _chk_redis_execute(fn_socket_send fn,chk_redisclient *c,chk_bytebuffer *buffer,chk_redis_reply_cb cb,void *ud) {
 	pending_reply  *repobj = NULL;
 	int32_t         ret    = 0;
@@ -776,13 +824,14 @@ static int32_t _chk_redis_execute(fn_socket_send fn,chk_redisclient *c,chk_byteb
 		return chk_error_redis_request;
 	}
 
-
-	if(cb) {
-		repobj->cb = cb;
-		repobj->ud = ud;
-	}
-
+	repobj->cb = cb;
+	repobj->ud = ud;
+	repobj->deadline = chk_systick() + REDIS_DEFAULT_TIMEOUT * 1000;
 	chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
+
+	if(NULL == c->timer) {
+		c->timer = chk_loop_addtimer(c->loop,1000,timeout_cb,c);
+	}
 
 	return 0;
 }
@@ -874,9 +923,9 @@ static int32_t append_number(chk_bytebuffer *buffer,lua_State *L,int32_t index) 
 
 static int32_t _chk_redis_execute_lua(fn_socket_send fn,chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size)
 {
-	pending_reply  *repobj  = NULL;
+	//pending_reply  *repobj  = NULL;
 	chk_bytebuffer *buffer  = NULL;
-	int32_t         i,idx,type,ret;
+	int32_t         i,idx,type;
 	const char     *str;
 	size_t          str_len;
 
@@ -933,30 +982,7 @@ static int32_t _chk_redis_execute_lua(fn_socket_send fn,chk_redisclient *c,const
 			break;
 		}
 	}
-
-	repobj = calloc(1,sizeof(*repobj));
-	
-	if(!repobj){
-		CHK_SYSLOG(LOG_ERROR,"calloc repobj failed");	
-		chk_bytebuffer_del(buffer);
-		return chk_error_redis_request;
-	}
-
-	if(0 != (ret = fn(c->sock,buffer,NULL,NULL))) {
-		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);
-		free(repobj);
-		return chk_error_redis_request;
-	}
-
-
-	if(cb) {
-		repobj->cb = cb;
-		repobj->ud = ud;
-	}
-
-	chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
-
-	return 0;
+	return _chk_redis_execute(fn,c,buffer,cb,ud);
 }
 
 int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size) {

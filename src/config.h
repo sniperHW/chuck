@@ -68,5 +68,7 @@
 
 #define SEND_TIME_OUT 5*1000
 
+#define REDIS_DEFAULT_TIMEOUT 10
+
 
 #endif
