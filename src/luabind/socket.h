@@ -458,7 +458,8 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 	chk_luaRef        *lua_cb = NULL;
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
-		return luaL_error(L,"invaild lua_stream_socket");
+		lua_pushstring(L,"socket close");		
+		return 1;
 	}
 	o = lua_checkbytebuffer(L,2);
 	if(NULL == o)
@@ -496,7 +497,8 @@ static int32_t lua_stream_socket_send_urgent(lua_State *L) {
 	chk_luaRef        *lua_cb = NULL;	
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
-		return luaL_error(L,"invaild lua_stream_socket");
+		lua_pushstring(L,"socket close");		
+		return 1;
 	}
 
 	o = lua_checkbytebuffer(L,2);
@@ -532,7 +534,8 @@ static int32_t lua_stream_socket_send_urgent(lua_State *L) {
 static int32_t lua_stream_socket_flush(lua_State *L) {
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
-		return luaL_error(L,"invaild lua_stream_socket");
+		lua_pushstring(L,"socket close");		
+		return 1;
 	}
 	if(0 != chk_stream_socket_flush(s->c_stream_socket)) {
 		lua_pushstring(L,"flush error");

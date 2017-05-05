@@ -13,11 +13,12 @@ local rpc = require("rpc")
 local event_loop = chuck.event_loop.New()
 
 rpc.registerMethod("hello",function (response,a,b)
-	print("here")
 	response:Return(a .. " " .. b,"sniperHW hahaha")
 end)
 
 local cmd_rpc = 100
+
+local c = 0
 
 rpc.pack = function(rpcmsg)
 	local buff = buffer.New()
@@ -38,6 +39,11 @@ local function main()
 					local cmd = reader:ReadI32()
 					if cmd == cmd_rpc then
 						--处理RPC调用
+						c = c + 1
+						if c == 11 then
+							conn:Close()
+							return
+						end
 						rpc.OnRPCMsg(conn,reader:ReadStr())
 					else
 						--处理普通消息
@@ -85,14 +91,18 @@ local function main()
 			local rpcClient = rpc.RPCClient(conn)
 			timer = event_loop:AddTimer(1000,function ()
 				--发起RPC调用
-				rpcClient:Call("hello",rpcCallBack,"hello","world")
-				rpcClient:Call("world",rpcCallBack,"hello","world")
+				local err = rpcClient:Call("hello",rpcCallBack,"hello","world")
+				if err then
+					print(err)
+					return -1
+				end
+				rpcClient:Call("world")
 
 				--发送普通消息
 				local buff = buffer.New()
 				local writer = packet.Writer(buff)
 				writer:WriteI32(200)
-				conn:Send(buff)
+				conn:Send(buff)			
 			end)
 		end
 	end)

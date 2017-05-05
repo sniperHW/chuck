@@ -134,18 +134,13 @@ function rpcClient:Call(methodName,callback,...)
 	end
 
 	local args = {...}
-	local seqno = M.seq
+	local seqno = callback and M.seq or 0
+	M.seq = M.seq + 1
 
 	local buff = buffer.New()
 	local writer = packet.Writer(buff)
 	writer:WriteI8(cmd_request)
-	if nil == callback then
-		--不关心返回值，seqno设为0
-		writer:WriteI64(0)
-	else
-		writer:WriteI64(seqno)
-		M.seq = M.seq + 1
-	end
+	writer:WriteI64(seqno)
 	writer:WriteStr(methodName)
 	writer:WriteTable(args)
 
