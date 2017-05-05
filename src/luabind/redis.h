@@ -2,6 +2,7 @@
 
 typedef struct {
 	chk_redisclient *client;
+	chk_luaRef       on_connection_loss;
 }lua_redis_client;
 
 #define lua_checkredisclient(L,I)	\
@@ -13,12 +14,21 @@ static int32_t lua_redisclient_gc(lua_State *L) {
 		chk_redis_close(client->client);
 		client->client = NULL;
 	}
+	if(client->on_connection_loss.L) {
+		chk_luaRef_release(&client->on_connection_loss);
+	}	
 	return 0;
 }
 
 static void lua_redis_disconnect_cb(chk_redisclient *_,void *ud,int32_t err) {
 	lua_redis_client *c = (lua_redis_client*)ud;
-	c->client = NULL;	
+	c->client = NULL;
+	if(c->on_connection_loss.L) {
+		const char *error = chk_Lua_PCallRef(c->on_connection_loss,"");
+		if(error) {
+			CHK_SYSLOG(LOG_ERROR,"error on on_connection_loss %s",error);
+		}
+	}			
 }
 
 typedef struct {
@@ -170,6 +180,11 @@ static int32_t _lua_redis_execute(redis_execute_lua fn,lua_State *L) {
 		return 1;		
 	}
 
+	if(!client->client) {
+		lua_pushstring(L,"connection loss");
+		return 1;
+	}
+
 	if(lua_isfunction(L,2)) {
 		cb = POOL_NEW_LUAREF();
 		if(!cb) {
@@ -200,11 +215,45 @@ static int32_t lua_redis_delay_execute(lua_State *L) {
 
 static int32_t lua_redis_flush(lua_State *L) {
 	lua_redis_client *client = lua_checkredisclient(L,1);
+
+	if(!client) {
+		lua_pushstring(L,"invaild client");
+		return 1;
+	}
+
+	if(!client->client) {
+		lua_pushstring(L,"connection loss");
+		return 1;
+	}
+
 	if(0 != chk_redis_flush(client->client)) {
 		lua_pushstring(L,"redis_fulsh error");
 		return 1;
 	}
 	return 0;	
+}
+
+static int32_t lua_redis_on_connection_loss(lua_State *L) {
+	lua_redis_client *client = lua_checkredisclient(L,1);
+	if(!client) {
+		lua_pushstring(L,"invaild client");
+		return 1;
+	}
+
+	if(!lua_isfunction(L,2)) {
+		lua_pushstring(L,"cb should be a function");
+		return 1;
+	}
+
+	if(client->on_connection_loss.L) {
+		chk_luaRef_release(&client->on_connection_loss);
+	}
+
+	client->on_connection_loss = chk_toluaRef(L,2);
+
+	return 0;
+
+
 }
 
 static void register_redis(lua_State *L) {
@@ -218,6 +267,7 @@ static void register_redis(lua_State *L) {
 		{"DelayExecute",     lua_redis_delay_execute},
 		{"Flush",            lua_redis_flush},		
 		{"Close",            lua_redis_close},
+		{"OnConnectionLoss", lua_redis_on_connection_loss},
 		{NULL,     NULL}
 	};
 

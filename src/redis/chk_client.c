@@ -321,7 +321,7 @@ static redisReply execute_timeout = {
 	.len  = 7,	
 };   
 
-static void destroy_redisclient(chk_redisclient *c) {
+static void destroy_redisclient(chk_redisclient *c,int32_t error) {
 	pending_reply *stcb;
 	if(c->tree) parse_tree_del(c->tree);
 	while((stcb = cast(pending_reply*,chk_list_pop(&c->waitreplys)))) {
@@ -334,6 +334,11 @@ static void destroy_redisclient(chk_redisclient *c) {
 	if(c->timer) {
 		chk_timer_unregister(c->timer);
 	}
+	
+	if(c->dcntcb){
+		c->dcntcb(c,c->ud,error);
+	}
+
 	free(c);
 }
 
@@ -373,7 +378,7 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 				pos      += size;
 				datasize -= size;
 				if(c->status & CLIENT_CLOSE) {
-					destroy_redisclient(c);
+					destroy_redisclient(c,0);
 					return;
 				}
 				if(datasize && pos >= chunk->cap) {
@@ -383,9 +388,10 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 			}else if(parse_ret == REDIS_ERR){
 				//parse出错,直接关闭连接
 				c->status |= CLIENT_CLOSE;
-				if(c->dcntcb){
+				error = chk_error_redis_parse;
+				/*if(c->dcntcb){
 					c->dcntcb(c,c->ud,chk_error_redis_parse);
-				}
+				}*/
 				CHK_SYSLOG(LOG_ERROR,"redis reply parse error");	
 				break;
 			}else {
@@ -397,13 +403,13 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	}
 	else {
 		c->status |= CLIENT_CLOSE;
-		if(c->dcntcb){
+		/*if(c->dcntcb){
 			c->dcntcb(c,c->ud,error);
-		}
+		}*/
 	}
 
 	if(c->status & CLIENT_CLOSE) {
-		destroy_redisclient(c);
+		destroy_redisclient(c,error);
 	}
 }
 
@@ -459,7 +465,7 @@ void    chk_redis_close(chk_redisclient *c) {
 	if(c->status & CLIENT_CLOSE) return;
 	c->status |= CLIENT_CLOSE;
 	if(!(c->status & CLIENT_INCB))
-		destroy_redisclient(c);
+		destroy_redisclient(c,0);
 }
 
 /* Calculate the number of bytes needed to represent an integer as string. */
@@ -797,7 +803,7 @@ static int32_t timeout_cb(uint64_t tick,void*ud) {
 				c->status ^= CLIENT_INCB;
 				free(repobj);
 				if(c->status & CLIENT_CLOSE) {
-					destroy_redisclient(c);
+					destroy_redisclient(c,0);
 					break;
 				}
 			}			

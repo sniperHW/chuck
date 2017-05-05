@@ -41,7 +41,7 @@ enum {
 	/*redis相关错误码*/
 	chk_error_redis_request,                              /*redis请求执行失败*/ 
 	chk_error_redis_parse,                                /*redis响应解析失败*/
-	
+	chk_error_redis_timeout,
 	/*socket相关错误码*/
 	chk_error_bind,
 	chk_error_listen,

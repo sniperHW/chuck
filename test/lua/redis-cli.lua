@@ -96,6 +96,11 @@ else
    	event_loop:Run(100)
    end
 
+   redis_conn:OnConnectionLoss(function ()
+   	print("connection loss")
+   	redis_conn = nil
+   end)
+
    while redis_conn do
    		repl()	
    end
