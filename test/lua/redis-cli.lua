@@ -1,16 +1,17 @@
 package.cpath = 'lib/?.so;'
+package.path = 'lib/?.lua;'
 
 local chuck = require("chuck")
 local readline = require("readline")
 local event_loop = chuck.event_loop.New()
-local redis = chuck.redis
+local redis = require("redis")
 local redis_conn
 
 
 function redis_execute(cmd,...)
 	local result = nil
 	local execute_return = false
-	local ret = redis_conn:Execute(function(reply,err)
+	local ret = redis.Command(redis_conn,cmd,...):Execute(function(reply,err)
 		if not err then
 			print("Execute ok")
 		else
@@ -21,7 +22,7 @@ function redis_execute(cmd,...)
 		end
 		result = reply
 		execute_return = true
-	end,cmd,...)
+	end)
 	
 	if not ret then
 		while not execute_return do
@@ -82,7 +83,7 @@ if arg == nil or #arg ~= 2 then
 else
    local ip,port = arg[1],arg[2]
    local stop
-   redis.Connect_ip4(event_loop,ip,port,function (conn)
+   redis.Connect(event_loop,ip,port,function (conn)
    	redis_conn = conn
    	stop = true
    	if not redis_conn then

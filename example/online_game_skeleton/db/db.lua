@@ -1,5 +1,5 @@
 local chuck = require("chuck")
-local redis = chuck.redis
+local redis = require("redis")
 local config = require("config")
 local log = chuck.log
 local logger = log.CreateLogfile("DB")
@@ -17,7 +17,7 @@ local reConnect = nil
 reConnect = function (delay,on_init_ok)
    M.timer = M.eventLoop:AddTimer(delay,function ()
       local ip,port = config.redis_ip,config.redis_port
-      local err = redis.Connect_ip4(M.eventLoop,ip,port,function (conn)
+      local err = redis.Connect(M.eventLoop,ip,port,function (conn)
          if conn then
             M.redis_conn = conn
             M.redis_conn:OnConnectionLoss(OnConnectionLoss)
@@ -53,12 +53,20 @@ M.init = function (eventLoop,on_init_ok)
    reConnect(0,on_init_ok)
 end
 
-M.execute = function (cb,cmd,...)
+local empty_cmd = {}
+empty_cmd.__index = empty_cmd;
+
+function empty_cmd:Execute()
+   return "not connected to server"
+end
+
+
+M.Command = function(cmd,...)
    if M.redis_conn == nil then
-      return "not connected to server"
-   end
-	
-   return M.redis_conn:Execute(cb,cmd,...)
+      return empty_cmd
+   else
+      return redis.Command(M.redis_conn,cmd,...)
+   end   
 end
 
 return M

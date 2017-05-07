@@ -61,7 +61,7 @@ end
 local function init()
 	
 	local on_db_init_ok = function ()
-		db.execute(function (reply,err)
+		db.Command("get","server_config"):Execute(function (reply,err)
 			if err then
 				logger:Log(log.error,"get server_config error:" .. err)
 				event_loop:Stop()
@@ -78,7 +78,7 @@ local function init()
 				end
 
 			end
-		end,"get","server_config")
+		end)
 	end
 
 	return db.init(event_loop,on_db_init_ok)
