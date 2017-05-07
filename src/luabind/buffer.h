@@ -126,6 +126,13 @@ static int32_t lua_bytebuffer_append_string(lua_State *L) {
 	return 1;
 }
 
+static int32_t lua_bytebuffer_size(lua_State *L) {
+	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
+	lua_pushinteger(L,b->datasize);
+	return 1;
+}
+
+
 static void register_buffer(lua_State *L) {
 
 	luaL_Reg bytebuffer_mt[] = {
@@ -137,6 +144,7 @@ static void register_buffer(lua_State *L) {
 		{"Clone",    lua_bytebuffer_clone},
 		{"Content",  lua_bytebuffer_readall},
 		{"AppendStr",lua_bytebuffer_append_string},
+		{"Size",lua_bytebuffer_size},
 		{NULL,     NULL}
 	};	
 

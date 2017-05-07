@@ -158,6 +158,7 @@ end
 function M.OnConnClose(conn)
 	local client = M.clients[conn]
 	if client then
+		M.clients[conn] = nil
 		for k,cb in pairs(client.callbacks) do
 			xpcall(cb,function (err)
 				logger:Log(log.error,string.format("error on rpc callback:%s",err))

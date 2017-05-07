@@ -113,5 +113,9 @@ redis_execute("hmset","chaid:1","chainfo","fasdfasfasdfasdfasdfasfasdfasfasdfdsa
 result = redis_execute("hmget","chaid:1","chainfo","skills")\
 print(result[1],result[2])
 ]]--
+--json = require("cjson")
+--str = json.encode({gameserver={ip="127.0.0.1",port=8011},roomserver={{ip="127.0.0.1",port=8012}}})
+
+--redis_execute("set","server_config",[[{gameserver={ip="127.0.0.1",port="8011"},gateserver=}]])
 
 --cas print(redis_execute("eval","if not redis.call('get',KEYS[1]) then redis.call('set',KEYS[1],ARGV[1]) end return ARGV[1]","1","foo2","boo2"))

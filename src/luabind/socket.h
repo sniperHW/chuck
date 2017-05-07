@@ -307,7 +307,7 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	luaBufferPusher pusher = {PushBuffer,data};
 	const char *error_str;
 	if(!cb) return;
-	if(data) error_str = chk_Lua_PCallRef(*cb,"fi",(chk_luaPushFunctor*)&pusher,error);
+	if(data) error_str = chk_Lua_PCallRef(*cb,"f",(chk_luaPushFunctor*)&pusher);
 	else error_str = chk_Lua_PCallRef(*cb,"pi",NULL,error);
 	if(error_str) CHK_SYSLOG(LOG_ERROR,"error on data_cb %s",error_str);	
 }
