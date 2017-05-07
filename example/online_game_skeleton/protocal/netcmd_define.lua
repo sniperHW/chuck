@@ -1,0 +1,78 @@
+local netcmd = {
+	--client->gameserver
+	CMD_CS_BEGIN = 0,
+	CMD_CS_LOGIN = 1,            --登录
+	CMD_CS_ENTER_ROOM = 2,       --进房间请求
+	CMD_CS_PING = 3,
+	CMD_CS_LOGOUT = 4,
+	CMD_CS_END = 5,
+
+	--server->client
+	CMD_SC_BEGIN = 100,
+	CMD_SC_LOGIN = 101,
+	CMD_SC_ENTER_ROOM = 102,
+	CMD_SC_KICK = 103,
+	CMD_SC_LOGOUT = 104,
+	CMD_SC_LOGIN = 105,
+	CMD_SC_END  = 106,   	
+
+
+	--client->roomserver
+	CMD_CR_BEGIN = 200,
+	CMD_CR_MOVE = 201,             --移动
+	CMD_CR_KILL = 202,             --吞吃
+	CMD_CR_RELIVE = 203,           --复活请求
+	CMD_CR_LEAVE_ROOM = 204,       --离开房间请求
+	CMD_CR_CLIENT_ENTER_ROOM = 205,--客户端进入房间
+	CMD_CR_EAT_STAR = 206,		 --
+	CMD_CR_ENTER_WATER = 207,		 --
+	CMD_CR_LEAVE_WATER = 208,	 --
+	CMD_CR_TOUCH_Spike = 209,
+	CMD_CR_EAT_BALLOON = 210,
+	CMD_CR_EAT_ITEM	= 211,
+	CMD_CR_LAUCH_PLAYER = 212,
+	CMD_CR_FIRE_PLAYER = 213,
+	CMD_CR_END = 214,
+
+	--roomserver->client
+	CMD_RC_BEGIN = 300,
+	CMD_RC_BEGIN_SEE = 301,      --看见一个
+	CMD_RC_END_SEE = 302,        --消失一个
+	CMD_RC_MOVE = 303,
+	CMD_RC_LEAVE_ROOM = 304,
+	CMD_RC_STAR_EATED = 305,	
+	CMD_RC_SPAWN_STAR = 306,
+	CMD_RC_KILL = 307,
+	CMD_RC_SPAWN_BALLOON = 308,
+	CMD_RC_EAT_BALLOON = 309,
+	CMD_RC_SPAWN_ITEM = 310,
+	CMD_RC_EAT_ITEM = 311,
+	CMD_RC_ENTER_WATER = 312,
+	CMD_RC_TOUCH_SPIKE = 313,
+	CMD_RC_LAUCH_PLAYER = 314,
+	CMD_RC_FIRE_PLAYER = 315,
+	CMD_RC_SET_SPIKE = 316,
+	CMD_RC_Destroy_STAR = 317,
+	CMD_RC_REFRESH_ITEM = 318,
+	CMD_RC_REFRESH_BALLOON = 319,
+	CMD_RC_BEGIN_PLAY = 320,
+	CMD_RC_SPAWN_CANNON = 321,
+	CMD_RC_GAME_OVER = 322,
+	CMD_RC_END = 323,
+
+	--gateserver <-> gameserver
+	CMD_GG_BEGIN = 400,
+	CMD_GG_CLIENT_DISCONNECTED = 401,
+	CMD_GG_END = 402,
+
+	--gateserver <-> roomserver
+	CMD_GR_BEGIN = 500,
+	CMD_GR_CLIENT_DISCONNECTED = 501,
+	CMD_GR_END   = 502,
+
+	--rpc
+	CMD_RPC = 2000,
+
+}
+
+return netcmd
