@@ -62,8 +62,10 @@ static void lua_redis_connect_cb(chk_redisclient *c,void *ud,int32_t err) {
 	if(c){
 		pusher.c = c;
 		pusher.Push = PushRedis;
-		error = chk_Lua_PCallRef(*cb,"fi",(chk_luaPushFunctor*)&pusher,err);	
-	}else error = chk_Lua_PCallRef(*cb,"pi",NULL,err);
+		error = chk_Lua_PCallRef(*cb,"f",(chk_luaPushFunctor*)&pusher);	
+	}else{
+		error = chk_Lua_PCallRef(*cb,"pi",NULL,err);
+	}
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on lua_redis_connect_cb %s",error);				
 	POOL_RELEASE_LUAREF(cb);
 }
@@ -155,7 +157,7 @@ void lua_redis_reply_cb(chk_redisclient *_,redisReply *reply,void *ud) {
 		error = chk_Lua_PCallRef(*cb,"fs",(chk_luaPushFunctor*)&pusher,redis_err_str);	
 	}
 	else{
-		error = chk_Lua_PCallRef(*cb,"p",NULL);
+		error = chk_Lua_PCallRef(*cb,"ps",NULL,"unknow error");
 	}
 	
 	if(error) CHK_SYSLOG(LOG_ERROR,"error on redis_reply_cb %s",error);	

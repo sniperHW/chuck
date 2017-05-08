@@ -53,7 +53,7 @@ M.Start = function (server_config,service_info,event_loop,logger,onGameMsg)
 	reConnect = function (delay)
 	   M.timer = event_loop:AddTimer(delay,function ()
 			local err = socket.stream.ip4.dail(event_loop,ip,port,function (fd,errCode)
-				if 0 ~= errCode then
+				if errCode then
 					print("connect error:" .. errCode)
 					reConnect(1000)
 					M.timer = nil

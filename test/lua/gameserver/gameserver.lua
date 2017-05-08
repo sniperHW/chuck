@@ -248,7 +248,11 @@ local function start_server()
 	end
 
 	--启动服务器监听
-	local server = socket.stream.ip4.listen(event_loop,config.server_ip,config.server_port,function (fd)
+	local server = socket.stream.ip4.listen(event_loop,config.server_ip,config.server_port,function (fd,err)
+		if err then
+			GameLog:Log(log.error,"accept error:" .. err)
+			return
+		end
 		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 		if conn then
 			local session = user_session.New(conn)

@@ -11,7 +11,10 @@ local clients = {}
 local client_count = 0
 local packet_count = 0
 
-local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
+local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd,err)
+	if err then
+		return
+	end
 	local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 	if conn then
 		clients[fd] = conn

@@ -215,7 +215,7 @@ function easy_http_server.new(onRequest)
   o.__index = easy_http_server     
   setmetatable(o,o)
   o.onRequest = onRequest
-
+  o.selfRef = o
   return o
 end
 
@@ -225,8 +225,10 @@ function easy_http_server:Listen(eventLoop,ip,port)
 	end
 	local socket = chuck.socket
 	local onRequest = self.onRequest
-	self.server = socket.stream.ip4.listen(eventLoop,ip,port,function (fd)
-		self.selfRef = self --自引用，在easy_http_server.new之后立即调用Listen,即使不持有server对象也可以保证server不被垃圾回收
+	self.server = socket.stream.ip4.listen(eventLoop,ip,port,function (fd,err)
+		if err then
+			return
+		end
 		http_server.new(eventLoop,fd,onRequest)
 	end)
 
@@ -249,7 +251,12 @@ local easy_http_client = {}
 
 function easy_http_client.new(eventLoop,ip,port)
   local o = {}
-  o.__index = easy_http_client     
+  o.__index = easy_http_client
+  o.__gc = function ()
+  	if o.client then
+  		o.client:Close()
+  	end
+  end     
   setmetatable(o,o)
   o.eventLoop = eventLoop
   o.ip = ip
@@ -271,7 +278,7 @@ local function easySendRequest(self,method,path,request,onResponse)
 		local socket = chuck.socket
 		socket.stream.ip4.dail(self.eventLoop,self.ip,self.port,function (fd,errCode)
 			self.connecting = false
-			if 0 ~= errCode then
+			if errCode then
 				onResponse(nil,"connect failed") --用空response回调，通告出错
 				return
 			end

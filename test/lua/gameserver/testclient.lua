@@ -71,7 +71,7 @@ if not arg then
 
 else
 	socket.stream.ip4.dail(event_loop,config.server_ip,config.server_port,function (fd,errCode)
-		if 0 ~= errCode then
+		if errCode then
 			print("connect error:" .. errCode)
 			return
 		end

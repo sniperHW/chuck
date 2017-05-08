@@ -10,7 +10,7 @@ local ssl = chuck.ssl
 local event_loop = chuck.event_loop.New()
 
 socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
-	if 0 ~= errCode then
+	if errCode then
 		print("connect error:" .. errCode)
 		return
 	end

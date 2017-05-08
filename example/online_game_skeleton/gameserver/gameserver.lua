@@ -33,7 +33,11 @@ end
 
 local function onInitOk()
 	--启动服务器监听
-	local server = socket.stream.ip4.listen(event_loop,serverIP,serverPort,function (fd)
+	local server = socket.stream.ip4.listen(event_loop,serverIP,serverPort,function (fd,err)
+		if err then
+			logger:Log(log.info,"accept error:" .. err)
+			return
+		end
 		local conn = socket.stream.New(fd,4096,packet.Decoder(65535))
 		if conn then
 			conn:Start(event_loop,function (msg,err)

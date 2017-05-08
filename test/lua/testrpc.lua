@@ -30,7 +30,10 @@ end
 
 local function main()
 
-	local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
+	local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd,err)
+		if err then
+			return
+		end
 		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 		if conn then
 			conn:Start(event_loop,function (data)
@@ -67,7 +70,7 @@ local function main()
 	local timer
 
 	socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
-		if 0 ~= errCode then
+		if errCode then
 			print("connect error:" .. errCode)
 			return
 		end

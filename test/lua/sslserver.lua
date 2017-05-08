@@ -48,8 +48,7 @@ local ssl_ctx = init_ssl()
 
 if ssl_ctx then 
 	local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd,err)
-
-		if not fd then
+		if err then
 			print("err:" .. err)
 			return
 		end

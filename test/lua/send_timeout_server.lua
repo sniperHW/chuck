@@ -7,7 +7,10 @@ local socket = chuck.socket
 local event_loop = chuck.event_loop.New()
 local log = chuck.log
 
-local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
+local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd,err)
+	if err then
+		return
+	end
 	local conn = socket.stream.New(fd,4096)
 	if conn then
 		--不调用Start,这样就不会从socket接收数据

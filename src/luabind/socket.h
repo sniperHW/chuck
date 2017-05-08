@@ -37,10 +37,15 @@ typedef struct {
 
 static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
 	chk_luaRef   *cb = (chk_luaRef*)ud;
-	const char   *error; 
-	if(NULL != (error = chk_Lua_PCallRef(*cb,"ii",fd,err))) {
+	const char   *error;
+	if(0 == err) {
+		error = chk_Lua_PCallRef(*cb,"i",fd);
+	}else {
+		error = chk_Lua_PCallRef(*cb,"pi",NULL,err);
+	}
+	if(error) {
 		close(fd);
-		CHK_SYSLOG(LOG_ERROR,"error on lua_acceptor_cb %s",error);
+		CHK_SYSLOG(LOG_ERROR,"error on lua_acceptor_cb %s",error);		
 	}
 }
 
@@ -50,12 +55,6 @@ static int32_t lua_acceptor_gc(lua_State *L) {
 		chk_acceptor_del(a->c_acceptor);
 		a->c_acceptor = NULL;
 	}
-	/*if(0 > chk_acceptor_get_fd(a)) return 0;
-	chk_luaRef   *cb = (chk_luaRef*)chk_acceptor_get_ud(a);
-	if(cb) {
-		POOL_RELEASE_LUAREF(cb);
-	}
-	chk_acceptor_finalize(a);*/
 	return 0;
 }
 
@@ -140,7 +139,6 @@ static int32_t lua_listen_ip4_ssl(lua_State *L) {
 }
 
 static int32_t lua_listen_ip4(lua_State *L) {
-	//chk_luaRef     *cb;
 	chk_sockaddr    server;
 	int32_t         fd;
 	const char     *ip;
@@ -200,45 +198,20 @@ static int32_t lua_listen_ip4(lua_State *L) {
 		return 0;
 	}
 	return 1;	
-
-
-
-	/*a   = LUA_NEWUSERDATA(L,chk_acceptor);
-
-	if(!a){
-		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
-		close(fd);	
-		return 0;
-	}
-
-	cb  = POOL_NEW_LUAREF();//calloc(1,sizeof(*cb));
-
-	if(!cb) {
-		CHK_SYSLOG(LOG_ERROR,"calloc() failed");
-		close(fd);	
-		return 0;
-	}
-
-	*cb = chk_toluaRef(L,4); 	
-	chk_acceptor_init(a,fd,cb);
-	luaL_getmetatable(L, ACCEPTOR_METATABLE);
-	lua_setmetatable(L, -2);
-	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a,lua_acceptor_cb)) {
-		POOL_RELEASE_LUAREF(cb);
-		close(fd);
-		CHK_SYSLOG(LOG_ERROR,"event_loop add acceptor failed %s:%d",ip,port);
-		return 0;
-	}
-	return 1;*/
 }
 
 
 static void dail_ip4_cb(int32_t fd,void *ud,int32_t err) {
 	chk_luaRef *cb = (chk_luaRef*)ud;
-	const char *error; 
-	if(NULL != (error = chk_Lua_PCallRef(*cb,"ii",fd,err))) {
+	const char *error;
+	if(0 == err) {
+		error = chk_Lua_PCallRef(*cb,"i",fd);
+	}else {
+		error = chk_Lua_PCallRef(*cb,"pi",NULL,err);		
+	} 
+	if(error) {
 		close(fd);
-		CHK_SYSLOG(LOG_ERROR,"error on dail_ip4_cb %s",error);
+		CHK_SYSLOG(LOG_ERROR,"error on dail_ip4_cb %s",error);		
 	}
 	POOL_RELEASE_LUAREF(cb);	
 }

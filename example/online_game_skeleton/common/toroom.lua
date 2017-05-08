@@ -57,7 +57,7 @@ M.Start = function (server_config,service_info,event_loop,logger,onRoomMsg)
 	   local timer
 	   timer = M.event_loop:AddTimer(delay,function ()
 			local err = socket.stream.ip4.dail(M.event_loop,ip,port,function (fd,errCode)
-				if 0 ~= errCode then
+				if errCode then
 					print("connect error:" .. errCode,ip,port)
 					reConnect(ip,port,1000)
 					timer = nil
