@@ -4,6 +4,7 @@ package.path = './lib/?.lua;'
 local chuck = require("chuck")
 local redis = require("redis")
 local event_loop = chuck.event_loop.New()
+local promise = require("Promise")
 
 local redis_conn
 

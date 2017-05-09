@@ -63,14 +63,13 @@ local function fire(promise,state,value)
 			promise.queue = promise.parent.queue
 			promise.parent.queue = {}
 		end
-
 		if #promise.queue > 0 then
 			value = promise.value
 			if isPromise(value) then
 				value = value.value
 			end
 			for _ , p in ipairs(promise.queue) do
-				if promise.state == REJECTED then
+				if promise.state == REJECTED and not promise.failure then
 					reject(p)(value) 	
 				else
 					resolve(p)(value)
@@ -191,11 +190,16 @@ function promise:andThen(success,failure)
 	if p.state == PENDING then
 		table.insert(p.queue,next)
 	else
-		if p.state == RESOLVED then
+		if p.state == REJECTED and not p.failure then
+			reject(next)(p.value)
+		else
+			resolve(next)(p.value)
+		end
+		--[[if p.state == RESOLVED then
 			resolve(next)(p.value)
 		else
 			reject(next)(p.value)
-		end
+		end]]--
 	end
 	
 	return next
