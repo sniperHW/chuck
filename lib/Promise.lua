@@ -173,6 +173,8 @@ function M.reject(err)
 	end)	
 end
 
+M.throw = M.reject
+
 --instance method
 
 function promise:andThen(success,failure)
