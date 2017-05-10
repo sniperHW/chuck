@@ -57,15 +57,16 @@ static void key_destructor(void *_) {
 static inline chk_timer *get_free_timer() {
 	chk_timer *t;
 	int32_t    i;
-	if(!timer_pool || !(t = cast(chk_timer*,chk_dlist_pop(timer_pool)))){
+	if(!timer_pool) {
+		pthread_key_create(&timer_pool_key,key_destructor);
+		timer_pool = malloc(sizeof(*timer_pool));
 		if(!timer_pool) {
-			pthread_key_create(&timer_pool_key,key_destructor);
-			timer_pool = malloc(sizeof(*timer_pool));
-			if(!timer_pool) {
-				return NULL;
-			}
-			chk_dlist_init(timer_pool);
+			return NULL;
 		}
+		chk_dlist_init(timer_pool);		
+	}
+
+	if(chk_dlist_empty(timer_pool)) {
 		for(i = 0;i < INIT_FREE_TIMER_SIZE; ++i) {
 			t = calloc(1,sizeof(*t));
 			if(t) {
@@ -74,14 +75,13 @@ static inline chk_timer *get_free_timer() {
 			else {
 				break;
 			}
-		}
+		}		
 	}
-	
+
 	t = cast(chk_timer*,chk_dlist_pop(timer_pool));
 	if(t) {
 		memset(t,0,sizeof(*t));
 	}
-	
 	return t;
 }
 
@@ -218,9 +218,13 @@ chk_timer *chk_timer_register(chk_timermgr *m,uint32_t ms,
 			      chk_timeout_cb cb,void *ud,
 			      uint64_t now) {
 	chk_timer *t;
-	if(!cb) return NULL;
+	if(!cb){
+		return NULL;
+	}
 	t = get_free_timer();
-	if(!t) return NULL;
+	if(!t){
+		return NULL;
+	}
 	t->timeout = ms > MAX_TIMEOUT ? MAX_TIMEOUT : (ms > 0 ? ms : 1);
 	t->cb = cb;
 	t->ud = ud;

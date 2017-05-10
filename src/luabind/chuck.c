@@ -70,6 +70,7 @@ void register_signum(lua_State *L) {
 
 }
 
+
 int32_t luaopen_chuck(lua_State *L)
 {
 	signal(SIGPIPE,SIG_IGN);

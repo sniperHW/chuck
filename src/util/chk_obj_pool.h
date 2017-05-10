@@ -9,6 +9,7 @@
 #include "util/chk_list.h"
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 #define CHUNK_OBJSIZE 64
 #define MAX_CHUNK 0x3FFFFF

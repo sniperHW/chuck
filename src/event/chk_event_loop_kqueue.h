@@ -288,7 +288,7 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 			return NULL;
 		}
 		e->tfd      = 1;
-		EV_SET(&e->change, e->tfd, EVFILT_TIMER,flags, NOTE_USECONDS | NOTE_ABSOLUTE, 1000, e->timermgr);
+		EV_SET(&e->change, e->tfd, EVFILT_TIMER,flags, /*NOTE_ABSOLUTE*/0, 1, e->timermgr);
 	}
 	tick = chk_accurate_tick64();
 	return chk_timer_register(e->timermgr,timeout,cb,ud,tick); 

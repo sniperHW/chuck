@@ -49,8 +49,8 @@ static int32_t lua_new_bytebuffer(lua_State *L) {
 			CHK_SYSLOG(LOG_ERROR,"chk_bytechunk_new() failed:%d",size);			
 			return 0;
 		}
-
 		chk_bytebuffer_init(b,chunk,0,(uint32_t)size,0);
+		chk_bytechunk_release(chunk);
 	}
 	else {
 		size = (uint32_t)luaL_optinteger(L,1,64);

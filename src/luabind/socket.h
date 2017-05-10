@@ -267,7 +267,6 @@ static int32_t lua_dail_ip4(lua_State *L) {
 }
 
 static int32_t lua_stream_socket_gc(lua_State *L) {
-	printf("lua_stream_socket_gc\n");
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(s->c_stream_socket){
 		chk_stream_socket_close(s->c_stream_socket,0);

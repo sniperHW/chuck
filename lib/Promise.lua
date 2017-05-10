@@ -63,7 +63,6 @@ local function fire(promise,state,value)
 			promise.queue = promise.parent.queue
 			promise.parent.queue = {}
 		end
-		print(#promise.queue)
 		if #promise.queue > 0 then
 			local value = promise.value
 			local parent = promise
