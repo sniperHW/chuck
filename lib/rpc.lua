@@ -4,6 +4,7 @@ local chuck = require("chuck")
 local socket = chuck.socket
 local buffer = chuck.buffer
 local packet = chuck.packet
+local promise = require("Promise")
 local log = chuck.log
 
 local cmd_request = 1
@@ -153,6 +154,21 @@ function rpcClient:Call(methodName,callback,...)
 			self.callbacks[seqno] = callback
 		end
 	end	
+end
+
+function rpcClient:CallPromise(methodName,...)
+	return promise.new(function (resolve,reject)
+		if err = self:Call(methodName,function (err,result)
+				if err then
+					reject(err)
+				else
+					resolve(result)
+				end
+			end,...)
+		if err then
+			reject(err)
+		end
+	end)
 end
 
 function M.OnConnClose(conn)
