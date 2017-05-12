@@ -127,7 +127,10 @@ function M.all(args)
 
 	local function synchronizer(i, resolved)
 		return function(value)
-			results[i] = value
+			results[i] = {
+				state = resolved and "resolved" or "rejected",
+				value = value
+			}
 			pending = pending - 1
 			if pending == 0 then
 				if resolved then
