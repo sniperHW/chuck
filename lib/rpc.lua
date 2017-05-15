@@ -157,14 +157,15 @@ function rpcClient:Call(methodName,callback,...)
 end
 
 function rpcClient:CallPromise(methodName,...)
+	local args = {...}
 	return promise.new(function (resolve,reject)
-		if err = self:Call(methodName,function (err,result)
+		local err = self:Call(methodName,function (err,result)
 				if err then
 					reject(err)
 				else
 					resolve(result)
 				end
-			end,...)
+			end,table.unpack(args))
 		if err then
 			reject(err)
 		end

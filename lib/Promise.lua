@@ -38,10 +38,17 @@ local function fire(promise,state,value)
 				promise.value = value.value
 			end
 		else 
+			local xpcall_err
 			if state == REJECTED and promise.failure then
-				ok,promise.value = pcall(promise.failure,value)
+				ok,promise.value = xpcall(promise.failure,function (err) xpcall_err = err end,value)
+				if not ok then
+					promise.value = xpcall_err
+				end
 			elseif state == RESOLVED and promise.success then
-				ok,promise.value = pcall(promise.success,value)
+				ok,promise.value = xpcall(promise.success,function (err) xpcall_err = err end,value)
+				if not ok then
+					promise.value = xpcall_err
+				end				
 			end
 		end
 
@@ -99,9 +106,10 @@ local function newPromise(option,optionType)
 	p.queue = {}
 	p = setmetatable(p, promise)
 	if optionType == "function" then
-		local ok, err = pcall(option, resolve(p), reject(p))
+		local xpcall_err
+		local ok = xpcall(option,function (err) xpcall_err = err end,resolve(p), reject(p))
 		if not ok then
-			reject(p)(err)
+			reject(p)(xpcall_err)
 		end
 	elseif optionType == "table" then
 		p.success = option.success
