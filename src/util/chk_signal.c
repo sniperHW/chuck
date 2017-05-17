@@ -15,8 +15,8 @@ typedef struct {
     int32_t notify_fd;
     int32_t signo;
     signal_cb cb;
-    void     *ud;
-    void (*ud_dctor)(void*);
+    chk_ud    ud;
+    void (*ud_dctor)(chk_ud);
 }chk_signal_handler;
 
 static chk_signal_handler* signal_handlers[MAX_SIGNAL_SIZE] = {NULL};
@@ -69,7 +69,7 @@ static void on_events(chk_handle *h,int32_t events) {
 		handler->cb(handler->ud);	
 }
 
-static chk_signal_handler *signal_handler_new(int32_t signo,signal_cb cb,void *ud,void (*ud_dctor)(void*)) {
+static chk_signal_handler *signal_handler_new(int32_t signo,signal_cb cb,chk_ud ud,void (*ud_dctor)(chk_ud)) {
 	int32_t fdpairs[2];
 	chk_signal_handler *handler = calloc(1,sizeof(*handler));
 	if(!handler) return NULL;
@@ -87,7 +87,7 @@ static chk_signal_handler *signal_handler_new(int32_t signo,signal_cb cb,void *u
     return handler;
 } 
 
-int32_t chk_watch_signal(chk_event_loop *loop,int32_t signo,signal_cb cb,void *ud,void (*ud_dctor)(void*)) {
+int32_t chk_watch_signal(chk_event_loop *loop,int32_t signo,signal_cb cb,chk_ud ud,void (*ud_dctor)(chk_ud)) {
 	int32_t ret = chk_error_ok;
 	chk_signal_handler *handler;
 

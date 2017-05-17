@@ -42,8 +42,8 @@ struct parse_tree {
 struct pending_reply {
 	chk_list_entry entry;
 	uint64_t deadline;
-	void   (*cb)(chk_redisclient*,redisReply*,void *ud);
-	void    *ud;
+	void   (*cb)(chk_redisclient*,redisReply*,chk_ud ud);
+	chk_ud ud;
 };
 
 struct chk_redisclient {
@@ -51,7 +51,7 @@ struct chk_redisclient {
 	chk_stream_socket       *sock;
     parse_tree              *tree;
     chk_event_loop          *loop;
-    void                    *ud;	
+    chk_ud                   ud;	
     chk_redis_connect_cb     cntcb;
     chk_redis_disconnect_cb  dcntcb;        //被动关闭时时回调
     chk_list                 waitreplys;
@@ -349,7 +349,7 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	int32_t          parse_ret;
 	pending_reply   *stcb;
 	chk_bytechunk   *chunk;
-	chk_redisclient *c = cast(chk_redisclient*,chk_stream_socket_getUd(s));
+	chk_redisclient *c = cast(chk_redisclient*,chk_stream_socket_getUd(s).v.val);
 	if(data) { 
 		datasize = data->datasize;
 		chunk = data->head;
@@ -418,8 +418,8 @@ static	const chk_stream_socket_option redis_socket_option = {
 	.decoder = NULL,
 };
 
-static void connect_callback(int32_t fd,void *ud,int32_t err) {
-	chk_redisclient *c = cast(chk_redisclient*,ud);
+static void connect_callback(int32_t fd,chk_ud ud,int32_t err) {
+	chk_redisclient *c = cast(chk_redisclient*,ud.v.val);
 	if(fd >= 0) {
 		c->sock = chk_stream_socket_new(fd,&redis_socket_option);
 		if(!c->sock) {
@@ -428,7 +428,7 @@ static void connect_callback(int32_t fd,void *ud,int32_t err) {
 			free(c);
 			return;
 		}
-		chk_stream_socket_setUd(c->sock,c);
+		chk_stream_socket_setUd(c->sock,chk_ud_make_void(c));
 		chk_loop_add_handle(c->loop,(chk_handle*)c->sock,data_cb);
 		c->cntcb(c,c->ud,0);	
 	} else {
@@ -437,7 +437,7 @@ static void connect_callback(int32_t fd,void *ud,int32_t err) {
 	}
 }
 
-int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_connect_cb cntcb,void *ud) {
+int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_connect_cb cntcb,chk_ud ud) {
 	chk_redisclient *c;
 	int32_t          fd;
 	if(!loop || !addr || !cntcb) {
@@ -453,10 +453,10 @@ int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_conn
 	c->cntcb  = cntcb;
 	c->ud     = ud;
 	c->loop   = loop;
-    return chk_connect(fd,addr,NULL,loop,connect_callback,c,0);
+    return chk_connect(fd,addr,NULL,loop,connect_callback,chk_ud_make_void(c),0);
 }
 
-void chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,void *ud) {
+void chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,chk_ud ud) {
 	c->dcntcb = cb;
 	c->ud = ud;
 }
@@ -785,11 +785,11 @@ static inline int redisvAppendCommand(const char *format, va_list ap,chk_bytebuf
     return 0;
 }
 
-typedef int32_t (*fn_socket_send)(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
+typedef int32_t (*fn_socket_send)(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud);
 
 
-static int32_t timeout_cb(uint64_t tick,void*ud) {
-	chk_redisclient *c = (chk_redisclient*)ud;
+static int32_t timeout_cb(uint64_t tick,chk_ud ud) {
+	chk_redisclient *c = (chk_redisclient*)ud.v.val;
 	uint64_t now = chk_systick();
 	pending_reply  *repobj;
 	if(!(c->status & CLIENT_INCB))
@@ -814,7 +814,7 @@ static int32_t timeout_cb(uint64_t tick,void*ud) {
 	return 0; 
 }
 
-static int32_t _chk_redis_execute(fn_socket_send fn,chk_redisclient *c,chk_bytebuffer *buffer,chk_redis_reply_cb cb,void *ud) {
+static int32_t _chk_redis_execute(fn_socket_send fn,chk_redisclient *c,chk_bytebuffer *buffer,chk_redis_reply_cb cb,chk_ud ud) {
 	pending_reply  *repobj = NULL;
 	int32_t         ret    = 0;
 	repobj = calloc(1,sizeof(*repobj));
@@ -824,7 +824,7 @@ static int32_t _chk_redis_execute(fn_socket_send fn,chk_redisclient *c,chk_byteb
 		return chk_error_redis_request;
 	}
 
-	if(0 != (ret = fn(c->sock,buffer,NULL,NULL))) {
+	if(0 != (ret = fn(c->sock,buffer,NULL,chk_ud_make_void(NULL)))) {
     	CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);	
 		free(repobj);
 		return chk_error_redis_request;
@@ -836,13 +836,13 @@ static int32_t _chk_redis_execute(fn_socket_send fn,chk_redisclient *c,chk_byteb
 	chk_list_pushback(&c->waitreplys,(chk_list_entry*)repobj);
 
 	if(NULL == c->timer) {
-		c->timer = chk_loop_addtimer(c->loop,1000,timeout_cb,c);
+		c->timer = chk_loop_addtimer(c->loop,1000,timeout_cb,chk_ud_make_void(c));
 	}
 
 	return 0;
 }
 
-int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,const char *fmt,...) {
+int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,chk_ud ud,const char *fmt,...) {
 	chk_bytebuffer *buffer = NULL;
 	int32_t         ret    = 0;
 
@@ -860,7 +860,7 @@ int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,cons
 }
 
 
-int32_t chk_redis_execute_delay(chk_redisclient *c,chk_redis_reply_cb cb,void *ud,const char *fmt,...){
+int32_t chk_redis_execute_delay(chk_redisclient *c,chk_redis_reply_cb cb,chk_ud ud,const char *fmt,...){
 	chk_bytebuffer *buffer = NULL;
 	int32_t         ret    = 0;
 
@@ -927,7 +927,7 @@ static int32_t append_number(chk_bytebuffer *buffer,lua_State *L,int32_t index) 
 	}
 }
 
-static int32_t _chk_redis_execute_lua(fn_socket_send fn,chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size)
+static int32_t _chk_redis_execute_lua(fn_socket_send fn,chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,chk_ud ud,lua_State *L,int32_t start_idx,int32_t param_size)
 {
 	//pending_reply  *repobj  = NULL;
 	chk_bytebuffer *buffer  = NULL;
@@ -991,12 +991,12 @@ static int32_t _chk_redis_execute_lua(fn_socket_send fn,chk_redisclient *c,const
 	return _chk_redis_execute(fn,c,buffer,cb,ud);
 }
 
-int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size) {
+int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,chk_ud ud,lua_State *L,int32_t start_idx,int32_t param_size) {
 	return _chk_redis_execute_lua(chk_stream_socket_send,c,cmd,cb,ud,L,start_idx,param_size);
 }
 
 
-int32_t chk_redis_execute_delay_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size) {
+int32_t chk_redis_execute_delay_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,chk_ud ud,lua_State *L,int32_t start_idx,int32_t param_size) {
 	return _chk_redis_execute_lua(chk_stream_socket_delay_send,c,cmd,cb,ud,L,start_idx,param_size);
 }
 

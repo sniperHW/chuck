@@ -9,6 +9,7 @@
 #include "util/chk_bytechunk.h"
 #include "util/chk_timer.h"
 #include "socket/chk_decoder.h"
+#include "chk_ud.h"
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -25,7 +26,7 @@ typedef struct chk_stream_socket_option chk_stream_socket_option;
 
 typedef void (*chk_stream_socket_cb)(chk_stream_socket*,chk_bytebuffer*,int32_t error);
 
-typedef void (*chk_send_cb)(chk_stream_socket *s,void *ud,int32_t error);
+typedef void (*chk_send_cb)(chk_stream_socket *s,chk_ud ud,int32_t error);
 
 struct chk_stream_socket_option {
 	uint32_t     recv_buffer_size;       //接收缓冲大小
@@ -58,7 +59,7 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay);
  * @param b 待发送缓冲,调用chk_stream_socket_send之后b不能再被别处使用
  */
 
-int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
+int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud);
 
 
 /**
@@ -76,13 +77,13 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_c
  *
  */
 
-int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
+int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud);
 
 /*
 *  延迟发送,bytebuffer仅被入列,不会立即尝试发送,只在执行flush或下一次循环中检测到套接字可写时
 *  执行发送。对于小数据包通过执行多次delay_send,然后统一调用flush可提高性能
 */
-int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud);
+int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud);
 
 /*
 *  尝试将排队的buffer发送出去	 
@@ -96,14 +97,14 @@ int32_t chk_stream_socket_flush(chk_stream_socket *s);
  * @param ud 用户数据
  */
 
-void chk_stream_socket_setUd(chk_stream_socket *s,void*ud);
+void chk_stream_socket_setUd(chk_stream_socket *s,chk_ud ud);
 
 /**
  * 获取chk_stream_socket关联的用户数据
  * @param s stream_socket
  */
 
-void *chk_stream_socket_getUd(chk_stream_socket *s);
+chk_ud chk_stream_socket_getUd(chk_stream_socket *s);
 
 /**
  * 暂停事件处理(移除读写监听)

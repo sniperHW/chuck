@@ -13,14 +13,14 @@ typedef struct chk_connector chk_connector;
 
 struct chk_connector {
     _chk_handle; 
-    void      *ud;
+    chk_ud     ud;
     connect_cb cb;
     uint32_t   timeout;
     chk_timer *t;    
 };
 
-int32_t connect_timeout(uint64_t tick,void *ud) {
-	chk_connector *c = cast(chk_connector*,ud);
+int32_t connect_timeout(uint64_t tick,chk_ud ud) {
+	chk_connector *c = cast(chk_connector*,ud.v.val);
 	c->cb(-1,c->ud,chk_error_connect_timeout);
 	close(c->fd);
 	free(c);
@@ -35,7 +35,7 @@ static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	if(ret == chk_error_ok) {
 		c->cb = cast(connect_cb,cb);
 		if(c->timeout) {
-			c->t = chk_loop_addtimer(e,c->timeout,connect_timeout,c);
+			c->t = chk_loop_addtimer(e,c->timeout,connect_timeout,chk_ud_make_void(c));
 		}			
 	}
 	return ret;
@@ -77,7 +77,7 @@ static void process_connect(chk_handle *h,int32_t events) {
 	free(h);
 }
 
-chk_connector *chk_connector_new(int32_t fd,void *ud,uint32_t timeout) {
+chk_connector *chk_connector_new(int32_t fd,chk_ud ud,uint32_t timeout) {
 	chk_connector *c = calloc(1,sizeof(*c));
 	if(!c){
 		CHK_SYSLOG(LOG_ERROR,"calloc chk_connector failed");	
@@ -92,8 +92,7 @@ chk_connector *chk_connector_new(int32_t fd,void *ud,uint32_t timeout) {
 	return c;
 }
 
-int32_t chk_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local,
-					chk_event_loop *e,connect_cb cb,void*ud,uint32_t timeout) {
+int32_t chk_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local,chk_event_loop *e,connect_cb cb,chk_ud ud,uint32_t timeout) {
 	chk_connector *c;
 	int32_t        ret;
 	if(!cb) {

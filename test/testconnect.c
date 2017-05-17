@@ -2,7 +2,7 @@
 #include "chuck.h"
 int c = 0;
 
-void connect_callback(int32_t fd,int32_t err,void *ud) {
+void connect_callback(int32_t fd,int32_t err,chk_ud ud) {
 	if(fd) {
 		printf("%d\n", ++c);
 	}
@@ -21,7 +21,7 @@ int main(int argc,char **argv) {
     loop = chk_loop_new();
     for(i = 0; i < c; ++i) {
     	fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-    	chk_connect(fd,&server,NULL,loop,connect_callback,NULL,-1);
+    	chk_connect(fd,&server,NULL,loop,connect_callback,chk_ud_make_void(NULL),-1);
     }
     chk_loop_run(loop);
 	return 0;

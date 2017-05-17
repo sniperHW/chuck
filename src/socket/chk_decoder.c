@@ -29,7 +29,7 @@ chk_bytebuffer *packet_decoder_unpack(chk_decoder *_,int32_t *err) {
 			if(err) *err = chk_error_invaild_packet_size;
 			break;
 		}
-		pk_total = size + pk_len;		
+		pk_total = size + pk_len;	
 		if(pk_total > d->max) {
 			CHK_SYSLOG(LOG_ERROR,"pk_total > d->max,pk_total:%d,max:%d",pk_total,d->max);
 			if(err) *err = chk_error_packet_too_large;//数据包操作限制大小

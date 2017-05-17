@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include "event/chk_event_loop.h"
 #include "socket/chk_socket_helper.h"
-#include "lua/chk_lua.h"  
+#include "lua/chk_lua.h"
+#include "chk_ud.h"  
 
 
 #define REDIS_REPLY_STRING  1
@@ -25,11 +26,11 @@ typedef struct redisReply redisReply;
 typedef struct chk_redisclient chk_redisclient;
 
 //连接被关闭后回调
-typedef void (*chk_redis_disconnect_cb)(chk_redisclient*,void *ud,int32_t err);
+typedef void (*chk_redis_disconnect_cb)(chk_redisclient*,chk_ud ud,int32_t err);
 //连接回调
-typedef void (*chk_redis_connect_cb)(chk_redisclient*,void *ud,int32_t err);
+typedef void (*chk_redis_connect_cb)(chk_redisclient*,chk_ud ud,int32_t err);
 //请求回调
-typedef void (*chk_redis_reply_cb)(chk_redisclient*,redisReply*,void *ud);
+typedef void (*chk_redis_reply_cb)(chk_redisclient*,redisReply*,chk_ud ud);
 
 struct redisReply {
     int32_t      type;    /* REDIS_REPLY_* */
@@ -49,7 +50,7 @@ struct redisReply {
  * @param dcntcb 连接关闭回调
  */
 
-int32_t chk_redis_connect(chk_event_loop *e,chk_sockaddr *addr,chk_redis_connect_cb cntcb,void *ud);
+int32_t chk_redis_connect(chk_event_loop *e,chk_sockaddr *addr,chk_redis_connect_cb cntcb,chk_ud ud);
 
 /**
  * 设置redis连接断开处理函数    
@@ -58,7 +59,7 @@ int32_t chk_redis_connect(chk_event_loop *e,chk_sockaddr *addr,chk_redis_connect
  * @param ud 回调参数
  */
 
-void    chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,void *ud);
+void    chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,chk_ud ud);
 
 /**
  * 关闭redis连接,当连接结构销毁时回调dcntcb
@@ -74,13 +75,13 @@ void chk_redis_close(chk_redisclient *c);
  * @param ud 传递给cb的用户数据
  */
 
-int32_t chk_redis_execute(chk_redisclient*,chk_redis_reply_cb cb,void *ud,const char *fmt,...);
+int32_t chk_redis_execute(chk_redisclient*,chk_redis_reply_cb cb,chk_ud ud,const char *fmt,...);
 
 /*
  * 使用chk_stream_socket_delay_send发送请求(延迟更大,性能吞吐更大)
  */
 
-int32_t chk_redis_execute_delay(chk_redisclient*,chk_redis_reply_cb cb,void *ud,const char *fmt,...);
+int32_t chk_redis_execute_delay(chk_redisclient*,chk_redis_reply_cb cb,chk_ud ud,const char *fmt,...);
 
 int32_t chk_redis_flush(chk_redisclient *);
 
@@ -94,10 +95,10 @@ int32_t chk_redis_flush(chk_redisclient *);
  * @param start_idx 参数在lua栈中的起始位置
  * @param param_size 参数的数量
  */
-int32_t chk_redis_execute_lua(chk_redisclient*,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size);
+int32_t chk_redis_execute_lua(chk_redisclient*,const char *cmd,chk_redis_reply_cb cb,chk_ud ud,lua_State *L,int32_t start_idx,int32_t param_size);
 
 
-int32_t chk_redis_execute_delay_lua(chk_redisclient*,const char *cmd,chk_redis_reply_cb cb,void *ud,lua_State *L,int32_t start_idx,int32_t param_size);
+int32_t chk_redis_execute_delay_lua(chk_redisclient*,const char *cmd,chk_redis_reply_cb cb,chk_ud ud,lua_State *L,int32_t start_idx,int32_t param_size);
 
 
 

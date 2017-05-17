@@ -55,7 +55,7 @@ static int32_t lua_http_connection_gc(lua_State *L) {
 	if(conn->field) chk_string_destroy(conn->field);
 	if(conn->value) chk_string_destroy(conn->value);			
 	if(conn->socket) {
-		chk_stream_socket_setUd(conn->socket,NULL);
+		chk_stream_socket_setUd(conn->socket,chk_ud_make_void(NULL));
 		//delay 5秒关闭,尽量将数据发送出去		
 		chk_stream_socket_close(conn->socket,5000);
 	}
@@ -277,7 +277,7 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 	const char *errmsg;
 	uint32_t    spos,size_remain,size;
 	chk_bytechunk *chunk;
-	http_connection *conn = (http_connection*)chk_stream_socket_getUd(s);
+	http_connection *conn = (http_connection*)chk_stream_socket_getUd(s).v.val;
 	if(!conn){ 
 		CHK_SYSLOG(LOG_ERROR,"http_connection == NULL");		
 		return;
@@ -322,7 +322,7 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 	}
 
 	if(!data || error){
-		chk_stream_socket_setUd(conn->socket,NULL);
+		chk_stream_socket_setUd(conn->socket,chk_ud_make_void(NULL));
 		chk_stream_socket_close(conn->socket,0);
 		conn->socket = NULL;
 		//用nil调用lua callback,通告连接断开
@@ -371,7 +371,7 @@ static int32_t lua_new_http_connection(lua_State *L) {
 	conn->max_header_size = MIN(max_header_size,MAX_UINT32/2);
 	conn->max_content_size = MIN(max_content_size,MAX_UINT32/2);
 	conn->check_size = 0;
-	chk_stream_socket_setUd(s,conn);
+	chk_stream_socket_setUd(s,chk_ud_make_void(conn));
 	http_parser_init(&conn->parser,HTTP_BOTH);
 	luaL_getmetatable(L, HTTP_CONNECTION_METATABLE);
 	lua_setmetatable(L, -2);
@@ -611,7 +611,7 @@ static int32_t lua_http_connection_send_request(lua_State *L) {
 		return 1;		
 	}
 
-	if(0 != (ret = chk_stream_socket_send(conn->socket,b,NULL,NULL))){
+	if(0 != (ret = chk_stream_socket_send(conn->socket,b,NULL,chk_ud_make_void(NULL)))){
 		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send() failed:%d",ret);		
 		lua_pushstring(L,"send http request failed");
 		return 1;
@@ -692,7 +692,7 @@ static int32_t lua_http_connection_send_response(lua_State *L) {
 		return 1;				
 	}
 
-	if(0 != chk_stream_socket_send(conn->socket,b,NULL,NULL)){
+	if(0 != chk_stream_socket_send(conn->socket,b,NULL,chk_ud_make_void(NULL))){
 		lua_pushstring(L,"send http response failed");
 		return 1;
 	}
@@ -703,7 +703,7 @@ static int32_t lua_http_connection_send_response(lua_State *L) {
 static int32_t lua_http_connection_close(lua_State *L) {
 	http_connection   *conn = lua_check_http_connection(L,1);
 	if(conn->socket) {
-		chk_stream_socket_setUd(conn->socket,NULL);
+		chk_stream_socket_setUd(conn->socket,chk_ud_make_void(NULL));
 		//delay 5秒关闭,尽量将数据发送出去				
 		chk_stream_socket_close(conn->socket,5000);
 		conn->socket = NULL;

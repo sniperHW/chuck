@@ -44,7 +44,7 @@ struct chk_timer {
 	uint32_t             timeout;
 	uint64_t             expire;
 	int32_t              status;
-	void                *ud;
+	chk_ud               ud;
 };
 
 static void key_destructor(void *_) {
@@ -214,9 +214,7 @@ void chk_timer_tick(chk_timermgr *m,uint64_t now)
 	}
 } 
 
-chk_timer *chk_timer_register(chk_timermgr *m,uint32_t ms,
-			      chk_timeout_cb cb,void *ud,
-			      uint64_t now) {
+chk_timer *chk_timer_register(chk_timermgr *m,uint32_t ms,chk_timeout_cb cb,chk_ud ud,uint64_t now) {
 	chk_timer *t;
 	if(!cb){
 		return NULL;

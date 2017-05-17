@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include "util/chk_list.h"
+#include "chk_ud.h"
 
 
 
@@ -15,9 +16,9 @@ typedef struct chk_timer     chk_timer;
 
 typedef struct chk_timermgr  chk_timermgr;
 
-typedef int32_t (*chk_timeout_cb)(uint64_t tick,void*ud);
+typedef int32_t (*chk_timeout_cb)(uint64_t tick,chk_ud ud);
 
-typedef void    (*chk_timer_ud_cleaner)(void*);
+typedef void    (*chk_timer_ud_cleaner)(chk_ud);
 
 
 /**
@@ -41,7 +42,7 @@ void chk_timermgr_del(chk_timermgr*);
  * @param now 当前时间	
  */
 
-chk_timer *chk_timer_register(chk_timermgr *m,uint32_t ms,chk_timeout_cb cb,void *ud,uint64_t now);
+chk_timer *chk_timer_register(chk_timermgr *m,uint32_t ms,chk_timeout_cb cb,chk_ud ud,uint64_t now);
 
 /**
  * 删除定时器

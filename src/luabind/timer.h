@@ -10,20 +10,17 @@ void chk_timermgr_finalize(chk_timermgr *);
 
 typedef struct {
 	chk_timer *timer;
-	chk_luaRef cb;
 }lua_timer;
 
-static void timer_ud_cleaner(void *ud) {
-	lua_timer *luatimer = (lua_timer*)ud;
-	luatimer->timer = NULL;
-	chk_luaRef_release(&luatimer->cb);
+static void timer_ud_cleaner(chk_ud ud) {
+	chk_luaRef_release(&ud.v.lr);
 }
 
-static int32_t lua_timeout_cb(uint64_t tick,void*ud) {
-	lua_timer *luatimer = (lua_timer*)ud;
+static int32_t lua_timeout_cb(uint64_t tick,chk_ud ud) {
+	chk_luaRef cb = ud.v.lr;
 	const char *error; 
 	lua_Integer ret;
-	if(NULL != (error = chk_Lua_PCallRef(luatimer->cb,":i",&ret))) {
+	if(NULL != (error = chk_Lua_PCallRef(cb,":i",&ret))) {
 		CHK_SYSLOG(LOG_ERROR,"error on lua_timeout_cb %s",error);
 		return -1;
 	}
@@ -40,7 +37,6 @@ static int32_t lua_timer_gc(lua_State *L) {
 	lua_timer *luatimer = lua_checktimer(L,1);
 	if(luatimer->timer) {
 		chk_timer_unregister(luatimer->timer);
-		chk_luaRef_release(&luatimer->cb);
 	}
 	return 0;
 }
@@ -75,14 +71,13 @@ static int32_t lua_timermgr_register(lua_State *L) {
 		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
 		return 0;
 	}
-	luatimer->cb = cb;
 	tick = chk_accurate_tick64();
-	luatimer->timer = chk_timer_register(timermgr,ms,lua_timeout_cb,luatimer,tick);
+	luatimer->timer = chk_timer_register(timermgr,ms,lua_timeout_cb,chk_ud_make_lr(cb),tick);
 
 	if(luatimer->timer)
 		chk_timer_set_ud_cleaner(luatimer->timer,timer_ud_cleaner);
 	else {
-		chk_luaRef_release(&luatimer->cb);
+		chk_luaRef_release(&cb);
 		CHK_SYSLOG(LOG_ERROR,"chk_loop_addtimer() failed");
 		return 0;
 	}
@@ -102,7 +97,6 @@ static int32_t lua_unregister_timer(lua_State *L) {
 	if(luatimer->timer) {
 		chk_timer_unregister(luatimer->timer);
 		luatimer->timer = NULL;
-		chk_luaRef_release(&luatimer->cb);
 	}
 	return 0;
 }

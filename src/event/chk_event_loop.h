@@ -49,7 +49,7 @@ void            chk_loop_end(chk_event_loop *loop);
  * @param ud 用户传递数据,调用cb时回传 
  */
 
-chk_timer      *chk_loop_addtimer(chk_event_loop *loop,uint32_t timeout,chk_timeout_cb cb,void *ud);
+chk_timer      *chk_loop_addtimer(chk_event_loop *loop,uint32_t timeout,chk_timeout_cb cb,chk_ud ud);
 
 /**
  * 向event_loop注册一个handle

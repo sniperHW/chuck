@@ -43,7 +43,7 @@ static int32_t _accept(chk_acceptor *a,chk_sockaddr *addr,int32_t *fd) {
 	return 0;
 }
 
-static void do_callback(chk_acceptor *acceptor,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err){
+static void do_callback(chk_acceptor *acceptor,int32_t fd,chk_sockaddr *addr,chk_ud ud,int32_t err){
 	acceptor->cb(acceptor,fd,addr,acceptor->ud,err);
 }
 
@@ -75,7 +75,7 @@ int32_t chk_acceptor_pause(chk_acceptor *a) {
 	return chk_disable_read(cast(chk_handle*,a));
 }
 
-void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud) {
+void chk_acceptor_init(chk_acceptor *a,int32_t fd,chk_ud ud) {
 	a->ud = ud;
 	a->fd = fd;
 	a->on_events  = process_accept;
@@ -95,7 +95,7 @@ void chk_acceptor_finalize(chk_acceptor *a) {
 	}
 }
 
-chk_acceptor *chk_acceptor_new(int32_t fd,void *ud) {
+chk_acceptor *chk_acceptor_new(int32_t fd,chk_ud ud) {
 	chk_acceptor *a = calloc(1,sizeof(*a));
 	if(!a){
 		CHK_SYSLOG(LOG_ERROR,"calloc chk_acceptor failed");	
@@ -114,15 +114,15 @@ void chk_acceptor_del(chk_acceptor *a) {
 	free(a);
 }
 
-void *chk_acceptor_get_ud(chk_acceptor *a) {
+chk_ud chk_acceptor_get_ud(chk_acceptor *a) {
 	return a->ud;
 }
 
-void chk_acceptor_set_ud(chk_acceptor *a,void *ud) {
+void chk_acceptor_set_ud(chk_acceptor *a,chk_ud ud) {
 	a->ud = ud;
 }
 
-chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb cb,void *ud) {
+chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb cb,chk_ud ud) {
 	chk_sockaddr  server;
 	int32_t       fd,ret;
 	chk_acceptor *a = NULL;
@@ -154,7 +154,7 @@ chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t por
 	return a;
 }
 
-chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_acceptor_cb cb,void *ud) {
+chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_acceptor_cb cb,chk_ud ud) {
 	chk_sockaddr  server;
 	int32_t       fd,ret;
 	chk_acceptor *a = NULL;

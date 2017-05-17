@@ -1,6 +1,7 @@
 #ifndef _CHUCK_H
 #define _CHUCK_H
 
+#include "chk_ud.h"
 #include "util/chk_atomic.h"
 #include "util/chk_bitset.h"
 #include "util/chk_bytechunk.h"
@@ -22,6 +23,8 @@
 #include "socket/chk_stream_socket.h"
 #include "lua/chk_lua.h"
 #include "redis/chk_client.h"
+
+
 
 
 #endif

@@ -63,7 +63,7 @@ typedef struct default_decoder {
 	uint32_t       spos;
 	uint32_t       size;
 	chk_bytechunk *b;
-	void          *ud;
+	//void          *ud;
 }default_decoder;
 
 static void default_update(chk_decoder *d,chk_bytechunk *b,uint32_t spos,uint32_t size) {
@@ -334,16 +334,16 @@ static void release_socket(chk_stream_socket *s) {
 	free(s);
 }
 
-static int32_t last_timer_cb(uint64_t tick,void *ud) {
-	chk_stream_socket *s = cast(chk_stream_socket*,ud);
+static int32_t last_timer_cb(uint64_t tick,chk_ud ud) {
+	chk_stream_socket *s = cast(chk_stream_socket*,ud.v.val);
 	s->last_send_timer   = NULL;
 	/*timer事件在所有套接口事件之后才处理,所以这里释放是安全的*/
 	release_socket(s);
 	return -1;
 }
 
-static int32_t send_timer_cb(uint64_t tick,void *ud){
-	chk_stream_socket *s = cast(chk_stream_socket*,ud);
+static int32_t send_timer_cb(uint64_t tick,chk_ud ud){
+	chk_stream_socket *s = cast(chk_stream_socket*,ud.v.val);
 	s->send_timer   = NULL;
 	if(s->cb){
 		s->cb(s,NULL,chk_error_send_timeout);
@@ -359,7 +359,7 @@ static void set_send_timeout_timer(chk_stream_socket *s){
 	if(s->send_timer){
 		chk_timer_unregister(s->send_timer);
 	}
-	s->send_timer = chk_loop_addtimer(s->loop,SEND_TIME_OUT,send_timer_cb,s);
+	s->send_timer = chk_loop_addtimer(s->loop,SEND_TIME_OUT,send_timer_cb,chk_ud_make_void(s));
 }
 
 static void enable_write(chk_stream_socket *s){
@@ -384,7 +384,7 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
 		}
 
 		/*数据还没发送完,设置delay豪秒超时等待数据发送出去*/
-		s->last_send_timer = chk_loop_addtimer(s->loop,delay,last_timer_cb,s);
+		s->last_send_timer = chk_loop_addtimer(s->loop,delay,last_timer_cb,chk_ud_make_void(s));
 	}else {
 		s->status |= SOCKET_CLOSE;		
 		if(!(s->status & SOCKET_INLOOP)){
@@ -393,11 +393,11 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
 	}
 }
 
-void chk_stream_socket_setUd(chk_stream_socket *s,void*ud) {
+void chk_stream_socket_setUd(chk_stream_socket *s,chk_ud ud) {
 	s->ud = ud;
 }
 
-void *chk_stream_socket_getUd(chk_stream_socket *s) {
+chk_ud chk_stream_socket_getUd(chk_stream_socket *s) {
 	return s->ud;
 }
 
@@ -580,7 +580,7 @@ static void process_read(chk_stream_socket *s) {
 	}
 }
 
-static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_bytebuffer *b,chk_send_cb cb,void *ud) {
+static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud) {
 	st_send_cb *send_cb = NULL;
 	int32_t try_send = 0;
 	int32_t ret = chk_error_ok;
@@ -663,6 +663,8 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 				}
 			}else {
 				if(errno == EAGAIN){
+					if(!chk_is_write_enable(cast(chk_handle*,s))) 
+						enable_write(s);					
 					return ret;
 				}
 				s->status |= SOCKET_PEERCLOSE;
@@ -673,15 +675,15 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 	return ret;	
 }
 
-int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud) {
+int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud) {
 	return _chk_stream_socket_send(s,0,b,cb,ud);
 }
 
-int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud) {
+int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud) {
 	return _chk_stream_socket_send(s,1,b,cb,ud);
 }
 
-int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,void *ud) {
+int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud) {
 	st_send_cb *send_cb = NULL;
 	int32_t ret = chk_error_ok;	
 	chk_list *send_list = NULL;

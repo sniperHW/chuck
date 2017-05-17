@@ -74,13 +74,12 @@ static int32_t lua_event_loop_addtimer(lua_State *L) {
 		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
 		return 0;
 	}
-	luatimer->cb = cb;
-	luatimer->timer = chk_loop_addtimer(event_loop,ms,lua_timeout_cb,luatimer);
+	luatimer->timer = chk_loop_addtimer(event_loop,ms,lua_timeout_cb,chk_ud_make_lr(cb));
 
 	if(luatimer->timer)
 		chk_timer_set_ud_cleaner(luatimer->timer,timer_ud_cleaner);
 	else {
-		chk_luaRef_release(&luatimer->cb);
+		chk_luaRef_release(&cb);
 		CHK_SYSLOG(LOG_ERROR,"chk_loop_addtimer() failed");
 		return 0;
 	}
@@ -105,15 +104,14 @@ static int32_t lua_event_loop_set_idle(lua_State *L) {
 	return 0;
 }
 
-static void signal_ud_dctor(void *ud) {
-	chk_luaRef *cb = (chk_luaRef*)ud;
-	POOL_RELEASE_LUAREF(cb);
+static void signal_ud_dctor(chk_ud ud) {
+	chk_luaRef_release(&ud.v.lr);
 }
 
-static void signal_callback(void *ud) {
-	chk_luaRef *cb = (chk_luaRef*)ud;
+static void signal_callback(chk_ud ud) {
+	chk_luaRef cb = ud.v.lr;
 	const char   *error; 
-	if(NULL != (error = chk_Lua_PCallRef(*cb,":"))) {
+	if(NULL != (error = chk_Lua_PCallRef(cb,":"))) {
 		CHK_SYSLOG(LOG_ERROR,"error on signal_cb %s",error);
 	}	
 }
@@ -121,19 +119,13 @@ static void signal_callback(void *ud) {
 static int32_t lua_watch_signal(lua_State *L) {
 	chk_event_loop *event_loop = lua_checkeventloop(L,1);
 	int32_t signo = (int32_t)luaL_checkinteger(L,2);
+	chk_luaRef cb = {0};
 
 	if(!lua_isfunction(L,3))
 		return luaL_error(L,"argument 3 must be lua function");
-
-	chk_luaRef *cb = POOL_NEW_LUAREF();//calloc(1,sizeof(*cb));
-	if(!cb) {
-		CHK_SYSLOG(LOG_ERROR,"calloc() failed");
-		lua_pushstring(L,"no memory");
-		return 1;
-	}
-	*cb = chk_toluaRef(L,3);
-	if(chk_error_ok != chk_watch_signal(event_loop,signo,signal_callback,cb,signal_ud_dctor)) {
-		signal_ud_dctor(cb);
+	cb = chk_toluaRef(L,3);
+	if(chk_error_ok != chk_watch_signal(event_loop,signo,signal_callback,chk_ud_make_lr(cb),signal_ud_dctor)) {
+		chk_luaRef_release(&cb);
 		printf("call chk_watch_signal failed\n");
 		return 0;
 	}

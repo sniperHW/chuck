@@ -11,14 +11,14 @@ chk_stream_socket_option option = {
 void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	if(data){
 		printf("recv request:%s\n",data->head->data);
-		chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,NULL);
+		chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,chk_ud_make_void(NULL));
 	}
 	else{
 		printf("socket close:%d\n",error);
 	}
 }
 
-void accept_cb_ssl(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
+void accept_cb_ssl(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,chk_ud ud,int32_t err) {
 	
 	if(fd >= 0) {
 
@@ -39,7 +39,7 @@ void accept_cb_ssl(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_
 	}
 }
 
-static void signal_int(void *ud) {
+static void signal_int(chk_ud ud) {
 	printf("signal_int\n");
 	chk_loop_end(loop);
 }
@@ -52,7 +52,7 @@ int main(int argc,char **argv) {
 	signal(SIGPIPE,SIG_IGN);
 	loop = chk_loop_new();
 
-	if(0 != chk_watch_signal(loop,SIGINT,signal_int,NULL,NULL)) {
+	if(0 != chk_watch_signal(loop,SIGINT,signal_int,chk_ud_make_void(NULL),NULL)) {
 		printf("watch signal failed\n");
 		return 0;
 	}
@@ -79,7 +79,7 @@ int main(int argc,char **argv) {
         return 0;
     }	
 
-	if(!chk_ssl_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),ctx,accept_cb_ssl,NULL)){
+	if(!chk_ssl_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),ctx,accept_cb_ssl,chk_ud_make_void(NULL))){
 		printf("server start error\n");
 	}
 	else{

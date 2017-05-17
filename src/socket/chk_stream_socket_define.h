@@ -2,12 +2,13 @@
 
 #include "../config.h"
 #include "util/chk_obj_pool.h"
+#include "chk_ud.h"
 
 typedef struct{
     chk_list_entry  entry;
-    void           *ud;
+    chk_ud          ud;
     chk_bytebuffer *buffer;
-    void (*cb)(chk_stream_socket *s,void *ud,int32_t error);
+    void (*cb)(chk_stream_socket *s,chk_ud ud,int32_t error);
 }st_send_cb;
 
 DECLARE_OBJPOOL(st_send_cb)
@@ -20,7 +21,7 @@ struct chk_stream_socket {
     uint32_t             status;
     uint32_t             next_recv_pos;
     chk_bytechunk       *next_recv_buf;
-    void                *ud;        
+    chk_ud               ud;        
     chk_list             send_list;             //待发送的包
     chk_list             urgent_list;           //紧急发送列表
     chk_list             send_cb_list;

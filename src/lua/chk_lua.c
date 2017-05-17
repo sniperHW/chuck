@@ -7,10 +7,6 @@
 # define  cast(T,P) ((T)(P))
 #endif
 
-chk_luaRef_pool *luaRef_pool = NULL;
-
-int32_t lock_luaRef_pool = 0;
-
 static __thread char lua_errmsg[4096] = {0};
 
 static inline int __traceback (lua_State *L) {

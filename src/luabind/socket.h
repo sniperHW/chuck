@@ -8,21 +8,12 @@
 
 #define SSL_CTX_METATABLE "lua_ssl_ctx"
 
-
-//void chk_acceptor_init(chk_acceptor *a,int32_t fd,void *ud);
-
-//void chk_acceptor_finalize(chk_acceptor *a);
-
-//int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,chk_stream_socket_option *option);
-
 typedef struct {
 	chk_acceptor *c_acceptor;
-	chk_luaRef    lua_cb;
 }lua_acceptor;
 
 typedef struct {
 	chk_stream_socket *c_stream_socket;
-	chk_luaRef    lua_cb;
 }lua_stream_socket;
 
 #define lua_checkacceptor(L,I)	\
@@ -35,13 +26,13 @@ typedef struct {
 	(SSL_CTX*)luaL_checkudata(L,I,SSL_CTX_METATABLE)
 
 
-static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
-	chk_luaRef   *cb = (chk_luaRef*)ud;
+static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,chk_ud ud,int32_t err) {
+	chk_luaRef   cb = ud.v.lr;
 	const char   *error;
 	if(0 == err) {
-		error = chk_Lua_PCallRef(*cb,"i",fd);
+		error = chk_Lua_PCallRef(cb,"i",fd);
 	}else {
-		error = chk_Lua_PCallRef(*cb,"pi",NULL,err);
+		error = chk_Lua_PCallRef(cb,"pi",NULL,err);
 	}
 	if(error) {
 		close(fd);
@@ -52,6 +43,8 @@ static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,void *
 static int32_t lua_acceptor_gc(lua_State *L) {
 	lua_acceptor *a = lua_checkacceptor(L,1);
 	if(a->c_acceptor){
+		chk_ud ud = chk_acceptor_get_ud(a->c_acceptor);
+		chk_luaRef_release(&ud.v.lr);
 		chk_acceptor_del(a->c_acceptor);
 		a->c_acceptor = NULL;
 	}
@@ -82,6 +75,7 @@ static int32_t lua_listen_ip4_ssl(lua_State *L) {
 	chk_event_loop *event_loop;
 	lua_acceptor   *a; 
 	SSL_CTX        *ssl_ctx;
+	chk_luaRef      accept_cb;
 
 	ssl_ctx = lua_check_ssl_ctx(L,2);
 
@@ -118,15 +112,17 @@ static int32_t lua_listen_ip4_ssl(lua_State *L) {
 	}
 	memset(a,0,sizeof(*a));
 
-	a->c_acceptor = chk_acceptor_new(fd,&a->lua_cb);
+	accept_cb = chk_toluaRef(L,5);
+
+	a->c_acceptor = chk_acceptor_new(fd,chk_ud_make_lr(accept_cb));
 
 	if(!a->c_acceptor){
+		chk_luaRef_release(&accept_cb);
 		CHK_SYSLOG(LOG_ERROR,"chk_acceptor_new() failed");
 		close(fd);
 		return 0;
 	}
 
-	a->lua_cb = chk_toluaRef(L,4); 	
 	luaL_getmetatable(L, ACCEPTOR_METATABLE);
 	lua_setmetatable(L, -2);
 	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a->c_acceptor,lua_acceptor_cb)) {
@@ -144,7 +140,8 @@ static int32_t lua_listen_ip4(lua_State *L) {
 	const char     *ip;
 	int16_t         port;
 	chk_event_loop *event_loop;
-	lua_acceptor   *a; 
+	lua_acceptor   *a;
+	chk_luaRef      accept_cb; 
 	if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) {
 		CHK_SYSLOG(LOG_ERROR,"socket() failed");
 		return 0;
@@ -181,15 +178,17 @@ static int32_t lua_listen_ip4(lua_State *L) {
 
 	memset(a,0,sizeof(*a));
 
-	a->c_acceptor = chk_acceptor_new(fd,&a->lua_cb);
+	accept_cb = chk_toluaRef(L,4);
+
+	a->c_acceptor = chk_acceptor_new(fd,chk_ud_make_lr(accept_cb));
 
 	if(!a->c_acceptor){
+		chk_luaRef_release(&accept_cb);
 		CHK_SYSLOG(LOG_ERROR,"chk_acceptor_new() failed");
 		close(fd);
 		return 0;
 	}
 
-	a->lua_cb = chk_toluaRef(L,4); 	
 	luaL_getmetatable(L, ACCEPTOR_METATABLE);
 	lua_setmetatable(L, -2);
 	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a->c_acceptor,lua_acceptor_cb)) {
@@ -201,23 +200,23 @@ static int32_t lua_listen_ip4(lua_State *L) {
 }
 
 
-static void dail_ip4_cb(int32_t fd,void *ud,int32_t err) {
-	chk_luaRef *cb = (chk_luaRef*)ud;
+static void dail_ip4_cb(int32_t fd,chk_ud ud,int32_t err) {
+	chk_luaRef cb = ud.v.lr;
 	const char *error;
 	if(0 == err) {
-		error = chk_Lua_PCallRef(*cb,"i",fd);
+		error = chk_Lua_PCallRef(cb,"i",fd);
 	}else {
-		error = chk_Lua_PCallRef(*cb,"pi",NULL,err);		
+		error = chk_Lua_PCallRef(cb,"pi",NULL,err);		
 	} 
 	if(error) {
 		close(fd);
 		CHK_SYSLOG(LOG_ERROR,"error on dail_ip4_cb %s",error);		
 	}
-	POOL_RELEASE_LUAREF(cb);	
+	chk_luaRef_release(&cb);
 }
 
 static int32_t lua_dail_ip4(lua_State *L) {
-	chk_luaRef     *cb;
+	chk_luaRef      cb = {0};
 	chk_sockaddr    remote;
 	uint32_t        timeout;
 	int32_t         fd,ret;
@@ -246,20 +245,11 @@ static int32_t lua_dail_ip4(lua_State *L) {
 		return 1;
 	}
 
-	cb  = POOL_NEW_LUAREF();//calloc(1,sizeof(*cb));
-
-	if(!cb) {
-		CHK_SYSLOG(LOG_ERROR,"calloc() failed");		
-		close(fd);
-		lua_pushstring(L,"connect error");
-		return 1;		
-	}
-
-	*cb = chk_toluaRef(L,4); 
+	cb = chk_toluaRef(L,4); 
 	timeout = (uint32_t)luaL_optinteger(L,5,0);
-	ret = chk_connect(fd,&remote,NULL,event_loop,dail_ip4_cb,cb,timeout);
+	ret = chk_connect(fd,&remote,NULL,event_loop,dail_ip4_cb,chk_ud_make_lr(cb),timeout);
 	if(ret != 0) {
-		POOL_RELEASE_LUAREF(cb);
+		chk_luaRef_release(&cb);
 		lua_pushstring(L,"connect error");
 		return 1;
 	}
@@ -275,18 +265,19 @@ static int32_t lua_stream_socket_gc(lua_State *L) {
 }
 
 static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
-	chk_luaRef *cb = (chk_luaRef*)chk_stream_socket_getUd(s);
+	chk_luaRef cb = chk_stream_socket_getUd(s).v.lr;
 	luaBufferPusher pusher = {PushBuffer,data};
 	const char *error_str;
-	if(!cb) return;
-	if(data) error_str = chk_Lua_PCallRef(*cb,"f",(chk_luaPushFunctor*)&pusher);
-	else error_str = chk_Lua_PCallRef(*cb,"pi",NULL,error);
+	if(!cb.L) return;
+	if(data) error_str = chk_Lua_PCallRef(cb,"f",(chk_luaPushFunctor*)&pusher);
+	else error_str = chk_Lua_PCallRef(cb,"pi",NULL,error);
 	if(error_str) CHK_SYSLOG(LOG_ERROR,"error on data_cb %s",error_str);	
 }
 
 static int32_t lua_stream_socket_bind(lua_State *L) {
 	lua_stream_socket *s;
 	chk_event_loop    *event_loop;
+	chk_luaRef cb  = {0}; 
 	s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
 		return luaL_error(L,"invaild lua_stream_socket");
@@ -294,9 +285,8 @@ static int32_t lua_stream_socket_bind(lua_State *L) {
 	event_loop = lua_checkeventloop(L,2);
 	if(!lua_isfunction(L,3)) 
 		return luaL_error(L,"argument 3 of stream_socket_bind must be lua function");
-
-	s->lua_cb = chk_toluaRef(L,3);
-	chk_stream_socket_setUd(s->c_stream_socket,&s->lua_cb);
+	cb = chk_toluaRef(L,3);
+	chk_stream_socket_setUd(s->c_stream_socket,chk_ud_make_lr(cb));
 	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)s->c_stream_socket,data_cb)) {
 		CHK_SYSLOG(LOG_ERROR,"chk_loop_add_handle() failed");
 		lua_pushstring(L,"stream_socket_bind failed");
@@ -338,15 +328,17 @@ static int32_t lua_stream_socket_new(lua_State *L) {
 
 static int32_t lua_stream_socket_close(lua_State *L) {
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
-	
+	chk_luaRef cb;
 	if(!s->c_stream_socket){
 		return luaL_error(L,"invaild lua_stream_socket");
 	}
-
 	uint32_t delay = (uint32_t)luaL_optinteger(L,2,0);		
 	chk_stream_socket_close(s->c_stream_socket,delay);
+	cb = chk_stream_socket_getUd(s->c_stream_socket).v.lr;
+	if(cb.L) {
+		chk_luaRef_release(&cb);
+	}
 	s->c_stream_socket = NULL;
-	chk_luaRef_release(&s->lua_cb);
 	return 0;
 }
 
@@ -374,20 +366,20 @@ static int32_t lua_close_fd(lua_State *L) {
 	return 0;
 }
 
-static void chk_lua_send_cb(chk_stream_socket *s,void *ud,int32_t err) {
-	chk_luaRef *cb = (chk_luaRef*)ud;
+static void chk_lua_send_cb(chk_stream_socket *s,chk_ud ud,int32_t err) {
+	chk_luaRef cb = ud.v.lr;
 	const char *error; 
-	if(NULL != (error = chk_Lua_PCallRef(*cb,"i",err))) {
+	if(NULL != (error = chk_Lua_PCallRef(cb,"i",err))) {
 		CHK_SYSLOG(LOG_ERROR,"error on lua_send_cb %s",error);
 	}	
-	POOL_RELEASE_LUAREF(cb);
+	chk_luaRef_release(&cb);
 }
 
 
 static int32_t lua_stream_socket_delay_send(lua_State *L) {
 	chk_bytebuffer    *b,*o;
 	chk_send_cb        send_cb = NULL;
-	chk_luaRef        *lua_cb = NULL;
+	chk_luaRef         lua_cb = {0};
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	
 	if(!s->c_stream_socket){
@@ -404,19 +396,13 @@ static int32_t lua_stream_socket_delay_send(lua_State *L) {
 	}
 
 	if(lua_isfunction(L,3)){
-		lua_cb = POOL_NEW_LUAREF();
-		if(!lua_cb) {
-			chk_bytebuffer_del(b);
-			lua_pushstring(L,"not enough memory");
-			return 1;
-		}
-		*lua_cb = chk_toluaRef(L,3);
+		lua_cb = chk_toluaRef(L,3);
 		send_cb = chk_lua_send_cb;
 	} 
 
-	if(0 != chk_stream_socket_delay_send(s->c_stream_socket,b,send_cb,lua_cb)){
-		if(lua_cb){
-			POOL_RELEASE_LUAREF(lua_cb);
+	if(0 != chk_stream_socket_delay_send(s->c_stream_socket,b,send_cb,chk_ud_make_lr(lua_cb))){
+		if(lua_cb.L){
+			chk_luaRef_release(&lua_cb);
 		}
 		lua_pushstring(L,"send error");
 		return 1;
@@ -427,7 +413,7 @@ static int32_t lua_stream_socket_delay_send(lua_State *L) {
 static int32_t lua_stream_socket_send(lua_State *L) {
 	chk_bytebuffer    *b,*o;
 	chk_send_cb        send_cb = NULL;
-	chk_luaRef        *lua_cb = NULL;
+	chk_luaRef         lua_cb = {0};
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
 		lua_pushstring(L,"socket close");		
@@ -443,19 +429,13 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 	}
 
 	if(lua_isfunction(L,3)){
-		lua_cb = POOL_NEW_LUAREF();
-		if(!lua_cb) {
-			chk_bytebuffer_del(b);
-			lua_pushstring(L,"not enough memory");
-			return 1;
-		}
-		*lua_cb = chk_toluaRef(L,3);
+		lua_cb = chk_toluaRef(L,3);
 		send_cb = chk_lua_send_cb;
 	} 
 
-	if(0 != chk_stream_socket_send(s->c_stream_socket,b,send_cb,lua_cb)){
-		if(lua_cb){
-			POOL_RELEASE_LUAREF(lua_cb);
+	if(0 != chk_stream_socket_send(s->c_stream_socket,b,send_cb,chk_ud_make_lr(lua_cb))){
+		if(lua_cb.L){
+			chk_luaRef_release(&lua_cb);
 		}
 		lua_pushstring(L,"send error");
 		return 1;
@@ -466,7 +446,7 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 static int32_t lua_stream_socket_send_urgent(lua_State *L) {
 	chk_bytebuffer    *b,*o;
 	chk_send_cb        send_cb = NULL;
-	chk_luaRef        *lua_cb = NULL;	
+	chk_luaRef         lua_cb = {0};	
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
 		lua_pushstring(L,"socket close");		
@@ -483,19 +463,13 @@ static int32_t lua_stream_socket_send_urgent(lua_State *L) {
 	}
 
 	if(lua_isfunction(L,3)){
-		lua_cb = POOL_NEW_LUAREF();
-		if(!lua_cb) {
-			chk_bytebuffer_del(b);
-			lua_pushstring(L,"not enough memory");
-			return 1;
-		}
-		*lua_cb = chk_toluaRef(L,3);
+		lua_cb = chk_toluaRef(L,3);
 		send_cb = chk_lua_send_cb;
 	}
 
-	if(0 != chk_stream_socket_send_urgent(s->c_stream_socket,b,send_cb,lua_cb)){
-		if(lua_cb){
-			POOL_RELEASE_LUAREF(lua_cb);
+	if(0 != chk_stream_socket_send_urgent(s->c_stream_socket,b,send_cb,chk_ud_make_lr(lua_cb))){
+		if(lua_cb.L){
+			chk_luaRef_release(&lua_cb);
 		}
 		lua_pushstring(L,"send error");				
 		return 1;

@@ -202,7 +202,7 @@ loopend:
 	return ret;
 }
 
-chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb cb,void *ud) {
+chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb cb,chk_ud ud) {
 	struct   itimerspec spec;
     uint64_t tick;
 	struct   epoll_event ev = {0};   

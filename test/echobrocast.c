@@ -15,7 +15,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 			chk_stream_socket *_s = clients[i];
 			if(_s){
 				packet_count++;
-				chk_stream_socket_send(_s,chk_bytebuffer_clone(data),NULL,NULL);
+				chk_stream_socket_send(_s,chk_bytebuffer_clone(data),NULL,chk_ud_make_void(NULL));
 			}
 		}		
 	}else {
@@ -31,7 +31,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	}
 }
 
-void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t err) {
+void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,chk_ud ud,int32_t err) {
 	printf("accept_cb\n");
 	int i;
 	chk_stream_socket_option option = {
@@ -49,7 +49,7 @@ void accept_cb(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,void *ud,int32_t er
 	chk_loop_add_handle(loop,(chk_handle*)s,data_event_cb);
 }
 
-int32_t on_timeout_cb(uint64_t tick,void*ud) {
+int32_t on_timeout_cb(uint64_t tick,chk_ud ud) {
 	uint32_t lasttick = chk_systick32();
 	printf("client_count:%d,packet_count:%u,lasttick:%u\n",client_count,packet_count,lasttick);
 	packet_count = 0; 
@@ -59,10 +59,10 @@ int32_t on_timeout_cb(uint64_t tick,void*ud) {
 int main(int argc,char **argv) {
 	signal(SIGPIPE,SIG_IGN);
 	loop = chk_loop_new();	
-	if(!chk_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),accept_cb,NULL))
+	if(!chk_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),accept_cb,chk_ud_make_void(NULL)))
 		printf("server start error\n");
 	else {
-		chk_loop_addtimer(loop,1000,on_timeout_cb,NULL);
+		chk_loop_addtimer(loop,1000,on_timeout_cb,chk_ud_make_void(NULL));
 		chk_loop_run(loop);
 	}		
 	return 0;

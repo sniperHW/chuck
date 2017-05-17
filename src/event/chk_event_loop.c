@@ -122,8 +122,8 @@ int32_t chk_loop_remove_handle(chk_handle *h) {
 }
 
 
-static int32_t on_idle_timer_timeout(uint64_t tick,void*ud) {
-	chk_event_loop *loop = (chk_event_loop*)ud;
+static int32_t on_idle_timer_timeout(uint64_t tick,chk_ud ud) {
+	chk_event_loop *loop = (chk_event_loop*)ud.v.val;
 
 #ifdef CHUCK_LUA
 	if(!loop->idle.on_idle.L)
@@ -157,7 +157,7 @@ int32_t chk_loop_set_idle_func_lua(chk_event_loop *loop,chk_luaRef idle_cb) {
 
 	if(loop->idle.on_idle.L) {
 		if(!loop->idle.idle_timer) {
-			loop->idle.idle_timer = chk_loop_addtimer(loop,CHK_IDLE_TIMER_TIMEOUT,on_idle_timer_timeout,loop);
+			loop->idle.idle_timer = chk_loop_addtimer(loop,CHK_IDLE_TIMER_TIMEOUT,on_idle_timer_timeout,chk_ud_make_void(loop));
 			if(!loop->idle.idle_timer) {
 				chk_luaRef_release(&loop->idle.on_idle);
 				return chk_error_add_timer;
@@ -178,7 +178,7 @@ int32_t chk_loop_set_idle_func(chk_event_loop *loop,void (*idle_cb)()) {
 
 	if(loop->idle.on_idle) {
 		if(!loop->idle.idle_timer) {
-			loop->idle.idle_timer = chk_loop_addtimer(loop,CHK_IDLE_TIMER_TIMEOUT,on_idle_timer_timeout,loop);
+			loop->idle.idle_timer = chk_loop_addtimer(loop,CHK_IDLE_TIMER_TIMEOUT,on_idle_timer_timeout,chk_ud_make_void(loop));
 			if(!loop->idle.idle_timer) {
 				loop->idle.on_idle = NULL;
 				return chk_error_add_timer;

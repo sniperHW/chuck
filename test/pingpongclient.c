@@ -17,7 +17,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 		len = chk_hton32(len);
 		chk_bytebuffer_append(buffer,(uint8_t*)&len,sizeof(len));
 		chk_bytebuffer_append(buffer,(uint8_t*)data,64-sizeof(len));	
-		if(0 != chk_stream_socket_send(s,buffer,NULL,NULL))
+		if(0 != chk_stream_socket_send(s,buffer,NULL,chk_ud_make_void(NULL)))
 		{
 			printf("send error\n");
 		}
@@ -25,7 +25,7 @@ void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	}
 }
 
-int32_t on_timeout_cb1(uint64_t tick,void*ud) {
+int32_t on_timeout_cb1(uint64_t tick,chk_ud ud) {
 	printf("packet_count:%u/s\n",packet_count);
 	packet_count = 0; 
 	return 0; 
@@ -43,7 +43,7 @@ int main(int argc,char **argv) {
 	int i = 0;
 	for(; i < c; ++i) {
     	fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-    	if (0 == chk_connect(fd,&server,NULL,loop,NULL,NULL,-1))
+    	if (0 == chk_connect(fd,&server,NULL,loop,NULL,chk_ud_make_void(NULL),-1))
     	{
     		chk_stream_socket_option option = {
 				.recv_buffer_size = 1024*64,
@@ -61,14 +61,14 @@ int main(int argc,char **argv) {
 			chk_bytebuffer_append(buffer,(uint8_t*)&len,sizeof(len));
 			chk_bytebuffer_append(buffer,(uint8_t*)data,64-sizeof(len));	
 
-			if(0 != chk_stream_socket_send(s,buffer,NULL,NULL))
+			if(0 != chk_stream_socket_send(s,buffer,NULL,chk_ud_make_void(NULL)))
 			{
 				printf("send error\n");
 			}
 
     	}
 	}
-	chk_loop_addtimer(loop,1000,on_timeout_cb1,NULL);
+	chk_loop_addtimer(loop,1000,on_timeout_cb1,chk_ud_make_void(NULL));
 	chk_loop_run(loop);
 	return 0;
 }

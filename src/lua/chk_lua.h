@@ -79,20 +79,6 @@ struct chk_luaToFunctor {
 	void (*To)(chk_luaToFunctor *self,lua_State *L,int idx);
 };
 
-
-//static inline void chk_push_LuaRef(lua_State *L,chk_luaRef ref);
-//static inline chk_luaRef chk_toluaRef(lua_State *L,int idx);
-
-/*
-static inline chk_luaRef chk_luaRef_retain(chk_luaRef *ref) {
-	if(ref->L && ref->index != LUA_REFNIL) {
-		chk_push_LuaRef(ref->L,ref);
-		return chk_toluaRef(ref->L,-1);
-	}
-	return (chk_luaRef){.L=NULL};
-}
-*/
-
 static inline void chk_luaRef_release(chk_luaRef *ref) {
 	if(ref->L) {
 		luaL_unref(ref->L,LUA_REGISTRYINDEX,ref->index);
@@ -156,6 +142,7 @@ const char *chk_lua_pcall(lua_State *L,const char *fmt,...);
 	}								       						   \
 	__result;												     })
 
+/*
 #include "util/chk_obj_pool.h"
 
 DECLARE_OBJPOOL(chk_luaRef)
@@ -188,7 +175,7 @@ extern int32_t lock_luaRef_pool;
     chk_luaRef_release_obj(luaRef_pool,LUA_REF);                     \
     LUAREF_POOL_UNLOCK();                                            \
 }while(0)
-
+*/
 
 #if 0
 

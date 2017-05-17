@@ -11,8 +11,8 @@ uint64_t tick = 0;
 uint32_t count[9] = {0};
 
 
-int32_t cb(uint64_t tick,void*ud) {
-	chk_timer *t = *((chk_timer**)ud);
+int32_t cb(uint64_t tick,chk_ud ud) {
+	chk_timer *t = *((chk_timer**)ud.v.val);
 	switch(chk_timer_timeout(t)){
 		case 1:count[0]++;break;
 		case 101:count[1]++;break;
@@ -32,7 +32,7 @@ int32_t cb(uint64_t tick,void*ud) {
 chk_timer* ids[N];
 
 
-int32_t on_timeout_cb(uint64_t tick,void*ud)
+int32_t on_timeout_cb(uint64_t tick,chk_ud ud)
 { return 0; }
 
 void test1() {
@@ -42,7 +42,7 @@ void test1() {
 
     t = clock();
     for (i = 0; i < N; ++i) {
-        ids[i] = chk_timer_register(mgr, rand() * rand(), on_timeout_cb, NULL, 0);
+        ids[i] = chk_timer_register(mgr, rand() * rand(), on_timeout_cb, chk_ud_make_void(NULL), 0);
     }
     printf("create time: %dms\n", (int)((clock()-t)*1000/CLOCKS_PER_SEC));
 
@@ -53,7 +53,7 @@ void test1() {
 
     t = clock();
     for (i = 0; i < N; ++i) {
-        ids[i] = chk_timer_register(mgr, rand() * rand(), on_timeout_cb, NULL, 0);
+        ids[i] = chk_timer_register(mgr, rand() * rand(), on_timeout_cb, chk_ud_make_void(NULL), 0);
     }
     printf("create time: %dms\n", (int)((clock()-t)*1000/CLOCKS_PER_SEC));
 
@@ -71,15 +71,15 @@ void  test2() {
 	uint32_t c = 0;
 	chk_timer *t1,*t2,*t3,*t4,*t5,*t6,*t7,*t8,*t9;
 	chk_timermgr *m = chk_timermgr_new();
-	t1 = chk_timer_register(m,1,cb,&t1,tick);
-	t2 = chk_timer_register(m,101,cb,&t2,tick);
-	t3 = chk_timer_register(m,999,cb,&t3,tick);
-	t4 = chk_timer_register(m,1001,cb,&t4,tick);
-	t5 = chk_timer_register(m,1000,cb,&t5,tick);
-	t6 = chk_timer_register(m,60000,cb,&t6,tick);
-	t7 = chk_timer_register(m,60001,cb,&t7,tick);
-	t8 = chk_timer_register(m,9104999,cb,&t8,tick);
-	t9 = chk_timer_register(m,MAX_TIMEOUT,cb,&t9,tick);							
+	t1 = chk_timer_register(m,1,cb,chk_ud_make_void(&t1),tick);
+	t2 = chk_timer_register(m,101,cb,chk_ud_make_void(&t2),tick);
+	t3 = chk_timer_register(m,999,cb,chk_ud_make_void(&t3),tick);
+	t4 = chk_timer_register(m,1001,cb,chk_ud_make_void(&t4),tick);
+	t5 = chk_timer_register(m,1000,cb,chk_ud_make_void(&t5),tick);
+	t6 = chk_timer_register(m,60000,cb,chk_ud_make_void(&t6),tick);
+	t7 = chk_timer_register(m,60001,cb,chk_ud_make_void(&t7),tick);
+	t8 = chk_timer_register(m,9104999,cb,chk_ud_make_void(&t8),tick);
+	t9 = chk_timer_register(m,MAX_TIMEOUT,cb,chk_ud_make_void(&t9),tick);							
 	while(1){
 		tick = chk_tmer_inctick(tick);
 		if(tick % (1000*3600*24)  == 0) {
