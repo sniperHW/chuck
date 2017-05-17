@@ -95,7 +95,8 @@ arg_end:
 	lua_remove(L,base);
 	if(ret){
 		strncpy(lua_errmsg,lua_tostring(L,-1),sizeof(lua_errmsg) - 1);
-		return lua_errmsg;
+		errmsg = lua_errmsg;
+		goto end;
 	}else if(nres){
 		top = lua_gettop(L);
 		for(;nres > 0; --nres) {
