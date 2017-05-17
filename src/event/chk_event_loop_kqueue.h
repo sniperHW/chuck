@@ -217,7 +217,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 	do {
 		ticktimer = 0;
 		chk_dlist_init(&ready_list);
-		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd >= 0 ? 1 : 0, e->events,e->maxevents,pts));
+		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd, e->events,e->maxevents,pts));
 		t = chk_systick64();
 		if(nfds > 0) {
 			e->status |= INLOOP;
@@ -288,7 +288,7 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 			return NULL;
 		}
 		e->tfd      = 1;
-		EV_SET(&e->change, e->tfd, EVFILT_TIMER,flags, /*NOTE_ABSOLUTE*/0, 1, e->timermgr);
+		EV_SET(&e->change, e->tfd, EVFILT_TIMER,flags, NOTE_CRITICAL, 1, e->timermgr);
 	}
 	tick = chk_accurate_tick64();
 	return chk_timer_register(e->timermgr,timeout,cb,ud,tick); 
