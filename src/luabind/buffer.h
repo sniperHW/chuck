@@ -92,17 +92,28 @@ static int32_t lua_bytebuffer_readall(lua_State *L) {
 	luaL_Buffer     lb;
 	char           *in;
 
+	if(!b->head) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	if(b->head->cap - b->spos >= b->datasize) {
+		//数据在唯一的chunk中
+		lua_pushlstring(L,(const char *)b->head->data,(size_t)b->datasize);
+	}else {
+		//数据跨越chunk
 #if LUA_VERSION_NUM >= 503	
-	in = luaL_buffinitsize(L,&lb,(size_t)b->datasize);
-	chk_bytebuffer_read(b,in,b->datasize);
-	luaL_pushresultsize(&lb,(size_t)b->datasize);
+		in = luaL_buffinitsize(L,&lb,(size_t)b->datasize);
+		chk_bytebuffer_read(b,in,b->datasize);
+		luaL_pushresultsize(&lb,(size_t)b->datasize);
 #else
- 	luaL_buffinit(L, &lb);
- 	in = luaL_prepbuffsize(&lb,(size_t)body->datasize);
-	chk_bytebuffer_read(b,in,b->datasize);
-	luaL_addsize(&lb,(size_t)b->datasize);	
-	luaL_pushresult(&lb);
+ 		luaL_buffinit(L, &lb);
+ 		in = luaL_prepbuffsize(&lb,(size_t)body->datasize);
+		chk_bytebuffer_read(b,in,b->datasize);
+		luaL_addsize(&lb,(size_t)b->datasize);	
+		luaL_pushresult(&lb);
 #endif	
+	}
 	return 1;
 }
 

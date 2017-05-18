@@ -63,7 +63,7 @@ local function main()
 		if not err then
 			print(table.unpack(result))
 		else
-			print(err)
+			print("rpc call error:",err)
 		end
 	end 
 

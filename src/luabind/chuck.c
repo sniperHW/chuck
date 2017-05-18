@@ -27,6 +27,7 @@
 #include "http.h"
 #include "log.h"
 #include "ssl.h"
+#include "time.h"
 
 
 #define REGISTER_MODULE(L,N,F) do {	\
@@ -67,9 +68,7 @@ void register_signum(lua_State *L) {
 	SET_CONST(L,SIGWINCH);
 	SET_CONST(L,SIGIOT);
 	SET_CONST(L,SIGIO);
-
 }
-
 
 int32_t luaopen_chuck(lua_State *L)
 {
@@ -84,6 +83,7 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"http",register_http);		
 	REGISTER_MODULE(L,"signal",register_signum);
 	REGISTER_MODULE(L,"log",register_log);
-	REGISTER_MODULE(L,"ssl",register_ssl);	
+	REGISTER_MODULE(L,"ssl",register_ssl);
+	REGISTER_MODULE(L,"time",register_time);		
 	return 1;
 }

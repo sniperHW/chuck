@@ -24,6 +24,8 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd
 	end
 end)
 
+print("systick:",chuck.time.systick(),"unixtime:",chuck.time.unixtime())
+
 if server then
 	log.SysLog(log.info,"server start")	
 
