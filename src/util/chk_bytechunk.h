@@ -15,7 +15,7 @@
 #include "util/chk_list.h"
 #include "util/chk_obj_pool.h"
 #include "util/chk_error.h"
-
+#include <stdio.h>
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
 #endif
@@ -356,5 +356,53 @@ static inline uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t 
     return size;
 }
 
+static inline int32_t chk_bytebuffer_rewrite(chk_bytebuffer *b,uint32_t pos,uint8_t *v,uint32_t size) {
+    chk_bytechunk *chunk;
+    uint32_t       spos,index,c,tmp,wsize;
+
+    if(b->flags & READ_ONLY) {
+        return chk_error_buffer_read_only;
+    }
+
+    if(pos + size > b->datasize) {
+        return chk_error_invaild_pos;
+    }
+
+    if(b->flags & NEED_COPY_ON_WRITE) {
+        //写时拷贝
+        if(b != chk_bytebuffer_do_copy(b,b->head,b->spos,b->datasize)) {
+            return chk_error_no_memory;
+        }
+    }
+
+    if(!b->head) {
+        return chk_error_invaild_pos;
+    }
+
+    spos = b->spos;
+    c = pos;
+    chunk = b->head;
+    while(c != 0) {
+        tmp = chunk->cap - spos;
+        //printf("%u,%u,%u,%u\n",c,tmp,chunk->cap,spos);
+        if(tmp <= c) {
+            c -= tmp;
+            index = spos = 0;
+            chunk = chunk->next;
+            if(NULL == chunk) {
+                return chk_error_invaild_pos;
+            }
+        }else {
+            index = (spos + c);
+            c = 0;
+        }
+    }
+    wsize = size;
+    chk_bytechunk_write(chunk,(char*)v,&index,&wsize);
+    if(wsize != size) {
+        return chk_error_invaild_pos;
+    }
+    return chk_error_ok;
+}
 
 #endif

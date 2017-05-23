@@ -21,6 +21,7 @@ enum {
 	/*buffef相关错误码*/
 	chk_error_buffer_read_only,                           /*只读buffer*/
 	chk_error_invaild_buffer,                             /*非法buffer*/
+	chk_error_invaild_pos,
 	/*chk_signal相关错误码*/
 	chk_error_create_signal_handler,                      /*创建信号处理器失败*/
 	chk_error_duplicate_signal_handler,                   /*重复的信号处理器*/

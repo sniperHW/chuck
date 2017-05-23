@@ -355,6 +355,64 @@ static inline int32_t lua_wpacket_writeDub(lua_State *L) {
     return 0;
 }
 
+static inline int32_t lua_wpacket_get_write_pos(lua_State *L) {
+	lua_wpacket *w = lua_checkwpacket(L,1);
+	lua_pushinteger(L,w->buff->datasize);
+	return 1;
+} 
+
+static inline int32_t lua_wpacket_rewriteI8(lua_State *L) {
+	lua_wpacket *w = lua_checkwpacket(L,1);	
+	uint32_t pos   = luaL_checkinteger(L,2);
+	int8_t v = (int8_t)luaL_checkinteger(L,3);	
+	if(pos + sizeof(int8_t) > w->buff->datasize) {
+    	return luaL_error(L,"invaild write pos"); 
+	}
+	if(chk_error_ok != chk_bytebuffer_rewrite(w->buff,pos,(uint8_t*)&v,(uint32_t)sizeof(v))) {
+		return luaL_error(L,"invaild write pos");
+	}
+	return 0;
+}
+
+static inline int32_t lua_wpacket_rewriteI16(lua_State *L) {
+	lua_wpacket *w = lua_checkwpacket(L,1);	
+	uint32_t pos   = luaL_checkinteger(L,2);
+	int16_t v = chk_hton16((int16_t)luaL_checkinteger(L,3));	
+	if(pos + sizeof(int16_t) > w->buff->datasize) {
+    	return luaL_error(L,"invaild write pos");
+	}
+	if(chk_error_ok != chk_bytebuffer_rewrite(w->buff,pos,(uint8_t*)&v,(uint32_t)sizeof(v))) {
+		return luaL_error(L,"invaild write pos");
+	}
+	return 0;	
+}
+
+static inline int32_t lua_wpacket_rewriteI32(lua_State *L) {
+	lua_wpacket *w = lua_checkwpacket(L,1);	
+	uint32_t pos   = luaL_checkinteger(L,2);
+	int32_t v = chk_hton32((int32_t)luaL_checkinteger(L,3));
+	if(pos + sizeof(int32_t) > w->buff->datasize) {
+    	return luaL_error(L,"invaild write pos"); 
+	}
+	if(chk_error_ok != chk_bytebuffer_rewrite(w->buff,pos,(uint8_t*)&v,(uint32_t)sizeof(v))) {
+		return luaL_error(L,"invaild write pos");
+	}
+	return 0;	
+}
+
+static inline int32_t lua_wpacket_rewriteI64(lua_State *L) {
+	lua_wpacket *w = lua_checkwpacket(L,1);	
+	uint32_t pos   = luaL_checkinteger(L,2);
+	int64_t v = chk_hton64((int64_t)luaL_checkinteger(L,3));
+	if(pos + sizeof(int64_t) > w->buff->datasize) {
+    	return luaL_error(L,"invaild write pos");
+	}
+	if(chk_error_ok != chk_bytebuffer_rewrite(w->buff,pos,(uint8_t*)&v,(uint32_t)sizeof(v))) {
+		return luaL_error(L,"invaild write pos");
+	}
+	return 0;	
+}
+
 static inline int32_t lua_wpacket_writeStr(lua_State *L) {
 	const char  *str;
 	size_t       len;
@@ -662,6 +720,11 @@ static void register_packet(lua_State *L) {
 		{"WriteNum",  lua_wpacket_writeDub},
 		{"WriteStr",  lua_wpacket_writeStr},
 		{"WriteTable",lua_wpacket_writeTable},
+		{"GetWritePos",lua_wpacket_get_write_pos},
+		{"ReWriteI8",lua_wpacket_rewriteI8},
+		{"ReWriteI16",lua_wpacket_rewriteI16},
+		{"ReWriteI32",lua_wpacket_rewriteI32},
+		{"ReWriteI64",lua_wpacket_rewriteI64},								
 		{NULL,     NULL}
 	};
 
