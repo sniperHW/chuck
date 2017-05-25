@@ -99,7 +99,7 @@ static int32_t lua_bytebuffer_readall(lua_State *L) {
 
 	if(b->head->cap - b->spos >= b->datasize) {
 		//数据在唯一的chunk中
-		lua_pushlstring(L,(const char *)b->head->data,(size_t)b->datasize);
+		lua_pushlstring(L,(const char *)&(b->head->data[b->spos]),(size_t)b->datasize);
 	}else {
 		//数据跨越chunk
 #if LUA_VERSION_NUM >= 503	

@@ -235,11 +235,8 @@ static int32_t lua_redis_on_connection_loss(lua_State *L) {
 		return 1;
 	}
 
-	if(client->on_connection_loss.L) {
-		chk_luaRef_release(&client->on_connection_loss);
-	}
-
 	client->on_connection_loss = chk_toluaRef(L,2);
+	printf("on_connection_loss,L:%p,index:%d\n",client->on_connection_loss.L,client->on_connection_loss.index);
 
 	return 0;
 

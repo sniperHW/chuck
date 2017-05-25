@@ -18,7 +18,7 @@ typedef struct chk_timermgr  chk_timermgr;
 
 typedef int32_t (*chk_timeout_cb)(uint64_t tick,chk_ud ud);
 
-typedef void    (*chk_timer_ud_cleaner)(chk_ud);
+typedef void    (*chk_timer_ud_cleaner)(chk_ud*);
 
 
 /**

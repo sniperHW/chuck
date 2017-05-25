@@ -131,7 +131,7 @@ static inline void _reg(chk_timermgr *m,chk_timer *t,uint64_t tick) {
 }
 
 static inline void _destroy_timer(chk_timer *t) {
-	if(t->cleaner) t->cleaner(t->ud);
+	if(t->cleaner) t->cleaner(&t->ud);
 	release_timer(t);
 }
 

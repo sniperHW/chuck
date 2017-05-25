@@ -12,8 +12,8 @@ typedef struct {
 	chk_timer *timer;
 }lua_timer;
 
-static void timer_ud_cleaner(chk_ud ud) {
-	chk_luaRef_release(&ud.v.lr);
+static void timer_ud_cleaner(chk_ud *ud) {
+	chk_luaRef_release(&ud->v.lr);
 }
 
 static int32_t lua_timeout_cb(uint64_t tick,chk_ud ud) {

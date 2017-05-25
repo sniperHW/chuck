@@ -101,7 +101,10 @@ static inline void *getaddr(char *in) {
 	char     buf[32];
 	char     *out = buf;
 	void     *addr = NULL;
-	for(i = b = 0;i < size - 1;in++)
+	for(i = b = 0;i < size - 1;in++) {
+		if(*in == 0) {
+			return NULL;
+		}
 		switch(*in) {
 			case '[':{if(!b){b = 1; break;} else return NULL;}
 			case ']':{
@@ -114,6 +117,7 @@ static inline void *getaddr(char *in) {
 			}
 			default:{if(b){*out++ = *in;++i;}break;}
 		}
+	}
 	return NULL;
 }
 
@@ -156,6 +160,7 @@ static int32_t getdetail(char *str,char *output,int32_t size) {
 	char *so = strstr(str,".so");
 	if(so){
 		strncpy(path,str,sizeof(path) - 1);
+		path[sizeof(path) - 1] = 0;
 		if(!(addr = getaddr(str))) return -1;
 		if(!(addr = getsoaddr(path,addr))) return -1;
 	}
