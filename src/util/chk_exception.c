@@ -154,8 +154,39 @@ static void *getaddr(char *in) {
 	return NULL;
 }
 
-static void *getsoaddr(char *path,void *addr) {
-	FILE   *pipe;
+static void *getsoaddr(const char *str,char *path) {
+
+	//1: ./lib/chuck.so(+0xb3a73) [0x7f68a2e76a73]
+	void *addr;
+	char buf[32];
+	int32_t i = 0;
+	char *s = strstr(str,".so");
+	if(!s) {
+		return NULL;
+	}
+	size_t size = s - str + 3;
+	for(size_t i = 0; i < size; ++i) {
+		path[i] = str[i];
+	}
+	path[size] = 0;
+
+	s = strstr(s,"0x");
+	if(!s) {
+		return NULL;
+	}
+	for( ; i < 31; ++i) {
+		buf[i] = s[i];
+		if(buf[i] == ')') {
+			buf[i] = 0;
+			sscanf(buf,"%p",&addr);
+			return addr;
+		}else if(buf[i] == 0) {
+			return NULL;
+		}
+	}
+	return NULL;
+
+/*	FILE   *pipe;
 	void   *soaddr = NULL;
 	char    buff[1024]={0};
 	int32_t i =0;
@@ -182,6 +213,8 @@ static void *getsoaddr(char *path,void *addr) {
 	}
 	pclose(pipe);
 	return soaddr;
+*/
+
 }
 
 #endif
@@ -193,19 +226,15 @@ static int32_t getdetail(char *str,char *output,int32_t size) {
 #else
 
 	void *addr;
-	char  path[256]={0};
+	char  path[1024]={0};
 	char  cmd[1024]={0};
 	FILE *pipe;
 	int   i,j;
 	char *so = strstr(str,".so");
-	if(so){
-		strncpy(path,str,sizeof(path) - 1);
-		path[sizeof(path) - 1] = 0;
-		if(!(addr = getaddr(str))) return -1;
-		if(!(addr = getsoaddr(path,addr))) return -1;
-	}
-	else{
-		if(0 >= readlink("/proc/self/exe", path, 256))
+	if(so) {
+		if(!(addr = getsoaddr(str,path))) return -1;
+	} else{
+		if(0 >= readlink("/proc/self/exe", path, 1024))
 			return -1;
 		else if(!(addr = getaddr(str))) return -1;
 	}
