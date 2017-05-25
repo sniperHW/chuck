@@ -96,15 +96,48 @@ void chk_exp_log_call_stack(const char *discription) {
 	_log_stack(LOG_DEBUG,2,discription,NULL);
 }
 
-static inline void *getaddr(char *in) {
+#ifndef _MACH
+
+static void *getaddr(char *in) {
+/*
+#ifdef _MACH
+	int32_t  wc,w,i,size = 32;
+	char     buf[32];
+	char     *out = buf;
+	void     *addr = NULL;
+	for(wc = w = i = 0; *in !=0 && i < size - 1;in++)
+		switch(*in) {
+			case ' ':{
+				if(1 == w) {
+					//end of a word
+					w = 0;
+					if(wc == 3) {
+						*out++ = 0;
+						sscanf(buf,"%p",&addr);
+						return addr;
+					}
+				}								
+			}break;
+			default:{
+				if(w == 0){
+					//begin a new word
+					w = 1;
+					++wc;
+				}
+				if(3 == wc){
+					//only copy word 3
+					*out++ = *in;
+					++i;
+				}
+			}break;
+		}	
+#else
+*/
 	int32_t  b,i,size = 32;
 	char     buf[32];
 	char     *out = buf;
 	void     *addr = NULL;
-	for(i = b = 0;i < size - 1;in++) {
-		if(*in == 0) {
-			return NULL;
-		}
+	for(i = b = 0; *in !=0 && i < size - 1;in++)
 		switch(*in) {
 			case '[':{if(!b){b = 1; break;} else return NULL;}
 			case ']':{
@@ -117,7 +150,7 @@ static inline void *getaddr(char *in) {
 			}
 			default:{if(b){*out++ = *in;++i;}break;}
 		}
-	}
+//#endif
 	return NULL;
 }
 
@@ -151,7 +184,14 @@ static void *getsoaddr(char *path,void *addr) {
 	return soaddr;
 }
 
+#endif
+
 static int32_t getdetail(char *str,char *output,int32_t size) {
+
+#ifdef _MACH
+	return -1;
+#else
+
 	void *addr;
 	char  path[256]={0};
 	char  cmd[1024]={0};
@@ -178,6 +218,7 @@ static int32_t getdetail(char *str,char *output,int32_t size) {
 	output[i] = '\0';
 	for(j=0; j<=i; ++j) if(output[j] == '\n') output[j] = ' ';	
 	return 0;
+#endif
 }
 
 static void _log_stack(int32_t logLev,int32_t start,const char *prefix,void **bt) {
