@@ -159,13 +159,13 @@ static void *getsoaddr(const char *str,char *path) {
 	//1: ./lib/chuck.so(+0xb3a73) [0x7f68a2e76a73]
 	void *addr;
 	char buf[32];
-	int32_t i = 0;
+	size_t i = 0;
 	char *s = strstr(str,".so");
 	if(!s) {
 		return NULL;
 	}
 	size_t size = s - str + 3;
-	for(size_t i = 0; i < size; ++i) {
+	for(i = 0; i < size; ++i) {
 		path[i] = str[i];
 	}
 	path[size] = 0;
@@ -174,7 +174,7 @@ static void *getsoaddr(const char *str,char *path) {
 	if(!s) {
 		return NULL;
 	}
-	for( ; i < 31; ++i) {
+	for(i = 0 ; i < 31; ++i) {
 		buf[i] = s[i];
 		if(buf[i] == ')') {
 			buf[i] = 0;
