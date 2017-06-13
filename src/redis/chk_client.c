@@ -439,7 +439,6 @@ static void connect_callback(int32_t fd,chk_ud ud,int32_t err) {
 
 int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_connect_cb cntcb,chk_ud ud) {
 	chk_redisclient *c;
-	int32_t          fd;
 	if(!loop || !addr || !cntcb) {
 		CHK_SYSLOG(LOG_ERROR,"invaild param loop:%p,addr:%p,cntcb:%p",loop,addr,cntcb);	
 		return chk_error_invaild_argument;
@@ -448,12 +447,11 @@ int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_conn
 	if(!c) {
 		CHK_SYSLOG(LOG_ERROR,"calloc failed");	
 		return chk_error_no_memory;
-	}
-	fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);	
+	}	
 	c->cntcb  = cntcb;
 	c->ud     = ud;
 	c->loop   = loop;
-    return chk_connect(fd,addr,NULL,loop,connect_callback,chk_ud_make_void(c),0);
+    return chk_connect(addr,NULL,loop,connect_callback,chk_ud_make_void(c),0);
 }
 
 void chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,chk_ud ud) {

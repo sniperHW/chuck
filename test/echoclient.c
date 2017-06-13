@@ -57,12 +57,10 @@ int main(int argc,char **argv) {
 	if(0 != easy_sockaddr_ip4(&server,argv[1],atoi(argv[2]))) {
 		printf("invaild address:%s\n",argv[1]);
 	}
-	int32_t fd;
 	int c = atoi(argv[3]);
 	int i = 0;
 	for(; i < c; ++i) {
-    	fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-    	chk_connect(fd,&server,NULL,loop,connect_callback,chk_ud_make_void(NULL),-1);
+    	chk_connect(&server,NULL,loop,connect_callback,chk_ud_make_void(NULL),-1);
 	}
 	chk_loop_addtimer(loop,1000,on_timeout_cb1,chk_ud_make_void(NULL));
 	chk_loop_run(loop);

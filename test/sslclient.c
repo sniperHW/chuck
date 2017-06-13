@@ -46,8 +46,7 @@ int main(int argc,char **argv) {
 		printf("invaild address:%s\n",argv[1]);
 	}
 
-    int32_t fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-    chk_connect(fd,&server,NULL,loop,connect_callback,chk_ud_make_void(NULL),-1);   	
+    chk_connect(&server,NULL,loop,connect_callback,chk_ud_make_void(NULL),-1);   	
 
 	chk_loop_run(loop);
 	return 0;

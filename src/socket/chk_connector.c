@@ -92,12 +92,42 @@ chk_connector *chk_connector_new(int32_t fd,chk_ud ud,uint32_t timeout) {
 	return c;
 }
 
-int32_t chk_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local,chk_event_loop *e,connect_cb cb,chk_ud ud,uint32_t timeout) {
+int32_t chk_connect(chk_sockaddr *server,chk_sockaddr *local,chk_event_loop *e,connect_cb cb,chk_ud ud,uint32_t timeout) {
+	int family;
 	chk_connector *c;
 	int32_t        ret;
+	errno = 0;
+	int fd;
+
+	if(NULL == server || NULL == e) {
+		CHK_SYSLOG(LOG_ERROR,"NULL == server || NULL == e");		
+		return -1;
+	}
+
+	if(server->addr_type == SOCK_ADDR_IPV4) {
+		family = AF_INET;
+	} else if(server->addr_type == SOCK_ADDR_IPV6) {
+		family = AF_INET6;
+	} else if(server->addr_type == SOCK_ADDR_UN) {
+		family = AF_LOCAL;
+	} else {
+		CHK_SYSLOG(LOG_ERROR,"invaild server addr_type");
+		return -1;
+	}
+
+	fd = socket(family,SOCK_STREAM,IPPROTO_TCP);
+
+	if(0 > fd) {
+		CHK_SYSLOG(LOG_ERROR,"chk_connect socket failed errno:%d",errno);
+		return -1;
+	}
+
 	if(!cb) {
 		easy_noblock(fd,0);
 		ret = easy_connect(fd,server,local);
+		if(chk_error_ok != ret){
+			close(fd);
+		}
 	} else {
 		easy_noblock(fd,1);
 		ret = easy_connect(fd,server,local);

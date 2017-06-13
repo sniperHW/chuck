@@ -224,7 +224,7 @@ static int32_t lua_dail_ip4(lua_State *L) {
 	chk_luaRef      cb = {0};
 	chk_sockaddr    remote;
 	uint32_t        timeout;
-	int32_t         fd,ret;
+	int32_t         ret;
 	const char     *ip;
 	int16_t         port;
 	chk_event_loop *event_loop;
@@ -233,26 +233,19 @@ static int32_t lua_dail_ip4(lua_State *L) {
 		return luaL_error(L,"argument 4 of dail must be lua function");
 	}
 
-	if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) {
-		CHK_SYSLOG(LOG_ERROR,"socket() failed");		
-		lua_pushstring(L,"create socket error");
-		return 1;
-	}
-
 	event_loop = lua_checkeventloop(L,1);
 	ip = luaL_checkstring(L,2);
 	port = (int16_t)luaL_checkinteger(L,3);	
 
 	if(0 != easy_sockaddr_ip4(&remote,ip,port)) {
-		CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed,%s:%d",ip,port);		
-		close(fd);
+		CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed,%s:%d",ip,port);
 		lua_pushstring(L,"lua_dail_ip4 invaild address or port");
 		return 1;
 	}
 
 	cb = chk_toluaRef(L,4); 
 	timeout = (uint32_t)luaL_optinteger(L,5,0);
-	ret = chk_connect(fd,&remote,NULL,event_loop,dail_ip4_cb,chk_ud_make_lr(cb),timeout);
+	ret = chk_connect(&remote,NULL,event_loop,dail_ip4_cb,chk_ud_make_lr(cb),timeout);
 	if(ret != 0) {
 		chk_luaRef_release(&cb);
 		lua_pushstring(L,"connect error");
