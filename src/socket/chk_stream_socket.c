@@ -580,7 +580,7 @@ static void process_read(chk_stream_socket *s) {
 	}
 }
 
-static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud) {
+static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_bytebuffer *b,chk_stream_send_cb cb,chk_ud ud) {
 	st_send_cb *send_cb = NULL;
 	int32_t try_send = 0;
 	int32_t ret = chk_error_ok;
@@ -675,15 +675,15 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 	return ret;	
 }
 
-int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud) {
+int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,chk_stream_send_cb cb,chk_ud ud) {
 	return _chk_stream_socket_send(s,0,b,cb,ud);
 }
 
-int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud) {
+int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,chk_stream_send_cb cb,chk_ud ud) {
 	return _chk_stream_socket_send(s,1,b,cb,ud);
 }
 
-int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,chk_send_cb cb,chk_ud ud) {
+int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,chk_stream_send_cb cb,chk_ud ud) {
 	st_send_cb *send_cb = NULL;
 	int32_t ret = chk_error_ok;	
 	chk_list *send_list = NULL;
