@@ -6,6 +6,8 @@
 
 #define STREAM_SOCKET_METATABLE "lua_stream_socket"
 
+#define SOCK_ADDR_METATABLE "lua_sock_addr"
+
 #define SSL_CTX_METATABLE "lua_ssl_ctx"
 
 typedef struct {
@@ -24,6 +26,9 @@ typedef struct {
 
 #define lua_check_ssl_ctx(L,I)	\
 	(SSL_CTX*)luaL_checkudata(L,I,SSL_CTX_METATABLE)
+
+#define lua_check_sockaddr(L,I) \
+	(chk_sockaddr*)luaL_checkudata(L,I,SOCK_ADDR_METATABLE)
 
 
 static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,chk_ud ud,int32_t err) {
@@ -498,6 +503,76 @@ static int32_t lua_stream_socket_pending_send_size(lua_State *L) {
 	lua_pushinteger(L,chk_stream_socket_pending_send_size(s->c_stream_socket));
 	return 1;
 }
+//lua_check_sockaddr
+static int32_t lua_stream_socket_getsockaddr(lua_State *L) {
+	lua_stream_socket *s = lua_checkstreamsocket(L,1);
+	if(!s->c_stream_socket){
+		return luaL_error(L,"invaild lua_stream_socket");
+	}
+	chk_sockaddr *addr = LUA_NEWUSERDATA(L,chk_sockaddr);
+	if(NULL == addr) {
+		return 0;
+	}
+
+	if(0 != chk_stream_socket_getsockaddr(s->c_stream_socket,addr)){
+		return 0;
+	}
+
+	luaL_getmetatable(L, SOCK_ADDR_METATABLE);
+	lua_setmetatable(L, -2);
+
+	return 1;	
+}
+
+static int32_t lua_stream_socket_getpeeraddr(lua_State *L) {
+	lua_stream_socket *s = lua_checkstreamsocket(L,1);
+	if(!s->c_stream_socket){
+		return luaL_error(L,"invaild lua_stream_socket");
+	}
+	chk_sockaddr *addr = LUA_NEWUSERDATA(L,chk_sockaddr);
+	if(NULL == addr) {
+		return 0;
+	}
+
+	if(0 != chk_stream_socket_getpeeraddr(s->c_stream_socket,addr)){
+		return 0;
+	}
+
+	luaL_getmetatable(L, SOCK_ADDR_METATABLE);
+	lua_setmetatable(L, -2);
+
+	return 1;	
+}
+
+//int32_t easy_sockaddr_inet_ntop(chk_sockaddr *addr,char *out,int len);
+
+//int32_t easy_sockaddr_port(chk_sockaddr *addr,uint16_t *port);
+
+static int32_t lua_inet_ntop(lua_State *L) {
+	chk_sockaddr *addr = lua_check_sockaddr(L,1);
+	if(NULL == addr) {
+		return luaL_error(L,"invaild chk_sockaddr");
+	}
+	char buff[46];
+	if(0 != easy_sockaddr_inet_ntop(addr,buff,sizeof(buff))) {
+		return 0;
+	}
+	lua_pushstring(L,buff);
+	return 1;
+}
+
+static int32_t lua_inet_port(lua_State *L) {
+	chk_sockaddr *addr = lua_check_sockaddr(L,1);
+	if(NULL == addr) {
+		return luaL_error(L,"invaild chk_sockaddr");
+	}
+	uint16_t port;
+	if(0 != easy_sockaddr_port(addr,&port)) {
+		return 0;
+	}
+	lua_pushinteger(L,port);
+	return 1;
+}
 
 static void register_socket(lua_State *L) {
 	luaL_Reg acceptor_mt[] = {
@@ -526,6 +601,8 @@ static void register_socket(lua_State *L) {
 		{"Pause",   	lua_stream_socket_pause},
 		{"Resume",		lua_stream_socket_resume},		
 		{"Close",   	lua_stream_socket_close},
+		{"GetSockAddr", lua_stream_socket_getsockaddr},
+		{"GetPeerAddr", lua_stream_socket_getpeeraddr},	
 		{"PendingSendSize",lua_stream_socket_pending_send_size},
 		{NULL,     		NULL}
 	};
@@ -544,7 +621,16 @@ static void register_socket(lua_State *L) {
 	lua_setfield(L, -2, "__index");
 	lua_pop(L, 1);
 
+	luaL_newmetatable(L, SOCK_ADDR_METATABLE);
+	lua_pop(L, 1);
+
 	lua_newtable(L);
+
+	lua_pushstring(L,"util");
+	lua_newtable(L);
+	SET_FUNCTION(L,"inet_ntop",lua_inet_ntop);
+	SET_FUNCTION(L,"inet_port",lua_inet_port);
+	lua_settable(L,-3);	
 
 	lua_pushstring(L,"stream");
 	lua_newtable(L);

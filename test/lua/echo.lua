@@ -10,6 +10,11 @@ local log = chuck.log
 local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
 	local conn = socket.stream.New(fd,4096)
 	if conn then
+
+		local peerAddr = conn:GetPeerAddr()
+
+		print("client from",socket.util.inet_ntop(peerAddr),socket.util.inet_port(peerAddr))
+
 		conn:Start(event_loop,function (data)
 			if data then
 				local response = data:Clone()
@@ -29,9 +34,9 @@ print("systick:",chuck.time.systick(),"unixtime:",chuck.time.unixtime())
 if server then
 	log.SysLog(log.info,"server start")	
 
-	event_loop:SetIdle(function ()
+	--[[event_loop:SetIdle(function ()
 		print("idle")
-	end)
+	end)]]--
 
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
 		log.SysLog(log.info,"recv SIGINT stop server")
