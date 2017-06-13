@@ -131,5 +131,9 @@ int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx);
 
 int32_t chk_ssl_connect(chk_stream_socket *s);
 
+int32_t chk_stream_socket_getsockaddr(chk_stream_socket *s,chk_sockaddr *addr);
+
+int32_t chk_stream_socket_getpeeraddr(chk_stream_socket *s,chk_sockaddr *addr);
+
 
 #endif

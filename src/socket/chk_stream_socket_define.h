@@ -40,6 +40,8 @@ struct chk_stream_socket {
     int8_t               sending_urgent;        //标识当前是否正在发送urgent_list中的buffer
     struct ssl_ctx       ssl;
     uint32_t             pending_send_size;     //尚未完成发送的数据字节数
+    chk_sockaddr         addr_local;
+    chk_sockaddr         addr_peer;
 };
 
 #endif

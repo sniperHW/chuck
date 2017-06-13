@@ -4,7 +4,8 @@
 #include "event/chk_event.h"
 
 enum{
-	SOCK_ADDR_IPV4 = 1,
+	SOCK_ADDR_NONE = 0,
+	SOCK_ADDR_IPV4,
 	SOCK_ADDR_IPV6,
 	SOCK_ADDR_UN,
 };
@@ -46,6 +47,10 @@ int32_t easy_close_on_exec(int32_t fd);
 int32_t easy_sockaddr_ip4(chk_sockaddr *addr,const char *ip,uint16_t port);
 
 int32_t easy_sockaddr_un(chk_sockaddr *addr,const char *path);
+
+int32_t easy_sockaddr_inet_ntop(chk_sockaddr *addr,char *out,int len);
+
+int32_t easy_sockaddr_port(chk_sockaddr *addr,uint16_t *port);
 
 //get the first ipv4 address of name
 int32_t easy_hostbyname_ipv4(const char *name,char *host,size_t len);

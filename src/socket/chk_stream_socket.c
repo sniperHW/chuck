@@ -994,3 +994,58 @@ int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
 
 	}
 }
+
+int32_t chk_stream_socket_getsockaddr(chk_stream_socket *s,chk_sockaddr *addr) {
+	if(NULL == s || NULL == addr) {
+		CHK_SYSLOG(LOG_ERROR,"NULL == s || NULL == addr");		
+		return -1;
+	}
+
+	if(s->addr_local.addr_type == SOCK_ADDR_NONE) {
+		socklen_t len;
+		if(0 != getsockname(s->fd,(struct sockaddr*)&s->addr_local,&len)) {
+			CHK_SYSLOG(LOG_ERROR,"getsockname failed");
+			return -1;
+		}
+
+		if(s->addr_local.in.sin_family == AF_INET) {
+			s->addr_local.addr_type = SOCK_ADDR_IPV4;
+		} else if(s->addr_local.in6.sin6_family == AF_INET6) {
+			s->addr_local.addr_type = SOCK_ADDR_IPV6;
+		} else if(s->addr_local.un.sun_family == AF_LOCAL) {
+			s->addr_local.addr_type = SOCK_ADDR_UN;			
+		} else {		
+			return -1;
+		}
+	}
+	*addr = s->addr_local;
+	return 0;
+
+}
+
+int32_t chk_stream_socket_getpeeraddr(chk_stream_socket *s,chk_sockaddr *addr) {
+	if(NULL == s || NULL == addr) {
+		CHK_SYSLOG(LOG_ERROR,"NULL == s || NULL == addr");		
+		return -1;
+	}
+
+	if(s->addr_peer.addr_type == SOCK_ADDR_NONE) {
+		socklen_t len;
+		if(0 != getpeername(s->fd,(struct sockaddr*)&s->addr_peer,&len)) {
+			CHK_SYSLOG(LOG_ERROR,"getpeername failed");
+			return -1;
+		}
+
+		if(s->addr_peer.in.sin_family == AF_INET) {
+			s->addr_peer.addr_type = SOCK_ADDR_IPV4;
+		} else if(s->addr_peer.in6.sin6_family == AF_INET6) {
+			s->addr_peer.addr_type = SOCK_ADDR_IPV6;
+		} else if(s->addr_peer.un.sun_family == AF_LOCAL) {
+			s->addr_peer.addr_type = SOCK_ADDR_UN;			
+		} else {		
+			return -1;
+		}
+	}
+	*addr = s->addr_peer;
+	return 0;
+}

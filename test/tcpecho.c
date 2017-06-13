@@ -54,6 +54,18 @@ int32_t new_client_connection(struct client_connection **c,chk_stream_socket *s,
 			return -1;
 		}
 	}
+
+	chk_sockaddr peer;
+	if(0 == chk_stream_socket_getpeeraddr(s,&peer)) {
+		char addrstr[46];
+		uint16_t port;
+		if(0 == easy_sockaddr_inet_ntop(&peer,addrstr,46) &&
+		   0 == easy_sockaddr_port(&peer,&port)) {
+			printf("newclient from %s:%u\n",addrstr,port);
+		}
+	}
+
+
 	return 0;
 }
 
