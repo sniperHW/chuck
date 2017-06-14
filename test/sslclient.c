@@ -46,7 +46,7 @@ int main(int argc,char **argv) {
 		printf("invaild address:%s\n",argv[1]);
 	}
 
-    chk_connect(&server,NULL,loop,connect_callback,chk_ud_make_void(NULL),-1);   	
+    chk_easy_async_connect(loop,&server,NULL,connect_callback,chk_ud_make_void(NULL),-1);   	
 
 	chk_loop_run(loop);
 	return 0;

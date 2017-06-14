@@ -19,7 +19,7 @@ int main(int argc,char **argv) {
 	c = atoi(argv[3]);
     loop = chk_loop_new();
     for(i = 0; i < c; ++i) {
-    	chk_connect(&server,NULL,loop,connect_callback,chk_ud_make_void(NULL),-1);
+    	chk_easy_async_connect(loop,&server,NULL,connect_callback,chk_ud_make_void(NULL),-1);
     }
     chk_loop_run(loop);
 	return 0;

@@ -59,7 +59,10 @@ int32_t on_timeout_cb(uint64_t tick,chk_ud ud) {
 int main(int argc,char **argv) {
 	signal(SIGPIPE,SIG_IGN);
 	loop = chk_loop_new();	
-	if(!chk_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),accept_cb,chk_ud_make_void(NULL)))
+
+	chk_sockaddr addr_local;
+    easy_sockaddr_ip4(&addr_local,argv[1],atoi(argv[2]));
+	if(!chk_listen(loop,&addr_local,accept_cb,chk_ud_make_void(NULL)))
 		printf("server start error\n");
 	else {
 		chk_loop_addtimer(loop,1000,on_timeout_cb,chk_ud_make_void(NULL));

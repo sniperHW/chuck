@@ -30,7 +30,9 @@ int32_t chk_acceptor_pause(chk_acceptor *a);
  * @param ud 传递给chk_acceptor_cb的用户数据
  */
 
-chk_acceptor *chk_acceptor_new(int32_t fd,chk_ud ud);
+chk_acceptor *chk_acceptor_new(int32_t fd,SSL_CTX *ctx,chk_ud ud);
+
+int32_t chk_acceptor_start(chk_acceptor *a,chk_event_loop *loop,chk_sockaddr *addr,chk_acceptor_cb cb);
 
 /**
  * 删除接受器
@@ -39,6 +41,10 @@ chk_acceptor *chk_acceptor_new(int32_t fd,chk_ud ud);
 
 void chk_acceptor_del(chk_acceptor *a); 
 
+
+
+
+//如不需设置套接字选项可直接使用下面两个listen接口
 
 /**
  * 创建一个在ip:port上监听的接收器并注册到loop上
@@ -49,9 +55,10 @@ void chk_acceptor_del(chk_acceptor *a);
  * @param ud 用户传递数据,调用cb时传回
  */
 
-chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb cb,chk_ud ud);
+chk_acceptor *chk_listen(chk_event_loop *loop,chk_sockaddr *addr,chk_acceptor_cb cb,chk_ud ud);
 
-chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_acceptor_cb cb,chk_ud ud);
+chk_acceptor *chk_ssl_listen(chk_event_loop *loop,chk_sockaddr *addr,SSL_CTX *ctx,chk_acceptor_cb cb,chk_ud ud);
+
 
 int32_t chk_acceptor_get_fd(chk_acceptor *a);
 

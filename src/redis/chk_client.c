@@ -451,7 +451,7 @@ int32_t chk_redis_connect(chk_event_loop *loop,chk_sockaddr *addr,chk_redis_conn
 	c->cntcb  = cntcb;
 	c->ud     = ud;
 	c->loop   = loop;
-    return chk_connect(addr,NULL,loop,connect_callback,chk_ud_make_void(c),0);
+    return chk_easy_async_connect(loop,addr,NULL,connect_callback,chk_ud_make_void(c),0);
 }
 
 void chk_redis_set_disconnect_cb(chk_redisclient *c,chk_redis_disconnect_cb cb,chk_ud ud) {

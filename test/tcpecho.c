@@ -138,8 +138,9 @@ int main(int argc,char **argv) {
 		printf("watch signal failed\n");
 		return 0;
 	}
-
-	if(!chk_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),accept_cb,chk_ud_make_void(NULL)))
+    chk_sockaddr addr_local;
+    easy_sockaddr_ip4(&addr_local,argv[1],atoi(argv[2]));
+	if(!chk_listen(loop,&addr_local,accept_cb,chk_ud_make_void(NULL)))
 		printf("server start error\n");
 	else{
 		CHK_SYSLOG(LOG_INFO,"server start");

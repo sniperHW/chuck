@@ -65,7 +65,7 @@ int main(int argc,char **argv) {
 	int c = atoi(argv[3]);
 	int i = 0;
 	for(; i < c; ++i) {
-    	chk_connect(&server,NULL,loop,connect_callback,chk_ud_make_void(NULL),-1);
+    	chk_easy_async_connect(loop,&server,NULL,connect_callback,chk_ud_make_void(NULL),-1);
 	}
 	chk_loop_addtimer(loop,1000,on_timeout_cb1,chk_ud_make_void(NULL));
 	chk_loop_run(loop);

@@ -79,7 +79,10 @@ int main(int argc,char **argv) {
         return 0;
     }	
 
-	if(!chk_ssl_listen_tcp_ip4(loop,argv[1],atoi(argv[2]),ctx,accept_cb_ssl,chk_ud_make_void(NULL))){
+    chk_sockaddr addr_local;
+    easy_sockaddr_ip4(&addr_local,argv[1],atoi(argv[2]));
+
+	if(!chk_ssl_listen(loop,&addr_local,ctx,accept_cb_ssl,chk_ud_make_void(NULL))){
 		printf("server start error\n");
 	}
 	else{

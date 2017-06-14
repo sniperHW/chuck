@@ -75,12 +75,13 @@ int32_t chk_acceptor_pause(chk_acceptor *a) {
 	return chk_disable_read(cast(chk_handle*,a));
 }
 
-void chk_acceptor_init(chk_acceptor *a,int32_t fd,chk_ud ud) {
+void chk_acceptor_init(chk_acceptor *a,int32_t fd,SSL_CTX *ctx,chk_ud ud) {
 	a->ud = ud;
 	a->fd = fd;
 	a->on_events  = process_accept;
 	a->handle_add = loop_add;
 	a->loop = NULL;
+	a->ctx = ctx;
 	easy_close_on_exec(fd);
 }
 
@@ -95,13 +96,13 @@ void chk_acceptor_finalize(chk_acceptor *a) {
 	}
 }
 
-chk_acceptor *chk_acceptor_new(int32_t fd,chk_ud ud) {
+chk_acceptor *chk_acceptor_new(int32_t fd,SSL_CTX *ctx,chk_ud ud) {
 	chk_acceptor *a = calloc(1,sizeof(*a));
 	if(!a){
 		CHK_SYSLOG(LOG_ERROR,"calloc chk_acceptor failed");	
 		return NULL;
 	}
-	chk_acceptor_init(a,fd,ud);
+	chk_acceptor_init(a,fd,ctx,ud);
 	return a;
 }
 
@@ -122,69 +123,81 @@ void chk_acceptor_set_ud(chk_acceptor *a,chk_ud ud) {
 	a->ud = ud;
 }
 
-chk_acceptor *chk_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,chk_acceptor_cb cb,chk_ud ud) {
-	chk_sockaddr  server;
-	int32_t       fd,ret;
+int32_t chk_acceptor_start(chk_acceptor *a,chk_event_loop *loop,chk_sockaddr *addr,chk_acceptor_cb cb) {
+	if(NULL == a || NULL == loop || NULL == addr || NULL == cb) {
+		CHK_SYSLOG(LOG_ERROR,"NULL == a || NULL == loop || NULL == addr || NULL == cb");
+		return -1;
+	}
+	
+	if(chk_error_ok != easy_listen(a->fd,addr)) {
+		CHK_SYSLOG(LOG_ERROR,"easy_listen() failed");
+		return -1;
+	}
+
+	if(0 != chk_loop_add_handle(loop,(chk_handle*)a,cb)) {
+		CHK_SYSLOG(LOG_ERROR,"chk_loop_add_handle() failed");
+		return -1;
+	}
+	return 0;
+}
+
+static chk_acceptor *_chk_listen(chk_event_loop *loop,chk_sockaddr *addr,SSL_CTX *ctx,chk_acceptor_cb cb,chk_ud ud) {
+	int32_t       fd,family;
 	chk_acceptor *a = NULL;
-	do {
-		if(chk_error_ok != easy_sockaddr_ip4(&server,ip,port)){ 
-			CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed %s:%d",ip,port);
-			break;
-		}
-		if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))){
-		    CHK_SYSLOG(LOG_ERROR,"socket() failed errno:%d",errno); 			
-			break;
-		}
-		easy_addr_reuse(fd,1);
-		if(chk_error_ok == (ret = easy_listen(fd,&server))){
-			a = chk_acceptor_new(fd,ud);
-			if(!a) {
-				close(fd);
-				break;
-			}
-			if(0 != chk_loop_add_handle(loop,(chk_handle*)a,cb)){
-				free(a);
-				close(fd);
-				break;	
-			}
-		}else{ 
-			close(fd);
-		}
-	}while(0);	
+	errno = 0;
+
+	if(addr->addr_type == SOCK_ADDR_IPV4) {
+		family = AF_INET;
+	} else if(addr->addr_type == SOCK_ADDR_IPV6) {
+		family = AF_INET6;
+	} else if(addr->addr_type == SOCK_ADDR_UN) {
+		family = AF_LOCAL;
+	} else {
+		CHK_SYSLOG(LOG_ERROR,"invaild addr addr_type");
+		return NULL;
+	}
+
+	fd = socket(family,SOCK_STREAM,IPPROTO_TCP);
+
+	if(0 > fd) {
+		CHK_SYSLOG(LOG_ERROR,"socket() failed errno:%d",errno); 
+		return NULL;
+	}
+
+	a = chk_acceptor_new(fd,ctx,ud);
+
+	if(NULL == a) {
+		CHK_SYSLOG(LOG_ERROR,"chk_acceptor_new() failed");
+		close(fd);
+		return NULL;
+	}
+
+	if(0 != chk_acceptor_start(a,loop,addr,cb)) {
+		CHK_SYSLOG(LOG_ERROR,"chk_acceptor_start() failed");
+		chk_acceptor_del(a);
+		return NULL;
+	}
+
 	return a;
 }
 
-chk_acceptor *chk_ssl_listen_tcp_ip4(chk_event_loop *loop,const char *ip,int16_t port,SSL_CTX *ctx, chk_acceptor_cb cb,chk_ud ud) {
-	chk_sockaddr  server;
-	int32_t       fd,ret;
-	chk_acceptor *a = NULL;
-	do {
-		if(chk_error_ok != easy_sockaddr_ip4(&server,ip,port)){ 
-			CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed %s:%d",ip,port);
-			break;
-		}
-		if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))){
-		    CHK_SYSLOG(LOG_ERROR,"socket() failed errno:%d",errno); 			
-			break;
-		}
-		easy_addr_reuse(fd,1);
-		if(chk_error_ok == (ret = easy_listen(fd,&server))){
-			a = chk_acceptor_new(fd,ud);
-			if(!a){
-				close(fd);
-				break;
-			}
-			if(0 != chk_loop_add_handle(loop,(chk_handle*)a,cb)) {
-				free(a);
-				close(fd);
-				break;
-			}
-			a->ctx = ctx;
-		}else { 
-			close(fd);
-		}
-	}while(0);	
-	return a;	
+chk_acceptor *chk_listen(chk_event_loop *loop,chk_sockaddr *addr,chk_acceptor_cb cb,chk_ud ud) {
+
+	if(NULL == loop || NULL == addr || NULL == cb) {
+		CHK_SYSLOG(LOG_ERROR,"NULL == loop || NULL == addr || NULL == cb");		
+		return NULL;
+	}
+
+	return _chk_listen(loop,addr,NULL,cb,ud);
+}
+
+chk_acceptor *chk_ssl_listen(chk_event_loop *loop,chk_sockaddr *addr,SSL_CTX *ctx,chk_acceptor_cb cb,chk_ud ud) {
+	if(NULL == loop || NULL == addr || NULL == cb || NULL == ctx) {
+		CHK_SYSLOG(LOG_ERROR,"NULL == loop || NULL == addr || NULL == cb || NULL == ctx");		
+		return NULL;
+	}
+	
+	return _chk_listen(loop,addr,ctx,cb,ud);	
 }
 
 SSL_CTX *chk_acceptor_get_ssl_ctx(chk_acceptor *a) {

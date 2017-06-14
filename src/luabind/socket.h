@@ -73,135 +73,97 @@ static int32_t lua_acceptor_resume(lua_State *L) {
 }
 
 static int32_t lua_listen_ip4_ssl(lua_State *L) {
-	chk_sockaddr    server;
-	int32_t         fd;
-	const char     *ip;
-	int16_t         port;
-	chk_event_loop *event_loop;
-	lua_acceptor   *a; 
-	SSL_CTX        *ssl_ctx;
-	chk_luaRef      accept_cb;
-
-	ssl_ctx = lua_check_ssl_ctx(L,2);
-
-	if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) {
-		CHK_SYSLOG(LOG_ERROR,"socket() failed");
-		return 0;
-	}
-
-	event_loop = lua_checkeventloop(L,1);
-	ip = luaL_checkstring(L,3);
-	port = (int16_t)luaL_checkinteger(L,4);
-	
-	if(0 != easy_sockaddr_ip4(&server,ip,port)) {
-		CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed,%s:%d",ip,port);
-		close(fd);
-		return 0;
-	}	
-
-	easy_addr_reuse(fd,1);
-	if(0 != easy_listen(fd,&server)){
-		CHK_SYSLOG(LOG_ERROR,"easy_listen() failed,%s:%d",ip,port);
-		close(fd);
-		return 0;
-	}	
-
-	if(!lua_isfunction(L,5)) 
-		return luaL_error(L,"argument 5 of lua_listen_ip4_ssl must be lua function"); 
-	a   = LUA_NEWUSERDATA(L,lua_acceptor);
-
-	if(!a){
-		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
-		close(fd);	
-		return 0;
-	}
-	memset(a,0,sizeof(*a));
-
-	accept_cb = chk_toluaRef(L,5);
-
-	a->c_acceptor = chk_acceptor_new(fd,chk_ud_make_lr(accept_cb));
-
-	if(!a->c_acceptor){
-		chk_luaRef_release(&accept_cb);
-		CHK_SYSLOG(LOG_ERROR,"chk_acceptor_new() failed");
-		close(fd);
-		return 0;
-	}
-
-	luaL_getmetatable(L, ACCEPTOR_METATABLE);
-	lua_setmetatable(L, -2);
-	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a->c_acceptor,lua_acceptor_cb)) {
-		close(fd);
-		CHK_SYSLOG(LOG_ERROR,"event_loop add acceptor failed %s:%d",ip,port);
-		return 0;
-	}
-	a->c_acceptor->ctx = ssl_ctx;
-	return 1;
-}
-
-static int32_t lua_listen_ip4(lua_State *L) {
-	chk_sockaddr    server;
-	int32_t         fd;
 	const char     *ip;
 	int16_t         port;
 	chk_event_loop *event_loop;
 	lua_acceptor   *a;
-	chk_luaRef      accept_cb; 
-	if(0 > (fd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP))) {
-		CHK_SYSLOG(LOG_ERROR,"socket() failed");
+	chk_acceptor   *acceptor;
+	chk_luaRef      accept_cb;
+	chk_sockaddr    server;
+	SSL_CTX        *ssl_ctx;
+
+	event_loop = lua_checkeventloop(L,1);
+	ssl_ctx = lua_check_ssl_ctx(L,2);
+	ip = luaL_checkstring(L,3);
+	port = (int16_t)luaL_checkinteger(L,4);
+
+	if(!lua_isfunction(L,5)) 
+		return luaL_error(L,"argument 5 of dail must be lua function");
+	
+	if(0 != easy_sockaddr_ip4(&server,ip,port)) {
+		CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed,%s:%d",ip,port);
 		return 0;
 	}
+
+	accept_cb = chk_toluaRef(L,5);
+
+	acceptor = chk_ssl_listen(event_loop,&server,ssl_ctx,lua_acceptor_cb,chk_ud_make_lr(accept_cb));
+
+	if(!acceptor) {
+		chk_luaRef_release(&accept_cb);
+		CHK_SYSLOG(LOG_ERROR,"chk_ssl_listen() failed,%s:%d",ip,port);
+		return 0;
+	}
+
+	a = LUA_NEWUSERDATA(L,lua_acceptor);
+	if(!a){
+		chk_acceptor_del(acceptor);	
+		chk_luaRef_release(&accept_cb);
+		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
+		return 0;
+	}
+
+	a->c_acceptor = acceptor;
+
+	luaL_getmetatable(L, ACCEPTOR_METATABLE);
+	lua_setmetatable(L, -2);
+	return 1;
+}
+
+static int32_t lua_listen_ip4(lua_State *L) {
+	const char     *ip;
+	int16_t         port;
+	chk_event_loop *event_loop;
+	lua_acceptor   *a;
+	chk_acceptor   *acceptor;
+	chk_luaRef      accept_cb;
+	chk_sockaddr    server;
 
 	event_loop = lua_checkeventloop(L,1);
 	ip = luaL_checkstring(L,2);
 	port = (int16_t)luaL_checkinteger(L,3);
+
+	if(!lua_isfunction(L,4)) 
+		return luaL_error(L,"argument 4 of dail must be lua function");
 	
 	if(0 != easy_sockaddr_ip4(&server,ip,port)) {
 		CHK_SYSLOG(LOG_ERROR,"easy_sockaddr_ip4() failed,%s:%d",ip,port);
-		close(fd);
-		return 0;
-	}	
-
-	easy_addr_reuse(fd,1);
-	if(0 != easy_listen(fd,&server)){
-		CHK_SYSLOG(LOG_ERROR,"easy_listen() failed,%s:%d",ip,port);
-		close(fd);
-		return 0;
-	}	
-
-	if(!lua_isfunction(L,4)) 
-		return luaL_error(L,"argument 4 of dail must be lua function"); 
-	
-
-	a = LUA_NEWUSERDATA(L,lua_acceptor);
-
-	if(!a){
-		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
-		close(fd);	
 		return 0;
 	}
-
-	memset(a,0,sizeof(*a));
 
 	accept_cb = chk_toluaRef(L,4);
 
-	a->c_acceptor = chk_acceptor_new(fd,chk_ud_make_lr(accept_cb));
+	acceptor = chk_listen(event_loop,&server,lua_acceptor_cb,chk_ud_make_lr(accept_cb));
 
-	if(!a->c_acceptor){
+	if(!acceptor) {
 		chk_luaRef_release(&accept_cb);
-		CHK_SYSLOG(LOG_ERROR,"chk_acceptor_new() failed");
-		close(fd);
+		CHK_SYSLOG(LOG_ERROR,"chk_listen() failed,%s:%d",ip,port);
 		return 0;
 	}
+
+	a = LUA_NEWUSERDATA(L,lua_acceptor);
+	if(!a){
+		chk_acceptor_del(acceptor);	
+		chk_luaRef_release(&accept_cb);
+		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
+		return 0;
+	}
+
+	a->c_acceptor = acceptor;
 
 	luaL_getmetatable(L, ACCEPTOR_METATABLE);
 	lua_setmetatable(L, -2);
-	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)a->c_acceptor,lua_acceptor_cb)) {
-		close(fd);
-		CHK_SYSLOG(LOG_ERROR,"event_loop add acceptor failed %s:%d",ip,port);
-		return 0;
-	}
-	return 1;	
+	return 1;
 }
 
 
@@ -245,7 +207,7 @@ static int32_t lua_dail_ip4(lua_State *L) {
 
 	cb = chk_toluaRef(L,4); 
 	timeout = (uint32_t)luaL_optinteger(L,5,0);
-	ret = chk_connect(&remote,NULL,event_loop,dail_ip4_cb,chk_ud_make_lr(cb),timeout);
+	ret = chk_easy_async_connect(event_loop,&remote,NULL,dail_ip4_cb,chk_ud_make_lr(cb),timeout);
 	if(ret != 0) {
 		chk_luaRef_release(&cb);
 		lua_pushstring(L,"connect error");
