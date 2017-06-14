@@ -974,7 +974,7 @@ int32_t chk_stream_socket_getsockaddr(chk_stream_socket *s,chk_sockaddr *addr) {
 	}
 
 	if(s->addr_local.addr_type == SOCK_ADDR_NONE) {
-		socklen_t len;
+		socklen_t len = sizeof(s->addr_local);
 		if(0 != getsockname(s->fd,(struct sockaddr*)&s->addr_local,&len)) {
 			CHK_SYSLOG(LOG_ERROR,"getsockname failed");
 			return -1;
@@ -1002,7 +1002,7 @@ int32_t chk_stream_socket_getpeeraddr(chk_stream_socket *s,chk_sockaddr *addr) {
 	}
 
 	if(s->addr_peer.addr_type == SOCK_ADDR_NONE) {
-		socklen_t len;
+		socklen_t len = sizeof(s->addr_peer);
 		if(0 != getpeername(s->fd,(struct sockaddr*)&s->addr_peer,&len)) {
 			CHK_SYSLOG(LOG_ERROR,"getpeername failed");
 			return -1;
