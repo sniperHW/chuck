@@ -44,6 +44,7 @@ source.lib =  util/chk_log.c\
 			  socket/chk_acceptor.c\
 			  socket/chk_connector.c\
 			  socket/chk_decoder.c\
+			  socket/chk_send_cb.c\
 			  socket/chk_buffer_reader.c\
 			  event/chk_event_loop.c\
 			  redis/chk_client.c\
@@ -65,6 +66,7 @@ source.so =   util/chk_log.c\
 			  socket/chk_acceptor.c\
 			  socket/chk_connector.c\
 			  socket/chk_decoder.c\
+			  socket/chk_send_cb.c\
 			  event/chk_event_loop.c\
 			  redis/chk_client.c\
 			  thread/chk_thread.c

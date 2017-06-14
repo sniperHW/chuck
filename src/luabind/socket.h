@@ -326,7 +326,7 @@ static int32_t lua_close_fd(lua_State *L) {
 	return 0;
 }
 
-static void chk_lua_send_cb(chk_stream_socket *s,chk_ud ud,int32_t err) {
+static void chk_lua_send_cb(void *socket,chk_ud ud,int32_t err) {
 	chk_luaRef cb = ud.v.lr;
 	const char *error; 
 	if(NULL != (error = chk_Lua_PCallRef(cb,"i",err))) {
@@ -338,7 +338,7 @@ static void chk_lua_send_cb(chk_stream_socket *s,chk_ud ud,int32_t err) {
 
 static int32_t lua_stream_socket_delay_send(lua_State *L) {
 	chk_bytebuffer    *b,*o;
-	chk_stream_send_cb send_cb = NULL;
+	send_finish_callback send_cb = NULL;
 	chk_luaRef         lua_cb = {0};
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	
@@ -372,7 +372,7 @@ static int32_t lua_stream_socket_delay_send(lua_State *L) {
 
 static int32_t lua_stream_socket_send(lua_State *L) {
 	chk_bytebuffer    *b,*o;
-	chk_stream_send_cb send_cb = NULL;
+	send_finish_callback send_cb = NULL;
 	chk_luaRef         lua_cb = {0};
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
@@ -405,7 +405,7 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 
 static int32_t lua_stream_socket_send_urgent(lua_State *L) {
 	chk_bytebuffer    *b,*o;
-	chk_stream_send_cb send_cb = NULL;
+	send_finish_callback send_cb = NULL;
 	chk_luaRef         lua_cb = {0};	
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){

@@ -1,17 +1,8 @@
 #ifdef _CORE_
 
 #include "../config.h"
-#include "util/chk_obj_pool.h"
 #include "chk_ud.h"
-
-typedef struct{
-    chk_list_entry  entry;
-    chk_ud          ud;
-    chk_bytebuffer *buffer;
-    void (*cb)(chk_stream_socket *s,chk_ud ud,int32_t error);
-}st_send_cb;
-
-DECLARE_OBJPOOL(st_send_cb)
+#include "chk_send_cb.h"
 
 struct chk_stream_socket {
 	_chk_handle;
@@ -36,7 +27,6 @@ struct chk_stream_socket {
     chk_timer           *send_timer;         
     chk_timer           *last_send_timer;       //用于最后的发送处理
     chk_stream_socket_cb cb;
-//    int8_t               create_by_new;
     int8_t               sending_urgent;        //标识当前是否正在发送urgent_list中的buffer
     struct ssl_ctx       ssl;
     uint32_t             pending_send_size;     //尚未完成发送的数据字节数

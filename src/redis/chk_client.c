@@ -783,7 +783,7 @@ static inline int redisvAppendCommand(const char *format, va_list ap,chk_bytebuf
     return 0;
 }
 
-typedef int32_t (*fn_socket_send)(chk_stream_socket *s,chk_bytebuffer *b,chk_stream_send_cb cb,chk_ud ud);
+typedef int32_t (*fn_socket_send)(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud);
 
 
 static int32_t timeout_cb(uint64_t tick,chk_ud ud) {
