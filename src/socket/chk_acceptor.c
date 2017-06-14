@@ -128,6 +128,8 @@ int32_t chk_acceptor_start(chk_acceptor *a,chk_event_loop *loop,chk_sockaddr *ad
 		CHK_SYSLOG(LOG_ERROR,"NULL == a || NULL == loop || NULL == addr || NULL == cb");
 		return -1;
 	}
+
+	easy_addr_reuse(a->fd,1);
 	
 	if(chk_error_ok != easy_listen(a->fd,addr)) {
 		CHK_SYSLOG(LOG_ERROR,"easy_listen() failed");
