@@ -33,7 +33,7 @@ void server_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 			printf("%u\n",(bytesize/1024/1024)*1000/duration);
 			bytesize = 0;			
 		}
-
+		chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,chk_ud_make_void(NULL));
 	} else {
 		printf("client close\n");		
 		chk_stream_socket_close(s,0);
@@ -59,21 +59,25 @@ int server() {
 void client_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	if(!data) {	
 		chk_stream_socket_close(s,0);
+	}else {
+		chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,chk_ud_make_void(NULL));
 	}
 }
 
+/*
 void send_finish(void *socket,chk_ud ud,int32_t error) {
 	chk_stream_socket *s = (chk_stream_socket*)socket;
 	chk_bytebuffer *msg = chk_bytebuffer_new_bychunk(chunk,0,chunk->cap);
 	chk_stream_socket_send(s,msg,send_finish,chk_ud_make_void(NULL));
 }
+*/
 
 void connect_callback(int32_t fd,chk_ud ud,int32_t err) {
 	if(fd) {
 		chk_stream_socket *s = chk_stream_socket_new(fd,&option);
 		chk_loop_add_handle(loop,(chk_handle*)s,client_event_cb);
 		chk_bytebuffer *msg = chk_bytebuffer_new_bychunk(chunk,0,chunk->cap);
-		chk_stream_socket_send(s,msg,send_finish,chk_ud_make_void(NULL));		
+		chk_stream_socket_send(s,msg,/*send_finish*/NULL,chk_ud_make_void(NULL));		
 	}
 }
 
