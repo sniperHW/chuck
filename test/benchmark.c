@@ -11,7 +11,7 @@ chk_bytechunk *chunk;
 
 const uint32_t buffsize = 1024 * 4;
 
-char buff[buffsize];
+const char buff[buffsize];
 
 const char *ip;
 uint16_t    port;
@@ -19,7 +19,7 @@ uint16_t    port;
 chk_stream_socket_option option = {
 	.recv_buffer_size = buffsize,
 	.decoder = NULL,
-}
+};
 
 void server_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	if(data) {
