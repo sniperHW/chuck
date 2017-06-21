@@ -16,7 +16,7 @@ typedef struct chk_dgram_socket chk_dgram_socket;
 
 typedef void (*chk_dgram_socket_cb)(chk_dgram_socket*,chk_dgram_pkt *pkt,int32_t error);
 
-chk_dgram_socket *chk_dgram_socket_new(int family,uint32_t recvbuff_size);
+chk_dgram_socket *chk_dgram_socket_new(int family,uint32_t recvbuff_size,uint32_t max_send_packet_size);
 
 int32_t chk_dgram_socket_bind(chk_dgram_socket *s,chk_sockaddr *local);
 
@@ -27,6 +27,10 @@ void chk_dgram_socket_close(chk_dgram_socket *s,uint32_t delay);
 void chk_dgram_socket_send(chk_dgram_socket *s,chk_bytebuffer *buffer,send_finish_callback cb,chk_ud ud);
 
 void chk_dgram_socket_sendto(chk_dgram_socket *s,chk_bytebuffer *buffer,chk_sockaddr *peeraddr,send_finish_callback cb,chk_ud ud);
+
+void chk_dgram_socket_setud(chk_dgram_socket *s,chk_ud ud);
+
+chk_ud chk_dgram_socket_getud(chk_dgram_socket *s);
 
 
 #endif
