@@ -117,6 +117,9 @@ testcase:
 	$(CC) $(CFLAGS) -o ../test/bin/testredis ../test/testredis.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
 	$(CC) $(CFLAGS) -o ../test/bin/testlua ../test/testlua.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl $(LIBRARY)
 
+benchmark:
+	$(CC) $(CFLAGS) -o ../test/bin/benchmark ../test/benchmark.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
+
 clean:
 	rm *.o
 	rm *.a
