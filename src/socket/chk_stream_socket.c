@@ -598,7 +598,7 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 
 	b->internal = b->datasize;//记录最初需要发送的数据大小
 	
-	if(s->pending_send_size == 0) {
+	if(NULL == cb && s->pending_send_size == 0) {
 		try_send = 1;
 	}
 
@@ -642,6 +642,9 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 				s->status |= SOCKET_PEERCLOSE;
 				return chk_error_socket_close;
 			}
+		} else {
+			if(!chk_is_write_enable(cast(chk_handle*,s))) 
+				enable_write(s);
 		}
 	}
 	return ret;	
