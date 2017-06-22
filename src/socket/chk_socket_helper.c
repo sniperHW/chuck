@@ -86,12 +86,12 @@ int32_t easy_noblock(int32_t fd,int32_t noblock) {
 int32_t easy_close_on_exec(int32_t fd) {
     int32_t flags;;
     if((flags = fcntl(fd, F_GETFD, 0)) == -1){
-        CHK_SYSLOG(LOG_ERROR,"fcntl(F_GETFD) failed errno:%d",errno);         
+        CHK_SYSLOG(LOG_ERROR,"fcntl(F_GETFD) failed fd:%d,errno:%d",fd,errno);         
         return chk_error_fcntl;
     }
     
     if(0 != fcntl(fd, F_SETFD, flags|FD_CLOEXEC)) {
-        CHK_SYSLOG(LOG_ERROR,"fcntl(F_SETFD) failed errno:%d",errno);        
+        CHK_SYSLOG(LOG_ERROR,"fcntl(F_SETFD) failed fd:%d,errno:%d",fd,errno);        
         return chk_error_fcntl;
     }
     return chk_error_ok;        

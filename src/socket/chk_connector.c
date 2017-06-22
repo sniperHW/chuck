@@ -51,12 +51,12 @@ static void _process_connect(chk_connector *c) {
 	}
 	do {
 		if(getsockopt(c->fd, SOL_SOCKET, SO_ERROR, &err, &len) == -1){
-			CHK_SYSLOG(LOG_ERROR,"getsockopt() failed errno:%d",errno);
+			CHK_SYSLOG(LOG_ERROR,"getsockopt() failed fd:%d,errno:%d",c->fd,errno);
 			c->cb(-1,c->ud,chk_error_connect);
 		    break;
 		}
 		if(err) {
-			CHK_SYSLOG(LOG_ERROR,"getsockopt() got error:%d",err);			
+			CHK_SYSLOG(LOG_ERROR,"getsockopt() got error:%d fd:%d",err,c->fd);			
 		    c->cb(-1,c->ud,chk_error_connect);    
 		    break;
 		}

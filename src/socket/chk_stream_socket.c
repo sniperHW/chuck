@@ -545,7 +545,7 @@ static void process_read(chk_stream_socket *s) {
 		if(bytes == 0)
 			error_code = chk_error_stream_peer_close;
 		else {
-			CHK_SYSLOG(LOG_ERROR,"read failed errno:%d",errno);
+			CHK_SYSLOG(LOG_ERROR,"read failed fd:%d,errno:%d",s->fd,errno);
 			error_code = chk_error_stream_read;
 		}
 		s->cb(s,NULL,error_code);

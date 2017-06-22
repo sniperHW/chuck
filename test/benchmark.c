@@ -5,7 +5,11 @@ chk_event_loop *loop;
 
 int client_count = 0;
 
+int c = 0;
+
 double bytesize = 0;
+
+double packet_count = 0;
 
 uint64_t lastshow;
 
@@ -26,15 +30,18 @@ chk_stream_socket_option option = {
 void server_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	if(data) {
 		bytesize += data->datasize;
+		packet_count += 1;
 		uint64_t now = chk_systick();
 		uint64_t duration = now - lastshow;
 		if(duration >= 1000) {
 			lastshow = now;
-			printf("%.2fMB/s\n",(bytesize/1024/1024)*1000/duration);
-			bytesize = 0;			
+			printf("client:%d,%.2fMB/s,%.2fpkt/s\n",c,(bytesize/1024/1024)*1000/duration,packet_count*1000/duration);
+			bytesize = 0;
+			packet_count = 0;			
 		}
 		chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,chk_ud_make_void(NULL));
-	} else {		
+	} else {	
+		--c;	
 		chk_stream_socket_close(s,0);
 	}
 }
@@ -42,6 +49,7 @@ void server_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 void on_new_client(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,chk_ud ud,int32_t err) {
 	chk_stream_socket *s = chk_stream_socket_new(fd,&option);
 	chk_loop_add_handle(loop,(chk_handle*)s,server_event_cb);
+	++c;
 }
 
 int server() {
@@ -64,11 +72,13 @@ void client_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 }
 
 void connect_callback(int32_t fd,chk_ud ud,int32_t err) {
-	if(fd) {
+	if(0 == err) {
 		chk_stream_socket *s = chk_stream_socket_new(fd,&option);
 		chk_loop_add_handle(loop,(chk_handle*)s,client_event_cb);
 		chk_bytebuffer *msg = chk_bytebuffer_new_bychunk(chunk,0,chunk->cap);
 		chk_stream_socket_send(s,msg,NULL,chk_ud_make_void(NULL));		
+	}else {
+		printf("connect error\n");
 	}
 }
 
