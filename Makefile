@@ -6,6 +6,8 @@ readline:
 	cd src;$(MAKE) readline.so;mv readline.so ../lib
 testcase:
 	cd src;$(MAKE) testcase
+benchmark:
+	cd src;$(MAKE) benchmark	
 pbc:
 	cd deps/pbc;$(MAKE);cp build/libpbc.a ../../lib
 pbc-binding-lua53:
