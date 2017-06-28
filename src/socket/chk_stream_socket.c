@@ -373,6 +373,10 @@ chk_ud chk_stream_socket_getUd(chk_stream_socket *s) {
 	return s->ud;
 }
 
+int32_t chk_stream_socket_getfd(chk_stream_socket *s) {
+	return s->fd;
+}
+
 
 static int32_t loop_add(chk_event_loop *e,chk_handle *h,chk_event_callback cb) {
 	int32_t ret,flags;

@@ -105,6 +105,8 @@ void chk_stream_socket_setUd(chk_stream_socket *s,chk_ud ud);
 
 chk_ud chk_stream_socket_getUd(chk_stream_socket *s);
 
+int32_t chk_stream_socket_getfd(chk_stream_socket *s);
+
 /**
  * 暂停事件处理(移除读写监听)
  * @param s stream_socket

@@ -7,7 +7,9 @@ readline:
 testcase:
 	cd src;$(MAKE) testcase
 benchmark:
-	cd src;$(MAKE) benchmark	
+	cd src;$(MAKE) benchmark
+benchmark_brocast:
+	cd src;$(MAKE) benchmark_brocast	
 pbc:
 	cd deps/pbc;$(MAKE);cp build/libpbc.a ../../lib
 pbc-binding-lua53:

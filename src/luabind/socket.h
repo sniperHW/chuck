@@ -276,6 +276,9 @@ static int32_t lua_stream_socket_new(lua_State *L) {
 	c_stream_socket = chk_stream_socket_new(fd,&option);
 
 	if(!c_stream_socket){
+		if(option.decoder) {
+			option.decoder->release(option.decoder);
+		}
 		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_new() failed");
 		return 0;
 	}

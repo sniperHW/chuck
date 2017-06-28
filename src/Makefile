@@ -109,16 +109,15 @@ testcase:
 	$(CC) $(CFLAGS) -o ../test/bin/tcpecho ../test/tcpecho.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 	$(CC) $(CFLAGS) -o ../test/bin/test_objpool ../test/test_objpool.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 	$(CC) $(CFLAGS) -o ../test/bin/teststring ../test/teststring.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
-	$(CC) $(CFLAGS) -o ../test/bin/test_bytebuffer ../test/test_bytebuffer.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
-	$(CC) $(CFLAGS) -o ../test/bin/echobrocast ../test/echobrocast.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o ../test/bin/echoclient ../test/echoclient.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
-	$(CC) $(CFLAGS) -o ../test/bin/pingpongclient ../test/pingpongclient.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
+	$(CC) $(CFLAGS) -o ../test/bin/test_bytebuffer ../test/test_bytebuffer.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)			
 	$(CC) $(CFLAGS) -o ../test/bin/testconnect ../test/testconnect.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)
 	$(CC) $(CFLAGS) -o ../test/bin/testredis ../test/testredis.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)						
 	$(CC) $(CFLAGS) -o ../test/bin/testlua ../test/testlua.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS) -llua -lm -ldl $(LIBRARY)
 
 benchmark:
-	$(CC) $(CFLAGS) -o ../test/bin/benchmark ../test/benchmark.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)		
+	$(CC) $(CFLAGS) -o ../test/bin/benchmark ../test/benchmark.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+benchmark_brocast:
+	$(CC) $(CFLAGS) -o ../test/bin/benchmark_brocast ../test/benchmark_brocast.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 
 clean:
 	rm *.o
