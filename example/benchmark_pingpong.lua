@@ -42,6 +42,7 @@ local function server()
 						print(string.format("clients:%d,pkt:%.0f/s,bytes:%.2fMB/s",client_count,packet_count*1000/delta,(bytes/1024/1024)*1000/delta))
 						packet_count = 0
 						bytes = 0
+						collectgarbage("collect")
 					end
 				else
 					client_count = client_count - 1
@@ -61,12 +62,20 @@ end
 
 
 local function client(clientCount)
+
+	local content = ""
+	for i = 1,511 do
+		content = content .. "11111111"
+	end
+
+	local c = 0
 	for i=1,clientCount do
 		socket.stream.ip4.dail(event_loop,ip,port,function (fd,errCode)
 			if errCode then
 				print("connect error:" .. errCode)
 				return
 			end
+			c = c + 1
 			local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 			if conn then
 				conn:Start(event_loop,function (data)
@@ -75,12 +84,16 @@ local function client(clientCount)
 					else
 						conn:Close()
 						conn = nil
+						c = c - 1
+						if c == 0 then
+							event_loop:Stop()
+						end
 					end
 				end)
 				--send the first msg
-				local buff = chuck.buffer.New()
+				local buff = chuck.buffer.New(4096)
 				local w = packet.Writer(buff)
-				w:WriteStr("123456789041234i9849018239048174871247189477464712347127489127489217489271498")
+				w:WriteStr(content)
 				conn:Send(buff)
 			end
 		end)
