@@ -199,7 +199,7 @@ static int32_t lua_redis_execute(lua_State *L) {
 	return _lua_redis_execute(chk_redis_execute_lua,L);
 }
 
-static int32_t lua_redis_delay_execute(lua_State *L) {
+/*static int32_t lua_redis_delay_execute(lua_State *L) {
 	return _lua_redis_execute(chk_redis_execute_delay_lua,L);
 }
 
@@ -221,7 +221,7 @@ static int32_t lua_redis_flush(lua_State *L) {
 		return 1;
 	}
 	return 0;	
-}
+}*/
 
 static int32_t lua_redis_on_connection_loss(lua_State *L) {
 	lua_redis_client *client = lua_checkredisclient(L,1);
@@ -249,9 +249,7 @@ static void register_redis(lua_State *L) {
 	};
 
 	luaL_Reg redis_methods[] = {
-		{"Execute",          lua_redis_execute},
-		{"DelayExecute",     lua_redis_delay_execute},
-		{"Flush",            lua_redis_flush},		
+		{"Execute",          lua_redis_execute},		
 		{"Close",            lua_redis_close},
 		{"OnConnectionLoss", lua_redis_on_connection_loss},
 		{NULL,     NULL}

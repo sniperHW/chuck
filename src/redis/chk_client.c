@@ -858,26 +858,6 @@ int32_t chk_redis_execute(chk_redisclient *c,chk_redis_reply_cb cb,chk_ud ud,con
 }
 
 
-int32_t chk_redis_execute_delay(chk_redisclient *c,chk_redis_reply_cb cb,chk_ud ud,const char *fmt,...){
-	chk_bytebuffer *buffer = NULL;
-	int32_t         ret    = 0;
-
-    va_list ap;
-    va_start(ap,fmt);
-    ret = redisvAppendCommand(fmt,ap,&buffer);
-    va_end(ap);
-
-    if(0 != ret) {
-    	CHK_SYSLOG(LOG_ERROR,"call redisvAppendCommand() failed");	
-    	return chk_error_redis_request;
-    }
-	return _chk_redis_execute(chk_stream_socket_delay_send,c,buffer,cb,ud);
-}
-
-int32_t chk_redis_flush(chk_redisclient *c) {
-	return chk_stream_socket_flush(c->sock);
-}
-
 #ifdef CHUCK_LUA
 
 static int32_t append_head(chk_bytebuffer *buffer, uint32_t num) {
@@ -992,12 +972,6 @@ static int32_t _chk_redis_execute_lua(fn_socket_send fn,chk_redisclient *c,const
 int32_t chk_redis_execute_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,chk_ud ud,lua_State *L,int32_t start_idx,int32_t param_size) {
 	return _chk_redis_execute_lua(chk_stream_socket_send,c,cmd,cb,ud,L,start_idx,param_size);
 }
-
-
-int32_t chk_redis_execute_delay_lua(chk_redisclient *c,const char *cmd,chk_redis_reply_cb cb,chk_ud ud,lua_State *L,int32_t start_idx,int32_t param_size) {
-	return _chk_redis_execute_lua(chk_stream_socket_delay_send,c,cmd,cb,ud,L,start_idx,param_size);
-}
-
 
 
 #endif

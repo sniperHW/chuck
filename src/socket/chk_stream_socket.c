@@ -301,8 +301,6 @@ static void release_socket(chk_stream_socket *s) {
 	if(s->ssl.ssl) {
        	SSL_free(s->ssl.ssl);
 	}
-
-	//if(s->create_by_new) free(s); /*stream_socket是通过new接口创建的，需要释放内存*/
 	free(s);
 }
 
@@ -558,7 +556,6 @@ static void process_read(chk_stream_socket *s) {
 
 static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud) {
 	st_send_cb *send_cb = NULL;
-	int32_t try_send = 0;
 	int32_t ret = chk_error_ok;
 	chk_list *send_list = NULL;
 	chk_list *send_cb_list = NULL;
@@ -601,105 +598,6 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 	}
 
 	b->internal = b->datasize;//记录最初需要发送的数据大小
-	
-	if(NULL == cb && s->pending_send_size == 0) {
-		try_send = 1;
-	}
-
-	s->pending_send_size += b->datasize;
-	
-	chk_list_pushback(send_list,cast(chk_list_entry*,b));
-	if(send_cb) {
-		chk_list_pushback(send_cb_list,cast(chk_list_entry*,send_cb));
-	}
-
-	if(s->loop) {
-		if(try_send) {
-			//发送缓冲中没有尚未发送的数据,尝试直接发送
-			int32_t bc,bytes;
-			bc = prepare_send(s);
-			if(bc <= 0) {
-				CHK_SYSLOG(LOG_ERROR,"bc <= 0");
-				if(!chk_is_write_enable(cast(chk_handle*,s))) 
-					enable_write(s);				
-				return ret;
-			}
-			if((bytes = do_write(s,bc)) > 0) {
-				update_send_list(s,bytes);
-				if(send_list_empty(s)) {
-					//如果已经没有数据需要发送，且监听写，将写监听去掉
-					if(chk_is_write_enable(cast(chk_handle*,s))) {
-						chk_disable_write(cast(chk_handle*,s));
-					}
-				}
-				else {
-					//如果有数据需要发送但没有监听写，开启写监听
-					if(!chk_is_write_enable(cast(chk_handle*,s))) 
-						enable_write(s);	
-				}
-			}else {
-				if(errno == EAGAIN){
-					if(!chk_is_write_enable(cast(chk_handle*,s))) 
-						enable_write(s);					
-					return ret;
-				}
-				s->status |= SOCKET_PEERCLOSE;
-				return chk_error_socket_close;
-			}
-		} else {
-			if(!chk_is_write_enable(cast(chk_handle*,s))) 
-				enable_write(s);
-		}
-	}
-	return ret;	
-}
-
-int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud) {
-	return _chk_stream_socket_send(s,0,b,cb,ud);
-}
-
-int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud) {
-	return _chk_stream_socket_send(s,1,b,cb,ud);
-}
-
-int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud) {
-	st_send_cb *send_cb = NULL;
-	int32_t ret = chk_error_ok;	
-	chk_list *send_list = NULL;
-	chk_list *send_cb_list = NULL;
-
-	if(b->flags & READ_ONLY) {
-		CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer is read only");		
-		return chk_error_buffer_read_only;
-	}
-
-	if(b->datasize == 0) {
-		CHK_SYSLOG(LOG_ERROR,"b->datasize == 0");
-		chk_bytebuffer_del(b);		
-		return chk_error_invaild_buffer;
-	}
-
-	if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE | SOCKET_PEERCLOSE)) {
-		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket close");	
-		chk_bytebuffer_del(b);	
-		return chk_error_socket_close;
-	}
-
-	if(cb){
-		send_cb = POOL_NEW_SEND_CB();
-		if(!send_cb) {
-			CHK_SYSLOG(LOG_ERROR,"new send_cb failed");
-			chk_bytebuffer_del(b);
-			return chk_error_no_memory;
-		}
-		send_cb->cb = cb;
-		send_cb->ud = ud;
-		send_cb->buffer = b;
-	}
-	send_list = &s->send_list;
-	send_cb_list = &s->send_cb_list;
-
-	b->internal = b->datasize;//记录最初需要发送的数据大小
 	s->pending_send_size += b->datasize;
 	chk_list_pushback(send_list,cast(chk_list_entry*,b));
 	if(send_cb) {
@@ -713,44 +611,12 @@ int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,send
 
 }
 
-int32_t chk_stream_socket_flush(chk_stream_socket *s) {
-	int32_t bc,bytes;
-	int32_t ret = chk_error_ok;	
-	if(s->status & (SOCKET_CLOSE | SOCKET_RCLOSE | SOCKET_PEERCLOSE)) {
-		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket close");		
-		return chk_error_socket_close;
-	}
+int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud) {
+	return _chk_stream_socket_send(s,0,b,cb,ud);
+}
 
-	bc = prepare_send(s);
-	if(bc <= 0) {
-		CHK_SYSLOG(LOG_ERROR,"bc <= 0");
-		if(!chk_is_write_enable(cast(chk_handle*,s))) 
-			enable_write(s);				
-		return ret;
-	}
-
-	if((bytes = do_write(s,bc)) > 0) {
-		update_send_list(s,bytes);
-		if(send_list_empty(s)) {
-			//如果已经没有数据需要发送，且监听写，将写监听去掉
-			if(chk_is_write_enable(cast(chk_handle*,s))) {
-				chk_disable_write(cast(chk_handle*,s));
-			}
-		}
-		else {
-			//如果有数据需要发送但没有监听写，开启写监听
-			if(!chk_is_write_enable(cast(chk_handle*,s))) 
-				enable_write(s);	
-		}
-	}else {
-		if(errno == EAGAIN){
-			return ret;
-		}
-		s->status |= SOCKET_PEERCLOSE;
-		return chk_error_socket_close;
-	}
-
-	return ret;
+int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud) {
+	return _chk_stream_socket_send(s,1,b,cb,ud);
 }
 
 uint32_t chk_stream_socket_pending_send_size(chk_stream_socket *s) {
@@ -821,7 +687,6 @@ chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_opti
 		free(s);
 		return NULL;
 	}
-	//s->create_by_new = 1;
 	return s;
 }
 
@@ -844,7 +709,6 @@ void  chk_stream_socket_resume(chk_stream_socket *s) {
 int32_t chk_ssl_connect(chk_stream_socket *s) {
 
 	if(!s->ssl.ssl){
-		//printf("chk_ssl_connect\n");
 		SSL_CTX *ctx = SSL_CTX_new(SSLv23_client_method());
 		if (ctx == NULL) {
 		    ERR_print_errors_fp(stdout);

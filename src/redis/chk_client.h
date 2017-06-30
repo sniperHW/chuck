@@ -77,13 +77,6 @@ void chk_redis_close(chk_redisclient *c);
 
 int32_t chk_redis_execute(chk_redisclient*,chk_redis_reply_cb cb,chk_ud ud,const char *fmt,...);
 
-/*
- * 使用chk_stream_socket_delay_send发送请求(延迟更大,性能吞吐更大)
- */
-
-int32_t chk_redis_execute_delay(chk_redisclient*,chk_redis_reply_cb cb,chk_ud ud,const char *fmt,...);
-
-int32_t chk_redis_flush(chk_redisclient *);
 
 /**
  * 执行redis命令(二进制安全)
@@ -96,9 +89,6 @@ int32_t chk_redis_flush(chk_redisclient *);
  * @param param_size 参数的数量
  */
 int32_t chk_redis_execute_lua(chk_redisclient*,const char *cmd,chk_redis_reply_cb cb,chk_ud ud,lua_State *L,int32_t start_idx,int32_t param_size);
-
-
-int32_t chk_redis_execute_delay_lua(chk_redisclient*,const char *cmd,chk_redis_reply_cb cb,chk_ud ud,lua_State *L,int32_t start_idx,int32_t param_size);
 
 
 

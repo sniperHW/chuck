@@ -78,18 +78,6 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,send_finis
 
 int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud);
 
-/*
-*  延迟发送,bytebuffer仅被入列,不会立即尝试发送,只在执行flush或下一次循环中检测到套接字可写时
-*  执行发送。对于小数据包通过执行多次delay_send,然后统一调用flush可提高性能
-*/
-int32_t chk_stream_socket_delay_send(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud);
-
-/*
-*  尝试将排队的buffer发送出去	 
-*/
-
-int32_t chk_stream_socket_flush(chk_stream_socket *s);
-
 /**
  * 设置chk_stream_socket关联的用户数据
  * @param s stream_socket
