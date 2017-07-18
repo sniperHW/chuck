@@ -25,14 +25,9 @@ const char *chk_lua_pcall(lua_State *L,const char *fmt,...) {
 	chk_luaToFunctor   *_t;
 	chk_luaPushFunctor *_p;
 	lua_State          *mL;
-	const char         *errmsg = NULL;	
-#ifdef _MYLUAJIT
-	lua_pushmainthread(L);
-	mL = lua_tothread(L,-1);
-#else	
+	const char         *errmsg = NULL;		
 	lua_rawgeti(L,  LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
 	mL = lua_tothread(L,-1);
-#endif
 	lua_pop(L,1);
 	if(L != mL) L = mL;	//确保L是主线程
 	va_start(vl,fmt);
