@@ -295,12 +295,12 @@ static int32_t lua_stream_socket_close(lua_State *L) {
 	if(!s->c_stream_socket){
 		return luaL_error(L,"invaild lua_stream_socket");
 	}
-	uint32_t delay = (uint32_t)luaL_optinteger(L,2,0);		
-	chk_stream_socket_close(s->c_stream_socket,delay);
 	cb = chk_stream_socket_getUd(s->c_stream_socket).v.lr;
 	if(cb.L) {
 		chk_luaRef_release(&cb);
 	}
+	uint32_t delay = (uint32_t)luaL_optinteger(L,2,0);		
+	chk_stream_socket_close(s->c_stream_socket,delay);	
 	s->c_stream_socket = NULL;
 	return 0;
 }
