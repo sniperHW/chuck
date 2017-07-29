@@ -25,7 +25,7 @@ static int32_t lock = 0;
 #define UNLOCK() __sync_lock_release(&lock);
 
 
-static void on_signal(int32_t signo) {
+static void on_signal(int32_t signo,siginfo_t* info,void *ptr) {
     chk_signal_handler *handler;
     int32_t err = errno; //save the old errno
     LOCK();
@@ -115,8 +115,26 @@ int32_t chk_watch_signal(chk_event_loop *loop,int32_t signo,signal_cb cb,chk_ud 
 			release_signal_handler(handler);
 			break;
 		}
-		signal(signo,on_signal);
-		signal_handlers[signo] = handler;	
+
+		struct sigaction action;
+		sigemptyset(&action.sa_mask);
+		action.sa_flags = 0;
+		action.sa_sigaction = on_signal;
+		if(signo == SIGALRM) {
+#ifdef SA_INTERRUPT
+			action.sa_flags |= SA_INTERRUPT;
+#endif
+		} else {
+#ifdef SA_RESTART
+			action.sa_flags |= SA_RESTART;
+#endif
+		}
+		sigaddset(&action.sa_mask,signo);
+		if(0 != sigaction(signo, &action, NULL)){
+			ret = -1;
+		} else {
+			signal_handlers[signo] = handler;	
+		}
 	}while(0);
 	UNLOCK();
 	return ret;

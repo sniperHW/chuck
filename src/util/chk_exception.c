@@ -53,7 +53,8 @@ static void signal_segv(int32_t signum,siginfo_t* info,void*ptr) {
 
 int32_t setup_sigsegv() {
 	struct sigaction action;
-	memset(&action, 0, sizeof(action));
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = 0;
 	action.sa_sigaction = signal_segv;
 	action.sa_flags = SA_SIGINFO;
 	if(sigaction(SIGSEGV, &action, NULL) < 0) {
