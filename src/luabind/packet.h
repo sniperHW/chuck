@@ -160,8 +160,8 @@ static inline int32_t lua_rpacket_readStr(lua_State *L) {
 	lua_rpacket    *r = lua_checkrpacket(L,1);
 	size_t          size = (size_t)chk_ntoh32(LUA_RPACKET_READ(r,uint32_t));
 	
-	if(size == 0)
-		return luaL_error(L,"lua_rpacket_readstr invaild packet");
+	if(size > r->data_remain || size == 0)
+		return luaL_error(L,"lua_rpacket_readstr invaild packet size > r->data_remain || size == 0");
 
 #if LUA_VERSION_NUM >= 503
 	in = luaL_buffinitsize(L,&lb,size);
@@ -265,30 +265,36 @@ static inline int32_t _lua_unpack_string(lua_rpacket *rpk,lua_State *L) {
 static int32_t _lua_unpack_table(lua_rpacket *rpk,lua_State *L) {
 	int8_t key_type,value_type;
 	int32_t size = chk_ntoh32(LUA_RPACKET_READ(rpk,int32_t));
-	int32_t ret,i = 0;
-	lua_newtable(L);
-	for(; i < size; ++i) {
-		ret = -1;
-		key_type = LUA_RPACKET_READ(rpk,int8_t);
-		if(key_type == L_STRING)
-			ret = _lua_unpack_string(rpk,L);
-		else if(key_type >= L_FLOAT && key_type <= L_INT64)
-			ret = _lua_unpack_number(rpk,L,key_type);
-		if(ret != 0) return -1;
-		ret = -1;
-		value_type = LUA_RPACKET_READ(rpk,int8_t);
-		if(value_type == L_STRING)
-			ret = _lua_unpack_string(rpk,L);
-		else if(value_type >= L_FLOAT && value_type <= L_INT64)
-			ret = _lua_unpack_number(rpk,L,value_type);
-		else if(value_type == L_BOOL)
-			ret = _lua_unpack_boolean(rpk,L);
-		else if(value_type == L_TABLE)
-			ret = _lua_unpack_table(rpk,L);
-		if(ret != 0) return -1;
-		lua_rawset(L,-3);			
+
+	if(size > rpk->data_remain) {
+		CHK_SYSLOG(LOG_ERROR,"size > rpk->data_remain");
+		return -1;
+	} else {
+		int32_t ret,i = 0;
+		lua_newtable(L);
+		for(; i < size; ++i) {
+			ret = -1;
+			key_type = LUA_RPACKET_READ(rpk,int8_t);
+			if(key_type == L_STRING)
+				ret = _lua_unpack_string(rpk,L);
+			else if(key_type >= L_FLOAT && key_type <= L_INT64)
+				ret = _lua_unpack_number(rpk,L,key_type);
+			if(ret != 0) return -1;
+			ret = -1;
+			value_type = LUA_RPACKET_READ(rpk,int8_t);
+			if(value_type == L_STRING)
+				ret = _lua_unpack_string(rpk,L);
+			else if(value_type >= L_FLOAT && value_type <= L_INT64)
+				ret = _lua_unpack_number(rpk,L,value_type);
+			else if(value_type == L_BOOL)
+				ret = _lua_unpack_boolean(rpk,L);
+			else if(value_type == L_TABLE)
+				ret = _lua_unpack_table(rpk,L);
+			if(ret != 0) return -1;
+			lua_rawset(L,-3);			
+		}
+		return 0;
 	}
-	return 0;
 }
 
 
