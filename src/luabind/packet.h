@@ -205,6 +205,7 @@ static void memrevifle(void *ptr, size_t len) {
 static inline int32_t _lua_unpack_number(lua_rpacket *rpk,lua_State *L,int type) {
 	lua_Integer   n;
 	switch(type){
+		printf("type:%d\n",type);
 		//case L_DOUBLE:lua_pushnumber(L, LUA_RPACKET_READ(rpk,double));return 0;
 		case L_FLOAT:
 		case L_DOUBLE:

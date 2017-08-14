@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <arpa/inet.h>
+#include <stdio.h>
 
 #ifdef _LINUX
 # include <endian.h>
@@ -11,6 +12,13 @@
 #else
 # error "un support os!"
 #endif
+
+static const struct{
+	union {
+		uint32_t u32;
+		uint8_t  u8[4];
+	};
+}endian = {.u32=1};
 
 static inline uint16_t chk_swap16(uint16_t num) {
 	return ((num << 8) & 0xFF00) | ((num & 0xFF00) >> 8); 
@@ -33,6 +41,25 @@ static inline uint64_t chk_swap64(uint64_t num) {
 #define chk_ntoh32(x) ((uint32_t)ntohl(x))
 
 static inline uint64_t chk_hton64(uint64_t num) {
+	if(endian.u8[0] == 1){
+		return chk_swap64(num);		
+	}
+	else {
+		return num;
+	}
+}
+
+static inline uint64_t chk_ntoh64(uint64_t num) {
+	if(endian.u8[0] == 1){
+		return chk_swap64(num);		
+	}
+	else {
+		return num;
+	}
+}
+
+/*
+static inline uint64_t chk_hton64(uint64_t num) {
 #if __BYTE_ORDER == __BIG_ENDIAN 
 	return num;
 #else
@@ -41,11 +68,12 @@ static inline uint64_t chk_hton64(uint64_t num) {
 }
 
 static inline uint64_t chk_ntoh64(uint64_t num) {
-#if __BYTE_ORDER == __BIG_ENDIAN 
+#if __BYTE_ORDER == __BIG_ENDIAN
 	return num;
 #else
 	return chk_swap64(num);
 #endif
 }
+*/
 
 #endif
