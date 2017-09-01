@@ -149,6 +149,7 @@ static void *log_routine(void *arg) {
 	chk_dlist_entry *n;	
 	int32_t          size;
 	char             filename[MAX_LOG_FILE_NAME] = {0};
+	char             logdir[MAX_LOG_FILE_NAME] = {0};
 	char             buf[128] = {0};
 	struct timespec  tv;
 	struct tm        _tm;			
@@ -165,20 +166,25 @@ static void *log_routine(void *arg) {
 				//创建文件
 				clock_gettime(CLOCK_REALTIME, &tv);
 				localtime_r(&tv.tv_sec, &_tm);
-				snprintf(filename,sizeof(filename) - 1,"./log/%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
-						 entry->_logfile->filename,
-						 getpid(),
-					     _tm.tm_year+1900,
-					     _tm.tm_mon+1,
-					     _tm.tm_mday,
-					     _tm.tm_hour,
-					     _tm.tm_min,
-					     _tm.tm_sec,
-					     cast(int32_t,tv.tv_nsec/1000000));
+				snprintf(logdir,sizeof(logdir),"./log/%04d-%02d-%02d",_tm.tm_year+1900,_tm.tm_mon+1,_tm.tm_mday);
 				ret = mkdir("./log/",S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 				if(ret == 0 || errno == EEXIST){
-					entry->_logfile->file = fopen(filename,"w+");
-				}				
+					ret = mkdir(logdir,S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+					if(ret == 0 || errno == EEXIST){
+						snprintf(filename,sizeof(filename) - 1,"%s/%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
+								 logdir,
+								 entry->_logfile->filename,
+								 getpid(),
+							     _tm.tm_year+1900,
+							     _tm.tm_mon+1,
+							     _tm.tm_mday,
+							     _tm.tm_hour,
+							     _tm.tm_min,
+							     _tm.tm_sec,
+							     cast(int32_t,tv.tv_nsec/1000000));
+						entry->_logfile->file = fopen(filename,"w+");
+					}
+				}			
 			}
 			
 			if(entry->_logfile && entry->_logfile->file){
