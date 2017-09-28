@@ -116,6 +116,12 @@ static void signal_callback(chk_ud ud) {
 	}	
 }
 
+static int32_t lua_signal(lua_State *L) {
+	int32_t signo = (int32_t)luaL_checkinteger(L,2);
+	pthread_kill(pthread_self(),signo);
+	return 0;	
+}
+
 static int32_t lua_watch_signal(lua_State *L) {
 	chk_event_loop *event_loop = lua_checkeventloop(L,1);
 	int32_t signo = (int32_t)luaL_checkinteger(L,2);
@@ -146,6 +152,7 @@ static void register_event_loop(lua_State *L) {
 	};
 
 	luaL_Reg event_loop_methods[] = {
+		{"Signal",lua_signal},
 		{"WatchSignal",  lua_watch_signal},
 		{"UnWatchSignal",lua_unwatch_signal},
 		{"Run",    	     lua_event_loop_run},
