@@ -198,7 +198,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 		}
 		int cc = 0;
 		while((c = (chk_clouser*)chk_list_pop(&e->closures))) {
-			c->func(c->data)
+			c->func(c->data);
 			chk_destroy_closure(c);
 			if(++cc > 1024) {
 				break;
