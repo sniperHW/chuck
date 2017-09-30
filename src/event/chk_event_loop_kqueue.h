@@ -203,20 +203,26 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 	chk_dlist_entry *read_entry;
 	struct timespec ts,*pts;
 	uint64_t msec,t;
+	chk_clouser     *c;	
 	struct kevent   *tmp;
-	if(once){
-		msec = ms%1000;
-		ts.tv_nsec = (msec*1000*1000);
-		ts.tv_sec   = (ms/1000);
-		pts = &ts;
-	}
-	else {
-		pts = NULL;
-	}
-
 	do {
 		ticktimer = 0;
 		chk_dlist_init(&ready_list);
+		if(once || chk_list_size(&e->closures) > 0){
+			if(chk_list_size(&e->closures) > 0) {
+				ts.tv_nsec = 0;
+				ts.tv_sec  = 0;				
+			} else {			
+				msec = ms%1000;
+				ts.tv_nsec = (msec*1000*1000);
+				ts.tv_sec   = (ms/1000);
+			}
+			pts = &ts;
+		}
+		else {
+			pts = NULL;
+		}
+
 		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd, e->events,e->maxevents,pts));
 		t = chk_systick64();
 		if(nfds > 0) {
@@ -248,7 +254,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 				h = READY_TO_HANDLE(read_entry);
 				h->on_events(h,h->active_evetns);
 				//这里之后不能访问h,因为h在on_events中可能被释放
-			}
+			}			
 			if(ticktimer) chk_timer_tick(e->timermgr,chk_accurate_tick64());
 			e->status ^= INLOOP;
 			if(e->status & CLOSING) break;
@@ -267,9 +273,16 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 			ret = chk_error_loop_run;
 			break;
 		}
+		int cc = 0;
+		while((c = (chk_clouser*)chk_list_pop(&e->closures))) {
+			c->func(c->data);
+			chk_destroy_closure(c);
+			if(++cc > 1024) {
+				break;
+			}
+		}		
 		chk_check_idle(e,chk_systick64() - t);	
-	}while(!once);
-
+	}while(!once);	
 loopend:	
 	if(e->status & CLOSING) {
 		chk_loop_finalize(e);

@@ -146,10 +146,14 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 	chk_handle         *h;
 	chk_dlist           ready_list;
 	chk_dlist_entry    *read_entry;
+	chk_clouser        *c;
 	struct epoll_event *tmp;	
 	do {
 		ticktimer = 0;
 		chk_dlist_init(&ready_list);
+		if(chk_list_size(&e->closures) > 0) {
+			ms = 0;
+		}
 		nfds = TEMP_FAILURE_RETRY(epoll_wait(e->epfd,e->events,e->maxevents,once ? ms : -1));
 		t = chk_systick64();
 		if(nfds > 0) {
@@ -192,6 +196,14 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 			ret = chk_error_loop_run;
 			break;
 		}
+		int cc = 0;
+		while((c = (chk_clouser*)chk_list_pop(&e->closures))) {
+			c->func(c->data)
+			chk_destroy_closure(c);
+			if(++cc > 1024) {
+				break;
+			}
+		}		
 		chk_check_idle(e,chk_systick64() - t);	
 	}while(!once);
 

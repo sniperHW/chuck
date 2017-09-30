@@ -18,6 +18,7 @@ typedef struct _idle {
 	 chk_timermgr  *timermgr;        \
      int32_t        notifyfds[2];    \
      chk_dlist      handles;         \
+     chk_list       closures;        \
      int32_t        status;          \
      pid_t          threadid;		 \
      _idle          idle;         

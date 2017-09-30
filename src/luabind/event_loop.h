@@ -116,11 +116,11 @@ static void signal_callback(chk_ud ud) {
 	}	
 }
 
-static int32_t lua_signal(lua_State *L) {
+/*static int32_t lua_signal(lua_State *L) {
 	int32_t signo = (int32_t)luaL_checkinteger(L,2);
 	pthread_kill(pthread_self(),signo);
 	return 0;	
-}
+}*/
 
 static int32_t lua_watch_signal(lua_State *L) {
 	chk_event_loop *event_loop = lua_checkeventloop(L,1);
@@ -145,6 +145,24 @@ static int32_t lua_unwatch_signal(lua_State *L) {
 	return 0;
 }
 
+static void call_closure(chk_ud closure) {
+	const char   *error; 
+	if(NULL != (error = chk_Lua_PCallRef(closure.v.lr,":"))) {
+		CHK_SYSLOG(LOG_ERROR,"error on call_closure %s",error);
+	}
+	chk_luaRef_release(&closure.v.lr);
+}
+
+static int32_t lua_post_closure(lua_State *L) {
+	chk_event_loop *event_loop = lua_checkeventloop(L,1);
+	if(!lua_isfunction(L,2)) {
+		CHK_SYSLOG(LOG_ERROR,"argument 2 of lua_post_closure must be lua closure");		
+		return luaL_error(L,"argument 2 of lua_post_closure must be lua closure"); 
+	}
+	chk_luaRef closure = chk_toluaRef(L,2);	
+	return  chk_loop_post_closure(event_loop,call_closure,chk_ud_make_lr(closure));	
+}
+
 static void register_event_loop(lua_State *L) {
 	luaL_Reg event_loop_mt[] = {
 		{"__gc", lua_event_loop_gc},
@@ -152,7 +170,7 @@ static void register_event_loop(lua_State *L) {
 	};
 
 	luaL_Reg event_loop_methods[] = {
-		{"Signal",lua_signal},
+		{"PostClosure",  lua_post_closure},
 		{"WatchSignal",  lua_watch_signal},
 		{"UnWatchSignal",lua_unwatch_signal},
 		{"Run",    	     lua_event_loop_run},

@@ -5,7 +5,14 @@
 #include "util/chk_timer.h"  
 #include "util/chk_list.h"  
 #include "event/chk_event.h"
-   
+#include    "chk_ud.h"
+
+typedef struct {
+    chk_dlist_entry entry;
+    chk_ud          data;
+    void (*func)(chk_ud);
+}chk_clouser;
+ 
 /**
  * 创建一个新的event_loop
  */
@@ -69,6 +76,8 @@ int32_t         chk_loop_remove_handle(chk_handle *handle);
 
 
 int32_t         chk_loop_set_idle_func(chk_event_loop *loop,void (*idle_cb)());
+
+int32_t         chk_loop_post_closure(chk_event_loop *loop,void (*func)(chk_ud),chk_ud ud);
 
 #if CHUCK_LUA
 

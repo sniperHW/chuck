@@ -67,6 +67,16 @@ static inline void chk_check_idle(chk_event_loop *e,uint64_t elapse) {
 
 }
 
+
+void chk_destroy_closure(chk_clouser *c) {
+	#ifdef CHUCK_LUA
+		if(c->data.v.lr.L) {
+			chk_luaRef_release(&c->data.v.lr);
+		}
+	#endif
+	free(c);
+}
+
 #ifdef _LINUX
 #	include "chk_event_loop_epoll.h"
 #elif  _MACH
@@ -75,6 +85,16 @@ static inline void chk_check_idle(chk_event_loop *e,uint64_t elapse) {
 #	error "un support platform!"		
 #endif
 
+int32_t chk_loop_post_closure(chk_event_loop *loop,void (*func)(chk_ud),chk_ud ud) {
+	if(!loop || !func) {
+		return chk_error_invaild_argument;
+	}
+	chk_clouser *c = (chk_clouser*)calloc(1,sizeof(*c));
+	c->data = ud;
+	c->func = func;
+	chk_list_pushback(&loop->closures,(chk_list_entry*)c);
+	return 0;
+}
 
 int32_t chk_loop_run_once(chk_event_loop *e,uint32_t ms) {
 	return _loop_run(e,ms,1);
@@ -92,6 +112,7 @@ void chk_loop_end(chk_event_loop *e) {
 chk_event_loop *chk_loop_new() {
 	chk_event_loop *ep = calloc(1,sizeof(*ep));
 	if(!ep) return NULL;
+	chk_list_init(&ep->closures);
 	if(chk_error_ok != chk_loop_init(ep)) {
 		CHK_SYSLOG(LOG_ERROR,"chk_loop_init() failed");
 		free(ep);
@@ -109,6 +130,11 @@ void chk_loop_del(chk_event_loop *e) {
 		e->status |= CLOSING;
 	else {
 		chk_loop_finalize(e);
+		chk_clouser *c;
+		while((c = (chk_clouser*)chk_list_pop(&e->closures))) {
+			c->func(c->data);
+			chk_destroy_closure(c);
+		}		
 		free(e);
 	}
 }
