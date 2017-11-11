@@ -217,8 +217,13 @@ static int32_t lua_dail_ip4(lua_State *L) {
 }
 
 static int32_t lua_stream_socket_gc(lua_State *L) {
+	chk_luaRef cb;
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(s->c_stream_socket){
+		cb = chk_stream_socket_getUd(s->c_stream_socket).v.lr;
+		if(cb.L) {
+			chk_luaRef_release(&cb);
+		}
 		chk_stream_socket_close(s->c_stream_socket,0);
 	}
 	return 0;
@@ -419,13 +424,22 @@ static int32_t lua_stream_socket_getpeeraddr(lua_State *L) {
 	return 1;	
 }
 
-static int32_t lua_stream_sockte_set_nodelay(lua_State *L) {
+static int32_t lua_stream_socket_set_nodelay(lua_State *L) {
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
 		return 0;
 	}
 	int8_t on = (int8_t)luaL_optinteger(L,2,0);
 	chk_stream_socket_nodelay(s->c_stream_socket,on);
+	return 0;
+}
+
+static int32_t lua_stream_socket_shutdown(lua_State *L) {
+	lua_stream_socket *s = lua_checkstreamsocket(L,1);
+	if(!s->c_stream_socket){
+		return 0;
+	}
+	chk_stream_socket_shutdown(s->c_stream_socket);
 	return 0;
 }
 
@@ -444,6 +458,29 @@ static int32_t lua_inet_ntop(lua_State *L) {
 	}
 	lua_pushstring(L,buff);
 	return 1;
+}
+
+void close_callback(chk_stream_socket *_,chk_ud ud) {
+	chk_luaRef cb = ud.v.lr;
+	const char *error_str;
+	if(!cb.L) return;
+	error_str = chk_Lua_PCallRef(cb,"");
+	if(error_str) CHK_SYSLOG(LOG_ERROR,"error on close_callback %s",error_str);
+	chk_luaRef_release(&cb);
+}
+
+static int32_t lua_stream_socket_set_close_cb(lua_State *L) {
+	chk_luaRef cb  = {0};
+	lua_stream_socket *s = lua_checkstreamsocket(L,1);
+	if(!s->c_stream_socket){
+		return 0;
+	}
+	if(!lua_isfunction(L,2)) 
+		return luaL_error(L,"argument 2 of SetCloseCallBack must be lua function");
+
+	cb = chk_toluaRef(L,2);
+	chk_stream_socket_set_close_callback(s->c_stream_socket,close_callback,chk_ud_make_lr(cb));
+	return 0;
 }
 
 static int32_t lua_inet_port(lua_State *L) {
@@ -486,7 +523,9 @@ static void register_socket(lua_State *L) {
 		{"Close",   	lua_stream_socket_close},
 		{"GetSockAddr", lua_stream_socket_getsockaddr},
 		{"GetPeerAddr", lua_stream_socket_getpeeraddr},	
-		{"SetNoDelay",  lua_stream_sockte_set_nodelay},
+		{"SetNoDelay",  lua_stream_socket_set_nodelay},
+		{"ShutDown",  	lua_stream_socket_shutdown},
+		{"SetCloseCallBack",lua_stream_socket_set_close_cb},
 		{NULL,     		NULL}
 	};
 

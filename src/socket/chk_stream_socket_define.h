@@ -3,6 +3,13 @@
 #include "../config.h"
 #include "chk_ud.h"
 
+struct chk_stream_socket;
+
+typedef struct {
+    chk_ud ud;
+    void (*close_callback)(chk_stream_socket*,chk_ud);
+}close_cb_st;
+
 struct chk_stream_socket {
 	_chk_handle;
 	chk_stream_socket_option option;
@@ -26,9 +33,11 @@ struct chk_stream_socket {
     chk_stream_socket_cb cb;
     int8_t               sending_urgent;        //标识当前是否正在发送urgent_list中的buffer
     int8_t               no_delay;
+    int8_t               closed;
     struct ssl_ctx       ssl;
     chk_sockaddr         addr_local;
     chk_sockaddr         addr_peer;
+    close_cb_st          close_callback;
 };
 
 #endif

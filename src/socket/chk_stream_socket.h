@@ -10,7 +10,6 @@
 #include "util/chk_timer.h"
 #include "socket/chk_decoder.h"
 #include "chk_ud.h"
-//#include "socket/chk_send_cb.h"
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -51,6 +50,9 @@ chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_opti
  */
 
 void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay);
+
+//执行半关闭(关闭写端)
+void chk_stream_socket_shutdown(chk_stream_socket *s);
 
 /**
  * 发送一个buffer,如果当前没有待发送的数据，会立刻尝试发送
@@ -125,6 +127,8 @@ int32_t chk_stream_socket_getsockaddr(chk_stream_socket *s,chk_sockaddr *addr);
 int32_t chk_stream_socket_getpeeraddr(chk_stream_socket *s,chk_sockaddr *addr);
 
 void chk_stream_socket_nodelay(chk_stream_socket *s,int8_t on);
+
+void chk_stream_socket_set_close_callback(chk_stream_socket *s,void (*cb)(chk_stream_socket*,chk_ud),chk_ud ud);
 
 
 #endif

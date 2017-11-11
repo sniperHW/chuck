@@ -30,6 +30,12 @@ local function server()
 		if conn then
 			clients[fd] = conn
 			client_count = client_count + 1
+
+			conn:SetCloseCallBack(function ()
+				client_count = client_count - 1
+				clients[fd] = nil 
+			end)
+
 			conn:Start(event_loop,function (data)
 				if data then
 					packet_count = packet_count + 1
@@ -45,9 +51,7 @@ local function server()
 						collectgarbage("collect")
 					end
 				else
-					client_count = client_count - 1
 					conn:Close()
-					clients[fd] = nil 
 				end
 			end)
 		end
@@ -78,16 +82,18 @@ local function client(clientCount)
 			c = c + 1
 			local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 			if conn then
+				conn:SetCloseCallBack(function ()
+					c = c - 1
+					if c == 0 then
+						event_loop:Stop()
+					end
+				end)
 				conn:Start(event_loop,function (data)
 					if data then
 						conn:Send(data)
 					else
 						conn:Close()
 						conn = nil
-						c = c - 1
-						if c == 0 then
-							event_loop:Stop()
-						end
 					end
 				end)
 				--send the first msg
