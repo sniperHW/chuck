@@ -7,7 +7,20 @@ local buffer = chuck.buffer
 local event_loop = chuck.event_loop.New()
 local log = chuck.log
 
-local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
+--[[
+local buff = buffer.New()
+local writer = chuck.packet.Writer(buff)
+local nowTick = chuck.time.systick()
+print(nowTick)
+writer:WriteTable({t=nowTick})
+
+local reader = chuck.packet.Reader(buff)
+local t = reader:ReadTable()
+print(t.t)
+]]--
+
+
+local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",9010,function (fd)
 	local conn = socket.stream.New(fd,4096)
 	if conn then
 
@@ -17,10 +30,18 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd
 
 		conn:Start(event_loop,function (data)
 			if data then
-				local response = data:Clone()
-				response:AppendStr("hello world\r\n")
+				local reader = chuck.packet.Reader(data)
+				--print(reader:ReadStr())
+				local t = reader:ReadTable()
+				print(t.tick)
+				--print(t.cmd,t.userID,t.ballID)
+				--local response = data:Clone()
+				--response:AppendStr("hello world\r\n")
 				--local response = buffer.New("hello world\r\n")
-				conn:Send(response)
+				--local response = buffer.New()
+				--local writer = chuck.packet.Writer(response)
+				--writer:WriteTable(t)
+				--conn:Send(response)
 			else
 				log.SysLog(log.info,"client disconnected") 
 				conn:Close() 
@@ -33,14 +54,11 @@ print("systick:",chuck.time.systick(),"unixtime:",chuck.time.unixtime())
 
 if server then
 	log.SysLog(log.info,"server start")	
-
-	--[[event_loop:SetIdle(function ()
-		print("idle")
-	end)]]--
-
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
 		log.SysLog(log.info,"recv SIGINT stop server")
 		event_loop:Stop()
 	end)	
 	event_loop:Run()
 end
+
+

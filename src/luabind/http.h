@@ -611,7 +611,7 @@ static int32_t lua_http_connection_send_request(lua_State *L) {
 		return 1;		
 	}
 
-	if(0 != (ret = chk_stream_socket_send(conn->socket,b,NULL,chk_ud_make_void(NULL)))){
+	if(0 != (ret = chk_stream_socket_send(conn->socket,b))){
 		CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send() failed:%d",ret);		
 		lua_pushstring(L,"send http request failed");
 		return 1;
@@ -692,7 +692,7 @@ static int32_t lua_http_connection_send_response(lua_State *L) {
 		return 1;				
 	}
 
-	if(0 != chk_stream_socket_send(conn->socket,b,NULL,chk_ud_make_void(NULL))){
+	if(0 != chk_stream_socket_send(conn->socket,b)){
 		lua_pushstring(L,"send http response failed");
 		return 1;
 	}

@@ -783,7 +783,7 @@ static inline int redisvAppendCommand(const char *format, va_list ap,chk_bytebuf
     return 0;
 }
 
-typedef int32_t (*fn_socket_send)(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud);
+typedef int32_t (*fn_socket_send)(chk_stream_socket *s,chk_bytebuffer *b);
 
 
 static int32_t timeout_cb(uint64_t tick,chk_ud ud) {
@@ -822,7 +822,7 @@ static int32_t _chk_redis_execute(fn_socket_send fn,chk_redisclient *c,chk_byteb
 		return chk_error_redis_request;
 	}
 
-	if(0 != (ret = fn(c->sock,buffer,NULL,chk_ud_make_void(NULL)))) {
+	if(0 != (ret = fn(c->sock,buffer))) {
     	CHK_SYSLOG(LOG_ERROR,"chk_stream_socket_send failed:%d",ret);	
 		free(repobj);
 		return chk_error_redis_request;

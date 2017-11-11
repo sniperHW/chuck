@@ -27,6 +27,7 @@ local function server()
 		end
 		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 		if conn then
+			--conn:SetNoDelay(1)
 			clients[fd] = conn
 			client_count = client_count + 1
 			conn:Start(event_loop,function (data)
@@ -57,12 +58,6 @@ local function server()
 		return false
 	end
 
-	--[[timer = event_loop:AddTimer(1000,function ()
-		collectgarbage("collect")
-		print(client_count,packet_count)
-		packet_count = 0
-	end)]]--
-
 	return true	
 end
 
@@ -76,6 +71,7 @@ local function client(clientCount)
 			end
 			local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 			if conn then
+				--conn:SetNoDelay(1)
 				conn:Start(event_loop,function (data)
 					if data then
 						local rpacket = packet.Reader(data)
@@ -92,7 +88,7 @@ local function client(clientCount)
 				local buff = chuck.buffer.New()
 				local w = packet.Writer(buff)
 				w:WriteI32(fd)
-				w:WriteStr("123456789041234i9849018239048174871247189477464712347127489127489217489271498")
+				w:WriteStr("1234567890")
 				conn:Send(buff)
 			end
 		end)
@@ -129,6 +125,11 @@ local function run()
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
 		event_loop:Stop()
 	end)
+
+	timer = event_loop:AddTimer(1000,function ()
+		collectgarbage("collect")
+	end)
+
 	event_loop:Run()
 end
 

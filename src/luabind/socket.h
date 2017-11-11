@@ -329,20 +329,9 @@ static int32_t lua_close_fd(lua_State *L) {
 	return 0;
 }
 
-static void chk_lua_send_cb(void *socket,chk_ud ud,int32_t err) {
-	chk_luaRef cb = ud.v.lr;
-	const char *error; 
-	if(NULL != (error = chk_Lua_PCallRef(cb,"i",err))) {
-		CHK_SYSLOG(LOG_ERROR,"error on lua_send_cb %s",error);
-	}	
-	chk_luaRef_release(&cb);
-}
-
 
 static int32_t lua_stream_socket_send(lua_State *L) {
 	chk_bytebuffer    *b,*o;
-	send_finish_callback send_cb = NULL;
-	chk_luaRef         lua_cb = {0};
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
 		lua_pushstring(L,"socket close");		
@@ -357,15 +346,7 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 		return 1;
 	}
 
-	if(lua_isfunction(L,3)){
-		lua_cb = chk_toluaRef(L,3);
-		send_cb = chk_lua_send_cb;
-	} 
-
-	if(0 != chk_stream_socket_send(s->c_stream_socket,b,send_cb,chk_ud_make_lr(lua_cb))){
-		if(lua_cb.L){
-			chk_luaRef_release(&lua_cb);
-		}
+	if(0 != chk_stream_socket_send(s->c_stream_socket,b)){
 		lua_pushstring(L,"send error");
 		return 1;
 	}
@@ -374,8 +355,6 @@ static int32_t lua_stream_socket_send(lua_State *L) {
 
 static int32_t lua_stream_socket_send_urgent(lua_State *L) {
 	chk_bytebuffer    *b,*o;
-	send_finish_callback send_cb = NULL;
-	chk_luaRef         lua_cb = {0};	
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
 		lua_pushstring(L,"socket close");		
@@ -391,29 +370,14 @@ static int32_t lua_stream_socket_send_urgent(lua_State *L) {
 		return 1;
 	}
 
-	if(lua_isfunction(L,3)){
-		lua_cb = chk_toluaRef(L,3);
-		send_cb = chk_lua_send_cb;
-	}
-
-	if(0 != chk_stream_socket_send_urgent(s->c_stream_socket,b,send_cb,chk_ud_make_lr(lua_cb))){
-		if(lua_cb.L){
-			chk_luaRef_release(&lua_cb);
-		}
+	if(0 != chk_stream_socket_send_urgent(s->c_stream_socket,b)){
 		lua_pushstring(L,"send error");				
 		return 1;
 	}
 	return 0;
 }
 
-static int32_t lua_stream_socket_pending_send_size(lua_State *L) {
-	lua_stream_socket *s = lua_checkstreamsocket(L,1);
-	if(!s->c_stream_socket){
-		return luaL_error(L,"invaild lua_stream_socket");
-	}
-	lua_pushinteger(L,chk_stream_socket_pending_send_size(s->c_stream_socket));
-	return 1;
-}
+
 //lua_check_sockaddr
 static int32_t lua_stream_socket_getsockaddr(lua_State *L) {
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
@@ -453,6 +417,16 @@ static int32_t lua_stream_socket_getpeeraddr(lua_State *L) {
 	lua_setmetatable(L, -2);
 
 	return 1;	
+}
+
+static int32_t lua_stream_sockte_set_nodelay(lua_State *L) {
+	lua_stream_socket *s = lua_checkstreamsocket(L,1);
+	if(!s->c_stream_socket){
+		return 0;
+	}
+	int8_t on = (int8_t)luaL_optinteger(L,2,0);
+	chk_stream_socket_nodelay(s->c_stream_socket,on);
+	return 0;
 }
 
 //int32_t easy_sockaddr_inet_ntop(chk_sockaddr *addr,char *out,int len);
@@ -512,7 +486,7 @@ static void register_socket(lua_State *L) {
 		{"Close",   	lua_stream_socket_close},
 		{"GetSockAddr", lua_stream_socket_getsockaddr},
 		{"GetPeerAddr", lua_stream_socket_getpeeraddr},	
-		{"PendingSendSize",lua_stream_socket_pending_send_size},
+		{"SetNoDelay",  lua_stream_sockte_set_nodelay},
 		{NULL,     		NULL}
 	};
 

@@ -83,17 +83,12 @@ static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 	chk_bytebuffer *b;
 	chk_bytechunk  *head;
 	chk_list       *list;
-	chk_list       *send_cb_list;
 	uint32_t        bytes = cast(uint32_t,_bytes);
 	uint32_t        size;
-	st_send_cb     *send_cb_head = NULL;
-	s->pending_send_size -= bytes;//减少待发送的字节数量
 	if(s->sending_urgent){
 		list = &s->urgent_list;
-		send_cb_list = &s->ugent_send_cb_list;
 	}else { 
 		list = &s->send_list;
-		send_cb_list = &s->send_cb_list;
 	}
 	for(;bytes;) {
 		b = cast(chk_bytebuffer*,chk_list_begin(list));
@@ -101,11 +96,6 @@ static inline void update_send_list(chk_stream_socket *s,int32_t _bytes) {
 			/*一个buffer已经发送完毕,将其出列并删除*/
 			chk_list_pop(list);
 			bytes -= b->datasize;
-			send_cb_head = cast(st_send_cb*,chk_list_begin(send_cb_list));
-			if(send_cb_head && send_cb_head->buffer == b) {
-				chk_list_pop(send_cb_list);
-				chk_list_pushback(&s->finish_send_list,cast(chk_list_entry*,send_cb_head));
-			}
 			chk_bytebuffer_del(b);
 		}else {
 			/*只完成一个buffer中部分数据的发送*/
@@ -262,33 +252,16 @@ static inline int32_t update_next_recv_pos(chk_stream_socket *s,int32_t bytes) {
 
 static void release_socket(chk_stream_socket *s) {
 	chk_bytebuffer  *b;
-	st_send_cb      *send_cb;
 	chk_decoder *d = s->option.decoder;	
 	chk_unwatch_handle(cast(chk_handle*,s));	
 	if(s->next_recv_buf) chk_bytechunk_release(s->next_recv_buf);
 	if(d && d->release) d->release(d);
-	if(s->send_timer) chk_timer_unregister(s->send_timer);
-	if(s->last_send_timer) chk_timer_unregister(s->last_send_timer);
+	if(s->delay_close_timer) chk_timer_unregister(s->delay_close_timer);
 	
 	while((b = cast(chk_bytebuffer*,chk_list_pop(&s->send_list))))
 		chk_bytebuffer_del(b);
-	while((send_cb = cast(st_send_cb*,chk_list_pop(&s->send_cb_list)))){
-		send_cb->cb(s,send_cb->ud,chk_error_socket_close);
-		POOL_RELEASE_SEND_CB(send_cb);
-	}
-
 	while((b = cast(chk_bytebuffer*,chk_list_pop(&s->urgent_list))))
 		chk_bytebuffer_del(b);
-	while((send_cb = cast(st_send_cb*,chk_list_pop(&s->ugent_send_cb_list)))){
-		send_cb->cb(s,send_cb->ud,chk_error_socket_close);
-		POOL_RELEASE_SEND_CB(send_cb);
-	}
-
-	while((send_cb = cast(st_send_cb*,chk_list_begin(&s->finish_send_list)))) {
-		chk_list_pop(&s->finish_send_list);
-		send_cb->cb(s,send_cb->ud,chk_error_socket_close);
-		POOL_RELEASE_SEND_CB(send_cb);
-	}
 
 	if(s->fd >= 0) { 
 		close(s->fd);
@@ -304,36 +277,16 @@ static void release_socket(chk_stream_socket *s) {
 	free(s);
 }
 
-static int32_t last_timer_cb(uint64_t tick,chk_ud ud) {
+static int32_t delay_close_timer_cb(uint64_t tick,chk_ud ud) {
 	chk_stream_socket *s = cast(chk_stream_socket*,ud.v.val);
-	s->last_send_timer   = NULL;
+	s->delay_close_timer   = NULL;
 	/*timer事件在所有套接口事件之后才处理,所以这里释放是安全的*/
 	release_socket(s);
 	return -1;
 }
 
-static int32_t send_timer_cb(uint64_t tick,chk_ud ud){
-	chk_stream_socket *s = cast(chk_stream_socket*,ud.v.val);
-	s->send_timer   = NULL;
-	if(s->cb){
-		s->cb(s,NULL,chk_error_send_timeout);
-	}
-	return -1;
-}
-
-static void set_send_timeout_timer(chk_stream_socket *s){
-
-	if(s->status & (SOCKET_CLOSE|SOCKET_RCLOSE|SOCKET_PEERCLOSE)){
-		return;
-	}
-	if(s->send_timer){
-		chk_timer_unregister(s->send_timer);
-	}
-	s->send_timer = chk_loop_addtimer(s->loop,SEND_TIME_OUT,send_timer_cb,chk_ud_make_void(s));
-}
 
 static void enable_write(chk_stream_socket *s){
-	set_send_timeout_timer(s);
 	chk_enable_write(cast(chk_handle*,s));
 }
 
@@ -348,13 +301,8 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
 		chk_disable_read(cast(chk_handle*,s));
 		shutdown(s->fd,SHUT_RD);
 
-		if(s->send_timer){
-			chk_timer_unregister(s->send_timer);
-			s->send_timer = NULL;
-		}
-
 		/*数据还没发送完,设置delay豪秒超时等待数据发送出去*/
-		s->last_send_timer = chk_loop_addtimer(s->loop,delay,last_timer_cb,chk_ud_make_void(s));
+		s->delay_close_timer = chk_loop_addtimer(s->loop,delay,delay_close_timer_cb,chk_ud_make_void(s));
 	}else {
 		s->status |= SOCKET_CLOSE;		
 		if(!(s->status & SOCKET_INLOOP)){
@@ -448,21 +396,14 @@ static void process_write(chk_stream_socket *s) {
 	}
 
 	if((bytes = do_write(s,bc)) > 0) {
-		if(s->send_timer){
-			//成功发送数据清除发送定时器
-			chk_timer_unregister(s->send_timer);
-			s->send_timer = NULL;
-		}
+		s->send_bytes -= bytes;
 		update_send_list(s,bytes);
 		/*没有数据需要发送了,停止写监听*/
 		if(send_list_empty(s)) {
 		 	if(s->status & SOCKET_RCLOSE)
 				s->status |= SOCKET_CLOSE;
-			else
+			else if(chk_is_write_enable(cast(chk_handle*,s)))
 		 		chk_disable_write(cast(chk_handle*,s));
-		}else{
-			//尚有数据待发送，注册新的定时器
-			set_send_timeout_timer(s);
 		}	
 	}else {
 		if(errno == EAGAIN){
@@ -472,7 +413,8 @@ static void process_write(chk_stream_socket *s) {
 			s->status |= SOCKET_CLOSE;
 		else {
 			s->status |= SOCKET_PEERCLOSE;
-			s->cb(s,NULL,chk_error_stream_write);
+			chk_disable_write(cast(chk_handle*,s));
+			shutdown(s->fd,SHUT_RD);
 			CHK_SYSLOG(LOG_ERROR,"writev() failed errno:%d",errno);
 		}
 	}
@@ -544,6 +486,7 @@ static void process_read(chk_stream_socket *s) {
 			update_next_recv_pos(s,bytes);
 	}else {
 		s->status |= SOCKET_PEERCLOSE;
+		chk_disable_read(cast(chk_handle*,s));
 		if(bytes == 0)
 			error_code = chk_error_stream_peer_close;
 		else {
@@ -554,11 +497,10 @@ static void process_read(chk_stream_socket *s) {
 	}
 }
 
-static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud) {
-	st_send_cb *send_cb = NULL;
-	int32_t ret = chk_error_ok;
+static uint32_t send_bytes_low_water = 64*1024;
+
+static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_bytebuffer *b) {
 	chk_list *send_list = NULL;
-	chk_list *send_cb_list = NULL;
 
 	if(b->flags & READ_ONLY) {
 		CHK_SYSLOG(LOG_ERROR,"chk_bytebuffer is read only");		
@@ -577,54 +519,48 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 		return chk_error_socket_close;
 	}
 
-	if(cb){
-		send_cb = POOL_NEW_SEND_CB();
-		if(!send_cb) {
-			CHK_SYSLOG(LOG_ERROR,"new send_cb failed");
-			chk_bytebuffer_del(b);
-			return chk_error_no_memory;
-		}
-		send_cb->cb = cb;
-		send_cb->ud = ud;
-		send_cb->buffer = b;
-	}
-
 	if(urgent){
 		send_list = &s->urgent_list;
-		send_cb_list = &s->ugent_send_cb_list;
 	}else {
-		send_list = &s->send_list;
-		send_cb_list = &s->send_cb_list;		
+		send_list = &s->send_list;		
 	}
 
 	b->internal = b->datasize;//记录最初需要发送的数据大小
-	s->pending_send_size += b->datasize;
+	uint32_t old_send_bytes = s->send_bytes;
+	s->send_bytes += b->datasize;
 	chk_list_pushback(send_list,cast(chk_list_entry*,b));
-	if(send_cb) {
-		chk_list_pushback(send_cb_list,cast(chk_list_entry*,send_cb));
+	if(s->loop){
+		if(s->send_bytes >= send_bytes_low_water || (s->no_delay && old_send_bytes == 0)) {
+			process_write(s);
+			if(errno == EAGAIN || (errno == 0 && !chk_list_empty(send_list))) {
+				enable_write(s);
+			} else {
+				return chk_error_stream_write;
+			}
+
+			if(s->send_bytes >= s->high_water_mark) {
+				//接收方接收不过来
+				return chk_error_highwater_mark;
+			}
+
+		} else {
+			if(!chk_is_write_enable(cast(chk_handle*,s)))
+				enable_write(s);			
+		}
 	}
 
-	if(s->loop && !chk_is_write_enable(cast(chk_handle*,s)))
-		enable_write(s);
-	
-	return ret;
-
+	return chk_error_ok;
 }
 
-int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud) {
-	return _chk_stream_socket_send(s,0,b,cb,ud);
+int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b) {
+	return _chk_stream_socket_send(s,0,b);
 }
 
-int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud) {
-	return _chk_stream_socket_send(s,1,b,cb,ud);
-}
-
-uint32_t chk_stream_socket_pending_send_size(chk_stream_socket *s) {
-	return s->pending_send_size;
+int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b) {
+	return _chk_stream_socket_send(s,1,b);
 }
 
 static void on_events(chk_handle *h,int32_t events) {
-	st_send_cb *send_cb_head = NULL;
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
 	if(!s->loop || s->status & SOCKET_CLOSE)
 		return;
@@ -646,12 +582,6 @@ static void on_events(chk_handle *h,int32_t events) {
 		if(events & CHK_EVENT_WRITE) process_write(s);			
 	}while(0);
 
-	while((send_cb_head = cast(st_send_cb*,chk_list_begin(&s->finish_send_list)))) {
-		chk_list_pop(&s->finish_send_list);
-		send_cb_head->cb(s,send_cb_head->ud,0);
-		POOL_RELEASE_SEND_CB(send_cb_head);
-	}
-
 	s->status ^= SOCKET_INLOOP;
 	if(s->status & SOCKET_CLOSE) {
 		release_socket(s);		
@@ -666,7 +596,8 @@ int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,const chk_stream_
 	s->handle_add = loop_add;
 	s->option = *op;
 	s->loop   = NULL;
-	//s->create_by_new = 0;
+	s->high_water_mark = 64 * 1024 * 1024;
+	s->send_bytes = 0;
 	if(!s->option.decoder) { 
 		s->option.decoder = cast(chk_decoder*,default_decoder_new());
 		if(!s->option.decoder) { 
@@ -891,4 +822,10 @@ int32_t chk_stream_socket_getpeeraddr(chk_stream_socket *s,chk_sockaddr *addr) {
 	}
 	*addr = s->addr_peer;
 	return 0;
+}
+
+void chk_stream_socket_nodelay(chk_stream_socket *s,int8_t on) {
+  int optval = on > 0 ? 1:0;
+  setsockopt(s->fd, IPPROTO_TCP, TCP_NODELAY,&optval, (socklen_t)(sizeof optval));
+  s->no_delay = optval;
 }

@@ -160,8 +160,14 @@ static inline int32_t lua_rpacket_readStr(lua_State *L) {
 	lua_rpacket    *r = lua_checkrpacket(L,1);
 	size_t          size = (size_t)chk_ntoh32(LUA_RPACKET_READ(r,uint32_t));
 	
-	if(size > r->data_remain || size == 0)
+	if(size > r->data_remain)
 		return luaL_error(L,"lua_rpacket_readstr invaild packet size > r->data_remain || size == 0");
+
+	if(size == 0) {
+		//返回空串
+		lua_pushstring(L,"");
+		return 1;
+	}
 
 #if LUA_VERSION_NUM >= 503
 	in = luaL_buffinitsize(L,&lb,size);
@@ -245,7 +251,15 @@ static inline int32_t _lua_unpack_string(lua_rpacket *rpk,lua_State *L) {
 	luaL_Buffer     lb;
 	char           *in;
 	size_t          size = (size_t)chk_ntoh32(LUA_RPACKET_READ(rpk,uint32_t));
-	if(size <= 0) return -1;
+	
+	if(size > rpk->data_remain) {
+		return luaL_error(L,"size > rpk->data_remain");
+	}
+
+	if(size == 0) { 
+		lua_pushstring(L,"");
+		return 0;
+	}
 
 #if LUA_VERSION_NUM >= 503
 	in = luaL_buffinitsize(L,&lb,size);
@@ -432,8 +446,10 @@ static inline int32_t lua_wpacket_writeStr(lua_State *L) {
 	do{
 		if(0 != (ret = lua_wpacket_write(w,(char*)&size,sizeof(size))))
 			break;
-		if(0 != (ret = lua_wpacket_write(w,(char*)str,len)))
-			break;		
+		if(len > 0){
+			if(0 != (ret = lua_wpacket_write(w,(char*)str,len)))
+				break;
+		}		
 	}while(0);
 
 	if(0 != ret)
@@ -474,8 +490,10 @@ static inline int32_t _lua_pack_string(lua_wpacket *wpk,lua_State *L,int index) 
 	
 	if(0 != lua_wpacket_write(wpk,(char*)&size,sizeof(size)))
 		return -1;
-	if(0 != lua_wpacket_write(wpk,(char*)data,len))
-		return -1;
+	if(len > 0){
+		if(0 != lua_wpacket_write(wpk,(char*)data,len))
+			return -1;
+	}
 	return 0;
 }
 

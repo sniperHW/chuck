@@ -10,7 +10,7 @@
 #include "util/chk_timer.h"
 #include "socket/chk_decoder.h"
 #include "chk_ud.h"
-#include "socket/chk_send_cb.h"
+//#include "socket/chk_send_cb.h"
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -58,7 +58,7 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay);
  * @param b 待发送缓冲,调用chk_stream_socket_send之后b不能再被别处使用
  */
 
-int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud);
+int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b);
 
 
 /**
@@ -76,7 +76,7 @@ int32_t chk_stream_socket_send(chk_stream_socket *s,chk_bytebuffer *b,send_finis
  *
  */
 
-int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b,send_finish_callback cb,chk_ud ud);
+int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b);
 
 /**
  * 设置chk_stream_socket关联的用户数据
@@ -106,7 +106,7 @@ void  chk_stream_socket_pause(chk_stream_socket *s);
  * 返回待发送数据字节数
  */
 
-uint32_t chk_stream_socket_pending_send_size(chk_stream_socket *s);
+//uint32_t chk_stream_socket_pending_send_size(chk_stream_socket *s);
 
 /**
  * 恢复事件处理
@@ -123,6 +123,8 @@ int32_t chk_ssl_connect(chk_stream_socket *s);
 int32_t chk_stream_socket_getsockaddr(chk_stream_socket *s,chk_sockaddr *addr);
 
 int32_t chk_stream_socket_getpeeraddr(chk_stream_socket *s,chk_sockaddr *addr);
+
+void chk_stream_socket_nodelay(chk_stream_socket *s,int8_t on);
 
 
 #endif
