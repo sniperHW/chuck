@@ -2,14 +2,14 @@
 --[[
 	队列式的消息处理器，提供队列处理模式和排它处理模式
 
-	队列处理模式:RegisterHandler(mutexMode = false)
+	队列处理模式:RegisterHandler(mutexMode)
 	只有当前队列尾巴的处理器的mutexMode == false时才能调用成功
 	处于这个模式下，当事件发生时，会从队列首部开始遍历所有的处理器并回调处理函数
 
 	例如有两个窗口需要显示同一个数据源的数据变化，则可以在这两个窗口对象中通过队列模式注册数据变化的事件处理函数。
 	当数据发生变化时，按入列顺序调用回调函数处理处理窗口的刷新
 
-	排他模式:RegisterHandler(mutexMode = true)
+	排他模式:RegisterHandler(queueMode = true)
 	处理器被添加到队列尾部，处于此模式下，当事件发生时只执行尾部处理器的回调
 	使用排他模式可以实现栈式的执行回调
 
@@ -23,15 +23,6 @@
 ]]
 
 local M = {}
-
-M.slots = {}
-
-function M.handler(obj, method)
-    return function(...)
-       return method(obj, ...)
-    end
-end
-
 
 local eventHandler = {}
 eventHandler.__index = eventHandler
@@ -47,7 +38,9 @@ function eventHandler.new(slot,idx,handler,mutexMode)
 end
 
 function eventHandler:OnEvent(...)
-	self.handler(...)
+	if "unregister" == self.handler(...) then
+		self:UnRegister()
+	end
 end
 
 function eventHandler:UnRegister()
@@ -104,6 +97,7 @@ function handlerSlot:RegisterHandler(handler,mutexMode)
 	local top = self.handlers[#self.handlers]
 	if top and top.mutexMode and not mutexMode then
 		--目前排他处理模式，不允许添加非排他模式的handler
+		print("top handler in mutexMode,unable to register queueMode handler")
 		return nil
 	end
 	local idx = #self.handlers + 1
@@ -119,44 +113,66 @@ function handlerSlot:Clear()
 	self.handlers = {}	
 end
 
-function handlerSlot:ReplaceHandler(handler)
+function handlerSlot:ReplaceHandler(handler,mutexMode)
 	--清空当前所有handler
 	self:Clear()
-	local evHandler = eventHandler.new(self,1,handler)
+	local evHandler = eventHandler.new(self,1,handler,mutexMode)
 	table.insert(self.handlers,evHandler)
 	return evHandler
 end
 
-function M.RegisterHandler(event,mutexMode,handler)
-	local slot = M.slots[event]
+local eventModule = {}
+eventModule.__index = eventModule
+
+function M.new()
+	local e = {}
+	e.slots = {}
+	e = setmetatable(e,eventModule)
+	return e
+end
+
+function eventModule.handler(obj, method)
+    return function(...)
+       return method(obj, ...)
+    end
+end
+
+function eventModule:RegisterHandler(event,mutexMode,handler)
+
+	mutexMode = mutexMode == "mutexMode"
+
+	local slot = self.slots[event]
 	if not slot then
 		slot = handlerSlot.new()
-		M.slots[event] = slot
+		self.slots[event] = slot
 	end
 
 	return slot:RegisterHandler(handler,mutexMode)
 end
 
 --清空当前所有handler,将新的handler添加到队列中
-function M.ReplaceHandler(event,handler)
-	local slot = M.slots[event]
+function eventModule:ReplaceHandler(event,mutexMode,handler)
+
+	mutexMode = mutexMode == "mutexMode"
+
+	local slot = self.slots[event]
 	if not slot then
 		slot = handlerSlot.new()
-		M.slots[event] = slot
+		self.slots[event] = slot
 	end
 
-	return slot:ReplaceHandler(handler)
+	return slot:ReplaceHandler(handler,mutexMode)
 end
 
-function M.Clear(event)
-	local slot = M.slots[event]
+function eventModule:Clear(event)
+	local slot = self.slots[event]
 	if slot then
 		slot:Clear()
 	end	
 end
 
-function M.OnEvent(event,...)
-	local slot = M.slots[event]
+function eventModule:Emit(event,...)
+	local slot = self.slots[event]
 	if slot then
 		slot:OnEvent(...)
 	end
