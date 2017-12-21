@@ -189,6 +189,10 @@ M.throw = M.reject
 
 function promise:andThen(success,failure)
 
+	if self.finally then
+		error("final")
+	end
+
 	success = isFunction(success) and success or nil
 	failure = isFunction(failure) and failure or nil
 
@@ -220,7 +224,9 @@ function promise:catch(failure)
 end
 
 function promise:final(final)
-	return self:andThen(final,final)
+	local next = self:andThen(final,final)
+	next.finally = true
+	return next
 end
 
 return M
