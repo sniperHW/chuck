@@ -25,7 +25,7 @@ ifeq ($(uname_S),Darwin)
 	MAKE += make
 	CC += clang
 	DEFINE += -D_MACH
-	SHAREFLAGS +=  -undefined dynamic_lookup	
+	SHAREFLAGS += -bundle -undefined dynamic_lookup	
 endif
 
 source.lib =  util/chk_log.c\
