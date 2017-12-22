@@ -39,7 +39,7 @@ typedef struct {																			\
 }TYPE##_pool;																				\
 																							\
 																							\
-static inline TYPE##_chunk *TYPE##_new_chunk(uint32_t idx){									\
+TYPE##_chunk *TYPE##_new_chunk(uint32_t idx){												\
 	TYPE##_obj_holder *_obj;																\
 	TYPE##_chunk* newchunk = calloc(1,sizeof(*newchunk));									\
 	if(!newchunk) return NULL;																\
@@ -55,7 +55,7 @@ static inline TYPE##_chunk *TYPE##_new_chunk(uint32_t idx){									\
 	return newchunk;																		\
 }																							\
 																							\
-static inline void* TYPE##_new_obj(TYPE##_pool *pool){										\
+void* TYPE##_new_obj(TYPE##_pool *pool){													\
 	uint32_t chunkcount,i;																	\
 	TYPE##_chunk   *freechunk = (TYPE##_chunk*)chk_list_begin(&pool->freechunk);			\
 	TYPE##_chunk  **tmp;																	\
@@ -90,7 +90,7 @@ static inline void* TYPE##_new_obj(TYPE##_pool *pool){										\
 }																							\
 																							\
 																							\
-static inline void TYPE##_release_obj(TYPE##_pool *pool,void *ptr){							\
+void TYPE##_release_obj(TYPE##_pool *pool,void *ptr){										\
 	TYPE##_obj_holder *_obj;																\
 	TYPE##_chunk 	  *_chunk; 																\
 	_obj = (TYPE##_obj_holder*)((char*)ptr + sizeof(TYPE) - sizeof(*_obj));					\
@@ -104,7 +104,7 @@ static inline void TYPE##_release_obj(TYPE##_pool *pool,void *ptr){							\
 	++pool->freecount;--pool->usedcount;													\
 }																							\
 																							\
-static inline TYPE##_pool *TYPE##_pool_new(uint32_t initnum){								\
+TYPE##_pool *TYPE##_pool_new(uint32_t initnum){												\
 	uint32_t     chunkcount;																\
 	uint32_t     i;																			\
 	TYPE##_pool *pool;																		\
@@ -128,7 +128,7 @@ static inline TYPE##_pool *TYPE##_pool_new(uint32_t initnum){								\
 	return pool;																			\
 }																							\
 																							\
-static inline void TYPE##_destroy_pool(TYPE##_pool *pool){									\
+void TYPE##_destroy_pool(TYPE##_pool *pool){											\
 	uint32_t i;																				\
 	for(i = 0; i < pool->chunkcount; ++i){													\
 		free(pool->chunks[i]);																\

@@ -27,8 +27,6 @@ static chk_thread      *g_log_thd;
 #define LOCK() while (__sync_lock_test_and_set(&lock,1)) {}
 #define UNLOCK() __sync_lock_release(&lock);
 
-
-
 const char *log_lev_str[] = {
 	"INFO",
 	"DEBUG",
@@ -68,6 +66,18 @@ static void  write_console(int8_t loglev,char *content) {
 		case LOG_CRITICAL : printf("\033[5;31;40m%s\033[0m\n",content); break;
 		default           : break;		
  	}
+}
+
+void chk_set_loglev(int32_t loglev){
+	g_loglev = loglev;
+}
+
+int32_t chk_current_loglev() {
+	return g_loglev;
+}
+
+const char *chk_get_syslog_file_prefix() {
+	return g_syslog_file_prefix;
 }
 
 void chk_set_syslog_file_prefix(const char *prefix){

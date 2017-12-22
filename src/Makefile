@@ -2,7 +2,7 @@ CFLAGS  = -g -Wall -fno-strict-aliasing
 LDFLAGS = -lpthread -lm
 DEPDIR  = 
 INCLUDE = -I./ -I../deps/lua-5.3.0/src -I../deps -I../ -I../deps/ -I../deps/linenoise -I../deps/openssl-1.1.0c/include
-DEFINE  = 
+DEFINE  = -DUSE_BUFFER_POOL
 LIBNAME = libchuck.a
 MAKE    =
 CC      =
@@ -25,7 +25,7 @@ ifeq ($(uname_S),Darwin)
 	MAKE += make
 	CC += clang
 	DEFINE += -D_MACH
-	SHAREFLAGS += -bundle -undefined dynamic_lookup	
+	SHAREFLAGS +=  -undefined dynamic_lookup	
 endif
 
 source.lib =  util/chk_log.c\

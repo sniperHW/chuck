@@ -21,21 +21,12 @@ enum{
 
 typedef struct chk_logfile chk_logfile;
 
-extern int32_t g_loglev;
-
-extern char    g_syslog_file_prefix[MAX_LOG_FILE_NAME];
 
 chk_logfile *chk_create_logfile(const char *filename);
 
-static inline void chk_set_loglev(int32_t loglev)
-{
-    if(loglev >= LOG_INFO && loglev <= LOG_CRITICAL)
-        g_loglev = loglev;
-}
+void chk_set_loglev(int32_t loglev);
 
-static inline int32_t chk_current_loglev() {
-    return g_loglev;
-}
+int32_t chk_current_loglev();
 
 
 /*
@@ -52,11 +43,12 @@ int32_t chk_log_prefix_detail(char *buf,uint8_t loglev,const char *function,cons
 
 void    chk_set_syslog_file_prefix(const char *prefix);
 
+const char *chk_get_syslog_file_prefix();
 
 //日志格式[INFO|ERROR]yyyy-mm-dd-hh:mm:ss.ms:content
 #define CHK_LOG(LOGFILE,LOGLEV,...)                                                             \
 do{                                                                                             \
-    if(LOGLEV >= g_loglev){                                                                     \
+    if(LOGLEV >= chk_current_loglev()){                                                         \
         char *xx___buf = calloc(CHK_MAX_LOG_SIZE,sizeof(char));                                 \
         if(!xx___buf) break;                                                                    \
         int32_t size = chk_log_prefix_detail(xx___buf,LOGLEV,__FUNCTION__,__FILE__,__LINE__);   \
@@ -67,7 +59,7 @@ do{                                                                             
 
 #define CHK_SYSLOG(LOGLEV,...)                                                                  \
 do{                                                                                             \
-    if(LOGLEV >= g_loglev){                                                                     \
+    if(LOGLEV >= chk_current_loglev()){                                                         \
         char *xx___buf = calloc(CHK_MAX_LOG_SIZE,sizeof(char));                                 \
         if(!xx___buf) break;                                                                    \
         int32_t size = chk_log_prefix_detail(xx___buf,LOGLEV,__FUNCTION__,__FILE__,__LINE__);   \
@@ -82,8 +74,8 @@ do{                                                                             
     	char buff[MAX_LOG_FILE_NAME]={0};                                                       \
         LOGNAME *tmp = calloc(1,sizeof(*tmp));                                                  \
         if(!tmp) return NULL;                                                                   \
-    	if(0 != strncmp(g_syslog_file_prefix,"",MAX_LOG_FILE_NAME-1)) {                         \
-            snprintf(buff,MAX_LOG_FILE_NAME-1,"%s-%s",LOGFILENAME,g_syslog_file_prefix);        \
+    	if(0 != strncmp(chk_get_syslog_file_prefix(),"",MAX_LOG_FILE_NAME-1)) {                 \
+            snprintf(buff,MAX_LOG_FILE_NAME-1,"%s-%s",LOGFILENAME,chk_get_syslog_file_prefix());\
             buff[MAX_LOG_FILE_NAME-1] = 0;                                                      \
         }                                                                                       \
         else {                                                                                  \
