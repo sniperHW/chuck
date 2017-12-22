@@ -403,7 +403,7 @@ static void process_write(chk_stream_socket *s) {
 	bc = prepare_send(s);
 	
 	if(bc <= 0) {
-		//CHK_SYSLOG(LOG_ERROR,"bc <= 0");
+		CHK_SYSLOG(LOG_ERROR,"bc <= 0");
 		return;
 	}
 
