@@ -159,6 +159,8 @@ static inline int32_t lua_rpacket_readStr(lua_State *L) {
 	char           *in;
 	lua_rpacket    *r = lua_checkrpacket(L,1);
 	size_t          size = (size_t)chk_ntoh32(LUA_RPACKET_READ(r,uint32_t));
+
+	printf("%d,%d\n",size,r->data_remain);
 	
 	if(size > r->data_remain)
 		return luaL_error(L,"lua_rpacket_readstr invaild packet size > r->data_remain || size == 0");
