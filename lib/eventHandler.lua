@@ -38,9 +38,10 @@ function eventHandler.new(slot,idx,handler,mutexMode)
 end
 
 function eventHandler:OnEvent(...)
-	if "unregister" == self.handler(...) then
-		self:UnRegister()
-	end
+	--if "unregister" == self.handler(...) then
+	--	self:UnRegister()
+	--end
+	return self.handler(...)
 end
 
 function eventHandler:UnRegister()
@@ -77,18 +78,31 @@ function handlerSlot.new()
 end
 
 function handlerSlot:OnEvent(...)
-	if #self.handlers == 0 then
+	local size = #self.handlers
+	if size == 0 then
 		return
 	end
 
 	local top = self.handlers[#self.handlers] 
 	if top.mutexMode then
 		--互斥模式，队尾的handler来处理事件
-		top:OnEvent(...)
+		if "unregister" == top:OnEvent(...) then
+			top:UnRegister()
+		end
 	else
 		--从队列首部开始依次处理事件
-		for k,v in ipairs(self.handlers) do
-			v:OnEvent(...)
+
+		local k = next(self.handlers)
+		while k do
+			h = self.handlers[k]
+			if "unregister" == h:OnEvent(...) then
+				h:UnRegister()
+				if k >= #self.handlers then
+					return
+				end
+			else
+				k = next(self.handlers,k)
+			end
 		end
 	end
 end
