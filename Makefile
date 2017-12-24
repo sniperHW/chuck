@@ -13,4 +13,6 @@ benchmark_brocast:
 pbc:
 	cd deps/pbc;$(MAKE);cp build/libpbc.a ../../lib
 pbc-binding-lua53:
-	cd deps/pbc/binding/lua53;$(MAKE);cp protobuf.lua protobuf.so ../../../../lib			
+	cd deps/pbc/binding/lua53;$(MAKE);cp protobuf.lua protobuf.so ../../../../lib
+cjson:
+	cd deps/lua-cjson-2.1.0;$(MAKE);cp cjson.so ../../lib			

@@ -17,11 +17,20 @@ PREFIX =            /usr
 #CFLAGS =            -g -Wall -pedantic -fno-inline
 CFLAGS =            -O2 -Wall -pedantic -DNDEBUG -std=c99
 CJSON_CFLAGS =      -fpic
-CJSON_LDFLAGS =     -shared
+CJSON_LDFLAGS =     
 LUA_INCLUDE_DIR =   ../lua-5.3.0/src
 LUA_CMODULE_DIR =   $(PREFIX)/lib/lua/$(LUA_VERSION)
 LUA_MODULE_DIR =    $(PREFIX)/share/lua/$(LUA_VERSION)
 LUA_BIN_DIR =       $(PREFIX)/bin
+
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+ifeq ($(uname_S),Linux)
+	CJSON_LDFLAGS += -shared
+endif
+
+ifeq ($(uname_S),Darwin)
+	CJSON_LDFLAGS += -bundle -undefined dynamic_lookup	
+endif
 
 ##### Platform overrides #####
 ##
