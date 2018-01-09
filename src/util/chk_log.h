@@ -28,6 +28,8 @@ void chk_set_loglev(int32_t loglev);
 
 int32_t chk_current_loglev();
 
+void chk_set_log_dir(const char *log_dir);
+
 
 /*
 *  以下两个函数中的context参数必须由malloc分配，并由日志系统负责free

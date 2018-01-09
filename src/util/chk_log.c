@@ -14,6 +14,7 @@ CHK_DEF_LOG(chk_sys_log,CHK_SYSLOG_NAME);
 CHK_IMP_LOG(chk_sys_log);
 
 char    g_syslog_file_prefix[MAX_LOG_FILE_NAME] = {0};
+char    g_log_dir[MAX_LOG_FILE_NAME] = "./log";
 
 static pthread_once_t 	g_log_key_once      = PTHREAD_ONCE_INIT;
 static pid_t          	g_pid               = -1;
@@ -66,6 +67,13 @@ static void  write_console(int8_t loglev,char *content) {
 		case LOG_CRITICAL : printf("\033[5;31;40m%s\033[0m\n",content); break;
 		default           : break;		
  	}
+}
+
+void chk_set_log_dir(const char *log_dir){
+	if(log_dir) {
+		strncpy(g_log_dir,log_dir,MAX_LOG_FILE_NAME-1);
+		g_log_dir[MAX_LOG_FILE_NAME-1] = 0;
+	}
 }
 
 void chk_set_loglev(int32_t loglev){
@@ -153,6 +161,39 @@ int32_t chk_log_prefix_detail(char *buf,uint8_t loglev,const char *function,cons
 				   line);	
 }
 
+static int32_t create_log_dir(const char *log_dir) {
+	size_t first_;
+	if(log_dir[0] == '.') {
+		first_ = 2;
+	}else {
+		first_ = 1;
+	}
+	size_t len = strlen(log_dir);
+	size_t i = 0;
+	size_t c = 0;
+	char buf[MAX_LOG_FILE_NAME];
+	for( ;i < len; ++i){
+		if(log_dir[i] == '/') {
+			if(++c >= first_) {
+				strncpy(buf,log_dir,i);
+				buf[i] = 0;
+				int ret = mkdir(buf,S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+				if(!(ret == 0 || errno == EEXIST)){
+					return errno;
+				}
+			}
+		}
+	}
+	strncpy(buf,log_dir,len);
+	buf[len] = 0;
+	int ret = mkdir(buf,S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	if(!(ret == 0 || errno == EEXIST)){
+		return errno;
+	} else {
+		return 0;
+	}
+}
+
 static void *log_routine(void *arg) {
 	log_entry       *entry;
 	chk_logfile     *l;
@@ -176,25 +217,25 @@ static void *log_routine(void *arg) {
 				//创建文件
 				clock_gettime(CLOCK_REALTIME, &tv);
 				localtime_r(&tv.tv_sec, &_tm);
-				snprintf(logdir,sizeof(logdir),"./log/%04d-%02d-%02d",_tm.tm_year+1900,_tm.tm_mon+1,_tm.tm_mday);
-				ret = mkdir("./log/",S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-				if(ret == 0 || errno == EEXIST){
-					ret = mkdir(logdir,S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-					if(ret == 0 || errno == EEXIST){
-						snprintf(filename,sizeof(filename) - 1,"%s/%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
-								 logdir,
-								 entry->_logfile->filename,
-								 getpid(),
-							     _tm.tm_year+1900,
-							     _tm.tm_mon+1,
-							     _tm.tm_mday,
-							     _tm.tm_hour,
-							     _tm.tm_min,
-							     _tm.tm_sec,
-							     cast(int32_t,tv.tv_nsec/1000000));
-						entry->_logfile->file = fopen(filename,"w+");
-					}
-				}			
+				snprintf(logdir,sizeof(logdir),"%s/%04d-%02d-%02d",g_log_dir,_tm.tm_year+1900,_tm.tm_mon+1,_tm.tm_mday);
+				ret = create_log_dir(logdir);
+				if(0 == ret) {
+					snprintf(filename,sizeof(filename) - 1,"%s/%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
+							 logdir,
+							 entry->_logfile->filename,
+							 getpid(),
+						     _tm.tm_year+1900,
+						     _tm.tm_mon+1,
+						     _tm.tm_mday,
+						     _tm.tm_hour,
+						     _tm.tm_min,
+						     _tm.tm_sec,
+						     cast(int32_t,tv.tv_nsec/1000000));
+					entry->_logfile->file = fopen(filename,"w+");					
+				} else {
+					printf("create log dir failed:%d\n",ret);
+					exit(0);
+				}		
 			}
 			
 			if(entry->_logfile && entry->_logfile->file){

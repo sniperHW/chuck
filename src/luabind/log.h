@@ -75,6 +75,12 @@ static int32_t lua_set_syslog_file_prefix(lua_State *L) {
 	return 0;
 }
 
+static int32_t lua_set_log_dir(lua_State *L) {
+	const char *dir = luaL_checkstring(L,1);
+	chk_set_log_dir(dir);
+	return 0;
+}
+
 static void register_log(lua_State *L) {
 	luaL_Reg logfile_methods[] = {
 		{"Log",    lua_write_log},
@@ -91,6 +97,7 @@ static void register_log(lua_State *L) {
 	SET_FUNCTION(L,"CreateLogfile",lua_create_logfile);
 	SET_FUNCTION(L,"SysLog",lua_sys_log);
 	SET_FUNCTION(L,"SetSysLogPrefix",lua_set_syslog_file_prefix);
+	SET_FUNCTION(L,"SetLogDir",lua_set_log_dir);	
 	lua_pushstring(L,"info");lua_pushinteger(L,LOG_INFO);lua_settable(L, -3);
 	lua_pushstring(L,"debug");lua_pushinteger(L,LOG_DEBUG);lua_settable(L, -3);
 	lua_pushstring(L,"warning");lua_pushinteger(L,LOG_WARN);lua_settable(L, -3);
