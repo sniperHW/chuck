@@ -212,6 +212,7 @@ static void *log_routine(void *arg) {
 			if(!entry->_logfile->file || entry->_logfile->total_size > CHK_MAX_LOG_FILE_SIZE) {
 				if(entry->_logfile->file) {
 					fclose(entry->_logfile->file);
+					entry->_logfile->file = NULL;
 					entry->_logfile->total_size = 0;
 				}
 				//创建文件
@@ -265,7 +266,7 @@ static void *log_routine(void *arg) {
 		l = cast(chk_logfile*,n);
 		if(l->file) {
 			size = chk_log_prefix(buf,LOG_INFO);
-			snprintf(&buf[size],sizeof(buf)-size-1,"log close success");
+			snprintf(&buf[size],sizeof(buf)-size-1,"%s.log close success",l->filename);
 			fprintf(l->file,"%s\n",buf);
 			fflush(l->file);
 			fclose(l->file);
