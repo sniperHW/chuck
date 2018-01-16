@@ -27,7 +27,7 @@ t2[2] = t1
 --t循环引用,WriteTable报错
 --w:WriteTable(t1)
 
-local d = 2.8
+local d = 0.875
 
 w:WriteTable({a=1,b=d})
 

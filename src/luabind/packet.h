@@ -1,4 +1,5 @@
 #include "util/chk_list.h"
+#include <float.h>
 
 #ifndef  cast
 # define  cast(T,P) ((T)(P))
@@ -150,7 +151,9 @@ static inline int32_t lua_rpacket_readI64(lua_State *L) {
 
 static inline int32_t lua_rpacket_readDub(lua_State *L) {
 	lua_rpacket *r = lua_checkrpacket(L,1);
-    lua_pushnumber(L,LUA_RPACKET_READ(r,double));
+    double d = LUA_RPACKET_READ(r,double);
+    memrevifle(&d,sizeof(double));
+    lua_pushnumber(L,d);
     return 1;
 }
 
@@ -190,29 +193,10 @@ static inline int32_t _lua_unpack_boolean(lua_rpacket *rpk,lua_State *L) {
 	return 0;
 }
 
-static void memrevifle(void *ptr, size_t len) {
-    unsigned char   *p = (unsigned char *)ptr,
-                    *e = (unsigned char *)p+len-1,
-                    aux;
-    int test = 1;
-    unsigned char *testp = (unsigned char*) &test;
-
-    if (testp[0] == 0) return; /* Big endian, nothing to do. */
-    len /= 2;
-    while(len--) {
-        aux = *p;
-        *p = *e;
-        *e = aux;
-        p++;
-        e--;
-    }
-}
 
 static inline int32_t _lua_unpack_number(lua_rpacket *rpk,lua_State *L,int type) {
 	lua_Integer   n;
 	switch(type){
-		printf("type:%d\n",type);
-		//case L_DOUBLE:lua_pushnumber(L, LUA_RPACKET_READ(rpk,double));return 0;
 		case L_FLOAT:
 		case L_DOUBLE:
 		{
@@ -220,7 +204,8 @@ static inline int32_t _lua_unpack_number(lua_rpacket *rpk,lua_State *L,int type)
 				float f;
 				lua_rpacket_read(rpk,(char*)&f,4);
 				memrevifle(&f,4);
-				lua_pushnumber(L,f);
+				printf("FLOAT:%f\n",f);
+				lua_pushnumber(L,(double)f);
 			}
 			else {
 				double d;
@@ -370,7 +355,8 @@ static inline int32_t lua_wpacket_writeI64(lua_State *L) {
 
 static inline int32_t lua_wpacket_writeDub(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
-	double value = luaL_checknumber(L,2);    
+	double value = luaL_checknumber(L,2);  
+	memrevifle(&value,sizeof(double));  
     if(0 != lua_wpacket_write(w,(char*)&value,sizeof(value)))
     	return luaL_error(L,"write beyond limited");
     return 0;
@@ -462,20 +448,17 @@ static int32_t encode_double(lua_wpacket *wpk, double d) {
     unsigned char b[9];
     float f = d;
     if (d == (double)f) {
-    	//printf("float\n");
         b[0] = L_FLOAT;     /* float IEEE 754 */
         memcpy(b+1,&f,4);
         memrevifle(b+1,4);
         return lua_wpacket_write(wpk,(char*)b,5);
     } else if (sizeof(d) == 8) {
-    	//printf("double\n");
         b[0] = L_DOUBLE;    /* double IEEE 754 */
         memcpy(b+1,&d,8);
         memrevifle(b+1,8);
         return lua_wpacket_write(wpk,(char*)b,9); 
     }
 }
-
 
 static inline int32_t _lua_pack_string(lua_wpacket *wpk,lua_State *L,int index) {
 	size_t      len;
