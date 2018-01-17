@@ -152,7 +152,7 @@ static inline int32_t lua_rpacket_readI64(lua_State *L) {
 static inline int32_t lua_rpacket_readDub(lua_State *L) {
 	lua_rpacket *r = lua_checkrpacket(L,1);
     double d = LUA_RPACKET_READ(r,double);
-    //memrevifle(&d,sizeof(double));
+    memrevifle(&d,sizeof(double));
     lua_pushnumber(L,d);
     return 1;
 }
@@ -203,11 +203,13 @@ static inline int32_t _lua_unpack_number(lua_rpacket *rpk,lua_State *L,int type)
 			if(type == L_FLOAT) {
 				float f;
 				lua_rpacket_read(rpk,(char*)&f,4);
+				memrevifle(&f,4);
 				lua_pushnumber(L,(double)f);
 			}
 			else {
 				double d;
 				lua_rpacket_read(rpk,(char*)&d,8);
+				memrevifle(&d,8);
 				lua_pushnumber(L,d);				
 			}
 			return 0;
@@ -353,6 +355,7 @@ static inline int32_t lua_wpacket_writeI64(lua_State *L) {
 static inline int32_t lua_wpacket_writeDub(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
 	double value = luaL_checknumber(L,2);  
+	memrevifle(&value,sizeof(double));  
     if(0 != lua_wpacket_write(w,(char*)&value,sizeof(value)))
     	return luaL_error(L,"write beyond limited");
     return 0;
@@ -444,12 +447,14 @@ static int32_t encode_double(lua_wpacket *wpk, double d) {
     unsigned char b[9];
     float f = d;
     if (d == (double)f) {
-        b[0] = L_FLOAT;
+        b[0] = L_FLOAT;     /* float IEEE 754 */
         memcpy(b+1,&f,4);
+        memrevifle(b+1,4);
         return lua_wpacket_write(wpk,(char*)b,5);
     } else if (sizeof(d) == 8) {
-        b[0] = L_DOUBLE; 
+        b[0] = L_DOUBLE;    /* double IEEE 754 */
         memcpy(b+1,&d,8);
+        memrevifle(b+1,8);
         return lua_wpacket_write(wpk,(char*)b,9); 
     }
 }
