@@ -152,7 +152,7 @@ static inline int32_t lua_rpacket_readI64(lua_State *L) {
 static inline int32_t lua_rpacket_readDub(lua_State *L) {
 	lua_rpacket *r = lua_checkrpacket(L,1);
     double d = LUA_RPACKET_READ(r,double);
-    memrevifle(&d,sizeof(double));
+    //memrevifle(&d,sizeof(double));
     lua_pushnumber(L,d);
     return 1;
 }
@@ -355,7 +355,7 @@ static inline int32_t lua_wpacket_writeI64(lua_State *L) {
 static inline int32_t lua_wpacket_writeDub(lua_State *L) {
 	lua_wpacket *w = lua_checkwpacket(L,1);
 	double value = luaL_checknumber(L,2);  
-	memrevifle(&value,sizeof(double));  
+	//memrevifle(&value,sizeof(double));  
     if(0 != lua_wpacket_write(w,(char*)&value,sizeof(value)))
     	return luaL_error(L,"write beyond limited");
     return 0;
