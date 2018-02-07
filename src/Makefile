@@ -1,4 +1,4 @@
-CFLAGS  = -g -Wall -fno-strict-aliasing 
+CFLAGS  = -g -O2 -Wall -fno-strict-aliasing 
 LDFLAGS = -lpthread -lm
 DEPDIR  = 
 INCLUDE = -I./ -I../deps/lua-5.3.0/src -I../deps -I../ -I../deps/ -I../deps/linenoise -I../deps/openssl-1.1.0c/include
