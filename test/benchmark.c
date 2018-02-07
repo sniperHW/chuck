@@ -39,7 +39,7 @@ void server_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 			bytesize = 0;
 			packet_count = 0;			
 		}
-		chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,chk_ud_make_void(NULL));
+		chk_stream_socket_send(s,chk_bytebuffer_clone(data));
 	} else {	
 		--c;	
 		chk_stream_socket_close(s,0);
@@ -67,7 +67,7 @@ void client_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	if(!data) {	
 		chk_stream_socket_close(s,0);
 	}else {
-		chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,chk_ud_make_void(NULL));
+		chk_stream_socket_send(s,chk_bytebuffer_clone(data));
 	}
 }
 
@@ -76,7 +76,7 @@ void connect_callback(int32_t fd,chk_ud ud,int32_t err) {
 		chk_stream_socket *s = chk_stream_socket_new(fd,&option);
 		chk_loop_add_handle(loop,(chk_handle*)s,client_event_cb);
 		chk_bytebuffer *msg = chk_bytebuffer_new_bychunk(chunk,0,chunk->cap);
-		chk_stream_socket_send(s,msg,NULL,chk_ud_make_void(NULL));		
+		chk_stream_socket_send(s,msg);		
 	}else {
 		printf("connect error\n");
 	}
