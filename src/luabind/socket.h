@@ -185,7 +185,7 @@ static void dail_ip4_cb(int32_t fd,chk_ud ud,int32_t err) {
 static int32_t lua_dail_ip4(lua_State *L) {
 	chk_luaRef      cb = {0};
 	chk_sockaddr    remote;
-	uint32_t        timeout;
+	uint32_t        timeout = 0;
 	int32_t         ret;
 	const char     *ip;
 	int16_t         port;
@@ -205,14 +205,28 @@ static int32_t lua_dail_ip4(lua_State *L) {
 		return 1;
 	}
 
-	cb = chk_toluaRef(L,4); 
-	timeout = (uint32_t)luaL_optinteger(L,5,0);
+	int cbIdx = -1;
+	int type4 = lua_type(L,4);
+	if(type4 == LUA_TNUMBER){
+		timeout = (uint32_t)luaL_checkinteger(L,4);
+		cbIdx = 5;
+	} else {
+		cbIdx = 4;
+	}
+
+	if(LUA_TFUNCTION != lua_type(L,cbIdx)) {
+		lua_pushstring(L,"lua_dail_ip4 missing callback function");
+		return 1;		
+	}
+
+	cb = chk_toluaRef(L,cbIdx);
 	ret = chk_easy_async_connect(event_loop,&remote,NULL,dail_ip4_cb,chk_ud_make_lr(cb),timeout);
 	if(ret != 0) {
 		chk_luaRef_release(&cb);
 		lua_pushstring(L,"connect error");
 		return 1;
 	}
+
 	return 0;
 }
 
@@ -310,21 +324,21 @@ static int32_t lua_stream_socket_close(lua_State *L) {
 	return 0;
 }
 
-static int32_t lua_stream_socket_pause(lua_State *L) {
+static int32_t lua_stream_socket_pause_read(lua_State *L) {
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
 		return luaL_error(L,"invaild lua_stream_socket");
 	}
-	chk_stream_socket_pause(s->c_stream_socket);
+	chk_stream_socket_pause_read(s->c_stream_socket);
 	return 0;
 }
 
-static int32_t lua_stream_socket_resume(lua_State *L) {
+static int32_t lua_stream_socket_resume_read(lua_State *L) {
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->c_stream_socket){
 		return luaL_error(L,"invaild lua_stream_socket");
 	}
-	chk_stream_socket_resume(s->c_stream_socket);
+	chk_stream_socket_resume_read(s->c_stream_socket);
 	return 0;
 }
 
@@ -518,8 +532,8 @@ static void register_socket(lua_State *L) {
 		{"Send",    	lua_stream_socket_send},
 		{"SendUrgent",	lua_stream_socket_send_urgent},
 		{"Start",   	lua_stream_socket_bind},
-		{"Pause",   	lua_stream_socket_pause},
-		{"Resume",		lua_stream_socket_resume},		
+		{"PauseRead",   lua_stream_socket_pause_read},
+		{"ResumeRead",	lua_stream_socket_resume_read},		
 		{"Close",   	lua_stream_socket_close},
 		{"GetSockAddr", lua_stream_socket_getsockaddr},
 		{"GetPeerAddr", lua_stream_socket_getpeeraddr},	

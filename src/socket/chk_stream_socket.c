@@ -630,18 +630,15 @@ chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_opti
 	return s;
 }
 
-void  chk_stream_socket_pause(chk_stream_socket *s) {
+void  chk_stream_socket_pause_read(chk_stream_socket *s) {
 	if(s->loop) {
 		chk_disable_read(cast(chk_handle*,s));
-		chk_disable_write(cast(chk_handle*,s));
 	}
 }
 
-void  chk_stream_socket_resume(chk_stream_socket *s) {
+void  chk_stream_socket_resume_read(chk_stream_socket *s) {
 	if(s->loop) {
 		chk_enable_read(cast(chk_handle*,s));
-		if(!send_list_empty(s))
-			enable_write(s);
 	}
 }
 

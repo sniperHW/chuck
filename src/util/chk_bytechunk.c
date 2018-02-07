@@ -236,7 +236,9 @@ int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_t size) {
     }
 
     if(!b->tail) {
-        return chk_error_invaild_buffer;
+        if(0 != chk_bytebuffer_init(b,NULL,0,size,b->flags)) {
+            return chk_error_no_memory;
+        }        
     }
 
     b->datasize += size;
@@ -280,11 +282,14 @@ int32_t chk_bytebuffer_append_qword(chk_bytebuffer *b,uint64_t v) {
     return chk_bytebuffer_append(b,(uint8_t*)&v,sizeof(v));
 }
 
-uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t out_len) {
-    uint32_t remain,copysize,pos,size;
+uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t size) {
+    uint32_t remain,copysize,pos;
     chk_bytechunk *c = b->head;
+    if(b->datasize < size) {
+        return 0;
+    }
     if(!c) return 0;
-    size = remain = MIN(out_len,b->datasize);
+    remain = MIN(size,b->datasize);
     pos = b->spos;
     while(remain) {
         copysize = MIN(c->cap - pos,remain);
@@ -297,6 +302,39 @@ uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t out_len) {
             pos = 0;
         }
     }
+    return size;
+}
+
+uint32_t chk_bytebuffer_read_drain(chk_bytebuffer *b,char *out,uint32_t size) {
+    uint32_t remain,copysize;
+    chk_bytechunk *old_head;
+    if(b->datasize < size) {
+        return 0;
+    }
+    if(!b->head) return 0;
+    remain = MIN(size,b->datasize);
+    while(remain) {
+        copysize = MIN(b->head->cap - b->spos,remain);
+        memcpy(out,b->head->data + b->spos,copysize);
+        remain -= copysize;
+        b->spos += copysize;
+        b->datasize -= copysize;
+        out += copysize;
+        if(remain) {
+            old_head = b->head;
+            b->head = old_head->next;
+            old_head->next = NULL;
+            chk_bytechunk_release(old_head);
+            b->spos = 0;
+        }
+    }
+
+    if(b->datasize == 0) {
+        b->flags ^= NEED_COPY_ON_WRITE;
+        b->tail = NULL;
+        b->append_pos = 0;
+    }
+
     return size;
 }
 
@@ -328,7 +366,6 @@ int32_t chk_bytebuffer_rewrite(chk_bytebuffer *b,uint32_t pos,uint8_t *v,uint32_
     chunk = b->head;
     while(c != 0) {
         tmp = chunk->cap - spos;
-        //printf("%u,%u,%u,%u\n",c,tmp,chunk->cap,spos);
         if(tmp <= c) {
             c -= tmp;
             index = spos = 0;

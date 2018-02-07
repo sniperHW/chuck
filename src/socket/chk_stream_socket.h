@@ -98,11 +98,11 @@ chk_ud chk_stream_socket_getUd(chk_stream_socket *s);
 int32_t chk_stream_socket_getfd(chk_stream_socket *s);
 
 /**
- * 暂停事件处理(移除读写监听)
+ * 暂停事件处理(移除读监听)
  * @param s stream_socket
  */
 
-void  chk_stream_socket_pause(chk_stream_socket *s);
+void  chk_stream_socket_pause_read(chk_stream_socket *s);
 
 /**
  * 返回待发送数据字节数
@@ -111,11 +111,11 @@ void  chk_stream_socket_pause(chk_stream_socket *s);
 //uint32_t chk_stream_socket_pending_send_size(chk_stream_socket *s);
 
 /**
- * 恢复事件处理
+ * 恢复读监听
  * @param s stream_socket
  */
 
-void  chk_stream_socket_resume(chk_stream_socket *s);
+void  chk_stream_socket_resume_read(chk_stream_socket *s);
 
 
 int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx);

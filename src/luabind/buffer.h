@@ -87,26 +87,48 @@ static int32_t lua_bytebuffer_clone(lua_State *L) {
 	return 1;
 }
 
-static int32_t lua_bytebuffer_readall(lua_State *L) {
+
+static int32_t lua_bytebuffer_read(lua_State *L) {
 	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
+	uint32_t size     = (uint32_t)luaL_checkinteger(L,2);
 	luaL_Buffer     lb;
 	char           *in;
 
-	if(!b->head) {
+	if(!b->head || b->datasize < size) {
 		lua_pushnil(L);
 		return 1;
 	}
 
-	if(b->head->cap - b->spos >= b->datasize) {
+	in = luaL_buffinitsize(L,&lb,(size_t)size);
+	chk_bytebuffer_read_drain(b,in,size);
+	luaL_pushresultsize(&lb,(size_t)size);	
+	return 1;	
+}
+
+static int32_t _lua_bytebuffer_read(lua_State *L,chk_bytebuffer *b,uint32_t size) {
+	luaL_Buffer     lb;
+	char           *in;
+
+	if(!b->head || b->datasize < size) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	if(b->head->cap - b->spos >= size) {
 		//数据在唯一的chunk中
-		lua_pushlstring(L,(const char *)&(b->head->data[b->spos]),(size_t)b->datasize);
+		lua_pushlstring(L,(const char *)&(b->head->data[b->spos]),(size_t)size);
 	}else {
 		//数据跨越chunk	
-		in = luaL_buffinitsize(L,&lb,(size_t)b->datasize);
-		chk_bytebuffer_read(b,in,b->datasize);
-		luaL_pushresultsize(&lb,(size_t)b->datasize);	
+		in = luaL_buffinitsize(L,&lb,(size_t)size);
+		chk_bytebuffer_read(b,in,size);
+		luaL_pushresultsize(&lb,(size_t)size);	
 	}
 	return 1;
+}
+
+static int32_t lua_bytebuffer_readall(lua_State *L) {
+	chk_bytebuffer *b = lua_checkbytebuffer(L,1);
+	return _lua_bytebuffer_read(L,b,b->datasize);
 }
 
 static int32_t lua_bytebuffer_append_string(lua_State *L) {
@@ -146,6 +168,7 @@ static void register_buffer(lua_State *L) {
 	luaL_Reg bytebuffer_methods[] = {
 		{"Clone",    lua_bytebuffer_clone},
 		{"Content",  lua_bytebuffer_readall},
+		{"Read",lua_bytebuffer_read},
 		{"AppendStr",lua_bytebuffer_append_string},
 		{"Size",lua_bytebuffer_size},
 		{NULL,     NULL}
