@@ -4,7 +4,7 @@ package.path = 'lib/?.lua;'
 local chuck = require("chuck")
 local readline = require("readline")
 local event_loop = chuck.event_loop.New()
-local redis = require("redis")
+local redis = require("redis").init(event_loop)
 local redis_conn
 
 
@@ -83,7 +83,7 @@ if arg == nil or #arg ~= 2 then
 else
    local ip,port = arg[1],arg[2]
    local stop
-   redis.Connect(event_loop,ip,port,function (conn)
+   redis.Connect(ip,port,function (conn)
    	redis_conn = conn
    	stop = true
    	if not redis_conn then
@@ -97,10 +97,12 @@ else
    	event_loop:Run(100)
    end
 
-   redis_conn:OnConnectionLoss(function ()
-   	print("connection loss")
-   	redis_conn = nil
-   end)
+   if redis_conn then
+	   redis_conn:OnConnectionLoss(function ()
+	   	print("connection loss")
+	   	redis_conn = nil
+	   end)
+   end
 
    while redis_conn do
    		repl()	

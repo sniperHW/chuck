@@ -1,5 +1,5 @@
 local chuck = require("chuck")
-local promise = require("Promise")
+local promise
 local redis = chuck.redis
 
 M = {}
@@ -20,17 +20,25 @@ function redisCmd:Execute(callback)
 	return self.redisConn:Execute(callback,self.cmd,table.unpack(self.args))
 end
 
+function M.init(eventLoop)
+   if nil == M.eventLoop then
+      M.eventLoop = eventLoop
+      promise = require("Promise").init(eventLoop)
+   end
+   return M
+end
+
 function M.Command(conn,cmd,...)
 	return newRedisCmd(conn,cmd,...)
 end
 
-function M.Connect(eventLoop,ip,port,callback)
-	return redis.Connect_ip4(eventLoop,ip,port,callback)
+function M.Connect(ip,port,callback)
+	return redis.Connect_ip4(M.eventLoop,ip,port,callback)
 end
 
-function M.ConnectPromise(eventLoop,ip,port)
+function M.ConnectPromise(ip,port)
    return promise.new(function(resolve,reject)
-      local err = redis.Connect_ip4(eventLoop,ip,port,function (conn,err)
+      local err = redis.Connect_ip4(M.eventLoop,ip,port,function (conn,err)
             if err then
                reject(err)
             else

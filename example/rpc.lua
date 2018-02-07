@@ -9,8 +9,8 @@ local chuck = require("chuck")
 local socket = chuck.socket
 local buffer = chuck.buffer
 local packet = chuck.packet
-local rpc = require("rpc")
 local event_loop = chuck.event_loop.New()
+local rpc = require("rpc").init(event_loop)
 
 rpc.registerMethod("hello",function (response,a,b)
 	response:Return(a .. " " .. b,"sniperHW hahaha")

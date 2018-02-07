@@ -150,7 +150,6 @@ static void call_closure(chk_ud closure) {
 	if(NULL != (error = chk_Lua_PCallRef(closure.v.lr,":"))) {
 		CHK_SYSLOG(LOG_ERROR,"error on call_closure %s",error);
 	}
-	chk_luaRef_release(&closure.v.lr);
 }
 
 static int32_t lua_post_closure(lua_State *L) {

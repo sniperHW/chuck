@@ -1,11 +1,12 @@
 local chuck = require("chuck")
 local socket = chuck.socket
-local promise = require("Promise")
+local promise
 
 local M = {}
 
 function M.init(event_loop)
 	M.event_loop = event_loop
+	promise = require("Promise").init(event_loop)
 	return M
 end
 
@@ -22,13 +23,11 @@ local function newPromiseConnection(fd)
 		if data then
 			c.buff:AppendStr(data:Content())
 			while c.promise do
-				local resolve = c.promise.process(c.buff)
-				if resolve then
+				if c.promise.process(c.buff) then
 					c.promise = promise.next
 					if c.promise == nil then
 						c.promiseTail = nil
-					end
-					resolve()					
+					end					
 				else
 					break
 				end
@@ -86,11 +85,10 @@ function PromiseConnection:Recv(byteCount)
 		  	readPromise.process = function (buff)
 		  		local msg = buff:Read(byteCount)
 		  		if msg then
-		  			return function ()
-		  				resolve(msg)
-		  			end
+		  			resolve(msg)
+		  			return true
 		  		else
-		  			return nil
+		  			return false
 		  		end
 		  	end
 		  	readPromise.reject = function(err)
@@ -112,11 +110,10 @@ function PromiseConnection:RecvUntil(str)
 		  	readPromise.process = function (buff)
 		  		local s,e = string.find(buff:Content(), str)
 		  		if s then
-		  			return function ()
-		  				resolve(buff:Read(e))
-		  			end		  			
+		  			resolve(buff:Read(e))
+		  			return true	  			
 		  		else
-		  			return nil
+		  			return false
 		  		end
 		  	end
 		  	readPromise.reject = function(err)

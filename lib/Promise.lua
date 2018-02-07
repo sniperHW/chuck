@@ -9,6 +9,13 @@ local REJECTED = 3
 local resolve
 local reject
 
+function M.init(event_loop)
+	if nil == M.event_loop then
+		M.event_loop = event_loop
+	end
+	return M
+end
+
 local function isPromise(value)
 	return getmetatable(value) == promise
 end
@@ -90,13 +97,17 @@ end
 
 resolve = function (promise) 
 	return function (value)
-		fire(promise,RESOLVED,value)
+		M.event_loop:PostClosure(function ()
+			fire(promise,RESOLVED,value)
+		end)
 	end
 end
 
 reject = function (promise)
 	return function (err)
-		fire(promise,REJECTED,err)
+		M.event_loop:PostClosure(function ()
+			fire(promise,REJECTED,err)
+		end)
 	end
 end
 

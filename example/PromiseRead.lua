@@ -16,17 +16,10 @@ local server = PromiseConnection.listen("127.0.0.1",9010,function (conn)
 	conn:Send("hello\n")
 
 	local function recv()
-		--local buff = ""
 		conn:RecvUntil("\r\n"):andThen(function (msg) 
-			--buff = buff .. msg
-			--return conn:Recv(3)
 			conn:Send(msg)
 			return recv()
-		end)--[[:andThen(function (msg)
-			buff = buff .. msg
-			conn:Send(buff)
-			return recv()
-		end)]]:catch(function (err)
+		end):catch(function (err)
 			print(err)
 		end)
 	end

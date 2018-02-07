@@ -4,7 +4,7 @@ local chuck = require("chuck")
 local socket = chuck.socket
 local buffer = chuck.buffer
 local packet = chuck.packet
-local promise = require("Promise")
+local promise
 local log = chuck.log
 
 local cmd_request = 1
@@ -13,6 +13,14 @@ local cmd_response = 2
 local M = {}
 M.seq = 1
 M.clients = {}
+
+function M.init(event_loop)
+	if nil == M.event_loop then
+		M.event_loop = event_loop
+		promise = require("Promise").init(event_loop)
+	end
+	return M
+end
 
 local logger = log.CreateLogfile("RPC")
 
