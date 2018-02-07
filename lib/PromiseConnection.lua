@@ -91,10 +91,15 @@ function PromiseConnection:Recv(byteCount)
 		  			return false
 		  		end
 		  	end
-		  	readPromise.reject = function(err)
-		  		reject(err)
+
+		  	if self.buff and readPromise.process(self.buff) then
+		  		return
+		  	else
+		  		readPromise.reject = function(err)
+		  			reject(err)
+		  		end
+		  		addPromise(self,readPromise)
 		  	end
-		  	addPromise(self,readPromise)
 		  end
 	   end)
 end
@@ -116,10 +121,14 @@ function PromiseConnection:RecvUntil(str)
 		  			return false
 		  		end
 		  	end
-		  	readPromise.reject = function(err)
-		  		reject(err)
+		  	if self.buff and readPromise.process(self.buff) then
+		  		return
+		  	else
+		  		readPromise.reject = function(err)
+		  			reject(err)
+		  		end
+		  		addPromise(self,readPromise)
 		  	end
-		  	addPromise(self,readPromise)
 		  end
 	   end)
 end
@@ -130,7 +139,7 @@ function M.connect(ip,port,timeout)
       if nil == M.event_loop then
       	reject("use event_loop init module first")
       else
-		local err = socket.stream.ip4.dail(M.event_loop,ip,port,timeout,function (fd,errCode)
+		local err = socket.stream.ip4.dail(M.event_loop,ip,port,function (fd,errCode)
 			if errCode then
 				reject("connect error:" .. errCode)
 			else

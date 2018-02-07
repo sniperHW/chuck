@@ -15,13 +15,15 @@ local function _get_byte2(data, i)
     return strunpack(">I2", data, i)
 end
 
-local server = PromiseConnection.listen("127.0.0.1",9010,function (conn)
-
-	print("newclient",conn)
-
+PromiseConnection.connect("127.0.0.1",9010):andThen(function (conn)
 	conn:SetCloseCallBack(function (err)
-		print("client disconnected:",err)
+		print("disconnected:",err)
 	end)
+
+	local function send()
+		conn:Send(_set_byte2(#"hi"))
+		conn:Send("hi")
+	end
 
 	local function recv()
 		conn:Recv(2):andThen(function (msg)
@@ -29,19 +31,20 @@ local server = PromiseConnection.listen("127.0.0.1",9010,function (conn)
 			return conn:Recv(len)
 		end):andThen(function (msg)
 			print(msg)
-			conn:Send(_set_byte2(#"hello world"))
-			conn:Send("hello world")
+			send()
 			recv()
 		end):catch(function (err)
 			print(err)
 		end)
 	end
+	send()
 	recv()
+end):catch(function (err)
+	print(err)
+	event_loop:Stop()
 end)
 
-if server then
-	event_loop:WatchSignal(chuck.signal.SIGINT,function()
-		event_loop:Stop()
-	end)	
-	event_loop:Run()
-end
+event_loop:WatchSignal(chuck.signal.SIGINT,function()
+	event_loop:Stop()
+end)	
+event_loop:Run()
