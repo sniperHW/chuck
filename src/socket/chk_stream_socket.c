@@ -207,7 +207,7 @@ static inline int32_t prepare_recv(chk_stream_socket *s) {
 		if(s->ssl.ssl) {
 			break;
 		}
-		if(recv_size != recv_buffer_size) {
+		if(recv_size < recv_buffer_size) {
 			pos = 0;
 			if(!chunk->next){ 
 				chunk->next = chk_bytechunk_new(NULL,recv_buffer_size);
@@ -604,6 +604,7 @@ int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,const chk_stream_
 	s->on_events = on_events;
 	s->handle_add = loop_add;
 	s->option = *op;
+	s->option.recv_buffer_size = MAX(1024,chk_size_of_pow2(s->option.recv_buffer_size));
 	s->loop   = NULL;
 	s->high_water_mark = 64 * 1024 * 1024;
 	s->send_bytes = 0;

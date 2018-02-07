@@ -15,16 +15,14 @@ PromiseConnection.__index = PromiseConnection
 
 local function newPromiseConnection(fd)
 	local c = {}
-	c.conn = socket.stream.New(fd,65535)
+	c.conn = socket.stream.New(fd,65536)
 	c = setmetatable(c, PromiseConnection)
 	c.buff = chuck.buffer.New(1024)
-	print(c.conn)
 	c.conn:Start(M.event_loop,function (data,err)
-		print(data:Content())
 		if data then
 			c.buff:AppendStr(data:Content())
 			while c.promise do
-				local resolve = c.promise.process(buff)
+				local resolve = c.promise.process(c.buff)
 				if resolve then
 					c.promise = promise.next
 					if c.promise == nil then
@@ -55,11 +53,11 @@ function PromiseConnection:Close(delay)
 	if self.conn then
 		self.conn:Close(delay)
 		self.conn = nil
-		while c.promise do
-			c.promise.reject("disconnected")
-			c.promise = c.promise.next
+		while self.promise do
+			self.promise.reject("disconnected")
+			self.promise = self.promise.next
 		end
-		c.promiseTail = nil
+		self.promiseTail = nil
 	end
 end
 
@@ -104,7 +102,29 @@ function PromiseConnection:Recv(byteCount)
 end
 
 function PromiseConnection:RecvUntil(str)
-
+	return promise.new(function(resolve,reject)
+		  if nil == self.conn then
+		  	reject("invaild connection")
+		  elseif nil == str or "" == str then
+		  	reject("str is empty")	
+		  else
+		  	local readPromise = {}
+		  	readPromise.process = function (buff)
+		  		local s,e = string.find(buff:Content(), str)
+		  		if s then
+		  			return function ()
+		  				resolve(buff:Read(e))
+		  			end		  			
+		  		else
+		  			return nil
+		  		end
+		  	end
+		  	readPromise.reject = function(err)
+		  		reject(err)
+		  	end
+		  	addPromise(self,readPromise)
+		  end
+	   end)
 end
 
 function M.connect(ip,port,timeout)
