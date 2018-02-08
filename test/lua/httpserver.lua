@@ -13,7 +13,6 @@ local server,ret = http.Server(function (request,response)
 	response:SetHeader("B","b")
 	response:AppendBody("hello everyone")
 	response:Finish("200","OK")
-		http.Upgrade(request,response)
 end):Listen("127.0.0.1",8010)
 
 if "OK" == ret then

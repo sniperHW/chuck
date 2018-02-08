@@ -90,7 +90,6 @@ function http_server.new(fd,onRequest)
 	if not httpPacket then
 		print("http conn close")
 		conn:Close()
-		conn = nil
 		return
 	end
 	local request = http_packet_readonly.new(httpPacket)
@@ -135,8 +134,8 @@ function http_client.new(host,fd)
 		if o.pendingResponse then
 			o.pendingResponse(nil,"connection lose") --通告对端关闭	
 		end	
+		print("close here1")
 		o.conn:Close()
-		o.conn = nil	
 		return
 	end
 

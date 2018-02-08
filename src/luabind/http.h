@@ -50,15 +50,19 @@ typedef struct {
 
 #define RECV_BUFF_SIZE 8192	
 
+static void http_connection_close(http_connection *conn) {
+	if(conn->socket) {
+		//delay 5秒关闭,尽量将数据发送出去				
+		chk_stream_socket_close(conn->socket,5000);
+		conn->socket = NULL;
+		chk_luaRef_release(&conn->cb);
+	}	
+}
+
 static int32_t lua_http_connection_gc(lua_State *L) {
 	printf("lua_http_connection_gc\n");
 	http_connection *conn = lua_check_http_connection(L,1);
-	if(conn->socket) {
-		chk_stream_socket_setUd(conn->socket,chk_ud_make_void(NULL));
-		//delay 5秒关闭,尽量将数据发送出去		
-		chk_stream_socket_close(conn->socket,5000);
-	}
-	chk_luaRef_release(&conn->cb);
+	http_connection_close(conn);
 	return 0;
 }
 
@@ -273,6 +277,7 @@ static int on_message_complete(http_parser *parser) {
 
 	if(conn->cb.L) {
 		packet.packet = lua_parser->packet;
+		lua_parser->packet = NULL;//由lua_packet的gc来释放packet
 		packet.Push = lua_push_http_packet;
 		if(NULL != (error = chk_Lua_PCallRef(conn->cb,"f",&packet))) {
 			CHK_SYSLOG(LOG_ERROR,"error on_message_complete %s",error);
@@ -734,12 +739,7 @@ static int32_t lua_http_connection_send_response(lua_State *L) {
 }
 
 static int32_t lua_http_connection_close(lua_State *L) {
-	http_connection   *conn = lua_check_http_connection(L,1);
-	if(conn->socket) {
-		//delay 5秒关闭,尽量将数据发送出去				
-		chk_stream_socket_close(conn->socket,5000);
-		conn->socket = NULL;
-	}
+	http_connection_close(lua_check_http_connection(L,1));
 	return 0;
 }
 

@@ -20,8 +20,7 @@ client:Get("/",nil,function (response,err)
 	end	
 	print(response:Body())
 	client:Close()
-	collectgarbage("collect")
-	--event_loop:Stop()
+	event_loop:Stop()
 end)
 
 event_loop:Run()
