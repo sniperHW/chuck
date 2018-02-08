@@ -17,7 +17,6 @@ end):Listen("127.0.0.1",8010)
 
 if "OK" == ret then
 	local timer1 = event_loop:AddTimer(1000,function ()
-		print("gc")
 		collectgarbage("collect")
 	end)
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()

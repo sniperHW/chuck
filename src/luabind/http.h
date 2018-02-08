@@ -343,12 +343,11 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 
 	if(!data || error){
 		http_connection *conn = (http_connection*)lua_parser->parser.data;
-		chk_stream_socket_close(conn->socket,0);
-		conn->socket = NULL;
 		//用nil调用lua callback,通告连接断开
-		if(NULL != (errmsg = chk_Lua_PCallRef(conn->cb,":"))) {
+		if(NULL != (errmsg = chk_Lua_PCallRef(conn->cb,"pi",NULL,error))) {
 			CHK_SYSLOG(LOG_ERROR,"error data_event_cb %s",errmsg);
 		}
+		http_connection_close(conn);
 	}	
 }
 

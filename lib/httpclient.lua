@@ -82,24 +82,22 @@ function connection.new(host,fd)
   end
   o.host = host
   o.pendingResponse = {}
-  local ret = o.conn:Start(eventLoop,function (httpPacket)
-	if not httpPacket then
+  local ret = o.conn:Start(eventLoop,function (httpPacket,err)
+	if err then
 		if o.pendingResponse then
 			o.pendingResponse(nil,"connection lose") --通告对端关闭	
 		end
-		o.conn:Close()
-		return
-	end
+	else
+		if not o.pendingResponse then
+			--没有请求
+			return	
+		end
 
-	if not o.pendingResponse then
-		--没有请求
-		return	
+		local response = http_response.new(httpPacket)
+		local OnResponse = o.pendingResponse
+		o.pendingResponse = nil
+		OnResponse(response)
 	end
-
-	local response = http_response.new(httpPacket)
-	local OnResponse = o.pendingResponse
-	o.pendingResponse = nil
-	OnResponse(response)
   end)
   
   if ret then

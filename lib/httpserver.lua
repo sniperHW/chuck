@@ -70,33 +70,30 @@ function http_response:SetHeader(filed,value)
 	end
 end
 
-local connection = {}
-
-function connection.new(fd,onRequest)
-
+function on_client(fd,onRequest)
   local conn = chuck.http.Connection(fd,http_request_max_header_size,http_request_max_content_length)
   if not conn then
   	return nil,"call http.Connection() failed"
   end
 
-  local ret = conn:Start(eventLoop,function (httpPacket)
-	if not httpPacket then
-		conn:Close()
-		return
+  local ret = conn:Start(eventLoop,function (httpPacket,err)
+	if httpPacket then
+		local request = http_request.new(httpPacket)
+		request.conn = conn
+		local response = http_response.new()
+		response.Finish = function (self,status,phase)
+			status = status or "200"
+			phase = phase or "OK"
+			if conn:SendResponse("1.1",status,phase,self.packet) then
+				return "send response failed"
+			else
+				return "OK"
+			end		
+		end
+		onRequest(request,response)
+	else
+		print("client disconnect:" .. err)
 	end
-	local request = http_request.new(httpPacket)
-	request.conn = conn
-	local response = http_response.new()
-	response.Finish = function (self,status,phase)
-		status = status or "200"
-		phase = phase or "OK"
-		if conn:SendResponse("1.1",status,phase,self.packet) then
-			return "send response failed"
-		else
-			return "OK"
-		end		
-	end
-	onRequest(request,response)
   end)
   
   if ret then
@@ -133,7 +130,7 @@ function http_server:Listen(ip,port)
 		if err then
 			return
 		end
-		connection.new(fd,onRequest)
+		on_client(fd,onRequest)
 	end)
 
 	if not self.server then
