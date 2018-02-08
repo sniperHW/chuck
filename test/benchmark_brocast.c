@@ -42,7 +42,7 @@ void server_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 		for( ; it != end; it = it->next) {
 			packet_count += 1;
 			chk_stream_socket *ss = ((_client*)it)->s;
-			chk_stream_socket_delay_send(ss,chk_bytebuffer_clone(data),NULL,chk_ud_make_void(NULL));
+			chk_stream_socket_send(ss,chk_bytebuffer_clone(data));
 		}
 		uint64_t now = chk_systick();
 		uint64_t duration = now - lastshow;
@@ -95,7 +95,7 @@ void client_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 		packet pk;
 		chk_bytebuffer_read(data,(char*)&pk,sizeof(pk));
 		if(pk.idx == chk_ntoh32(chk_stream_socket_getfd(s))) {
-			chk_stream_socket_send(s,chk_bytebuffer_clone(data),NULL,chk_ud_make_void(NULL));
+			chk_stream_socket_send(s,chk_bytebuffer_clone(data));
 		}
 	}
 }
@@ -113,7 +113,7 @@ void connect_callback(int32_t fd,chk_ud ud,int32_t err) {
 		pk.idx = chk_hton32(fd);
 		chk_bytebuffer *buffer = chk_bytebuffer_new(64);
 		chk_bytebuffer_append(buffer,(uint8_t*)&pk,64);	
-		chk_stream_socket_send(s,buffer,NULL,chk_ud_make_void(NULL));		
+		chk_stream_socket_send(s,buffer);		
 	}else {
 		printf("connect error\n");
 	}
