@@ -22,14 +22,17 @@ typedef struct {
 	chk_string           *value;	
 	chk_string           *status;
 	chk_string           *url;
-	chk_stream_socket    *socket;
-	chk_luaRef            cb;
-	int32_t               method;
 	int32_t               error;
 	uint32_t              max_header_size;
 	uint32_t              max_content_size;
 	uint32_t              check_size;
-}http_connection;
+} lua_http_parser;
+
+typedef struct {
+	chk_stream_socket *socket;
+	lua_http_parser   *parser;
+	chk_luaRef         cb;	
+} http_connection;
 
 typedef struct {
 	chk_http_packet *packet;
@@ -48,12 +51,8 @@ typedef struct {
 #define RECV_BUFF_SIZE 8192	
 
 static int32_t lua_http_connection_gc(lua_State *L) {
+	printf("lua_http_connection_gc\n");
 	http_connection *conn = lua_check_http_connection(L,1);
-	if(conn->packet) chk_http_packet_release(conn->packet);
-	if(conn->url) chk_string_destroy(conn->url);
-	if(conn->status) chk_string_destroy(conn->status);
-	if(conn->field) chk_string_destroy(conn->field);
-	if(conn->value) chk_string_destroy(conn->value);			
 	if(conn->socket) {
 		chk_stream_socket_setUd(conn->socket,chk_ud_make_void(NULL));
 		//delay 5秒关闭,尽量将数据发送出去		
@@ -68,42 +67,64 @@ static int32_t lua_http_packet_gc(lua_State *L) {
 	chk_http_packet_release(packet->packet);
 	return 0;
 }
+
+static void release_lua_http_parser_member(lua_http_parser *lua_parser) {
+	if(lua_parser->packet) {
+		chk_http_packet_release(lua_parser->packet);
+		lua_parser->packet = NULL;
+	}
+	if(lua_parser->field){ 
+		chk_string_destroy(lua_parser->field);
+		lua_parser->field = NULL;
+	}
+	if(lua_parser->value){ 
+		chk_string_destroy(lua_parser->value);
+		lua_parser->value = NULL;
+	}
+	if(lua_parser->url){ 
+		chk_string_destroy(lua_parser->url);
+		lua_parser->url = NULL;
+	}
+	
+	if(lua_parser->status){ 
+		chk_string_destroy(lua_parser->status);
+		lua_parser->status = NULL;
+	}
+
+	lua_parser->check_size = 0;
+	lua_parser->error = 0;	
+}
+
+static void release_lua_http_parser(lua_http_parser *lua_parser) {
+	release_lua_http_parser_member(lua_parser);
+	free(lua_parser);
+	printf("release_lua_http_parser\n");
+}
 	
 static int on_message_begin(http_parser *parser) {
-	http_connection *conn = (http_connection*)parser;
-	if(conn->packet) chk_http_packet_release(conn->packet);
-	if(conn->field) chk_string_destroy(conn->field);
-	if(conn->value) chk_string_destroy(conn->value);
-	if(conn->url) chk_string_destroy(conn->url);
-	if(conn->status) chk_string_destroy(conn->status);
-
-	conn->packet = chk_http_packet_new();
-	
-	if(!conn->packet) {
-		conn->error = chk_error_no_memory;
+	lua_http_parser *lua_parser = (lua_http_parser*)parser;
+	release_lua_http_parser_member(lua_parser);
+	lua_parser->packet = chk_http_packet_new();
+	if(!lua_parser->packet) {
+		lua_parser->error = chk_error_no_memory;
 		CHK_SYSLOG(LOG_ERROR,"chk_http_packet_new() failed");
 		return -1;
 	}
-
-	conn->error = 0;
-	conn->url = conn->status = conn->field = conn->value = NULL;
-
 	return 0;
 }
 
 static int on_url(http_parser *parser, const char *at, size_t length) {	
-	http_connection *conn = (http_connection*)parser;
-	if(conn->url){
-		conn->error = chk_string_append(conn->url,at,length);
-		if(0 != conn->error) {
-			CHK_SYSLOG(LOG_ERROR,"chk_string_append() failed:%d",conn->error);
+	lua_http_parser *lua_parser = (lua_http_parser*)parser;
+	if(lua_parser->url){
+		lua_parser->error = chk_string_append(lua_parser->url,at,length);
+		if(0 != lua_parser->error) {
+			CHK_SYSLOG(LOG_ERROR,"chk_string_append() failed:%d",lua_parser->error);
 			return -1;
 		}
-	}
-	else {
-		conn->url = chk_string_new(at,length);
-		if(!conn->url) {
-			conn->error = chk_error_no_memory;
+	} else {
+		lua_parser->url = chk_string_new(at,length);
+		if(!lua_parser->url) {
+			lua_parser->error = chk_error_no_memory;
 			CHK_SYSLOG(LOG_ERROR,"chk_string_new() failed");
 			return -1;
 		}
@@ -112,18 +133,17 @@ static int on_url(http_parser *parser, const char *at, size_t length) {
 }
 
 static int on_status(http_parser *parser, const char *at, size_t length) {
-	http_connection *conn = (http_connection*)parser;
-	if(conn->status) {
-		conn->error = chk_string_append(conn->status,at,length);
-		if(0 != conn->error) {
-			CHK_SYSLOG(LOG_ERROR,"chk_string_append() failed:%d",conn->error);
+	lua_http_parser *lua_parser = (lua_http_parser*)parser;
+	if(lua_parser->status) {
+		lua_parser->error = chk_string_append(lua_parser->status,at,length);
+		if(0 != lua_parser->error) {
+			CHK_SYSLOG(LOG_ERROR,"chk_string_append() failed:%d",lua_parser->error);
 			return -1;
 		}		
-	}
-	else {
-		conn->status = chk_string_new(at,length);
-		if(!conn->status) {
-			conn->error = chk_error_no_memory;
+	} else {
+		lua_parser->status = chk_string_new(at,length);
+		if(!lua_parser->status) {
+			lua_parser->error = chk_error_no_memory;
 			CHK_SYSLOG(LOG_ERROR,"chk_string_new() failed");
 			return -1;
 		}		
@@ -132,7 +152,7 @@ static int on_status(http_parser *parser, const char *at, size_t length) {
 }
 
 static int on_header_field(http_parser *parser, const char *at, size_t length) {
-	http_connection *conn = (http_connection*)parser;
+	lua_http_parser *lua_parser = (lua_http_parser*)parser;
 	size_t i;
 	char   *ptr = (char*)at;
 	//将field转成小写
@@ -141,48 +161,45 @@ static int on_header_field(http_parser *parser, const char *at, size_t length) {
 			ptr[i] += ('a'-'A');
 		}
 	}
-	if(!conn->value && conn->field){
-		conn->error = chk_string_append(conn->field,at,length);
-		if(0 != conn->error) {
-			CHK_SYSLOG(LOG_ERROR,"chk_string_append() failed:%d",conn->error);
+	if(!lua_parser->value && lua_parser->field){
+		lua_parser->error = chk_string_append(lua_parser->field,at,length);
+		if(0 != lua_parser->error) {
+			CHK_SYSLOG(LOG_ERROR,"chk_string_append() failed:%d",lua_parser->error);
 			return -1;
 		}		
-	}
-	else {
-		if(conn->value) {
-			conn->error = chk_http_set_header(conn->packet,conn->field,conn->value);
-			if(0 != conn->error) {
-				CHK_SYSLOG(LOG_ERROR,"chk_http_set_header() failed:%d",conn->error);
+	} else {
+		if(lua_parser->value) {
+			lua_parser->error = chk_http_set_header(lua_parser->packet,lua_parser->field,lua_parser->value);
+			if(0 != lua_parser->error) {
+				CHK_SYSLOG(LOG_ERROR,"chk_http_set_header() failed:%d",lua_parser->error);
 				return -1;
 			}			
-			conn->value = NULL;
+			lua_parser->value = NULL;
 		}
 
-		conn->field = chk_string_new(at,length);
+		lua_parser->field = chk_string_new(at,length);
 
-		if(!conn->field) {
-			conn->error = chk_error_no_memory;
+		if(!lua_parser->field) {
+			lua_parser->error = chk_error_no_memory;
 			CHK_SYSLOG(LOG_ERROR,"chk_string_new() failed");			
 			return -1;
 		}
-
 	}
 	return 0;				
 }
 
 static int on_header_value(http_parser *parser, const char *at, size_t length) {
-	http_connection *conn = (http_connection*)parser;
-	if(conn->value){
-		conn->error = chk_string_append(conn->value,at,length);
-		if(0 != conn->error) {
-			CHK_SYSLOG(LOG_ERROR,"chk_string_append() failed:%d",conn->error);
+	lua_http_parser *lua_parser = (lua_http_parser*)parser;
+	if(lua_parser->value){
+		lua_parser->error = chk_string_append(lua_parser->value,at,length);
+		if(0 != lua_parser->error) {
+			CHK_SYSLOG(LOG_ERROR,"chk_string_append() failed:%d",lua_parser->error);
 			return -1;
 		}		
-	}
-	else{
-		conn->value = chk_string_new(at,length);
-		if(!conn->value) {
-			conn->error = chk_error_no_memory;
+	} else{
+		lua_parser->value = chk_string_new(at,length);
+		if(!lua_parser->value) {
+			lua_parser->error = chk_error_no_memory;
 			CHK_SYSLOG(LOG_ERROR,"chk_string_new() failed");			
 			return -1;
 		}		
@@ -191,35 +208,35 @@ static int on_header_value(http_parser *parser, const char *at, size_t length) {
 }
 
 static int on_headers_complete(http_parser *parser) {	
-	http_connection *conn = (http_connection*)parser;
+	lua_http_parser *lua_parser = (lua_http_parser*)parser;
 
-	if(conn->field && conn->value) {
-		conn->error = chk_http_set_header(conn->packet,conn->field,conn->value);
+	if(lua_parser->field && lua_parser->value) {
+		lua_parser->error = chk_http_set_header(lua_parser->packet,lua_parser->field,lua_parser->value);
 		
-		if(0 != conn->error) {
-			CHK_SYSLOG(LOG_ERROR,"chk_http_set_header() failed:%d",conn->error);
+		if(0 != lua_parser->error) {
+			CHK_SYSLOG(LOG_ERROR,"chk_http_set_header() failed:%d",lua_parser->error);
 			return -1;
 		}	
 
-		conn->field = conn->value = NULL;
+		lua_parser->field = lua_parser->value = NULL;
 	}
 
 	//检查是否有Content-Length,长度是否超限制
-	const char *content_length = chk_http_get_header(conn->packet,"content-length");
-	if(content_length && atol(content_length) > conn->max_content_size) {
-		CHK_SYSLOG(LOG_ERROR,"content_length > conn->max_content_size");		
-		conn->error = chk_error_http_packet;
+	const char *content_length = chk_http_get_header(lua_parser->packet,"content-length");
+	if(content_length && atol(content_length) > lua_parser->max_content_size) {
+		CHK_SYSLOG(LOG_ERROR,"content_length > lua_parser->max_content_size");		
+		lua_parser->error = chk_error_http_packet;
 		return -1;
 	}
 	return 0;		
 }
 
 static int on_body(http_parser *parser, const char *at, size_t length) {
-	http_connection *conn = (http_connection*)parser;
-	conn->error = chk_http_append_body(conn->packet,at,length);
+	lua_http_parser *lua_parser = (lua_http_parser*)parser;
+	lua_parser->error = chk_http_append_body(lua_parser->packet,at,length);
 
-	if(0 != conn->error) {
-		CHK_SYSLOG(LOG_ERROR,"chk_http_append_body() failed:%d",conn->error);		
+	if(0 != lua_parser->error) {
+		CHK_SYSLOG(LOG_ERROR,"chk_http_append_body() failed:%d",lua_parser->error);		
 		return -1;
 	}
 	return 0;
@@ -245,29 +262,23 @@ void lua_push_http_packet(chk_luaPushFunctor *self,lua_State *L) {
 
 }
 
-static int on_message_complete(http_parser *parser)
-{	
+static int on_message_complete(http_parser *parser) {	
 	const char   *error; 
 	lua_http_packet_PushFunctor packet;
-	http_connection *conn = (http_connection*)parser;
-	chk_http_set_method(conn->packet,conn->method);
-	chk_http_set_url(conn->packet,conn->url);
-	chk_http_set_status(conn->packet,conn->status);
+	lua_http_parser *lua_parser = (lua_http_parser*)parser;	
+	http_connection *conn = (http_connection*)lua_parser->parser.data;
+	chk_http_set_method(lua_parser->packet,lua_parser->parser.method);
+	chk_http_set_url(lua_parser->packet,lua_parser->url);
+	chk_http_set_status(lua_parser->packet,lua_parser->status);
 
 	if(conn->cb.L) {
-		packet.packet = conn->packet;
+		packet.packet = lua_parser->packet;
 		packet.Push = lua_push_http_packet;
 		if(NULL != (error = chk_Lua_PCallRef(conn->cb,"f",&packet))) {
 			CHK_SYSLOG(LOG_ERROR,"error on_message_complete %s",error);
 		}
 	}
-
-	chk_http_packet_release(conn->packet);
-	conn->url = NULL;
-	conn->status = NULL;
-	conn->packet = NULL;
-	conn->check_size = 0;
-	conn->error = 0;
+	release_lua_http_parser_member(lua_parser);
 	return 0;						
 }
 
@@ -277,9 +288,9 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 	const char *errmsg;
 	uint32_t    spos,size_remain,size;
 	chk_bytechunk *chunk;
-	http_connection *conn = (http_connection*)chk_stream_socket_getUd(s).v.val;
-	if(!conn){ 
-		CHK_SYSLOG(LOG_ERROR,"http_connection == NULL");		
+	lua_http_parser *lua_parser = (lua_http_parser*)chk_stream_socket_getUd(s).v.val;
+	if(!lua_parser){ 
+		CHK_SYSLOG(LOG_ERROR,"lua_parser == NULL");		
 		return;
 	}
 	if(data) {
@@ -289,7 +300,7 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 		do{
 			buff = chunk->data + spos;
 			size = MIN(chunk->cap - spos,size_remain);
-			nparsed = http_parser_execute(&conn->parser,&conn->settings,buff,size);
+			nparsed = http_parser_execute(&lua_parser->parser,&lua_parser->settings,buff,size);
 			
 			/*
 			 *  conn->error存在的必要性,on_xxx中返回非0的目的在于终止后续parse_execute处理，向外部通告错误
@@ -298,12 +309,12 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 			 *	为了防止这种情况出现在on_xxx中返回-1的时候同时设置conn->error标记。 
 			*/
 			
-			if(!conn->error && nparsed == size) {
-				conn->check_size += nparsed;
+			if(!lua_parser->error && nparsed == size) {
+				lua_parser->check_size += nparsed;
 				
-				if(conn->check_size > conn->max_header_size && 
-				   conn->packet && !conn->packet->body) {
-					CHK_SYSLOG(LOG_ERROR,"conn->check_size > conn->max_header_size,check_size:%d,max_header_size:%d",conn->check_size,conn->max_header_size);
+				if(lua_parser->check_size > lua_parser->max_header_size && 
+				   lua_parser->packet && !lua_parser->packet->body) {
+					CHK_SYSLOG(LOG_ERROR,"lua_parser->check_size > lua_parser->max_header_size,check_size:%d,max_header_size:%d",lua_parser->check_size,lua_parser->max_header_size);
 					error = chk_error_http_packet;
 					break;					
 				}
@@ -315,6 +326,10 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 					chunk = chunk->next;
 				}
 			}else {
+				if(lua_parser->parser.upgrade) {
+					on_message_complete(&lua_parser->parser);
+					return;
+				}
 				error = chk_error_http_packet;
 				break;		
 			}
@@ -322,7 +337,7 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 	}
 
 	if(!data || error){
-		chk_stream_socket_setUd(conn->socket,chk_ud_make_void(NULL));
+		http_connection *conn = (http_connection*)lua_parser->parser.data;
 		chk_stream_socket_close(conn->socket,0);
 		conn->socket = NULL;
 		//用nil调用lua callback,通告连接断开
@@ -332,11 +347,17 @@ static void data_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t erro
 	}	
 }
 
+static void lua_http_conn_close_callback(chk_stream_socket *_,chk_ud ud) {
+	lua_http_parser *lua_parser = (lua_http_parser*)ud.v.val;
+	release_lua_http_parser(lua_parser);
+}
+
 static int32_t lua_new_http_connection(lua_State *L) {
 	int32_t  fd;
 	uint32_t max_header_size,max_content_size;
 	chk_stream_socket *s;
 	http_connection   *conn;
+	lua_http_parser   *lua_parser;
 	chk_stream_socket_option option = {
 		.decoder = NULL,
 		.recv_buffer_size = RECV_BUFF_SIZE
@@ -359,20 +380,32 @@ static int32_t lua_new_http_connection(lua_State *L) {
 		return 0;
 	}
 
-	conn->settings.on_message_begin = on_message_begin;
-	conn->settings.on_url = on_url;
-	conn->settings.on_status = on_status;
-	conn->settings.on_header_field = on_header_field;
-	conn->settings.on_header_value = on_header_value;
-	conn->settings.on_headers_complete = on_headers_complete;
-	conn->settings.on_body = on_body;
-	conn->settings.on_message_complete = on_message_complete;
+	lua_parser = calloc(1,sizeof(*lua_parser));
+
+	if(!lua_parser) {
+		chk_stream_socket_close(s,0);
+		CHK_SYSLOG(LOG_ERROR,"new lua_parser() failed");			
+		return 0;		
+	}
+
+	lua_parser->settings.on_message_begin = on_message_begin;
+	lua_parser->settings.on_url = on_url;
+	lua_parser->settings.on_status = on_status;
+	lua_parser->settings.on_header_field = on_header_field;
+	lua_parser->settings.on_header_value = on_header_value;
+	lua_parser->settings.on_headers_complete = on_headers_complete;
+	lua_parser->settings.on_body = on_body;
+	lua_parser->settings.on_message_complete = on_message_complete;
+	lua_parser->max_header_size = MIN(max_header_size,MAX_UINT32/2);
+	lua_parser->max_content_size = MIN(max_content_size,MAX_UINT32/2);
+	lua_parser->check_size = 0;
+	lua_parser->parser.data = conn;
 	conn->socket = s;
-	conn->max_header_size = MIN(max_header_size,MAX_UINT32/2);
-	conn->max_content_size = MIN(max_content_size,MAX_UINT32/2);
-	conn->check_size = 0;
-	chk_stream_socket_setUd(s,chk_ud_make_void(conn));
-	http_parser_init(&conn->parser,HTTP_BOTH);
+	
+	chk_stream_socket_setUd(s,chk_ud_make_void(lua_parser));
+	chk_stream_socket_set_close_callback(s,lua_http_conn_close_callback,chk_ud_make_void(lua_parser));
+
+	http_parser_init(&lua_parser->parser,HTTP_BOTH);
 	luaL_getmetatable(L, HTTP_CONNECTION_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -411,12 +444,12 @@ static int32_t write_http_header(chk_bytebuffer *b,chk_http_packet *packet) {
 	chk_http_header_iterator iterator;
 	if(0 == chk_http_header_begin(packet,&iterator)) {
 		do {
-			
+			//printf("%s,%d\n",iterator.field,strlen(iterator.field));
 			if(0 != BYTEBUFFER_APPEND_CSTR(b,iterator.field)) {
 				return -1;
 			}
 
-			if(0 != BYTEBUFFER_APPEND_CSTR(b," : ")) {
+			if(0 != BYTEBUFFER_APPEND_CSTR(b,":")) {
 				return -1;
 			}
 			
@@ -703,7 +736,6 @@ static int32_t lua_http_connection_send_response(lua_State *L) {
 static int32_t lua_http_connection_close(lua_State *L) {
 	http_connection   *conn = lua_check_http_connection(L,1);
 	if(conn->socket) {
-		chk_stream_socket_setUd(conn->socket,chk_ud_make_void(NULL));
 		//delay 5秒关闭,尽量将数据发送出去				
 		chk_stream_socket_close(conn->socket,5000);
 		conn->socket = NULL;
@@ -861,7 +893,7 @@ static void register_http(lua_State *L) {
 		{"SendRequest",    lua_http_connection_send_request},
 		{"SendResponse",   lua_http_connection_send_response},
 		{"Close",   	   lua_http_connection_close},
-		{"Start",           lua_http_connection_bind},		
+		{"Start",          lua_http_connection_bind},		
 		{NULL,     NULL}
 	};
 

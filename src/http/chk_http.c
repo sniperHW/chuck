@@ -12,7 +12,6 @@ const char *http_method_name[] =
 };
 
 const char *chk_http_method2name(int32_t method) {
-	method = method - 1;
 	if(method >= 0 && method < (sizeof(http_method_name) / sizeof(http_method_name[0]))) {
 		return http_method_name[method];
 	}

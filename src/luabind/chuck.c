@@ -28,6 +28,8 @@
 #include "log.h"
 #include "ssl.h"
 #include "time.h"
+#include "base64.h"
+#include "crypt.h"
 
 
 #define REGISTER_MODULE(L,N,F) do {	\
@@ -84,6 +86,8 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"signal",register_signum);
 	REGISTER_MODULE(L,"log",register_log);
 	REGISTER_MODULE(L,"ssl",register_ssl);
-	REGISTER_MODULE(L,"time",register_time);		
+	REGISTER_MODULE(L,"time",register_time);	
+	REGISTER_MODULE(L,"base64",register_base64);
+	REGISTER_MODULE(L,"crypt",register_crypt);	
 	return 1;
 }

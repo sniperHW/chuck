@@ -474,12 +474,12 @@ static int32_t lua_inet_ntop(lua_State *L) {
 	return 1;
 }
 
-void close_callback(chk_stream_socket *_,chk_ud ud) {
+static void lua_socket_close_callback(chk_stream_socket *_,chk_ud ud) {
 	chk_luaRef cb = ud.v.lr;
 	const char *error_str;
 	if(!cb.L) return;
 	error_str = chk_Lua_PCallRef(cb,"");
-	if(error_str) CHK_SYSLOG(LOG_ERROR,"error on close_callback %s",error_str);
+	if(error_str) CHK_SYSLOG(LOG_ERROR,"error on lua_socket_close_callback %s",error_str);
 	chk_luaRef_release(&cb);
 }
 
@@ -493,7 +493,7 @@ static int32_t lua_stream_socket_set_close_cb(lua_State *L) {
 		return luaL_error(L,"argument 2 of SetCloseCallBack must be lua function");
 
 	cb = chk_toluaRef(L,2);
-	chk_stream_socket_set_close_callback(s->c_stream_socket,close_callback,chk_ud_make_lr(cb));
+	chk_stream_socket_set_close_callback(s->c_stream_socket,lua_socket_close_callback,chk_ud_make_lr(cb));
 	return 0;
 }
 

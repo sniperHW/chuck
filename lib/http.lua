@@ -8,6 +8,9 @@ local http_response_max_content_length = 2*1024*1024*1024 --http响应content最
 
 local http_packet_readonly = {}
 
+local eventLoop
+
+
 function http_packet_readonly.new(packet)
   local o = {}
   o.__index = http_packet_readonly     
@@ -72,10 +75,7 @@ end
 
 local http_server = {}
 
-function http_server.new(eventLoop,fd,onRequest)
-  if not eventLoop then
-  	return nil,"eventLoop is nil"
-  end
+function http_server.new(fd,onRequest)
 
   if not onRequest then
   	return nil,"onRequest is nil"  	
@@ -88,11 +88,13 @@ function http_server.new(eventLoop,fd,onRequest)
 
   local ret = conn:Start(eventLoop,function (httpPacket)
 	if not httpPacket then
+		print("http conn close")
 		conn:Close()
 		conn = nil
 		return
 	end
 	local request = http_packet_readonly.new(httpPacket)
+	request.conn = conn
 	local response = http_packet_writeonly.new()
 	response.Finish = function (self,status,phase)
 		if not conn then
@@ -118,11 +120,7 @@ end
 
 local http_client = {}
 
-function http_client.new(eventLoop,host,fd)
-  if not eventLoop then
-  	return nil,"eventLoop is nil"
-  end
-
+function http_client.new(host,fd)
   local o = {}
   o.__index = http_client     
   setmetatable(o,o)
@@ -212,16 +210,15 @@ function easy_http_server.new(onRequest)
   end	
 
   local o = {}
-  o.__index = easy_http_server     
+  o.__index = easy_http_server   
   setmetatable(o,o)
   o.onRequest = onRequest
-  o.selfRef = o
   return o
 end
 
-function easy_http_server:Listen(eventLoop,ip,port)
+function easy_http_server:Listen(ip,port)
 	if self.server then
-		return "server already running" 
+		return self,"server already running" 
 	end
 	local socket = chuck.socket
 	local onRequest = self.onRequest
@@ -229,27 +226,29 @@ function easy_http_server:Listen(eventLoop,ip,port)
 		if err then
 			return
 		end
-		http_server.new(eventLoop,fd,onRequest)
+		http_server.new(fd,onRequest)
 	end)
 
+	print(ip,port,self.server)
+
 	if not self.server then
-		return "Listen on " .. ip .. ":" .. port .. " failed" 
+		return self,"Listen on " .. ip .. ":" .. port .. " failed" 
 	end
 
-	return "OK" 
+	return self,"OK" 
 end
 
 function easy_http_server:Close()
 	if self.server then
 		self.server:Close()
-		self.selfRef = nil
+		self.server = nil
 	end
 end
 
 
 local easy_http_client = {}
 
-function easy_http_client.new(eventLoop,ip,port)
+function easy_http_client.new(ip,port)
   local o = {}
   o.__index = easy_http_client
   o.__gc = function ()
@@ -258,7 +257,6 @@ function easy_http_client.new(eventLoop,ip,port)
   	end
   end     
   setmetatable(o,o)
-  o.eventLoop = eventLoop
   o.ip = ip
   o.port = port
   return o
@@ -276,13 +274,13 @@ local function easySendRequest(self,method,path,request,onResponse)
 
 	if not self.client then
 		local socket = chuck.socket
-		socket.stream.ip4.dail(self.eventLoop,self.ip,self.port,function (fd,errCode)
+		socket.stream.ip4.dail(eventLoop,self.ip,self.port,function (fd,errCode)
 			self.connecting = false
 			if errCode then
 				onResponse(nil,"connect failed") --用空response回调，通告出错
 				return
 			end
-			self.client = http_client.new(self.eventLoop,self.ip,fd)
+			self.client = http_client.new(self.ip,fd)
 			if "OK" ~= SendRequest(self.client,method,path,request,onResponse) then
 				--发送失败用空response回调，通告出错
 				onResponse(nil,"send request failed")
@@ -310,25 +308,77 @@ function easy_http_client:Close()
 end
 
 
-return {
-	Server = function (eventLoop,fd,onRequest)
-		return http_server.new(eventLoop,fd,onRequest)
-	end,
-
-	Client = function (eventLoop,host,fd)
-		return http_client.new(eventLoop,host,fd)
-	end,
+local M = {
 
 	Request = function ()
 		return http_packet_writeonly.new()
 	end,
 
-	easyServer = function (onRequest)
+	Server = function (onRequest)
 		return easy_http_server.new(onRequest)
 	end,
 
-	easyClient = function (eventLoop,ip,port)
-		return easy_http_client.new(eventLoop,ip,port)
+	Client = function (ip,port)
+		return easy_http_client.new(ip,port)
 	end
 }
+
+function M.init(event_loop)
+	if nil == eventLoop then
+		eventLoop = event_loop
+	end
+	return M
+end
+
+local lower = string.lower
+
+function M.Upgrade(request,response)
+
+	local method = request:Method()
+	if nil == method or lower(method) ~= "get" then
+		request.conn:Close()
+		return nil,"invaild upgrade request"		
+	end
+	local connection = request:Header("connection")
+	if nil == connection or lower(connection) ~= "upgrade" then
+		request.conn:Close()
+		return nil,"invaild upgrade request"
+	end
+	local upgrade = request:Header("upgrade")
+	if  nil == upgrade or upgrade ~= lower("websocket") then
+		request.conn:Close()
+		return nil,"invaild upgrade request"
+	end
+	local Sec_Websocket_Version = request:Header("Sec-Websocket-Version")
+	if nil == Sec_Websocket_Version or Sec_Websocket_Version ~= "13" then
+		request.conn:Close()
+		return nil,"invaild upgrade request"
+	end
+
+	local Sec_WebSocket_Key = request:Header("Sec-WebSocket-Key")
+	if nil == Sec_WebSocket_Key then
+		request.conn:Close()
+		return nil,"invaild upgrade request"
+	end
+
+	local Sec_WebSocket_Accept = chuck.base64.encode(chuck.crypt.sha1(Sec_WebSocket_Key .. "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
+	response:SetHeader("Upgrade","websocket")
+	response:SetHeader("Connection","Upgrade")
+	response:SetHeader("Sec-WebSocket-Accept",Sec_WebSocket_Accept)
+	local ret = response:Finish("101","OK")
+	if "OK" == ret then
+		local wsconn = upgradeOk(chuck.websocket.Upgrade(request.conn))
+		if not wsconn then
+			request.conn:Close()
+			return nil,"upgrade failed"
+		else
+			return wsconn
+		end
+	else
+		request.conn:Close()
+		return nil,ret
+	end
+end
+
+return M
 
