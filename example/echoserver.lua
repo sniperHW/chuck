@@ -30,18 +30,18 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",9010,function (fd
 
 		conn:Start(event_loop,function (data)
 			if data then
-				local reader = chuck.packet.Reader(data)
+				--local reader = chuck.packet.Reader(data)
 				--print(reader:ReadStr())
-				local t = reader:ReadTable()
-				print(t.tick)
-				--print(t.cmd,t.userID,t.ballID)
-				--local response = data:Clone()
-				--response:AppendStr("hello world\r\n")
+				--local t = reader:ReadTable()
+				--print(t.tick)
+
+				local response = data:Clone()
+				response:AppendStr("hello world\r\n")
 				--local response = buffer.New("hello world\r\n")
 				--local response = buffer.New()
 				--local writer = chuck.packet.Writer(response)
 				--writer:WriteTable(t)
-				--conn:Send(response)
+				conn:Send(response)
 			else
 				log.SysLog(log.info,"client disconnected") 
 				conn:Close() 

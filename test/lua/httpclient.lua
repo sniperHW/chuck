@@ -3,11 +3,11 @@ package.cpath = './lib/?.so;'
 
 local chuck = require("chuck")
 local event_loop = chuck.event_loop.New()
-local http = require("http").init(event_loop)
+local httpclient = require("httpclient").init(event_loop)
 local socket = chuck.socket
 
 
-local client = http.Client("127.0.0.1",8010)
+local client = httpclient.new("127.0.0.1",8010)
 
 client:Get("/",nil,function (response,err)
 	if err then
