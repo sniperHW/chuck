@@ -57,10 +57,9 @@ end
 
 function http_response:AppendBody(body)
 	if self.packet:AppendBody(body) then
-		return "return AppendBody failed"
-	else
-		return "OK"
+		--记录日志
 	end
+	return self
 end
 
 function http_response:SetHeader(filed,value)
@@ -68,6 +67,7 @@ function http_response:SetHeader(filed,value)
 	if string.lower(filed) ~= "content-length" then
 		self.packet:SetHeader(filed,value)
 	end
+	return self
 end
 
 function on_client(fd,onRequest)
