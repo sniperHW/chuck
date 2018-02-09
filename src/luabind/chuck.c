@@ -30,6 +30,7 @@
 #include "time.h"
 #include "base64.h"
 #include "crypt.h"
+#include "websocket.h"
 
 
 #define REGISTER_MODULE(L,N,F) do {	\
@@ -88,6 +89,7 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"ssl",register_ssl);
 	REGISTER_MODULE(L,"time",register_time);	
 	REGISTER_MODULE(L,"base64",register_base64);
-	REGISTER_MODULE(L,"crypt",register_crypt);	
+	REGISTER_MODULE(L,"crypt",register_crypt);
+	REGISTER_MODULE(L,"websocket",register_websocket);	
 	return 1;
 }

@@ -846,3 +846,23 @@ void chk_stream_socket_set_close_callback(chk_stream_socket *s,void (*cb)(chk_st
 #endif
 	s->close_callback.ud = ud;
 }
+
+void chk_stream_socket_set_decoder(chk_stream_socket *s,chk_decoder *decoder) {
+	if(s) {
+		if(s->option.decoder) {
+			s->option.decoder->release(s->option.decoder);
+		}
+		s->option.decoder = decoder;
+	}
+}
+
+
+/*
+chk_event_loop *chk_stream_socket_get_eventloop(chk_stream_socket *s) {
+	if(s) {
+		return s->event_loop;
+	} else {
+		return NULL;
+	}
+}
+*/

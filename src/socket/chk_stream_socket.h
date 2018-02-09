@@ -130,5 +130,7 @@ void chk_stream_socket_nodelay(chk_stream_socket *s,int8_t on);
 
 void chk_stream_socket_set_close_callback(chk_stream_socket *s,void (*cb)(chk_stream_socket*,chk_ud),chk_ud ud);
 
+//chk_event_loop *chk_stream_socket_get_eventloop(chk_stream_socket *s);
+
 
 #endif
