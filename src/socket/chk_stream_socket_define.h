@@ -38,6 +38,7 @@ struct chk_stream_socket {
     chk_sockaddr         addr_local;
     chk_sockaddr         addr_peer;
     close_cb_st          close_callback;
+    int                  write_error;
 };
 
 #endif

@@ -108,6 +108,8 @@ int32_t chk_bytebuffer_append_dword(chk_bytebuffer *b,uint32_t v);
 
 int32_t chk_bytebuffer_append_qword(chk_bytebuffer *b,uint64_t v);
 
+int32_t chk_bytebuffer_append_chunk(chk_bytebuffer *b,chk_bytechunk *c,uint32_t spos,uint32_t size);
+
 uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t size);
 
 uint32_t chk_bytebuffer_read_drain(chk_bytebuffer *b,char *out,uint32_t size);

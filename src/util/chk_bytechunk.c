@@ -241,13 +241,14 @@ int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_t size) {
         }        
     }
 
-    b->datasize += size;
     while(size) {
         if(b->append_pos >= b->tail->cap) {
             //空间不足,扩展
-            b->tail->next = chk_bytechunk_new(NULL,size);
-            if(!b->tail->next) {
-                return chk_error_no_memory;
+            if(b->tail->next == NULL) {
+                b->tail->next = chk_bytechunk_new(NULL,size);
+                if(!b->tail->next) {
+                    return chk_error_no_memory;
+                }
             }
             b->tail = b->tail->next;
             b->append_pos = 0; 
@@ -258,10 +259,40 @@ int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_t size) {
         b->append_pos += copysize;
         v += copysize;
         size -= copysize;
+        b->datasize += copysize;
     }
     return chk_error_ok;
 }
 
+int32_t chk_bytebuffer_append_chunk(chk_bytebuffer *b,chk_bytechunk *c,uint32_t spos,uint32_t size) {
+    //首先保存老状态，在出现错误的情况下恢复
+    chk_bytechunk *old_tail = b->tail;
+    uint32_t old_datasize = b->datasize;
+    uint32_t old_append_pos = b->append_pos;
+    int err_code = chk_error_ok;
+    while(NULL != c && size > 0) {
+        uint32_t append_size = c->cap - spos;
+        if(append_size > size) append_size = size;
+        err_code = chk_bytebuffer_append(b,(uint8_t*)c->data,append_size);
+        if(err_code != chk_error_ok) {
+            break;
+        }
+        size -= append_size;
+        c = c->next;
+        spos = 0;
+    }
+
+    if(err_code == chk_error_ok && size != 0) {
+        err_code = -1;
+    }
+
+    if(err_code != chk_error_ok) {
+        b->datasize = old_datasize;
+        b->tail = old_tail;
+        b->append_pos = old_append_pos;
+    }
+    return err_code;
+}
 
 int32_t chk_bytebuffer_append_byte(chk_bytebuffer *b,uint8_t v) {
     return chk_bytebuffer_append(b,&v,sizeof(v));

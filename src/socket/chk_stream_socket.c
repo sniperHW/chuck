@@ -298,10 +298,9 @@ void chk_stream_socket_shutdown(chk_stream_socket *s) {
 		return;
 	}
 	s->status |= SOCKET_WCLOSE;
-	if(chk_is_write_enable(cast(chk_handle*,s))) {
-		chk_disable_write(cast(chk_handle*,s));
+	if(send_list_empty(s)) {
+		shutdown(s->fd,SHUT_WR);
 	}
-	shutdown(s->fd,SHUT_WR);
 }
 
 void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
@@ -312,10 +311,9 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
 	s->status |= SOCKET_RCLOSE;
 	if(delay > 0 && !send_list_empty(s) && s->loop) {
 		chk_disable_read(cast(chk_handle*,s));
-		//shutdown(s->fd,SHUT_RD);
 		/*数据还没发送完,设置delay豪秒超时等待数据发送出去*/
 		s->delay_close_timer = chk_loop_addtimer(s->loop,delay,delay_close_timer_cb,chk_ud_make_void(s));
-	}else {
+	} else {
 		s->status |= SOCKET_WCLOSE;		
 		if(!(s->status & SOCKET_INLOOP)){
 			release_socket(s);
@@ -403,7 +401,6 @@ static void process_write(chk_stream_socket *s) {
 	bc = prepare_send(s);
 	
 	if(bc <= 0) {
-		CHK_SYSLOG(LOG_ERROR,"bc <= 0");
 		return;
 	}
 
@@ -411,20 +408,25 @@ static void process_write(chk_stream_socket *s) {
 		s->send_bytes -= bytes;
 		update_send_list(s,bytes);
 		/*没有数据需要发送了,停止写监听*/
-		if(send_list_empty(s)) {
-		 	if(s->status & SOCKET_RCLOSE)
+		if(send_list_empty(s)) { 
+			if(s->status & SOCKET_RCLOSE) {
 				s->status |= SOCKET_WCLOSE;
-			else if(chk_is_write_enable(cast(chk_handle*,s)))
-		 		chk_disable_write(cast(chk_handle*,s));
-		}	
+			} else {
+				if(s->status & SOCKET_WCLOSE) {
+					shutdown(s->fd,SHUT_WR);
+				}
+				chk_disable_write(cast(chk_handle*,s));
+			}
+		}
 	}else {
 		if(errno == EAGAIN){
 			return;
 		}
 		s->status |= SOCKET_WCLOSE;
+		s->write_error = errno;
 		if(!(s->status & SOCKET_RCLOSE)){
 			chk_disable_write(cast(chk_handle*,s));
-			shutdown(s->fd,SHUT_RD);
+			shutdown(s->fd,SHUT_RD);//触发read返回0
 			CHK_SYSLOG(LOG_ERROR,"writev() failed errno:%d",errno);
 		}
 	}
@@ -447,7 +449,7 @@ static int32_t do_read(chk_stream_socket *s,int32_t bc) {
 }
 
 static void process_read(chk_stream_socket *s) {
-	int32_t bc,bytes,unpackerr,error_code;
+	int32_t bc,bytes,unpackerr;
 	chk_decoder *decoder;
 	chk_bytebuffer *b;
 
@@ -461,6 +463,7 @@ static void process_read(chk_stream_socket *s) {
 		}
 
 		if(ret != 0){
+			s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 	
 			s->cb(s,NULL,chk_error_ssl_error);				
 			CHK_SYSLOG(LOG_ERROR,"ssl handshake error");
 		}
@@ -470,6 +473,7 @@ static void process_read(chk_stream_socket *s) {
 
 	bc    = prepare_recv(s);
 	if(bc <= 0) {
+		s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 
 		s->cb(s,NULL,chk_error_no_memory);	
 		return;
 	}
@@ -486,7 +490,8 @@ static void process_read(chk_stream_socket *s) {
 					break;
 			}else {
 				if(unpackerr){
-					CHK_SYSLOG(LOG_ERROR,"decoder->unpack error:%d",unpackerr);					
+					CHK_SYSLOG(LOG_ERROR,"decoder->unpack error:%d",unpackerr);
+					s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE);					
 					s->cb(s,NULL,chk_error_unpack);
 				}
 				break;
@@ -495,15 +500,22 @@ static void process_read(chk_stream_socket *s) {
 		if(!(s->status & SOCKET_RCLOSE))
 			update_next_recv_pos(s,bytes);
 	}else {
-		s->status |= SOCKET_RCLOSE;
-		chk_disable_read(cast(chk_handle*,s));
-		if(bytes == 0)
-			error_code = chk_error_stream_peer_close;
-		else {
+		if(bytes == 0) {
+			chk_disable_read(cast(chk_handle*,s));
+			if(s->write_error != 0) {
+				//由write错误调用shutdown(RD)导致的
+				CHK_SYSLOG(LOG_ERROR,"write failed fd:%d,errno:%d",s->fd,s->write_error);
+				s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 
+				s->cb(s,NULL,chk_error_stream_write);
+			} else {
+				s->status |= SOCKET_RCLOSE;
+				s->cb(s,NULL,chk_error_stream_peer_close);
+			}
+		} else {
 			CHK_SYSLOG(LOG_ERROR,"read failed fd:%d,errno:%d",s->fd,errno);
-			error_code = chk_error_stream_read;
+			s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 
+			s->cb(s,NULL,chk_error_stream_read);			
 		}
-		s->cb(s,NULL,error_code);
 	}
 }
 
@@ -554,8 +566,9 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 			}
 
 		} else {
-			if(!chk_is_write_enable(cast(chk_handle*,s)))
+			if(!chk_is_write_enable(cast(chk_handle*,s))){
 				enable_write(s);			
+			}
 		}
 	}
 
@@ -572,25 +585,19 @@ int32_t chk_stream_socket_send_urgent(chk_stream_socket *s,chk_bytebuffer *b) {
 
 static void on_events(chk_handle *h,int32_t events) {
 	chk_stream_socket *s = cast(chk_stream_socket*,h);
-	//if(!s->loop || s->status & SOCKET_CLOSE)
-	//	return;
-	if(events == CHK_EVENT_LOOPCLOSE) {
-		s->cb(s,NULL,chk_error_loop_close);
-		return;
-	}
+
 	s->status |= SOCKET_INLOOP;
-	do {
-		//printf("on events\n");
-		if((events & CHK_EVENT_READ) && !(s->status & SOCKET_RCLOSE)){
-			//printf("process read\n");
+	if(events == CHK_EVENT_LOOPCLOSE) {
+		s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 
+		s->cb(s,NULL,chk_error_loop_close);
+	} else {
+		if(events & CHK_EVENT_READ){
 			process_read(s);
 		}		
-		if((events & CHK_EVENT_WRITE) && !(s->status & SOCKET_WCLOSE)) {
-			//printf("process write\n");
+		if(events & CHK_EVENT_WRITE){
 			process_write(s);
 		}			
-	}while(0);
-
+	}
 	s->status ^= SOCKET_INLOOP;
 	if(s->closed && (s->status & SOCKET_WCLOSE) && (s->status & SOCKET_RCLOSE)) {
 		release_socket(s);		
