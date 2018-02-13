@@ -6,10 +6,14 @@ local event_loop = chuck.event_loop.New()
 local httpclient = require("httpclient").init(event_loop)
 local socket = chuck.socket
 
-
 local client = httpclient.new("127.0.0.1",8010)
 
-client:Get("/",nil,function (response,err)
+local request = httpclient.Request():
+SetHeader("Content-Type","text/plain"):
+SetHeader("A","a"):
+SetHeader("B","b")
+
+client:Get("/",request,function (response,err)
 	if err then
 		print(err)
 		event_loop:Stop()

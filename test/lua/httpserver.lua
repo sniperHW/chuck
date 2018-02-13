@@ -8,11 +8,17 @@ local socket = chuck.socket
 
 
 local server,ret = httpserver.new(function (request,response)
-	response:SetHeader("Content-Type","text/plain")
-	response:SetHeader("A","a")
-	response:SetHeader("B","b")
-	response:AppendBody("hello everyone")
-	response:Finish("200","OK")
+
+	for i,v in ipairs(request:AllHeaders()) do
+		print(v[1],v[2])
+	end	
+
+	response:SetHeader("Content-Type","text/plain"):
+	SetHeader("A","a"):
+	SetHeader("B","b"):
+	AppendBody("hello everyone"):
+	Finish("200","OK")
+	
 end):Listen("127.0.0.1",8010)
 
 if "OK" == ret then
