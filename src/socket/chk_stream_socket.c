@@ -415,19 +415,16 @@ static void process_write(chk_stream_socket *s) {
 				if(s->status & SOCKET_WCLOSE) {
 					shutdown(s->fd,SHUT_WR);
 				}
-				if(1 == chk_is_write_enable(cast(chk_handle*,s))){
+				if(chk_is_write_enable(cast(chk_handle*,s))){
 					chk_disable_write(cast(chk_handle*,s));
 				}
 			}
 		}
-	}else {
-		if(errno == EAGAIN){
-			return;
-		}
+	} else if(errno != EAGAIN) {
 		s->status |= SOCKET_WCLOSE;
 		s->write_error = errno;
 		if(!(s->status & SOCKET_RCLOSE)){
-			if(1 == chk_is_write_enable(cast(chk_handle*,s))){
+			if(chk_is_write_enable(cast(chk_handle*,s))){
 				chk_disable_write(cast(chk_handle*,s));
 			}
 			shutdown(s->fd,SHUT_RD);//触发read返回0
@@ -461,8 +458,7 @@ static void process_read(chk_stream_socket *s) {
 		int32_t ret;
 		if(s->ssl.ctx) {
 			ret = chk_ssl_connect(s);
-		}
-		else {
+		} else {
 			ret = chk_ssl_accept(s,s->ssl.ctx);
 		}
 
@@ -471,57 +467,55 @@ static void process_read(chk_stream_socket *s) {
 			chk_loop_remove_handle((chk_handle*)s);
 			CHK_SYSLOG(LOG_ERROR,"ssl handshake error");
 		}
-		return;
-
-	}
-
-	bc    = prepare_recv(s);
-	if(bc <= 0) {
-		s->cb(s,NULL,chk_error_no_memory);
-		chk_loop_remove_handle((chk_handle*)s);	
-		return;
-	}
-	bytes =  do_read(s,bc);
-	if(bytes > 0 ) {
-		decoder = s->option.decoder;
-		decoder->update(decoder,s->next_recv_buf,s->next_recv_pos,bytes);
-		for(;;) {
-			unpackerr = 0;
-			if((b = decoder->unpack(decoder,&unpackerr))) {
-				s->cb(s,b,chk_error_ok);
-				chk_bytebuffer_del(b);
-				if(s->status & SOCKET_RCLOSE){ 
-					break;
-				}
-			}else {
-				if(unpackerr) {
-					CHK_SYSLOG(LOG_ERROR,"decoder->unpack error:%d",unpackerr);					
-					s->cb(s,NULL,unpackerr);
-				}
-				break;
-			}
-		}
-
-		if(!(s->status & SOCKET_RCLOSE)){
-			update_next_recv_pos(s,bytes);
-		}
-		
-	}else {
-		if(bytes == 0) {
-			chk_disable_read(cast(chk_handle*,s));
-			if(s->write_error != 0) {
-				//由write错误调用shutdown(RD)导致的
-				CHK_SYSLOG(LOG_ERROR,"write failed fd:%d,errno:%d",s->fd,s->write_error); 
-				s->cb(s,NULL,chk_error_stream_write);
-				chk_loop_remove_handle((chk_handle*)s);
-			} else {
-				s->status |= SOCKET_RCLOSE;
-				s->cb(s,NULL,chk_error_stream_peer_close);
-			}
+	} else {
+		bc = prepare_recv(s);
+		if(bc <= 0) {
+			s->cb(s,NULL,chk_error_no_memory);
+			chk_loop_remove_handle((chk_handle*)s);	
 		} else {
-			CHK_SYSLOG(LOG_ERROR,"read failed fd:%d,errno:%d",s->fd,errno); 
-			s->cb(s,NULL,chk_error_stream_read);			
-			chk_loop_remove_handle((chk_handle*)s);
+			bytes = do_read(s,bc);
+			if(bytes > 0) {
+				decoder = s->option.decoder;
+				decoder->update(decoder,s->next_recv_buf,s->next_recv_pos,bytes);
+				for(;;) {
+					unpackerr = 0;
+					b = decoder->unpack(decoder,&unpackerr);
+					if(b) {
+						s->cb(s,b,chk_error_ok);
+						chk_bytebuffer_del(b);
+						if(s->status & SOCKET_RCLOSE) { 
+							return;
+						}
+					} else if(unpackerr) {
+						CHK_SYSLOG(LOG_ERROR,"decoder->unpack error:%d",unpackerr);					
+						s->cb(s,NULL,unpackerr);
+						if(s->status & SOCKET_RCLOSE) { 
+							return;
+						} else {
+							update_next_recv_pos(s,bytes);
+							break;
+						}
+					} else {
+						update_next_recv_pos(s,bytes);
+						break;
+					}
+				}
+			} else if(bytes == 0) {
+				chk_disable_read(cast(chk_handle*,s));
+				if(s->write_error != 0) {
+					//由write错误调用shutdown(RD)导致的
+					CHK_SYSLOG(LOG_ERROR,"write failed fd:%d,errno:%d",s->fd,s->write_error); 
+					s->cb(s,NULL,chk_error_stream_write);
+					chk_loop_remove_handle((chk_handle*)s);
+				} else {
+					s->status |= SOCKET_RCLOSE;
+					s->cb(s,NULL,chk_error_stream_peer_close);
+				}
+			} else {
+				CHK_SYSLOG(LOG_ERROR,"read failed fd:%d,errno:%d",s->fd,errno); 
+				s->cb(s,NULL,chk_error_stream_read);			
+				chk_loop_remove_handle((chk_handle*)s);
+			}
 		}
 	}
 }
@@ -573,7 +567,7 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 			}
 
 		} else {
-			if(0 == chk_is_write_enable(cast(chk_handle*,s))){
+			if(!chk_is_write_enable(cast(chk_handle*,s))){
 				enable_write(s);			
 			}
 		}
@@ -622,8 +616,7 @@ int32_t chk_stream_socket_init(chk_stream_socket *s,int32_t fd,const chk_stream_
 	s->high_water_mark = 64 * 1024 * 1024;
 	s->send_bytes = 0;
 	if(!s->option.decoder) { 
-		s->option.decoder = cast(chk_decoder*,default_decoder_new());
-		if(!s->option.decoder) { 
+		if(NULL == (s->option.decoder = cast(chk_decoder*,default_decoder_new()))) {
 			CHK_SYSLOG(LOG_ERROR,"default_decoder_new() failed");			
 			return -1;
 		}
@@ -645,13 +638,13 @@ chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_opti
 }
 
 void  chk_stream_socket_pause_read(chk_stream_socket *s) {
-	if(s->loop && 1 == chk_is_read_enable(cast(chk_handle*,s))) {
+	if(s->loop && chk_is_read_enable(cast(chk_handle*,s))) {
 		chk_disable_read(cast(chk_handle*,s));
 	}
 }
 
 void  chk_stream_socket_resume_read(chk_stream_socket *s) {
-	if(s->loop && 0 == chk_is_read_enable(cast(chk_handle*,s))) {
+	if(s->loop && !chk_is_read_enable(cast(chk_handle*,s))) {
 		chk_enable_read(cast(chk_handle*,s));
 	}
 }
@@ -665,8 +658,7 @@ int32_t chk_ssl_connect(chk_stream_socket *s) {
 		    ERR_print_errors_fp(stdout);
 		    return -1;
 		}
-		s->ssl.ssl = SSL_new(ctx);
-		if(!s->ssl.ssl) {
+		if(NULL == (s->ssl.ssl = SSL_new(ctx))){
 			SSL_CTX_free(ctx);
 			return -1;
 		}
@@ -687,14 +679,12 @@ int32_t chk_ssl_connect(chk_stream_socket *s) {
 		ret = SSL_connect(s->ssl.ssl);
 		if(ret > 0) {
 			return 0;
-		}
-		else {
+		} else {
 			int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
 			if(ssl_again(ssl_error)){
 				s->status |= SOCKET_SSL_HANDSHAKE;
 				return 0;
-			}
-			else {
+			} else {
 				CHK_SYSLOG(LOG_ERROR,"SSL_connect() error:%d",SSL_get_error(s->ssl.ssl,ret));					
 				ERR_print_errors_fp(stdout);
 				SSL_CTX_free(ctx);
@@ -704,20 +694,17 @@ int32_t chk_ssl_connect(chk_stream_socket *s) {
 				return -1;			
 			}
 		}
-	}
-	else {
+	} else {
 		int32_t ret = SSL_connect(s->ssl.ssl);
 		if(ret > 0) {
 			s->status ^= SOCKET_SSL_HANDSHAKE;
 			return 0;
-		}
-		else {
+		} else {
 			int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
 			if(ssl_again(ssl_error)){
 				s->status |= SOCKET_SSL_HANDSHAKE;
 				return 0;
-			}
-			else {
+			} else {
 				CHK_SYSLOG(LOG_ERROR,"SSL_connect() error:%d",SSL_get_error(s->ssl.ssl,ret));	
 				ERR_print_errors_fp(stdout);	
 				return -1;			
@@ -729,8 +716,7 @@ int32_t chk_ssl_connect(chk_stream_socket *s) {
 int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
 
 	if(!s->ssl.ssl) {
-		s->ssl.ssl = SSL_new(ctx);
-		if(!s->ssl.ssl) {
+		if(NULL == (s->ssl.ssl = SSL_new(ctx))) {
 		    ERR_print_errors_fp(stdout);		
 			return -1;
 		}
@@ -751,14 +737,12 @@ int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
 
 		if(ret > 0) {
 			return 0;
-		}
-		else {
+		} else {
 			int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
 			if(ssl_again(ssl_error)){
 				s->status |= SOCKET_SSL_HANDSHAKE;
 				return 0;
-			}
-			else {
+			} else {
 				CHK_SYSLOG(LOG_ERROR,"SSL_accept() error:%d",SSL_get_error(s->ssl.ssl,ret));	
 				SSL_free(s->ssl.ssl);
 				s->ssl.ssl = NULL;
@@ -766,26 +750,22 @@ int32_t chk_ssl_accept(chk_stream_socket *s,SSL_CTX *ctx) {
 				return -1;			
 			}
 		}
-	}
-	else {
+	} else {
 		int32_t ret = SSL_accept(s->ssl.ssl);
 		if(ret > 0) {
 			s->status ^= SOCKET_SSL_HANDSHAKE;			
 			return 0;
-		}
-		else {
+		} else {
 			int32_t ssl_error = SSL_get_error(s->ssl.ssl,ret);
 			if(ssl_again(ssl_error)){
 				s->status |= SOCKET_SSL_HANDSHAKE;
 				return 0;
-			}
-			else {
+			} else {
 				CHK_SYSLOG(LOG_ERROR,"SSL_accept() error:%d",SSL_get_error(s->ssl.ssl,ret));	
 		    	ERR_print_errors_fp(stdout);
 				return -1;			
 			}
-		}		
-
+		}
 	}
 }
 
