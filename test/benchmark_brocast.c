@@ -70,7 +70,7 @@ void on_new_client(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,chk_ud ud,int32
 	chk_stream_socket *s = chk_stream_socket_new(fd,&option);
 	_client *c = calloc(1,sizeof(*c));
 	c->s = s;
-	chk_stream_socket_setUd(s,chk_ud_make_void(s));
+	chk_stream_socket_setUd(s,chk_ud_make_void(c));
 	chk_dlist_pushback(&_clients,(&c->entry));
 	chk_loop_add_handle(loop,(chk_handle*)s,server_event_cb);
 	++cc;
