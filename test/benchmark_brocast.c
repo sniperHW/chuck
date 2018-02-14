@@ -93,7 +93,7 @@ void client_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 		chk_stream_socket_close(s,0);
 	}else {
 		packet pk;
-		chk_bytebuffer_read(data,(char*)&pk,sizeof(pk));
+		chk_bytebuffer_read(data,0,(char*)&pk,sizeof(pk));
 		if(pk.idx == chk_ntoh32(chk_stream_socket_getfd(s))) {
 			chk_stream_socket_send(s,chk_bytebuffer_clone(data));
 		}
