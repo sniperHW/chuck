@@ -48,6 +48,7 @@ void server_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 
 void on_new_client(chk_acceptor *a,int32_t fd,chk_sockaddr *addr,chk_ud ud,int32_t err) {
 	chk_stream_socket *s = chk_stream_socket_new(fd,&option);
+	chk_stream_socket_nodelay(s,1);
 	chk_loop_add_handle(loop,(chk_handle*)s,server_event_cb);
 	++c;
 }
@@ -74,6 +75,7 @@ void client_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 void connect_callback(int32_t fd,chk_ud ud,int32_t err) {
 	if(0 == err) {
 		chk_stream_socket *s = chk_stream_socket_new(fd,&option);
+		chk_stream_socket_nodelay(s,1);
 		chk_loop_add_handle(loop,(chk_handle*)s,client_event_cb);
 		chk_bytebuffer *msg = chk_bytebuffer_new_bychunk(chunk,0,chunk->cap);
 		chk_stream_socket_send(s,msg);		

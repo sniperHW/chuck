@@ -31,6 +31,7 @@ local function server()
 			clients[fd] = conn
 			client_count = client_count + 1
 
+			conn:SetNoDelay(1)
 			conn:SetCloseCallBack(function ()
 				client_count = client_count - 1
 				clients[fd] = nil 
@@ -82,6 +83,7 @@ local function client(clientCount)
 			c = c + 1
 			local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 			if conn then
+				conn:SetNoDelay(1)
 				conn:SetCloseCallBack(function ()
 					c = c - 1
 					if c == 0 then
