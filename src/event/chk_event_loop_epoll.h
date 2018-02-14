@@ -71,11 +71,11 @@ int32_t chk_events_disable(chk_handle *h,int32_t events) {
 }
 
 int32_t chk_is_read_enable(chk_handle*h) {
-	return h->events & EPOLLIN;
+	return (h->events & EPOLLIN) > 0 ? 1:0;
 }
 
 int32_t chk_is_write_enable(chk_handle*h) {
-	return h->events & EPOLLOUT;
+	return (h->events & EPOLLOUT) > 0 ? 1:0;
 }
 
 

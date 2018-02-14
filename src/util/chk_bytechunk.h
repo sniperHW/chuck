@@ -108,12 +108,12 @@ int32_t chk_bytebuffer_append_dword(chk_bytebuffer *b,uint32_t v);
 
 int32_t chk_bytebuffer_append_qword(chk_bytebuffer *b,uint64_t v);
 
-int32_t chk_bytebuffer_append_chunk(chk_bytebuffer *b,chk_bytechunk *c,uint32_t spos,uint32_t size);
+//从bytebuffer,pos开始的位置读取size数据到out,并将读取的数据从bytebuffer中丢弃
+uint32_t chk_bytebuffer_read(chk_bytebuffer *b,uint32_t offset, char *out,uint32_t size);
 
-uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t size);
-
+//从bytebuffer头部读取size数据到out,并将读取的数据从bytebuffer中丢弃
 uint32_t chk_bytebuffer_read_drain(chk_bytebuffer *b,char *out,uint32_t size);
 
-int32_t chk_bytebuffer_rewrite(chk_bytebuffer *b,uint32_t pos,uint8_t *v,uint32_t size);
+int32_t chk_bytebuffer_rewrite(chk_bytebuffer *b,uint32_t offset,uint8_t *v,uint32_t size);
 
 #endif

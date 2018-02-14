@@ -431,7 +431,7 @@ static void process_write(chk_stream_socket *s) {
 				chk_disable_write(cast(chk_handle*,s));
 			}
 			shutdown(s->fd,SHUT_RD);//触发read返回0
-			CHK_SYSLOG(LOG_ERROR,"writev() failed errno:%d",errno);
+			CHK_SYSLOG(LOG_ERROR,"fd:%d writev() failed errno:%d",s->fd,errno);
 		}
 	}
 }
@@ -490,19 +490,22 @@ static void process_read(chk_stream_socket *s) {
 			if((b = decoder->unpack(decoder,&unpackerr))) {
 				s->cb(s,b,chk_error_ok);
 				chk_bytebuffer_del(b);
-				if(s->status & SOCKET_RCLOSE) 
+				if(s->status & SOCKET_RCLOSE){ 
 					break;
+				}
 			}else {
 				if(unpackerr) {
 					CHK_SYSLOG(LOG_ERROR,"decoder->unpack error:%d",unpackerr);					
-					s->cb(s,NULL,chk_error_unpack);
-					chk_loop_remove_handle((chk_handle*)s);
+					s->cb(s,NULL,unpackerr);
 				}
 				break;
 			}
-		};
-		if(!(s->status & SOCKET_RCLOSE))
+		}
+
+		if(!(s->status & SOCKET_RCLOSE)){
 			update_next_recv_pos(s,bytes);
+		}
+		
 	}else {
 		if(bytes == 0) {
 			chk_disable_read(cast(chk_handle*,s));

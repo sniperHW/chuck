@@ -131,11 +131,11 @@ int32_t chk_events_disable(chk_handle *h,int32_t events) {
 }
 
 int32_t chk_is_read_enable(chk_handle*h) {
-	return h->events & CHK_EVENT_READ;
+	return (h->events & CHK_EVENT_READ) > 0 ? 1:0;
 }
 
 int32_t chk_is_write_enable(chk_handle*h) {
-	return h->events & CHK_EVENT_WRITE;
+	return (h->events & CHK_EVENT_WRITE) > 0 ? 1:0;
 }
 
 extern int32_t easy_noblock(int32_t fd,int32_t noblock); 

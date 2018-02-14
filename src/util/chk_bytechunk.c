@@ -264,6 +264,7 @@ int32_t chk_bytebuffer_append(chk_bytebuffer *b,uint8_t *v,uint32_t size) {
     return chk_error_ok;
 }
 
+/*
 int32_t chk_bytebuffer_append_chunk(chk_bytebuffer *b,chk_bytechunk *c,uint32_t spos,uint32_t size) {
     //首先保存老状态，在出现错误的情况下恢复
     chk_bytechunk *old_tail = b->tail;
@@ -293,6 +294,7 @@ int32_t chk_bytebuffer_append_chunk(chk_bytebuffer *b,chk_bytechunk *c,uint32_t 
     }
     return err_code;
 }
+*/
 
 int32_t chk_bytebuffer_append_byte(chk_bytebuffer *b,uint8_t v) {
     return chk_bytebuffer_append(b,&v,sizeof(v));
@@ -313,15 +315,32 @@ int32_t chk_bytebuffer_append_qword(chk_bytebuffer *b,uint64_t v) {
     return chk_bytebuffer_append(b,(uint8_t*)&v,sizeof(v));
 }
 
-uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t size) {
-    uint32_t remain,copysize,pos;
-    chk_bytechunk *c = b->head;
-    if(b->datasize < size) {
+uint32_t chk_bytebuffer_read(chk_bytebuffer *b,uint32_t offset,char *out,uint32_t size) {
+
+    uint32_t remain,copysize,pos,_offset;
+
+    if(offset > b->datasize) {
         return 0;
     }
-    if(!c) return 0;
-    remain = MIN(size,b->datasize);
+
+    if(NULL == b->head) {
+        return 0;
+    }
+    _offset = offset;
+    //首先定位到正确的offset处
+    chk_bytechunk *c = b->head;
     pos = b->spos;
+    while(_offset > 0) {
+        uint32_t skipsize = c->cap - pos > _offset ? _offset:c->cap - pos;
+        pos += skipsize;
+        _offset -= skipsize;
+        if(pos >= c->cap) {
+            c = c->next;
+            pos = 0;
+        } 
+    }
+
+    remain = size = MIN(size,b->datasize - offset);    
     while(remain) {
         copysize = MIN(c->cap - pos,remain);
         memcpy(out,c->data + pos,copysize);
@@ -339,11 +358,8 @@ uint32_t chk_bytebuffer_read(chk_bytebuffer *b,char *out,uint32_t size) {
 uint32_t chk_bytebuffer_read_drain(chk_bytebuffer *b,char *out,uint32_t size) {
     uint32_t remain,copysize;
     chk_bytechunk *old_head;
-    if(b->datasize < size) {
-        return 0;
-    }
     if(!b->head) return 0;
-    remain = MIN(size,b->datasize);
+    remain = size = MIN(size,b->datasize);
     while(remain) {
         copysize = MIN(b->head->cap - b->spos,remain);
         memcpy(out,b->head->data + b->spos,copysize);
@@ -351,7 +367,7 @@ uint32_t chk_bytebuffer_read_drain(chk_bytebuffer *b,char *out,uint32_t size) {
         b->spos += copysize;
         b->datasize -= copysize;
         out += copysize;
-        if(remain) {
+        if(remain || b->spos >= b->head->cap) {
             old_head = b->head;
             b->head = old_head->next;
             old_head->next = NULL;
@@ -369,7 +385,7 @@ uint32_t chk_bytebuffer_read_drain(chk_bytebuffer *b,char *out,uint32_t size) {
     return size;
 }
 
-int32_t chk_bytebuffer_rewrite(chk_bytebuffer *b,uint32_t pos,uint8_t *v,uint32_t size) {
+int32_t chk_bytebuffer_rewrite(chk_bytebuffer *b,uint32_t offset,uint8_t *v,uint32_t size) {
     chk_bytechunk *chunk;
     uint32_t       spos,index,c,tmp,wsize;
 
@@ -377,7 +393,7 @@ int32_t chk_bytebuffer_rewrite(chk_bytebuffer *b,uint32_t pos,uint8_t *v,uint32_
         return chk_error_buffer_read_only;
     }
 
-    if(pos + size > b->datasize) {
+    if(offset + size > b->datasize) {
         return chk_error_invaild_pos;
     }
 
@@ -393,7 +409,7 @@ int32_t chk_bytebuffer_rewrite(chk_bytebuffer *b,uint32_t pos,uint8_t *v,uint32_
     }
 
     spos = b->spos;
-    c = pos;
+    c = offset;
     chunk = b->head;
     while(c != 0) {
         tmp = chunk->cap - spos;
