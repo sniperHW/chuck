@@ -415,7 +415,9 @@ static void process_write(chk_stream_socket *s) {
 				if(s->status & SOCKET_WCLOSE) {
 					shutdown(s->fd,SHUT_WR);
 				}
-				chk_disable_write(cast(chk_handle*,s));
+				if(1 == chk_is_write_enable(cast(chk_handle*,s))){
+					chk_disable_write(cast(chk_handle*,s));
+				}
 			}
 		}
 	}else {
@@ -425,7 +427,9 @@ static void process_write(chk_stream_socket *s) {
 		s->status |= SOCKET_WCLOSE;
 		s->write_error = errno;
 		if(!(s->status & SOCKET_RCLOSE)){
-			chk_disable_write(cast(chk_handle*,s));
+			if(1 == chk_is_write_enable(cast(chk_handle*,s))){
+				chk_disable_write(cast(chk_handle*,s));
+			}
 			shutdown(s->fd,SHUT_RD);//触发read返回0
 			CHK_SYSLOG(LOG_ERROR,"writev() failed errno:%d",errno);
 		}
@@ -566,7 +570,7 @@ static int32_t _chk_stream_socket_send(chk_stream_socket *s,int32_t urgent,chk_b
 			}
 
 		} else {
-			if(!chk_is_write_enable(cast(chk_handle*,s))){
+			if(0 == chk_is_write_enable(cast(chk_handle*,s))){
 				enable_write(s);			
 			}
 		}
@@ -638,13 +642,13 @@ chk_stream_socket *chk_stream_socket_new(int32_t fd,const chk_stream_socket_opti
 }
 
 void  chk_stream_socket_pause_read(chk_stream_socket *s) {
-	if(s->loop) {
+	if(s->loop && 1 == chk_is_read_enable(cast(chk_handle*,s))) {
 		chk_disable_read(cast(chk_handle*,s));
 	}
 }
 
 void  chk_stream_socket_resume_read(chk_stream_socket *s) {
-	if(s->loop) {
+	if(s->loop && 0 == chk_is_read_enable(cast(chk_handle*,s))) {
 		chk_enable_read(cast(chk_handle*,s));
 	}
 }
