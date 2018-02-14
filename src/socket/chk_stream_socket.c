@@ -462,9 +462,9 @@ static void process_read(chk_stream_socket *s) {
 			ret = chk_ssl_accept(s,s->ssl.ctx);
 		}
 
-		if(ret != 0){
-			s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 	
+		if(ret != 0) { 	
 			s->cb(s,NULL,chk_error_ssl_error);				
+			chk_loop_remove_handle((chk_handle*)s);
 			CHK_SYSLOG(LOG_ERROR,"ssl handshake error");
 		}
 		return;
@@ -473,8 +473,8 @@ static void process_read(chk_stream_socket *s) {
 
 	bc    = prepare_recv(s);
 	if(bc <= 0) {
-		s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 
-		s->cb(s,NULL,chk_error_no_memory);	
+		s->cb(s,NULL,chk_error_no_memory);
+		chk_loop_remove_handle((chk_handle*)s);	
 		return;
 	}
 	bytes =  do_read(s,bc);
@@ -489,10 +489,10 @@ static void process_read(chk_stream_socket *s) {
 				if(s->status & SOCKET_RCLOSE) 
 					break;
 			}else {
-				if(unpackerr){
-					CHK_SYSLOG(LOG_ERROR,"decoder->unpack error:%d",unpackerr);
-					s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE);					
+				if(unpackerr) {
+					CHK_SYSLOG(LOG_ERROR,"decoder->unpack error:%d",unpackerr);					
 					s->cb(s,NULL,chk_error_unpack);
+					chk_loop_remove_handle((chk_handle*)s);
 				}
 				break;
 			}
@@ -504,17 +504,17 @@ static void process_read(chk_stream_socket *s) {
 			chk_disable_read(cast(chk_handle*,s));
 			if(s->write_error != 0) {
 				//由write错误调用shutdown(RD)导致的
-				CHK_SYSLOG(LOG_ERROR,"write failed fd:%d,errno:%d",s->fd,s->write_error);
-				s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 
+				CHK_SYSLOG(LOG_ERROR,"write failed fd:%d,errno:%d",s->fd,s->write_error); 
 				s->cb(s,NULL,chk_error_stream_write);
+				chk_loop_remove_handle((chk_handle*)s);
 			} else {
 				s->status |= SOCKET_RCLOSE;
 				s->cb(s,NULL,chk_error_stream_peer_close);
 			}
 		} else {
-			CHK_SYSLOG(LOG_ERROR,"read failed fd:%d,errno:%d",s->fd,errno);
-			s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 
+			CHK_SYSLOG(LOG_ERROR,"read failed fd:%d,errno:%d",s->fd,errno); 
 			s->cb(s,NULL,chk_error_stream_read);			
+			chk_loop_remove_handle((chk_handle*)s);
 		}
 	}
 }
@@ -588,7 +588,6 @@ static void on_events(chk_handle *h,int32_t events) {
 
 	s->status |= SOCKET_INLOOP;
 	if(events == CHK_EVENT_LOOPCLOSE) {
-		s->status |= (SOCKET_WCLOSE | SOCKET_RCLOSE); 
 		s->cb(s,NULL,chk_error_loop_close);
 	} else {
 		if(events & CHK_EVENT_READ){

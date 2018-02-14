@@ -59,10 +59,12 @@ local function client(clientCount)
 
 		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 		if conn then
-			conn:Start(event_loop,function (data)
+			conn:Start(event_loop,function (data,err)
 				if data then
 					local reader = packet.Reader(data)
 					print(reader:ReadStr())
+				else
+					print("client:" .. err)
 				end
 			end)
 			--send the first msg

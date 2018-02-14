@@ -1,5 +1,13 @@
 #define WEBSOCKET_METATABLE "lua_websocket"
 
+enum {
+    TEXT_FRAME = 0x01,
+    BINARY_FRAME = 0x02,
+    CLOSE_FRAME = 0x08,
+    PING_FRAME = 0x09,
+    PONG_FRAME = 0x0A
+};
+
 typedef struct {
 	chk_stream_socket    *socket;
 	chk_luaRef            cb;
@@ -12,15 +20,27 @@ typedef struct websocket_decoder {
 	void (*update)(chk_decoder*,chk_bytechunk *b,uint32_t spos,uint32_t size);
 	chk_bytebuffer *(*unpack)(chk_decoder*,int32_t *err);
 	void (*release)(chk_decoder*);
-	uint32_t       spos;
-	uint32_t       size;
-	chk_bytechunk *b;
+	uint32_t        spos;
+	uint32_t        size;
+	chk_bytebuffer *b;
 }websocket_decoder;
 
-static void websocket_update(chk_decoder *d,chk_bytechunk *b,uint32_t spos,uint32_t size) {
+static void websocket_update(chk_decoder *_,chk_bytechunk *b,uint32_t spos,uint32_t size) {
+	//websocket_decoder *d = ((websocket_decoder*)_);
+
+    /*if(!d->b) {
+	    d->b = chk_bytechunk_retain(b);
+	    d->spos  = spos;
+	    d->size = 0;
+    }
+    d->size += size;*/
 }
 
-static chk_bytebuffer *websocket_unpack(chk_decoder *d,int32_t *err) {
+static chk_bytebuffer *websocket_unpack(chk_decoder *_,int32_t *err) {
+	websocket_decoder *d = ((websocket_decoder*)_);
+	if(d->size >= 1) {
+
+	}
 	return NULL;
 }
 
