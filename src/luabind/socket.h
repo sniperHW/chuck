@@ -460,12 +460,12 @@ static int32_t lua_stream_socket_set_nodelay(lua_State *L) {
 	return 0;
 }
 
-static int32_t lua_stream_socket_shutdown(lua_State *L) {
+static int32_t lua_stream_socket_shutdown_write(lua_State *L) {
 	lua_stream_socket *s = lua_checkstreamsocket(L,1);
 	if(!s->socket){
 		return 0;
 	}
-	chk_stream_socket_shutdown(s->socket);
+	chk_stream_socket_shutdown_write(s->socket);
 	return 0;
 }
 
@@ -550,7 +550,7 @@ static void register_socket(lua_State *L) {
 		{"GetSockAddr", lua_stream_socket_getsockaddr},
 		{"GetPeerAddr", lua_stream_socket_getpeeraddr},	
 		{"SetNoDelay",  lua_stream_socket_set_nodelay},
-		{"ShutDown",  	lua_stream_socket_shutdown},
+		{"ShutDownWrite",lua_stream_socket_shutdown_write},
 		{"SetCloseCallBack",lua_stream_socket_set_close_cb},
 		{NULL,     		NULL}
 	};

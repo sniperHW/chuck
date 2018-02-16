@@ -293,7 +293,7 @@ static void enable_write(chk_stream_socket *s){
 	chk_enable_write(cast(chk_handle*,s));
 }
 
-void chk_stream_socket_shutdown(chk_stream_socket *s) {
+void chk_stream_socket_shutdown_write(chk_stream_socket *s) {
 	if(s->status & SOCKET_WCLOSE) {
 		return;
 	}
@@ -309,7 +309,7 @@ void chk_stream_socket_close(chk_stream_socket *s,uint32_t delay) {
 
 	s->closed = 1;
 	s->status |= SOCKET_RCLOSE;
-	if(delay > 0 && !send_list_empty(s) && s->loop) {
+	if(!(s->status & SOCKET_WCLOSE) && delay > 0 && !send_list_empty(s) && s->loop) {
 		chk_disable_read(cast(chk_handle*,s));
 		/*数据还没发送完,设置delay豪秒超时等待数据发送出去*/
 		s->delay_close_timer = chk_loop_addtimer(s->loop,delay,delay_close_timer_cb,chk_ud_make_void(s));
@@ -512,6 +512,7 @@ static void process_read(chk_stream_socket *s) {
 					s->cb(s,NULL,chk_error_stream_peer_close);
 				}
 			} else {
+				s->status |= (SOCKET_RCLOSE | SOCKET_WCLOSE);
 				CHK_SYSLOG(LOG_ERROR,"read failed fd:%d,errno:%d",s->fd,errno); 
 				s->cb(s,NULL,chk_error_stream_read);			
 				chk_loop_remove_handle((chk_handle*)s);

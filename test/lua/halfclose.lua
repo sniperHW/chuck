@@ -72,7 +72,7 @@ local function client(clientCount)
 			local w = packet.Writer(buff)
 			w:WriteStr("hello")
 			conn:Send(buff)
-			conn:ShutDown()
+			conn:ShutDownWrite()
 		end
 	end)
 end
