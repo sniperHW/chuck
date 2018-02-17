@@ -197,7 +197,7 @@ function M.Upgrade(request,response)
 	response:SetHeader("Sec-WebSocket-Accept",Sec_WebSocket_Accept)
 	local ret = response:Finish("101","OK")
 	if "OK" == ret then
-		local wsconn = upgradeOk(chuck.websocket.server.Upgrade(request.conn))
+		local wsconn = chuck.websocket.server.Upgrade(request.conn)
 		if not wsconn then
 			request.conn:Close()
 			return nil,"upgrade failed"

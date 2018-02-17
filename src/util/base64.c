@@ -24,7 +24,7 @@ b64_encode (const unsigned char *src, size_t len) {
   if (NULL == enc) { return NULL; }
 
   // parse until end of source
-  while (len--) {
+  while (len-- > 0) {
     // read up to 3 bytes at a time into `tmp'
     tmp[i++] = *(src++);
 

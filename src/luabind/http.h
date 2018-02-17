@@ -405,6 +405,7 @@ static int32_t lua_new_http_connection(lua_State *L) {
 	lua_parser->check_size = 0;
 	lua_parser->parser.data = conn;
 	conn->socket = s;
+	conn->parser = lua_parser;
 	
 	chk_stream_socket_setUd(s,chk_ud_make_void(lua_parser));
 	chk_stream_socket_set_close_callback(s,lua_http_conn_close_callback,chk_ud_make_void(lua_parser));

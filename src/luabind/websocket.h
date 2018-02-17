@@ -237,7 +237,7 @@ void chk_stream_socket_set_decoder(chk_stream_socket *s,chk_decoder *decoder);
 
 static int upgrade(uint8_t type,lua_State *L) {
 	http_connection   *conn = lua_check_http_connection(L,1);
-	if(conn->socket) {
+	if(conn->socket && conn->parser) {
 		websocket *ws = LUA_NEWUSERDATA(L,websocket);
 		if(!ws) {
 			CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");			
@@ -255,6 +255,7 @@ static int upgrade(uint8_t type,lua_State *L) {
 		release_lua_http_parser(conn->parser);
 		chk_luaRef_release(&conn->cb);
 		conn->socket = NULL;
+		conn->parser = NULL;
 		//从event_loop移除，待用户调用start后重新绑定
 		chk_loop_remove_handle((chk_handle*)ws->socket);
 		//将decoder替换成websocket_decoder
