@@ -832,14 +832,14 @@ void chk_stream_socket_nodelay(chk_stream_socket *s,int8_t on) {
   s->no_delay = optval;
 }
 
-void chk_stream_socket_set_close_callback(chk_stream_socket *s,void (*cb)(chk_stream_socket*,chk_ud),chk_ud ud) {
-	s->close_callback.close_callback = cb;
-#if CHUCK_LUA
-	if(s->close_callback.ud.v.lr.L) {
-		chk_luaRef_release(&s->close_callback.ud.v.lr);
+int32_t chk_stream_socket_set_close_callback(chk_stream_socket *s,void (*cb)(chk_stream_socket*,chk_ud),chk_ud ud) {
+	if(!s->close_callback.close_callback) {
+		s->close_callback.close_callback = cb;
+		s->close_callback.ud = ud;
+		return 0;
+	} else {
+		return -1;
 	}
-#endif
-	s->close_callback.ud = ud;
 }
 
 void chk_stream_socket_set_decoder(chk_stream_socket *s,chk_decoder *decoder) {
@@ -850,14 +850,3 @@ void chk_stream_socket_set_decoder(chk_stream_socket *s,chk_decoder *decoder) {
 		s->option.decoder = decoder;
 	}
 }
-
-
-/*
-chk_event_loop *chk_stream_socket_get_eventloop(chk_stream_socket *s) {
-	if(s) {
-		return s->event_loop;
-	} else {
-		return NULL;
-	}
-}
-*/

@@ -105,12 +105,6 @@ int32_t chk_stream_socket_getfd(chk_stream_socket *s);
 void  chk_stream_socket_pause_read(chk_stream_socket *s);
 
 /**
- * 返回待发送数据字节数
- */
-
-//uint32_t chk_stream_socket_pending_send_size(chk_stream_socket *s);
-
-/**
  * 恢复读监听
  * @param s stream_socket
  */
@@ -128,10 +122,6 @@ int32_t chk_stream_socket_getpeeraddr(chk_stream_socket *s,chk_sockaddr *addr);
 
 void chk_stream_socket_nodelay(chk_stream_socket *s,int8_t on);
 
-void chk_stream_socket_set_close_callback(chk_stream_socket *s,void (*cb)(chk_stream_socket*,chk_ud),chk_ud ud);
-
-
-//chk_event_loop *chk_stream_socket_get_eventloop(chk_stream_socket *s);
-
+int32_t chk_stream_socket_set_close_callback(chk_stream_socket *s,void (*cb)(chk_stream_socket*,chk_ud),chk_ud ud);
 
 #endif
