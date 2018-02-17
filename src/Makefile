@@ -121,6 +121,10 @@ benchmark:
 benchmark_brocast:
 	$(CC) $(CFLAGS) -o ../test/bin/benchmark_brocast ../test/benchmark_brocast.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 
+base64:
+	$(CC) $(CFLAGS) -o ../test/bin/base64 ../test/testbase64.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+
+
 clean:
 	rm *.o
 	rm *.a
