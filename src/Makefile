@@ -32,7 +32,6 @@ source.lib =  util/chk_log.c\
 			  util/chk_timer.c\
 			  util/chk_exception.c\
 			  util/chk_bytechunk.c\
-			  util/chk_string.c\
 			  util/lookup8.c\
 			  util/chk_signal.c\
 			  util/chk_util.c\
@@ -54,7 +53,6 @@ source.so =   util/chk_log.c\
 			  util/chk_timer.c\
 			  util/chk_exception.c\
 			  util/chk_bytechunk.c\
-			  util/chk_string.c\
 			  util/lookup8.c\
 			  util/chk_util.c\
 			  util/chk_signal.c\
