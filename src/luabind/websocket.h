@@ -1,5 +1,7 @@
 #define WEBSOCKET_METATABLE "lua_websocket"
 
+#define WEBSOCKET_FRAME_HEAD_METATABLE "lua_websocket_frame_head"
+
 enum {
     TEXT_FRAME   = 0x01,
     BINARY_FRAME = 0x02,
@@ -9,16 +11,26 @@ enum {
 };
 
 typedef struct {
-	uint8_t FIN :1;
-	uint8_t RSV1:1;
-	uint8_t RSV2:1;
-	uint8_t RSV3:1;
-	uint8_t opcode:4;
+	union {
+		struct {
+			uint8_t FIN :1;
+			uint8_t RSV1:1;
+			uint8_t RSV2:1;
+			uint8_t RSV3:1;
+			uint8_t opcode:4;
+		};
+		uint8_t data;
+	};
 } byte1;
 
 typedef struct {
-	uint8_t mask :1;
-	uint8_t payload :1;
+	union {
+		struct {
+			uint8_t mask :1;
+			uint8_t payload :7;
+		};
+		uint8_t data;
+	};
 } byte2;
 
 enum {
@@ -34,6 +46,9 @@ typedef struct {
 
 #define lua_check_websocket(L,I)	\
 	(websocket*)luaL_checkudata(L,I,WEBSOCKET_METATABLE)
+
+#define lua_check_websocket_fream_head(L,I) \
+	(byte1*)luaL_checkudata(L,I,WEBSOCKET_FRAME_HEAD_METATABLE)
 
 typedef struct websocket_decoder {
 	void (*update)(chk_decoder*,chk_bytechunk *b,uint32_t spos,uint32_t size);
@@ -219,28 +234,10 @@ static websocket_decoder *new_websocket_decoder() {
 }	
 
 void chk_stream_socket_set_decoder(chk_stream_socket *s,chk_decoder *decoder);
-static int lua_upgrade(lua_State *L) {
+
+static int upgrade(uint8_t type,lua_State *L) {
 	http_connection   *conn = lua_check_http_connection(L,1);
 	if(conn->socket) {
-
-		const char *ws_type = lua_tostring(L,2);
-
-		uint8_t type;
-
-		if(NULL == ws_type) {
-			CHK_SYSLOG(LOG_ERROR,"ws_type == nil");
-			return 0;
-		}
-
-		if(strcmp(ws_type,"server") == 0){
-			type = WEBSOCKET_SERVER;
-		} else if(strcmp(ws_type,"client") == 0) {
-			type = WEBSOCKET_CLIENT;
-		} else {
-			CHK_SYSLOG(LOG_ERROR,"invaild we_type:%s",ws_type);
-			return 0;
-		}
-
 		websocket *ws = LUA_NEWUSERDATA(L,websocket);
 		if(!ws) {
 			CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");			
@@ -270,7 +267,15 @@ static int lua_upgrade(lua_State *L) {
 		return 1;
 	} else {
 		return 0;
-	}
+	}	
+}
+
+static int lua_server_upgrade(lua_State *L) {
+	return upgrade(WEBSOCKET_SERVER,L);
+}
+
+static int lua_client_upgrade(lua_State *L) {
+	return upgrade(WEBSOCKET_CLIENT,L);	
 }
 
 static int lua_websocket_gc(lua_State *L) {
@@ -285,41 +290,156 @@ static int lua_websocket_gc(lua_State *L) {
 	return 0;
 }
 
+static chk_bytebuffer *build_ws_frame(int wsType,byte1 head,chk_bytebuffer *data) {
+	size_t buffSize = 2;
+	byte2 b2;
+	chk_bytebuffer *buff = NULL;
+	if(data) {
+		b2.mask = (wsType == WEBSOCKET_CLIENT ? 1:0);
+		if(b2.mask == 1) {
+			buffSize += 4;
+		}
+		if(data->datasize < 126) {
+			b2.payload = data->datasize;
+		} else if(data->datasize <= 0xFFFF) {
+			b2.payload = 126;
+			buffSize += 2;
+		} else {
+			b2.payload = 127;
+			buffSize += 8;			
+		}
+	} else {
+		b2.mask = 0;
+		b2.payload = 0;
+	}
 
+	buff = chk_bytebuffer_new(buffSize);
+	if(!buff) {
+		return NULL;
+	}
+	chk_bytebuffer_append_byte(buff,head.data);
+	chk_bytebuffer_append_byte(buff,b2.data);
+	if(b2.payload == 126) {
+		chk_bytebuffer_append_word(buff,chk_hton16(data->datasize));
+	} else if(b2.payload == 127) {
+		chk_bytebuffer_append_qword(buff,chk_hton64(data->datasize));
+	}
+	uint32_t i;
+	uint8_t  byte;
+	if(b2.mask) {
+		uint32_t mask = (uint32_t)rand();
+		chk_bytebuffer_append_dword(buff,mask);
+		for(i = 0; i < data->datasize; ++i) {
+			chk_bytebuffer_read(data,i,(char*)&byte,1);
+			byte = byte ^ ((uint8_t*)&mask)[i%4];
+			chk_bytebuffer_append_byte(buff,byte);
+		}
+	} else {
+		for(i = 0; i < data->datasize; ++i) {
+			chk_bytebuffer_read(data,i,(char*)&byte,1);
+			chk_bytebuffer_append_byte(buff,byte);
+		}
+	}
 
+	return buff;
+}
+
+/*
+static int lua_websocket_ping(lua_State *L) {
+	chk_bytebuffer *appData = NULL;
+	websocket *ws = lua_check_websocket(L,1);
+	if(ws->socket) {
+		if(lua_isuserdata(L,2)) {
+			appData = lua_checkbytebuffer(L,2);
+		}
+		byte1 head;
+		head.data = 0;
+		head.opcode = PING_FRAME;
+		chk_bytebuffer *buff = build_ws_frame(ws->type,head,appData);
+		if(!buff) {
+			return luaL_error(L,"no memory!");
+		}
+		chk_stream_socket_send(ws->socket,buff);		
+	}
+	return 0;
+}
+
+static int lua_websocket_pong(lua_State *L) {
+	chk_bytebuffer *appData = NULL;
+	websocket *ws = lua_check_websocket(L,1);
+	if(ws->socket) {
+		if(lua_isuserdata(L,2)) {
+			appData = lua_checkbytebuffer(L,2);
+		}
+		byte1 head;
+		head.data = 0;
+		head.opcode = PONG_FRAME;
+		chk_bytebuffer *buff = build_ws_frame(ws->type,head,appData);
+		if(!buff) {
+			return luaL_error(L,"no memory!");
+		}
+		chk_stream_socket_send(ws->socket,buff);		
+	}
+	return 0;
+}
+*/
 
 static int lua_websocket_send(lua_State *L) {
-/*	chk_bytebuffer    *b,*o;
 	websocket *ws = lua_check_websocket(L,1);
 	if(!ws->socket){
 		lua_pushstring(L,"socket close");		
 		return 1;
 	}
-	o = lua_checkbytebuffer(L,2);
-	if(NULL == o)
-		luaL_error(L,"need bytebuffer to send");
-	b = chk_bytebuffer_clone(o);
-	if(!b) {
-		lua_pushstring(L,"send error");		
-		return 1;
+	byte1 head;
+	head.data = 0;
+	const char *opcode = luaL_checkstring(L,2);
+	if(strcmp("text",opcode) == 0) {
+		head.opcode = TEXT_FRAME;
+	} else if(strcmp("binary",opcode) == 0) {
+		head.opcode = BINARY_FRAME;
+	} else if(strcmp("ping",opcode) == 0) {
+		head.opcode = PING_FRAME;
+	} else if(strcmp("pong",opcode) == 0) {
+		head.opcode = PONG_FRAME;
+	} else {
+		return luaL_error(L,"opcode must be binary|text|ping|pong");
 	}
 
-	if(0 != chk_stream_socket_send(ws->socket,b)){
+	chk_bytebuffer *data = lua_checkbytebuffer(L,3);
+	chk_bytebuffer *buff = build_ws_frame(ws->type,head,data);
+	if(!buff) {
+		return luaL_error(L,"no memory!");
+	}
+	if(0 != chk_stream_socket_send(ws->socket,buff)){
 		lua_pushstring(L,"send error");
 		return 1;
 	}
-*/
 	return 0;
 }
 
 static int lua_websocket_close(lua_State *L) {
 	websocket *ws = lua_check_websocket(L,1);
 	if(ws->socket) {
-		const char *reason = lua_tostring(L,2);
-		
+		size_t s;
+		const char *reason = lua_tolstring(L,2,&s);
+		chk_bytebuffer *data = NULL;
+		if(reason){
+			data = chk_bytebuffer_new(s);
+			if(!data) {
+				return luaL_error(L,"no memory!");
+			}
+			chk_bytebuffer_append(data,(uint8_t*)reason,s);
+		}
 
-
-
+		byte1 head;
+		head.data = 0;
+		head.opcode = CLOSE_FRAME;
+		chk_bytebuffer *buff = build_ws_frame(ws->type,head,data);
+		chk_bytebuffer_del(data);
+		if(!buff) {
+			return luaL_error(L,"no memory!");
+		}
+		chk_stream_socket_send(ws->socket,buff);
 		chk_stream_socket_setUd(ws->socket,chk_ud_make_void(NULL));
 		chk_stream_socket_close(ws->socket,5);
 		ws->socket = NULL;
@@ -331,22 +451,53 @@ static int lua_websocket_close(lua_State *L) {
 }
 
 
-static void ws_event_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
+static void ws_event_cb(chk_stream_socket *s,chk_bytebuffer *frame,int32_t error) {
+	
+	static const char *ping   = "ping";
+	static const char *pong   = "pong";
+	static const char *text   = "text";
+	static const char *binary = "binary";
+
 	websocket *ws = chk_stream_socket_getUd(s).v.val;
 	if(NULL == ws) {
 		return;
 	}
 
-	luaBufferPusher pusher = {PushBuffer,data};
-	const char *error_str;
+	const char *error_str = NULL;
 	if(!ws->cb.L) return;
-	if(data){ 
-		error_str = chk_Lua_PCallRef(ws->cb,"f",(chk_luaPushFunctor*)&pusher);
+	if(frame){
+		byte1 b1;
+		uint32_t pos = frame->spos;
+		uint32_t size = 1;
+		chk_bytechunk *c = chk_bytechunk_read(frame->head,(char*)&b1,&pos,&size);
+
+		if(b1.opcode != TEXT_FRAME || b1.opcode != BINARY_FRAME || b1.opcode != PING_FRAME || b1.opcode != PONG_FRAME) {
+			return;
+		}
+
+		chk_bytebuffer *data = chk_bytebuffer_new_bychunk(c,pos,frame->datasize - sizeof(b1));
+		if(data) {
+
+			const char *opcode = NULL;
+			if(b1.opcode == TEXT_FRAME) {
+				opcode = text;
+			} else if(b1.opcode == BINARY_FRAME) {
+				opcode = binary;
+			} else if(b1.opcode == PING_FRAME) {
+				opcode = ping;
+			} else {
+				opcode = pong;
+			}
+
+	 		luaBufferPusher pusher = {PushBuffer,data};
+			error_str = chk_Lua_PCallRef(ws->cb,"sf",opcode,(chk_luaPushFunctor*)&pusher);
+			chk_bytebuffer_del(data);
+		}
 	} else {
 		chk_stream_socket_setUd(ws->socket,chk_ud_make_void(NULL));
 		chk_stream_socket_close(ws->socket,0);
 		ws->socket = NULL;
-		error_str = chk_Lua_PCallRef(ws->cb,"pi",NULL,error);
+		error_str = chk_Lua_PCallRef(ws->cb,"ppi",NULL,NULL,error);
 		chk_luaRef_release(&ws->cb);
 	}
 
@@ -449,7 +600,9 @@ static void register_websocket(lua_State *L) {
 		{"Close",   		lua_websocket_close},
 		{"GetSockAddr", 	lua_websocket_getsockaddr},
 		{"GetPeerAddr", 	lua_websocket_getpeeraddr},	
-		{"SetCloseCallBack",lua_websocket_set_close_cb},															
+		{"SetCloseCallBack",lua_websocket_set_close_cb},
+//		{"Ping", 			lua_websocket_ping},	
+//		{"Pong",			lua_websocket_pong},															
 		{NULL,     NULL}
 	};
 
@@ -459,7 +612,17 @@ static void register_websocket(lua_State *L) {
 	luaL_newlib(L, websocket_methods);
 	lua_setfield(L, -2, "__index");
 	lua_pop(L, 1);
+
+	lua_newtable(L);
 	
-	lua_newtable(L);	
-	SET_FUNCTION(L,"Upgrade",lua_upgrade);
+	lua_pushstring(L,"server");
+	lua_newtable(L);
+	SET_FUNCTION(L,"Upgrade",lua_server_upgrade);
+	lua_settable(L,-3);	
+
+	lua_pushstring(L,"client");
+	lua_newtable(L);
+	SET_FUNCTION(L,"Upgrade",lua_client_upgrade);
+	lua_settable(L,-3);	
+
 }
