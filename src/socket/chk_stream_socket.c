@@ -510,6 +510,7 @@ static void process_read(chk_stream_socket *s) {
 				} else {
 					s->status |= SOCKET_RCLOSE;
 					s->cb(s,NULL,chk_error_stream_peer_close);
+					chk_disable_read((chk_handle*)s);
 				}
 			} else {
 				s->status |= (SOCKET_RCLOSE | SOCKET_WCLOSE);
