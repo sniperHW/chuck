@@ -283,7 +283,6 @@ static int on_message_complete(http_parser *parser) {
 			CHK_SYSLOG(LOG_ERROR,"error on_message_complete %s",error);
 		}
 	}
-	release_lua_http_parser_member(lua_parser);
 	return 0;						
 }
 
