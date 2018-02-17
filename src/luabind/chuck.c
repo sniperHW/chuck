@@ -24,13 +24,11 @@
 #include "socket.h"
 #include "redis.h"
 #include "packet.h"
-#include "http.h"
 #include "log.h"
 #include "ssl.h"
 #include "time.h"
 #include "base64.h"
 #include "crypt.h"
-#include "websocket.h"
 
 
 #define REGISTER_MODULE(L,N,F) do {	\
@@ -82,14 +80,12 @@ int32_t luaopen_chuck(lua_State *L)
 	REGISTER_MODULE(L,"socket",register_socket);
 	REGISTER_MODULE(L,"redis",register_redis);
 	REGISTER_MODULE(L,"buffer",register_buffer);
-	REGISTER_MODULE(L,"packet",register_packet);
-	REGISTER_MODULE(L,"http",register_http);		
+	REGISTER_MODULE(L,"packet",register_packet);		
 	REGISTER_MODULE(L,"signal",register_signum);
 	REGISTER_MODULE(L,"log",register_log);
 	REGISTER_MODULE(L,"ssl",register_ssl);
 	REGISTER_MODULE(L,"time",register_time);	
 	REGISTER_MODULE(L,"base64",register_base64);
-	REGISTER_MODULE(L,"crypt",register_crypt);
-	REGISTER_MODULE(L,"websocket",register_websocket);	
+	REGISTER_MODULE(L,"crypt",register_crypt);	
 	return 1;
 }

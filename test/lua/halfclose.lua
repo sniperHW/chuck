@@ -65,6 +65,7 @@ local function client(clientCount)
 					print(reader:ReadStr())
 				else
 					print("client:" .. err)
+					conn:Close()
 				end
 			end)
 			--send the first msg
