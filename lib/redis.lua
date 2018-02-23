@@ -2,7 +2,7 @@ local chuck = require("chuck")
 local promise
 local redis = chuck.redis
 
-M = {}
+local M = {}
 
 local redisCmd = {}
 redisCmd.__index = redisCmd

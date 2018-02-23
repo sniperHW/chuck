@@ -94,7 +94,7 @@ function handlerSlot:OnEvent(...)
 
 		local k = next(self.handlers)
 		while k do
-			h = self.handlers[k]
+			local h = self.handlers[k]
 			if "unregister" == h:OnEvent(...) then
 				h:UnRegister()
 				if k >= #self.handlers then
@@ -121,7 +121,7 @@ function handlerSlot:RegisterHandler(handler,mutexMode)
 end
 
 function handlerSlot:Clear()
-	for k,v in ipairs(self.handlers) do
+	for _,v in ipairs(self.handlers) do
 		v.slot = nil
 	end
 	self.handlers = {}	

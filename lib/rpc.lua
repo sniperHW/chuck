@@ -1,7 +1,6 @@
 -- a sample rpc protocal
 
 local chuck = require("chuck")
-local socket = chuck.socket
 local buffer = chuck.buffer
 local packet = chuck.packet
 local promise
@@ -184,7 +183,7 @@ function M.OnConnClose(conn)
 	local client = M.clients[conn]
 	if client then
 		M.clients[conn] = nil
-		for k,cb in pairs(client.callbacks) do
+		for _,cb in pairs(client.callbacks) do
 			xpcall(cb,function (err)
 				logger:Log(log.error,string.format("error on rpc callback:%s",err))
 			end,"connection loss",nil)
