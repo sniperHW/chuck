@@ -19,6 +19,12 @@ dynamic library for lua:
 	make chuck.so
 
 
+~~~~~~~~~~
+examples
+~~~~~~~~~~
+
+`Agar.io-Server <https://github.com/sniperHW/Agar.io-Server>`_
+
 ~~~~~~~~
 customer
 ~~~~~~~~
