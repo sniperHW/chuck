@@ -1,10 +1,75 @@
 local chuck = require("chuck")
+local fifo  = require("fifo")
 
 local coroutine = chuck.coroutine
 
 local event_loop
 
 local M = {}
+
+
+local queue = {}
+queue.__index = queue
+
+function M.queue()
+	local o = {}
+	o = setmetatable(o,queue)
+	o.message_queue = fifo.new()
+	o.waits = fifo.new()
+	return o
+end
+
+function queue:push(msg)
+	if nil == msg then
+		return error("queue push nil")
+	end
+
+	if self.closed then
+		return "closed"
+	else
+		if self.message_queue:empty() and (not self.waits:empty()) then
+			local head = self.waits:pop()
+			coroutine.resume(head,msg)
+		else
+			self.message_queue:push(msg)
+		end
+	end
+end
+
+function queue:pop()
+	local current = coroutine.running()
+	if current == nil then
+		return error("pop must call in coroutine context")
+	end
+	local msg = self.message_queue:pop()
+	if msg then
+		return msg
+	else
+		if self.closed then
+			return nil
+		else
+			self.waits:push(current)
+			return coroutine.yield()
+		end		
+	end
+end
+
+function queue:close()
+	if not self.closed then
+		self.closed = true
+		if self.message_queue:empty() then
+			while true do 
+				local co = self.waits:pop()
+				if nil == co then
+					break
+				else
+					coroutine.resume(co)
+				end
+			end
+		end
+	end
+end
+
 
 function M.setEventLoop(eventLoop)
 	event_loop = eventLoop
