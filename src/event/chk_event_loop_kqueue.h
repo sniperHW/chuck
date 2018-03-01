@@ -155,7 +155,6 @@ int32_t chk_loop_init(chk_event_loop *e) {
 	}
 	e->kfd = kfd;
 	e->idle.fire_tick = 0;
-	e->tfd  = -1;
 	e->timermgr = NULL;
 	e->maxevents = 64;
 	e->events = calloc(1,(sizeof(*e->events)*e->maxevents));
@@ -182,14 +181,13 @@ int32_t chk_loop_init(chk_event_loop *e) {
 
 void chk_loop_finalize(chk_event_loop *e) {
 	chk_handle *h;
-	if(e->tfd >= 0){
+	if(e->timermgr){
 		chk_timermgr_del(e->timermgr);
 	}
 	while((h = cast(chk_handle*,chk_dlist_pop(&e->handles)))){
 		h->on_events(h,CHK_EVENT_LOOPCLOSE);
 		chk_unwatch_handle(h);
 	}
-	e->tfd  = -1;	
 	chk_close_notify_channel(e->notifyfds);
 	free(e->events);
 	chk_idle_finalize(e);
@@ -223,7 +221,7 @@ int32_t _loop_run(chk_event_loop *e,uint32_t ms,int once) {
 			pts = NULL;
 		}
 
-		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, &e->change,e->tfd, e->events,e->maxevents,pts));
+		nfds = TEMP_FAILURE_RETRY(kevent(e->kfd, NULL, 0, e->events,e->maxevents,pts));
 		t = chk_systick64();
 		if(nfds > 0) {
 			e->status |= INLOOP;
@@ -294,14 +292,23 @@ chk_timer *chk_loop_addtimer(chk_event_loop *e,uint32_t timeout,chk_timeout_cb c
 
 	uint64_t tick;
 	int32_t  flags =  EV_ADD | EV_ENABLE;
+	struct kevent change;
 	if(!e->timermgr){
 		e->timermgr = chk_timermgr_new();
 		if(!e->timermgr) {
 			CHK_SYSLOG(LOG_ERROR,"call chk_timermgr_new() failed");
 			return NULL;
 		}
-		e->tfd      = 1;
-		EV_SET(&e->change, e->tfd, EVFILT_TIMER,flags, NOTE_CRITICAL, 1, e->timermgr);
+		EV_SET(&change, 1, EVFILT_TIMER,flags, NOTE_USECONDS, 1000, e->timermgr);
+		struct timespec thetime;
+  		bzero(&thetime,sizeof(thetime));
+  		if(-1 == kevent(e->kfd, &change,1, NULL , 0, &thetime)){
+  			CHK_SYSLOG(LOG_ERROR,"kevent timer failed");
+  			chk_timermgr_del(e->timermgr);
+  			e->timermgr = NULL;
+  			return NULL;
+  		}
+
 	}
 	tick = chk_accurate_tick64();
 	return chk_timer_register(e->timermgr,timeout,cb,ud,tick); 
