@@ -276,12 +276,6 @@ examples
 
 .. image:: img/redis_cli.png
 
-
-~~~~~	
-more
-~~~~~
-
-`a sample gameserver <example/online_game_skeleton>`_
 ~~~~~~~~
 customer
 ~~~~~~~~

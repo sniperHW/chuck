@@ -7,19 +7,6 @@ local buffer = chuck.buffer
 local event_loop = chuck.event_loop.New()
 local log = chuck.log
 
---[[
-local buff = buffer.New()
-local writer = chuck.packet.Writer(buff)
-local nowTick = chuck.time.systick()
-print(nowTick)
-writer:WriteTable({t=nowTick})
-
-local reader = chuck.packet.Reader(buff)
-local t = reader:ReadTable()
-print(t.t)
-]]--
-
-
 local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",9010,function (fd)
 	local conn = socket.stream.New(fd,4096)
 	if conn then
@@ -30,17 +17,8 @@ local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",9010,function (fd
 
 		conn:Start(event_loop,function (data)
 			if data then
-				--local reader = chuck.packet.Reader(data)
-				--print(reader:ReadStr())
-				--local t = reader:ReadTable()
-				--print(t.tick)
-
 				local response = data:Clone()
 				response:AppendStr("hello world\r\n")
-				--local response = buffer.New("hello world\r\n")
-				--local response = buffer.New()
-				--local writer = chuck.packet.Writer(response)
-				--writer:WriteTable(t)
 				conn:Send(response)
 			else
 				log.SysLog(log.info,"client disconnected") 
