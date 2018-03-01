@@ -10,18 +10,17 @@ local queue2 = coroutine.queue()
 print("start reciver first")
 
 for i = 1,10 do
-	coroutine.run(function ()
-		local index = i
+	coroutine.run(function (self,name)
 		while true do
-			local err,msg = queue1:pop()
-			if err == "closed" then
+			local msg = queue1:pop()
+			if nil == msg then
 				break
 			else
-				print(index,msg)
+				print(name,msg)
 			end
 		end
-		print(index,"finish")
-	end)
+		print(name,"finish")
+	end,i)
 end
 
 
@@ -40,18 +39,17 @@ for i = 1,10 do
 end
 
 for i = 1,10 do
-	coroutine.run(function ()
-		local index = i
+	coroutine.run(function (self,name)
 		while true do
-			local err,msg = queue2:pop()
-			if err == "closed" then
+			local msg = queue2:pop()
+			if nil == msg then
 				break
 			else
-				print(index,msg)
+				print(name,msg)
 			end
 		end
-		print(index,"finish")
-	end)
+		print(name,"finish")
+	end,i)
 end
 
 queue2:close()
