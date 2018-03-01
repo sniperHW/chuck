@@ -10,6 +10,7 @@ local cmd_request = 1
 local cmd_response = 2
 
 local M = {}
+M.timeout = 10 --调用超时时间
 M.seq = 1
 M.clients = {}
 
@@ -98,11 +99,12 @@ function M.OnRPCMsg(conn,msg)
 			return
 		end
 		local seqno = rpacket:ReadI64()
-		local cb = rpcclient.callbacks[seqno]
-		if cb then
+		local cb_info = rpcclient.callbacks[seqno]
+		if cb_info then
 			rpcclient.callbacks[seqno]= nil
+			cb_info.timer:UnRegister()
 			local resp = rpacket:ReadTable()
-			xpcall(cb,function (err)
+			xpcall(cb_info.cb,function (err)
 			    logger:Log(log.error,string.format("error on rpc callback:%s",err))
 			end,resp.err,resp.ret)
 		end
@@ -158,7 +160,17 @@ function rpcClient:Call(methodName,callback,...)
 		return "send request failed"
 	else
 		if callback then
-			self.callbacks[seqno] = callback
+			local callback_info = {}
+			callback_info.cb = callback
+			callback_info.timer = M.event_loop:AddTimer(M.timeout * 1000,function ()
+				callback_info.timer = nil
+				self.callbacks[seqno] = nil
+				xpcall(callback,function (err)
+					logger:Log(log.error,string.format("error on rpc callback:%s",err))
+				end,"timeout",nil)
+				return -1
+			end)
+			self.callbacks[seqno] = callback_info
 		end
 	end	
 end
@@ -183,8 +195,9 @@ function M.OnConnClose(conn)
 	local client = M.clients[conn]
 	if client then
 		M.clients[conn] = nil
-		for _,cb in pairs(client.callbacks) do
-			xpcall(cb,function (err)
+		for _,cb_info in pairs(client.callbacks) do
+			cb_info.timer:UnRegister()
+			xpcall(cb_info.cb,function (err)
 				logger:Log(log.error,string.format("error on rpc callback:%s",err))
 			end,"connection loss",nil)
 		end		
