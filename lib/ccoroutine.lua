@@ -147,9 +147,9 @@ local function pool_new_coroutine(self,count)
 			self.count = self.count + 1
 			self.startCount = self.startCount - 1
 			while true do
-				local msg = self.taskQueue:pop()
-				if msg then
-					util.pcall(self.onMsg,msg)
+				local task = self.taskQueue:pop()
+				if task then
+					util.pcall(task)
 				else
 					break
 				end
@@ -161,10 +161,9 @@ local function pool_new_coroutine(self,count)
 	end
 end
 
-function M.pool(initCount,maxCount,onMsg)
+function M.pool(initCount,maxCount)
 	assert(initCount,"initCount == nil")
 	assert(maxCount,"maxCount == nil")
-	assert(type(onMsg) == "function","onMsg should be a function")
 	assert(initCount >= 0,"initCount should >= 0")
 	assert(maxCount > 0 and maxCount >= initCount,"maxCount should >= maxCount")
 	local o = {}
@@ -173,13 +172,13 @@ function M.pool(initCount,maxCount,onMsg)
 	o.count = 0   		--已经进入主函数的coroutine数量
 	o.startCount = 0    --已经创建，但尚未进入主函数的coroutine数量
 	o.taskQueue = M.queue()
-	o.onMsg = onMsg
 	o.waitGroup = M.waitGroup(initCount)
 	pool_new_coroutine(o,initCount)
 	return o
 end
 
-function pool:push(task)
+function pool:addTask(task)
+	assert(type(task) == "function","task should be a function")	
 	if not self.closed then
 		local taskQueue = self.taskQueue
 		if not taskQueue:isClosed() then
