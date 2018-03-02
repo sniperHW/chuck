@@ -44,6 +44,23 @@ coroutine.run(function (self)
 		for i = 1,11 do
 			print("hw" .. i,ret[i])
 		end
+
+		--启动11个coroutine并发执行11个请求，利用waitGroup等待结果
+		local waitGroup = coroutine.waitGroup(11)
+		for i = 1,11 do
+			coroutine.run(function()
+				local result = Execute("get","hw" .. i)
+				ret[i] = result
+				waitGroup:add()
+			end)
+		end
+
+		waitGroup:wait()
+
+		for i = 1,11 do
+			print("hw" .. i,ret[i])
+		end		
+
 		event_loop:Stop()
 	end
 end)
