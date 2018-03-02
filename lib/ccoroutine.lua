@@ -1,5 +1,6 @@
 local chuck = require("chuck")
 local fifo  = require("fifo")
+local util  = require("util")
 
 local coroutine = chuck.coroutine
 
@@ -7,6 +8,48 @@ local event_loop
 
 local M = {}
 
+local waitGroup = {}
+waitGroup.__index = waitGroup
+
+function M.waitGroup(waitCount)
+	waitCount = waitCount or 0
+	local o = {}
+	o = setmetatable(o,waitGroup)
+	o.counter = 0
+	o.waitCount = waitCount
+	o.waits = {}
+	return o
+end
+
+function waitGroup:wait()
+	local current = coroutine.running()
+	if current then
+		if self.counter < self.waitCount then
+			table.insert(self.waits,current)
+			coroutine.yield(current)
+		end
+	else
+		error("wait must call under coroutine context")
+	end
+end
+
+function waitGroup:count()
+	return self.counter
+end
+
+function waitGroup:addWaitCount()
+	self.waitCount = self.waitCount + 1
+end
+
+function waitGroup:add()
+	self.counter = self.counter + 1
+	if self.counter >= self.waitCount then
+		for k,v in pairs(self.waits) do
+			coroutine.resume(v)
+		end
+		self.waits = {}
+	end
+end
 
 local queue = {}
 queue.__index = queue
@@ -70,6 +113,111 @@ function queue:close()
 	end
 end
 
+--丢弃队列中所有内容，强制唤醒等待中的coroutine
+function queue:forceClose()
+	if not self.closed then
+		self.closed = true
+		self.message_queue:clear()
+		while true do 
+			local co = self.waits:pop()
+			if nil == co then
+				break
+			else
+				coroutine.resume(co)
+			end
+		end		
+	end	
+end
+
+
+function queue:isClosed()
+	return self.closed
+end
+
+
+local pool = {}
+pool.__index = pool
+
+
+local function pool_new_coroutine(self,count)
+	self.startCount = self.startCount + count
+	for i = 1,count do
+		M.run(function ()
+			print("pool coroutine start")
+			self.count = self.count + 1
+			self.startCount = self.startCount - 1
+			while true do
+				local msg = self.taskQueue:pop()
+				if msg then
+					util.pcall(self.onMsg,msg)
+				else
+					break
+				end
+			end
+			self.count = self.count - 1
+			self.waitGroup:add()
+			print("pool coroutine end")
+		end)
+	end
+end
+
+function M.pool(initCount,maxCount,onMsg)
+	assert(initCount,"initCount == nil")
+	assert(maxCount,"maxCount == nil")
+	assert(type(onMsg) == "function","onMsg should be a function")
+	assert(initCount >= 0,"initCount should >= 0")
+	assert(maxCount > 0 and maxCount >= initCount,"maxCount should >= maxCount")
+	local o = {}
+	o = setmetatable(o,pool)
+	o.maxCount = maxCount
+	o.count = 0   		--已经进入主函数的coroutine数量
+	o.startCount = 0    --已经创建，但尚未进入主函数的coroutine数量
+	o.taskQueue = M.queue()
+	o.onMsg = onMsg
+	o.waitGroup = M.waitGroup(initCount)
+	pool_new_coroutine(o,initCount)
+	return o
+end
+
+function pool:push(task)
+	if not self.closed then
+		local taskQueue = self.taskQueue
+		if not taskQueue:isClosed() then
+			if taskQueue.waits:empty() and self.startCount + self.count < self.maxCount then
+				self.waitGroup:addWaitCount()
+				pool_new_coroutine(self,1)
+			end
+			taskQueue:push(task)
+		end
+	end
+end
+
+function pool:close(onClose)
+	if not self.closed then
+		self.taskQueue:close()
+		self.closed = true
+		if onClose then
+			M.run(function ()
+				self.waitGroup:wait()
+				onClose()
+			end)
+		end
+	end
+end
+
+--丢弃队列中所有内容，强制终止pool中所有coroutine
+function pool:forceClose(onClose)
+	if not self.closed then
+		self.taskQueue:forceClose()
+		self.closed = true
+		if onClose then
+			M.run(function ()
+				self.waitGroup:wait()
+				onClose()
+			end)
+		end
+	end
+end
 
 function M.setEventLoop(eventLoop)
 	event_loop = eventLoop

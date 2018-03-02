@@ -54,7 +54,9 @@ function fifo:pop()
 		if self.head == nil then
 			self.tail = nil
 		end
-		return item.v	
+		local v = item.v
+		linkItemPool.put(item)
+		return v	
 	else
 		return nil
 	end
@@ -62,6 +64,14 @@ end
 
 function fifo:empty()
 	return self.head == nil
+end
+
+function fifo:clear()
+	while true do
+		if nil == self:pop() then
+			return
+		end
+	end
 end
 
 
