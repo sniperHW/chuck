@@ -201,13 +201,8 @@ chk_timermgr *chk_timermgr_new() {
 	return m;
 }
 
-void chk_timer_tick(chk_timermgr *m,uint64_t now)
-{
+void chk_timer_tick(chk_timermgr *m,uint64_t now) {
 	if(!m->ptrtick) return;//没有注册过定时器
-	/*if(m->lasttick != now)
-	{
-		printf("delta:%lld,now:%lld,lasttick:%lld\n",now - m->lasttick,now,m->lasttick);
-	}*/
 	while(m->lasttick != now) {
 		INC_LASTTICK(m->lasttick);
 		fire(m,m->wheels[wheel_sec],m->lasttick);

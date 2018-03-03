@@ -16,15 +16,34 @@ typedef struct sche{
 	coroutine  readyHead;
 	coroutine  readyTail;
 	coroutine *running;   //当前正在运行的coroutine
-	int        selfIndex;
 }sche;
 
-static sche *g_sche;   //每个虚拟机一个单独的sche
+//static sche *g_sche;   //每个虚拟机一个单独的sche
+//int g_sche_index;
+
+
+
 
 #define COROUTINE_META      "coroutine_mt"
 #define lua_check_coroutine(L,I) (coroutine*)luaL_checkudata(L,I,COROUTINE_META)
 
-static void push_ready(coroutine *co) {
+
+const char *index_g_sche = "chuck.g_sche";
+
+static inline sche *get_sche(lua_State *L) {
+	sche *g_sche = NULL;
+	lua_State *mL = NULL;		
+	lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
+	mL = lua_tothread(L,-1);
+	lua_pop(L,1);
+	lua_pushstring(mL,index_g_sche);
+	lua_rawget(mL,LUA_REGISTRYINDEX);
+	g_sche = lua_touserdata(mL,-1);
+	lua_pop(mL,1);
+	return g_sche;
+}
+
+static void push_ready(sche *g_sche,coroutine *co) {	
 	coroutine *prev = g_sche->readyTail.prev;
 	co->prev = prev;
 	prev->next = co;
@@ -43,6 +62,8 @@ static int coroutine_new(lua_State *L) {
 	if(!co) {
 		return luaL_error(L,"calloc failed");
 	} else {
+
+		sche *g_sche = get_sche(L);
 
 		lua_State *NL = lua_newthread(L);
 		int index = luaL_ref(L,LUA_REGISTRYINDEX);
@@ -65,7 +86,7 @@ static int coroutine_new(lua_State *L) {
 		co->L = NL;
 		co->coIndex = index;
 		co->resume_argcount = top - 1 + 1;
-		push_ready(co);
+		push_ready(g_sche,co);
 
 		lua_newtable(g_sche->L);
 		co->table = luaL_ref(g_sche->L,LUA_REGISTRYINDEX);
@@ -83,8 +104,9 @@ static int coroutine_new(lua_State *L) {
 }
 
 static int coroutine_yield_a_while(lua_State *L) {
+	sche *g_sche = get_sche(L);
 	if(g_sche->running) {
-		push_ready(g_sche->running);
+		push_ready(g_sche,g_sche->running);
 		lua_yield(L,0);
 	} else {
 		luaL_error(L,"yield must call under coroutine");
@@ -93,6 +115,7 @@ static int coroutine_yield_a_while(lua_State *L) {
 }
 
 static int coroutine_yield(lua_State *L) {
+	sche *g_sche = get_sche(L);
 	if(g_sche->running) {
 		lua_yield(L,0);
 	} else {
@@ -102,6 +125,7 @@ static int coroutine_yield(lua_State *L) {
 }
 
 static int coroutine_running(lua_State *L) {
+	sche *g_sche = get_sche(L);	
 	if(g_sche->running) {
 		lua_pushlightuserdata(L,g_sche->running);
 		luaL_getmetatable(L, COROUTINE_META);
@@ -112,7 +136,7 @@ static int coroutine_running(lua_State *L) {
 	}
 }
 
-static int resume_coroutine(coroutine *co) {
+static int resume_coroutine(sche *g_sche,coroutine *co) {
 	g_sche->running = co;
 	int ret = lua_resume(co->L,g_sche->L,co->resume_argcount);
 	if(ret != LUA_YIELD) {
@@ -126,18 +150,20 @@ static int resume_coroutine(coroutine *co) {
 }
 
 static int sche_loop(lua_State *L) {
+	sche *g_sche = get_sche(L);	
 	coroutine *co;
 	while(&g_sche->readyTail != (co = g_sche->readyHead.next)){
 		g_sche->readyHead.next = co->next;
 		co->next->prev = &g_sche->readyHead;
 		co->next = co->prev = NULL;
-		resume_coroutine(co);		
+		resume_coroutine(g_sche,co);		
 	}
 	g_sche->running = NULL;
 	return 0;
 }
 
 static int coroutine_resume(lua_State *L) {
+	sche *g_sche = get_sche(L);	
 	coroutine *co = lua_check_coroutine(L,1);
 	if(g_sche->running == co) {
 		return luaL_error(L,"coroutine is running");
@@ -149,7 +175,7 @@ static int coroutine_resume(lua_State *L) {
 			lua_xmove(L, co->L, 1);
 		}	
 		co->resume_argcount = top - 1;
-		push_ready(co);
+		push_ready(g_sche,co);
 	}
 
 	if(!g_sche->running) {
@@ -159,6 +185,7 @@ static int coroutine_resume(lua_State *L) {
 }
 
 static int coroutine_resume_and_yield(lua_State *L) {
+	sche *g_sche = get_sche(L);	
 	coroutine_resume(L);
 	if(g_sche->running) {
 		lua_yield(L,0);
@@ -167,6 +194,7 @@ static int coroutine_resume_and_yield(lua_State *L) {
 }
 
 static int coroutine_index(lua_State *L) {
+	sche *g_sche = get_sche(L);	
 	coroutine *co = lua_check_coroutine(L,1);
 	lua_rawgeti(g_sche->L,LUA_REGISTRYINDEX,co->table);
 	if(g_sche->L != L) {
@@ -178,6 +206,7 @@ static int coroutine_index(lua_State *L) {
 }
 
 static int coroutine_newindex(lua_State *L) {
+	sche *g_sche = get_sche(L);	
 	coroutine *co = lua_check_coroutine(L,1);
 	lua_rawgeti(g_sche->L,LUA_REGISTRYINDEX,co->table);
 	if(g_sche->L != L) {
@@ -190,6 +219,7 @@ static int coroutine_newindex(lua_State *L) {
 }
 
 static int coroutine_gc(lua_State *L) {
+	sche *g_sche = get_sche(L);	
 	//如果g_sche为NULL表示lua_State *L已经关闭所有对象都被gc,下面的代码也就无需执行了。
 	coroutine *co = lua_check_coroutine(L,1);
 	luaL_unref(g_sche->L,LUA_REGISTRYINDEX,co->coIndex);
@@ -210,12 +240,13 @@ static void register_coroutine(lua_State *L) {
 	luaL_newmetatable(L, COROUTINE_META);
 	luaL_setfuncs(L, coroutine_mt, 0);
 	lua_setmetatable(L, -2);
-	
-	g_sche = LUA_NEWUSERDATA(L,sche);
+
+	lua_pushstring(L,index_g_sche);	
+	sche *g_sche = LUA_NEWUSERDATA(L,sche);
 	g_sche->L = L;
 	g_sche->readyHead.next = &g_sche->readyTail;
 	g_sche->readyTail.prev = &g_sche->readyHead;
-	g_sche->selfIndex = luaL_ref(L,LUA_REGISTRYINDEX);
+	lua_rawset(L,LUA_REGISTRYINDEX);
 
 	lua_newtable(L);
 	SET_FUNCTION(L,"new",coroutine_new);
