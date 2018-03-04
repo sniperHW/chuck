@@ -24,8 +24,6 @@ typedef struct sche{
 const char *index_g_sche = "chuck.g_sche";
 
 static inline sche *get_sche(lua_State *L) {
-	//printf("get_sche b\n");
-	//show_stack(L);
 	sche *g_sche = NULL;
 	lua_State *mL = NULL;		
 	lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
@@ -35,8 +33,6 @@ static inline sche *get_sche(lua_State *L) {
 	lua_rawget(mL,LUA_REGISTRYINDEX);
 	g_sche = lua_touserdata(mL,-1);
 	lua_pop(mL,1);
-	//show_stack(L);
-	//printf("get_sche e\n");
 	return g_sche;
 }
 
@@ -60,7 +56,8 @@ static int coroutine_new(lua_State *L) {
 		return luaL_error(L,"calloc failed");
 	} else {
 
-		printf("new co %p\n",co);
+		luaL_setmetatable(L, COROUTINE_META);
+
 		sche *g_sche = get_sche(L);
 
 		lua_State *NL = lua_newthread(L);
@@ -70,9 +67,6 @@ static int coroutine_new(lua_State *L) {
 	  	
 		lua_pushvalue(L, -1); /* move userdata to top */
 	  	lua_xmove(L, NL, 1); /* move userdata from L to NL */	
-
-	  	luaL_getmetatable(NL, COROUTINE_META);
-		lua_setmetatable(NL, -2);
 
 		int top = lua_gettop(L) - 1;
 		int i;
@@ -86,8 +80,7 @@ static int coroutine_new(lua_State *L) {
 		co->resume_argcount = top - 1 + 1;
 		push_ready(g_sche,co);
 		
-		luaL_getmetatable(L, COROUTINE_META);
-		lua_setmetatable(L, -2);
+
 
 		lua_pushvalue(L, -1);
 		if(L != g_sche->L) {
@@ -121,13 +114,9 @@ static int coroutine_yield(lua_State *L) {
 
 static int coroutine_running(lua_State *L) {
 	sche *g_sche = get_sche(L);	
-	if(g_sche->running) {
-		lua_pushlightuserdata(L,g_sche->running);
-		printf("running %p,%p,%p\n",g_sche->running,L,g_sche->L);
-		luaL_getmetatable(L, COROUTINE_META);
-		show_stack(L);
-		lua_setmetatable(L, -2);
-		show_stack(L);		
+	if(g_sche->running && g_sche->running->selfIndex != LUA_NOREF) {
+		lua_rawgeti(g_sche->L,LUA_REGISTRYINDEX,g_sche->running->selfIndex);
+		lua_xmove(g_sche->L, L, 1);		
 		return 1;
 	} else {
 		return 0;
@@ -193,7 +182,6 @@ static int coroutine_resume_and_yield(lua_State *L) {
 }
 
 static int coroutine_gc(lua_State *L) {
-	printf("coroutine_gc\n");
 	sche *g_sche = get_sche(L);	
 	//如果g_sche为NULL表示lua_State *L已经关闭所有对象都被gc,下面的代码也就无需执行了。
 	coroutine *co = lua_check_coroutine(L,1);
@@ -212,7 +200,7 @@ static void register_coroutine(lua_State *L) {
 
 	luaL_newmetatable(L, COROUTINE_META);
 	luaL_setfuncs(L, coroutine_mt, 0);
-	lua_setmetatable(L, -2);
+	lua_pop(L, 1);
 
 	lua_pushstring(L,index_g_sche);	
 	sche *g_sche = LUA_NEWUSERDATA(L,sche);

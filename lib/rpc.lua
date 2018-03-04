@@ -76,8 +76,7 @@ local function callMethod(methodName,args,response)
 		    	errmsg = err
 			end,response,table.unpack(args))
 		if nil ~= errmsg then
-			print(string.format("error on callMethod:%s",errmsg))
-			--logger:Log(log.error,string.format("error on callMethod:%s",errmsg))
+			logger:Log(log.error,string.format("error on callMethod:%s",errmsg))
 			sendResponse(response,nil,errmsg)
 		end
 	end

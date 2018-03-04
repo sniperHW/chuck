@@ -80,14 +80,7 @@ function queue:push(msg)
 end
 
 function queue:pop()
-	for k,v in pairs(getmetatable(logger)) do
-		print(k,v)
-	end
 	local current = coroutine.running()
-	print("queue:pop",current,logger)
-	for k,v in pairs(getmetatable(logger)) do
-		print(k,v)
-	end
 	if current == nil then
 		return error("pop must call in coroutine context")
 	end
@@ -280,7 +273,6 @@ function M.running(...)
 end
 
 function M.yield(...)
-	print("yield")
 	assert(coroutine.running(),"yield must call under coroutine context")
 	return coroutine.yield(...)
 end

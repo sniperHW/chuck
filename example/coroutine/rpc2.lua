@@ -11,9 +11,6 @@ local coroutine = require("ccoroutine")
 local redis = require("redis").init(event_loop)
 redis.Connect = coroutine.coroutinize1(redis.Connect)
 
-local stop
-
-
 local pool_server = coroutine.pool(0,100)
 local pool_client = coroutine.pool(0,100)
 
@@ -108,9 +105,6 @@ local function main()
 					for i = 1,10 do
 						pool_client:addTask(function ()
 							while true do
-								if stop then
-									break
-								end
 								local err,result = SyncCall(rpcClient,"hello","hello","world")
 								if err then
 									break
@@ -134,23 +128,6 @@ local function main()
 		count = 0
 	end)
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
-		--[[if not stop then
-			print("sig stop")
-			stop = true
-			local waitGroup = coroutine.waitGroup(2)
-			coroutine.run(function ()
-				pool_server:forceClose(function ()
-					print("pool_server close")
-					waitGroup:add()
-				end)
-				pool_client:forceClose(function ()
-					print("pool_client close")
-					waitGroup:add()
-				end)
-				waitGroup:wait()
-				event_loop:Stop()		
-			end)
-		end]]
 		event_loop:Stop()
 	end)
 	event_loop:Run()

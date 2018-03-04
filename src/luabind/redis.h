@@ -44,8 +44,7 @@ static void PushRedis(chk_luaPushFunctor *_,lua_State *L) {
 		if(luaclient) {
 			luaclient->client = self->c;
 			chk_redis_set_disconnect_cb(self->c,lua_redis_disconnect_cb,chk_ud_make_void(luaclient));
-			luaL_getmetatable(L, REDIS_METATABLE);
-			lua_setmetatable(L, -2);
+			luaL_setmetatable(L, REDIS_METATABLE);
 		}else {
 			chk_redis_close(self->c);   
 			lua_pushnil(L);

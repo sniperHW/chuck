@@ -2,8 +2,6 @@ package.path = './lib/?.lua;'
 package.cpath = './lib/?.so;'
 
 local chuck = require("chuck")
-local log = chuck.log
-logger = log.CreateLogfile("test")
 local socket = chuck.socket
 local buffer = chuck.buffer
 local packet = chuck.packet
@@ -12,24 +10,12 @@ local rpc = require("rpc").init(event_loop)
 local coroutine = require("ccoroutine")
 
 
-local buff = chuck.buffer.New()
-local w = packet.Writer(buff)
-w:WriteI8(1)
-
-
-print("logger",logger,getmetatable(logger),"mt")
-for k,v in pairs(getmetatable(logger)) do
-	print(k,v)
-end
-
 local pool_client = coroutine.pool(0,100)
 
 local count = 0
 local lastShow = chuck.time.systick()
-local stop
 
 rpc.registerMethod("hello",function (response,a,b)
-	logger:Log(log.error,"me ok")
 	response:Return(a .. " " .. b,"sniperHW hahaha")
 	count = count + 1
 end)
@@ -44,7 +30,6 @@ end
 
 --同步调用，只能在coroutine上下文中调用，接到response之后才唤醒阻塞的coroutine
 local function SyncCall(client,func,...)
-	print("SyncCall")
 	local current = coroutine.running()
 	if not current then
 		return error("SyncCall must be call in coroutine context")
@@ -105,18 +90,11 @@ local function main()
 				end
 			end)
 			local rpcClient = rpc.RPCClient(conn)
-			for i = 1,1 do
+			for i = 1,10 do
 				pool_client:addTask(function ()
-					print("task")
-					for k,v in pairs(getmetatable(logger)) do
-						print(k,v)
-					end
 					while true do
-						if stop then
-							break
-						end
 						local err,result = SyncCall(rpcClient,"hello","hello","world")
-						if true then
+						if err then
 							break
 						end
 					end
@@ -133,18 +111,6 @@ local function main()
 	end)
 
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
-		--[[if not stop then
-			stop = true
-			local waitGroup = coroutine.waitGroup(1)
-			coroutine.run(function ()
-				pool_client:forceClose(function ()
-					print("pool_client close")
-					waitGroup:add()
-				end)
-				waitGroup:wait()
-				event_loop:Stop()		
-			end)
-		end]]
 		event_loop:Stop()
 	end)
 
@@ -153,8 +119,4 @@ end
 
 main()
 
-print("logger",logger,getmetatable(logger),"mt")
-for k,v in pairs(getmetatable(logger)) do
-	print(k,v)
-end
 
