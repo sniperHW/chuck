@@ -9,11 +9,11 @@ local event_loop = chuck.event_loop.New()
 local rpc = require("rpc").init(event_loop)
 local coroutine = require("ccoroutine")
 
-local pool_server = coroutine.pool(0,10)
 local pool_client = coroutine.pool(0,100)
 
 local count = 0
 local lastShow = chuck.time.systick()
+local stop
 
 rpc.registerMethod("hello",function (response,a,b)
 	response:Return(a .. " " .. b,"sniperHW hahaha")
@@ -59,19 +59,20 @@ local function main()
 		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 		if conn then
 			conn:Start(event_loop,function (data)
+				if stop then
+					conn:Close()
+					return
+				end
 				if data then
 					local reader = packet.Reader(data)
 					rpc.OnRPCMsg(conn,reader:ReadStr())
-					pool_server:addTask(function ()
-						rpc.OnRPCMsg(conn,reader:ReadStr())
-					end)
 				else
 					conn:Close()
 				end
 			end)
 		end
 	end)
-	
+
 	socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 		if errCode then
 			print("connect error:" .. errCode)
@@ -92,6 +93,9 @@ local function main()
 			for i = 1,1 do
 				pool_client:addTask(function ()
 					while true do
+						if stop then
+							break
+						end
 						local err,result = SyncCall(rpcClient,"hello","hello","world")
 						if err then
 							break
@@ -108,9 +112,22 @@ local function main()
 		print(string.format("count:%.0f/s elapse:%d",count*1000/delta,delta))
 		count = 0
 	end)
+
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
-		event_loop:Stop()
+		if not stop then
+			stop = true
+			local waitGroup = coroutine.waitGroup(1)
+			coroutine.run(function ()
+				pool_client:forceClose(function ()
+					print("pool_client close")
+					waitGroup:add()
+				end)
+				waitGroup:wait()
+				event_loop:Stop()		
+			end)
+		end
 	end)
+
 	event_loop:Run()
 end
 

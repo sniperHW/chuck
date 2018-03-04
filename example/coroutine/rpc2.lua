@@ -11,9 +11,10 @@ local coroutine = require("ccoroutine")
 local redis = require("redis").init(event_loop)
 redis.Connect = coroutine.coroutinize1(redis.Connect)
 
+local stop
 
 
-local pool_server = coroutine.pool(0,10)
+local pool_server = coroutine.pool(0,100)
 local pool_client = coroutine.pool(0,100)
 
 local count = 0
@@ -21,9 +22,7 @@ local lastShow = chuck.time.systick()
 local redisExecute
 
 rpc.registerMethod("hello",function (response,a,b)
-	print("on request")
 	redisExecute("get","hw")
-	print("on redis response")
 	response:Return(a .. " " .. b,"sniperHW hahaha")
 	count = count + 1
 end)
@@ -42,9 +41,8 @@ local function SyncCall(client,func,...)
 	if not current then
 		return error("SyncCall must be call in coroutine context")
 	end
-	local err = client:Call(func,function (...)
-		print("on response")
-		coroutine.resume(current, ...)
+	local err = client:Call(func,function (err,result)
+		coroutine.resume(current, err,result)
 	end,...)
 	if err then
 		return err
@@ -73,9 +71,12 @@ local function main()
 				local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
 				if conn then
 					conn:Start(event_loop,function (data)
+						if stop then
+							conn:Close()
+							return
+						end
 						if data then
 							local reader = packet.Reader(data)
-							rpc.OnRPCMsg(conn,reader:ReadStr())
 							pool_server:addTask(function ()
 								rpc.OnRPCMsg(conn,reader:ReadStr())
 							end)
@@ -104,10 +105,12 @@ local function main()
 						end
 					end)
 					local rpcClient = rpc.RPCClient(conn)
-					for i = 1,1 do
+					for i = 1,10 do
 						pool_client:addTask(function ()
 							while true do
-								print("call")
+								if stop then
+									break
+								end
 								local err,result = SyncCall(rpcClient,"hello","hello","world")
 								if err then
 									break
@@ -131,9 +134,26 @@ local function main()
 		count = 0
 	end)
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
-		event_loop:Stop()
+		if not stop then
+			print("sig stop")
+			stop = true
+			local waitGroup = coroutine.waitGroup(2)
+			coroutine.run(function ()
+				pool_server:forceClose(function ()
+					print("pool_server close")
+					waitGroup:add()
+				end)
+				pool_client:forceClose(function ()
+					print("pool_client close")
+					waitGroup:add()
+				end)
+				waitGroup:wait()
+				event_loop:Stop()		
+			end)
+		end
 	end)
 	event_loop:Run()
+	print("loop end")
 end
 
 main()

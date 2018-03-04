@@ -113,7 +113,7 @@ static int coroutine_yield(lua_State *L) {
 	if(g_sche->running) {
 		lua_yield(L,0);
 	} else {
-		luaL_error(L,"yield must call under coroutine");
+		return luaL_error(L,"yield must call under coroutine");
 	}
 	return 0;
 }
@@ -213,7 +213,6 @@ static int coroutine_newindex(lua_State *L) {
 }
 
 static int coroutine_gc(lua_State *L) {
-	printf("coroutine_gc\n");
 	sche *g_sche = get_sche(L);	
 	//如果g_sche为NULL表示lua_State *L已经关闭所有对象都被gc,下面的代码也就无需执行了。
 	coroutine *co = lua_check_coroutine(L,1);

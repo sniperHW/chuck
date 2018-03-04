@@ -143,7 +143,6 @@ local function pool_new_coroutine(self,count)
 	self.startCount = self.startCount + count
 	for i = 1,count do
 		M.run(function ()
-			print("pool coroutine start")
 			self.count = self.count + 1
 			self.startCount = self.startCount - 1
 			while true do
@@ -156,7 +155,6 @@ local function pool_new_coroutine(self,count)
 			end
 			self.count = self.count - 1
 			self.waitGroup:add()
-			print("pool coroutine end")
 		end)
 	end
 end
@@ -275,6 +273,7 @@ function M.running(...)
 end
 
 function M.yield(...)
+	assert(coroutine.running(),"yield must call under coroutine context")
 	return coroutine.yield(...)
 end
 
@@ -319,13 +318,14 @@ end
 
 --将obj.func(...,callback)形式的函数coroutine化
 function M.bindcoroutinize1(obj,f)
+	local o = obj
 	local ff = function (...)
 		local fff = function (current,...)	
 			local param = table.pack(...)
 			table.insert(param,function (...)              
 	            coroutine.resume(current, ...) 			
 			end)
-			f(obj,table.unpack(param))
+			f(o,table.unpack(param))
 			return coroutine.yield()
 		end
 		return fff(coroutine.running(),...)
@@ -337,9 +337,10 @@ local count = 0
 
 --将obj.func(callback,...)形式的函数coroutine化
 function M.bindcoroutinize2(obj,f)
+	local o = obj
 	local ff = function (...)
 		local fff = function (current,...)	
-			f(obj,function (...)                
+			f(o,function (...)                
 	            coroutine.resume(current, ...) 			
 			end,...)
 			return coroutine.yield()
