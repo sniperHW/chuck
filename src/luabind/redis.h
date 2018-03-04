@@ -199,30 +199,6 @@ static int32_t lua_redis_execute(lua_State *L) {
 	return _lua_redis_execute(chk_redis_execute_lua,L);
 }
 
-/*static int32_t lua_redis_delay_execute(lua_State *L) {
-	return _lua_redis_execute(chk_redis_execute_delay_lua,L);
-}
-
-static int32_t lua_redis_flush(lua_State *L) {
-	lua_redis_client *client = lua_checkredisclient(L,1);
-
-	if(!client) {
-		lua_pushstring(L,"invaild client");
-		return 1;
-	}
-
-	if(!client->client) {
-		lua_pushstring(L,"connection loss");
-		return 1;
-	}
-
-	if(0 != chk_redis_flush(client->client)) {
-		lua_pushstring(L,"redis_fulsh error");
-		return 1;
-	}
-	return 0;	
-}*/
-
 static int32_t lua_redis_on_connection_loss(lua_State *L) {
 	lua_redis_client *client = lua_checkredisclient(L,1);
 	if(!client) {
