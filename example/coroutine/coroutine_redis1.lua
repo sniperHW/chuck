@@ -33,11 +33,9 @@ end)
 timer = event_loop:AddTimer(1000,function ()
 	local now = chuck.time.systick()
 	local delta = now - lastShow
-	if delta >= 1000 then
-		lastShow = now
-		print(string.format("count:%.0f/s elapse:%d",count*1000/delta,delta))
-		count = 0
-	end
+	lastShow = now
+	print(string.format("count:%.0f/s elapse:%d",count*1000/delta,delta))
+	count = 0
 end)
 
 event_loop:WatchSignal(chuck.signal.SIGINT,function()

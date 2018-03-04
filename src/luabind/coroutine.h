@@ -18,15 +18,9 @@ typedef struct sche{
 	coroutine *running;   //当前正在运行的coroutine
 }sche;
 
-//static sche *g_sche;   //每个虚拟机一个单独的sche
-//int g_sche_index;
-
-
-
 
 #define COROUTINE_META      "coroutine_mt"
 #define lua_check_coroutine(L,I) (coroutine*)luaL_checkudata(L,I,COROUTINE_META)
-
 
 const char *index_g_sche = "chuck.g_sche";
 
@@ -219,6 +213,7 @@ static int coroutine_newindex(lua_State *L) {
 }
 
 static int coroutine_gc(lua_State *L) {
+	printf("coroutine_gc\n");
 	sche *g_sche = get_sche(L);	
 	//如果g_sche为NULL表示lua_State *L已经关闭所有对象都被gc,下面的代码也就无需执行了。
 	coroutine *co = lua_check_coroutine(L,1);
