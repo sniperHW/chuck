@@ -35,12 +35,12 @@ typedef struct _idle {
 
 	struct chk_event_loop{
 		_chk_loop;
-		int    tfd;		
+		//int    tfd;		
 		int32_t kfd;
 		struct kevent* events;
 		int    maxevents;
 		//for timer
-	   	struct kevent change;	
+	   	//struct kevent change;	
 	};
 
 #else

@@ -9,6 +9,7 @@ typedef struct {
 	(lua_redis_client*)luaL_checkudata(L,I,REDIS_METATABLE)
 
 static int32_t lua_redisclient_gc(lua_State *L) {
+	printf("lua_redisclient_gc\n");
 	lua_redis_client *client = lua_checkredisclient(L,1);
 	if(client->client) {
 		chk_redis_close(client->client);

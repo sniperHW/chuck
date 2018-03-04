@@ -134,7 +134,7 @@ local function main()
 		count = 0
 	end)
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
-		if not stop then
+		--[[if not stop then
 			print("sig stop")
 			stop = true
 			local waitGroup = coroutine.waitGroup(2)
@@ -150,7 +150,8 @@ local function main()
 				waitGroup:wait()
 				event_loop:Stop()		
 			end)
-		end
+		end]]
+		event_loop:Stop()
 	end)
 	event_loop:Run()
 	print("loop end")

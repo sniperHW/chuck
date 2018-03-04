@@ -19,8 +19,9 @@ coroutine.run(function (self)
 		for i = 1,100 do
 			coroutine.run(function ()
 				while true do
-					local result = Execute("get","hw")
-					if not result then
+					local result,err = Execute("get","hw")
+					if err then
+						print(err)
 						return
 					end
 					count = count + 1

@@ -26,10 +26,10 @@ const char *stack_value_tostr(lua_State *L,int index) {
 			snprintf(buff,1023,"nil");
 		}break;
 		case LUA_TUSERDATA:{
-			snprintf(buff,1023,"userdata");
+			snprintf(buff,1023,"userdata:%p",lua_touserdata(L,index));
 		}break;
 		case LUA_TLIGHTUSERDATA:{
-			snprintf(buff,1023,"lightuserdata");
+			snprintf(buff,1023,"lightuserdata:%p",lua_touserdata(L,index));
 		}break;
 		case LUA_TNUMBER:{
 			lua_Number v = lua_tonumber(L,index);
@@ -44,7 +44,7 @@ const char *stack_value_tostr(lua_State *L,int index) {
 			snprintf(buff,1023,"%s",b == 1 ? "true":"false");
 		}break;
 		case LUA_TTABLE:{
-			snprintf(buff,1023,"table");
+			snprintf(buff,1023,"table:%p",lua_topointer(L,index));
 		}break;
 		case LUA_TTHREAD:{
 			snprintf(buff,1023,"thread");

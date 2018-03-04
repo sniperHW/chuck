@@ -6,7 +6,6 @@ typedef struct coroutine {
 	struct coroutine *prev;
 	struct coroutine *next;
 	int    coIndex;     //用于持有thread的索引，防止被GC
-	int    table; 
 	int    selfIndex;	
 	int    resume_argcount;
 }coroutine;
@@ -25,6 +24,8 @@ typedef struct sche{
 const char *index_g_sche = "chuck.g_sche";
 
 static inline sche *get_sche(lua_State *L) {
+	//printf("get_sche b\n");
+	//show_stack(L);
 	sche *g_sche = NULL;
 	lua_State *mL = NULL;		
 	lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
@@ -34,6 +35,8 @@ static inline sche *get_sche(lua_State *L) {
 	lua_rawget(mL,LUA_REGISTRYINDEX);
 	g_sche = lua_touserdata(mL,-1);
 	lua_pop(mL,1);
+	//show_stack(L);
+	//printf("get_sche e\n");
 	return g_sche;
 }
 
@@ -57,6 +60,7 @@ static int coroutine_new(lua_State *L) {
 		return luaL_error(L,"calloc failed");
 	} else {
 
+		printf("new co %p\n",co);
 		sche *g_sche = get_sche(L);
 
 		lua_State *NL = lua_newthread(L);
@@ -81,9 +85,6 @@ static int coroutine_new(lua_State *L) {
 		co->coIndex = index;
 		co->resume_argcount = top - 1 + 1;
 		push_ready(g_sche,co);
-
-		lua_newtable(g_sche->L);
-		co->table = luaL_ref(g_sche->L,LUA_REGISTRYINDEX);
 		
 		luaL_getmetatable(L, COROUTINE_META);
 		lua_setmetatable(L, -2);
@@ -122,8 +123,11 @@ static int coroutine_running(lua_State *L) {
 	sche *g_sche = get_sche(L);	
 	if(g_sche->running) {
 		lua_pushlightuserdata(L,g_sche->running);
+		printf("running %p,%p,%p\n",g_sche->running,L,g_sche->L);
 		luaL_getmetatable(L, COROUTINE_META);
-		lua_setmetatable(L, -2);		
+		show_stack(L);
+		lua_setmetatable(L, -2);
+		show_stack(L);		
 		return 1;
 	} else {
 		return 0;
@@ -136,6 +140,7 @@ static int resume_coroutine(sche *g_sche,coroutine *co) {
 	if(ret != LUA_YIELD) {
 		//线程函数结束，coroutine可以被gc,释放对自身的引用
 		luaL_unref(g_sche->L,LUA_REGISTRYINDEX,co->selfIndex);
+		co->selfIndex = LUA_NOREF;
 		if(ret != LUA_OK) {
 			printf("resume %s %d\n",lua_tostring(co->L,-1),ret);
 		}
@@ -187,37 +192,14 @@ static int coroutine_resume_and_yield(lua_State *L) {
 	return 0;
 }
 
-static int coroutine_index(lua_State *L) {
-	sche *g_sche = get_sche(L);	
-	coroutine *co = lua_check_coroutine(L,1);
-	lua_rawgeti(g_sche->L,LUA_REGISTRYINDEX,co->table);
-	if(g_sche->L != L) {
-		lua_xmove(g_sche->L,L,1);// move table
-	}
-	lua_rotate(L,-2,1);
-	lua_rawget(L,-2);	
-	return 1;
-}
-
-static int coroutine_newindex(lua_State *L) {
-	sche *g_sche = get_sche(L);	
-	coroutine *co = lua_check_coroutine(L,1);
-	lua_rawgeti(g_sche->L,LUA_REGISTRYINDEX,co->table);
-	if(g_sche->L != L) {
-		lua_xmove(g_sche->L,L,1);// move table
-	} 
-	lua_rotate(L,-3,2);
-	lua_rotate(L,-3,2);
-	lua_rawset(L,-3);	
-	return 0;
-}
-
 static int coroutine_gc(lua_State *L) {
+	printf("coroutine_gc\n");
 	sche *g_sche = get_sche(L);	
 	//如果g_sche为NULL表示lua_State *L已经关闭所有对象都被gc,下面的代码也就无需执行了。
 	coroutine *co = lua_check_coroutine(L,1);
-	luaL_unref(g_sche->L,LUA_REGISTRYINDEX,co->coIndex);
-	luaL_unref(g_sche->L,LUA_REGISTRYINDEX,co->table);
+	if(co->coIndex != LUA_NOREF) {
+		luaL_unref(g_sche->L,LUA_REGISTRYINDEX,co->coIndex);
+	}
 	return 0;
 }
 
@@ -225,11 +207,8 @@ static void register_coroutine(lua_State *L) {
 
 	luaL_Reg coroutine_mt[] = {
 		{"__gc",coroutine_gc},
-		{"__index",coroutine_index},
-		{"__newindex",coroutine_newindex},
 		{NULL, NULL}
 	};
-
 
 	luaL_newmetatable(L, COROUTINE_META);
 	luaL_setfuncs(L, coroutine_mt, 0);

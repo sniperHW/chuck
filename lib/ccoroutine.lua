@@ -80,7 +80,14 @@ function queue:push(msg)
 end
 
 function queue:pop()
+	for k,v in pairs(getmetatable(logger)) do
+		print(k,v)
+	end
 	local current = coroutine.running()
+	print("queue:pop",current,logger)
+	for k,v in pairs(getmetatable(logger)) do
+		print(k,v)
+	end
 	if current == nil then
 		return error("pop must call in coroutine context")
 	end
@@ -142,7 +149,7 @@ pool.__index = pool
 local function pool_new_coroutine(self,count)
 	self.startCount = self.startCount + count
 	for i = 1,count do
-		M.run(function ()
+		M.run(function (co)
 			self.count = self.count + 1
 			self.startCount = self.startCount - 1
 			while true do
@@ -273,6 +280,7 @@ function M.running(...)
 end
 
 function M.yield(...)
+	print("yield")
 	assert(coroutine.running(),"yield must call under coroutine context")
 	return coroutine.yield(...)
 end
