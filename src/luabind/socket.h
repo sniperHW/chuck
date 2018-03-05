@@ -19,6 +19,10 @@ typedef struct {
 	chk_luaRef cb;
 }lua_stream_socket;
 
+typedef struct {
+	SSL_CTX *ctx;
+}lua_SSL_CTX;
+
 #define lua_checkacceptor(L,I)	\
 	(lua_acceptor*)luaL_checkudata(L,I,ACCEPTOR_METATABLE)
 
@@ -26,7 +30,7 @@ typedef struct {
 	(lua_stream_socket*)luaL_checkudata(L,I,STREAM_SOCKET_METATABLE)
 
 #define lua_check_ssl_ctx(L,I)	\
-	(SSL_CTX*)luaL_checkudata(L,I,SSL_CTX_METATABLE)
+	(lua_SSL_CTX*)luaL_checkudata(L,I,SSL_CTX_METATABLE)
 
 #define lua_check_sockaddr(L,I) \
 	(chk_sockaddr*)luaL_checkudata(L,I,SOCK_ADDR_METATABLE)
@@ -81,10 +85,15 @@ static int32_t lua_listen_ip4_ssl(lua_State *L) {
 	chk_acceptor   *acceptor;
 	chk_luaRef      accept_cb;
 	chk_sockaddr    server;
-	SSL_CTX        *ssl_ctx;
+	lua_SSL_CTX        *ssl_ctx;
 
 	event_loop = lua_checkeventloop(L,1);
 	ssl_ctx = lua_check_ssl_ctx(L,2);
+
+	if(!ssl_ctx->ctx) {
+		return luaL_error(L,"invaild ssl_ctx");
+	}
+
 	ip = luaL_checkstring(L,3);
 	port = (int16_t)luaL_checkinteger(L,4);
 
@@ -98,7 +107,9 @@ static int32_t lua_listen_ip4_ssl(lua_State *L) {
 
 	accept_cb = chk_toluaRef(L,5);
 
-	acceptor = chk_ssl_listen(event_loop,&server,ssl_ctx,lua_acceptor_cb,chk_ud_make_lr(accept_cb));
+	acceptor = chk_ssl_listen(event_loop,&server,ssl_ctx->ctx,lua_acceptor_cb,chk_ud_make_lr(accept_cb));
+
+	ssl_ctx->ctx = NULL;
 
 	if(!acceptor) {
 		chk_luaRef_release(&accept_cb);

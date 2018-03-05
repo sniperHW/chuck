@@ -1,7 +1,11 @@
 #define LOGFILE_METATABLE "lua_logfile"
 
+typedef struct {
+	chk_logfile *log;
+}lua_log_file;
+
 #define lua_checklogfile(L,I)	\
-	(chk_logfile*)luaL_checkudata(L,I,LOGFILE_METATABLE)
+	(lua_log_file*)luaL_checkudata(L,I,LOGFILE_METATABLE)
 
 
 static int32_t lua_create_logfile(lua_State *L) {
@@ -12,24 +16,39 @@ static int32_t lua_create_logfile(lua_State *L) {
 		return luaL_error(L,"arg 1 of create_logfile is not a string");		
 	}
 
-	chk_logfile *logfile = chk_create_logfile(filename);
+	lua_log_file *lua_log = LUA_NEWUSERDATA(L,lua_log_file);
+
+	if(!lua_log) {
+		CHK_SYSLOG(LOG_ERROR,"newuserdata() failed");
+		return 0;
+	}
+
+	lua_log->log = chk_create_logfile(filename);
 	
-	if(!logfile) { 
+	if(!lua_log->log) { 
 		CHK_SYSLOG(LOG_ERROR,"chk_create_logfile() failed");		
 		return 0;
 	}
 
-	lua_pushlightuserdata(L,logfile);
-	luaL_getmetatable(L, LOGFILE_METATABLE);
-	lua_setmetatable(L, -2);	
+	luaL_setmetatable(L, LOGFILE_METATABLE);	
 	return 1;	
+}
+
+static int32_t lua_logfile_gc(lua_State *L) {
+	lua_log_file *logfile = lua_checklogfile(L,1);
+	logfile->log = NULL;
+	return 0;
 }
 
 static int32_t lua_write_log(lua_State *L) {
 	int32_t size;
 	char *buff;
 	const char *str;	
-	chk_logfile *logfile = lua_checklogfile(L,1);
+	lua_log_file *logfile = lua_checklogfile(L,1);
+
+	if(!logfile->log) {
+		return 0;
+	}
 
 	int32_t loglev = luaL_checkinteger(L,2);
 	if(loglev >= chk_current_loglev()) {
@@ -43,7 +62,7 @@ static int32_t lua_write_log(lua_State *L) {
 
         size = chk_log_prefix(buff,loglev);
         snprintf(&buff[size],CHK_MAX_LOG_SIZE-size-1,"%s",str);	
-		chk_log(logfile,loglev,buff);
+		chk_log(logfile->log,loglev,buff);
 	}
 	return 0;
 }
@@ -82,12 +101,19 @@ static int32_t lua_set_log_dir(lua_State *L) {
 }
 
 static void register_log(lua_State *L) {
+
+	luaL_Reg logfile_mt[] = {
+		{"__gc", lua_logfile_gc},
+		{NULL, NULL}
+	};
+
 	luaL_Reg logfile_methods[] = {
 		{"Log",    lua_write_log},
 		{NULL,     NULL}
 	};	
 
 	luaL_newmetatable(L, LOGFILE_METATABLE);
+	luaL_setfuncs(L, logfile_mt, 0);
 
 	luaL_newlib(L, logfile_methods);
 	lua_setfield(L, -2, "__index");

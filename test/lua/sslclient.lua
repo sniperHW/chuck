@@ -34,7 +34,7 @@ socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 
 		conn:Start(event_loop,function (data)
 			if data then 
-				print("got response")
+				print("got response",data:Content())
 				conn:Close()
 			else
 				print("client disconnected") 
