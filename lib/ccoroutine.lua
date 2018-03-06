@@ -1,6 +1,5 @@
 local chuck = require("chuck")
 local fifo  = require("fifo")
-local util  = require("util")
 
 local coroutine = chuck.coroutine
 

@@ -1,12 +1,12 @@
 package.path = './lib/?.lua;'
 
-local util = require("util")
+local utility = require("utility")
 
-print(util.pcall(function ()
+print(utility.pcall(function ()
 	return 1,2
 end))
 
-print(util.pcall(function ()
+print(utility.pcall(function ()
 	a.a = 1 
 	return 1,2
 end))
