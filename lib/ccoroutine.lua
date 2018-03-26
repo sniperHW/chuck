@@ -10,12 +10,11 @@ local M = {}
 local waitGroup = {}
 waitGroup.__index = waitGroup
 
-function M.waitGroup(waitCount)
-	waitCount = waitCount or 0
+function M.waitGroup()
 	local o = {}
 	o = setmetatable(o,waitGroup)
 	o.counter = 0
-	o.waitCount = waitCount
+	o.waitCount = 0
 	o.waits = {}
 	return o
 end
@@ -36,18 +35,18 @@ function waitGroup:count()
 	return self.counter
 end
 
-function waitGroup:addWaitCount()
-	self.waitCount = self.waitCount + 1
-end
-
-function waitGroup:add()
+function waitGroup:done()
 	self.counter = self.counter + 1
 	if self.counter >= self.waitCount then
 		for k,v in pairs(self.waits) do
 			coroutine.resume(v)
 		end
 		self.waits = {}
-	end
+	end	
+end
+
+function waitGroup:add()
+	self.waitCount = self.waitCount + 1
 end
 
 local queue = {}
@@ -141,6 +140,7 @@ pool.__index = pool
 local function pool_new_coroutine(self,count)
 	self.startCount = self.startCount + count
 	for i = 1,count do
+		self.waitGroup:add()
 		M.run(function (co)
 			self.count = self.count + 1
 			self.startCount = self.startCount - 1
@@ -153,7 +153,7 @@ local function pool_new_coroutine(self,count)
 				end
 			end
 			self.count = self.count - 1
-			self.waitGroup:add()
+			self.waitGroup:done()
 		end)
 	end
 end
@@ -169,7 +169,7 @@ function M.pool(initCount,maxCount)
 	o.count = 0   		--已经进入主函数的coroutine数量
 	o.startCount = 0    --已经创建，但尚未进入主函数的coroutine数量
 	o.taskQueue = M.queue()
-	o.waitGroup = M.waitGroup(initCount)
+	o.waitGroup = M.waitGroup()
 	pool_new_coroutine(o,initCount)
 	return o
 end
@@ -180,7 +180,6 @@ function pool:addTask(task)
 		local taskQueue = self.taskQueue
 		if not taskQueue:isClosed() then
 			if taskQueue.waits:empty() and self.startCount + self.count < self.maxCount then
-				self.waitGroup:addWaitCount()
 				pool_new_coroutine(self,1)
 			end
 			taskQueue:push(task)

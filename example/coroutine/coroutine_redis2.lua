@@ -46,12 +46,13 @@ coroutine.run(function (self)
 		end
 
 		--启动11个coroutine并发执行11个请求，利用waitGroup等待结果
-		local waitGroup = coroutine.waitGroup(11)
+		local waitGroup = coroutine.waitGroup()
 		for i = 1,11 do
+			waitGroup:add()
 			coroutine.run(function()
 				local result = Execute("get","hw" .. i)
 				ret[i] = result
-				waitGroup:add()
+				waitGroup:done()
 			end)
 		end
 

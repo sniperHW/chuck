@@ -3,12 +3,13 @@ package.cpath = './lib/?.so;'
 
 local coroutine = require("ccoroutine")
 
-local waitGroup = coroutine.waitGroup(10)
+local waitGroup = coroutine.waitGroup()
 
 for i = 1,10 do
+	waitGroup:add()
 	coroutine.run(function (self,name)
-		waitGroup:add()
 		print(name,"finish")
+		waitGroup:done()
 	end,i)
 end
 
@@ -20,12 +21,13 @@ coroutine.run(function ()
 end)
 
 
-waitGroup = coroutine.waitGroup(10)
+waitGroup = coroutine.waitGroup()
 
 for i = 1,10 do
+	waitGroup:add()
 	coroutine.create(function (self,name)
-		waitGroup:add()
 		print(name,"finish")
+		waitGroup:done()
 	end,i)
 end
 
