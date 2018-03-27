@@ -131,7 +131,7 @@ static int resume_coroutine(sche *g_sche,coroutine *co) {
 		luaL_unref(g_sche->L,LUA_REGISTRYINDEX,co->selfIndex);
 		co->selfIndex = LUA_NOREF;
 		if(ret != LUA_OK) {
-			printf("resume %s %d\n",lua_tostring(co->L,-1),ret);
+			CHK_SYSLOG(LOG_ERROR,"resume_coroutine error:%s",lua_tostring(co->L,-1));
 		}
 	}
 	return 0;
