@@ -67,8 +67,6 @@ local function main()
 		end
 	end 
 
-	local timer
-
 	socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
 		if errCode then
 			print("connect error:" .. errCode)
@@ -92,7 +90,7 @@ local function main()
 			end)
 
 			local rpcClient = rpc.RPCClient(conn)
-			timer = event_loop:AddTimer(1000,function ()
+			event_loop:AddTimer(1000,function ()
 				--发起RPC调用
 				local err = rpcClient:Call("hello",rpcCallBack,"hello","world")
 				if err then

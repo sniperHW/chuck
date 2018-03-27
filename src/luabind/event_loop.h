@@ -57,35 +57,42 @@ static int32_t lua_event_loop_end(lua_State *L) {
 	return 0;
 }
 
-static int32_t lua_event_loop_addtimer(lua_State *L) {
+
+static int32_t _register_timer(lua_State *L,int type) {
 	uint32_t       	ms;
 	lua_timer      *luatimer;
-	chk_luaRef      cb;
 	chk_event_loop *event_loop = lua_checkeventloop(L,1);
 	ms = (uint32_t)luaL_optinteger(L,2,1);
 	if(!lua_isfunction(L,3)) {
 		CHK_SYSLOG(LOG_ERROR,"argument 3 of event_loop_addtimer must be lua function");		
 		return luaL_error(L,"argument 3 of event_loop_addtimer must be lua function"); 
 	}
-	cb = chk_toluaRef(L,3);
 
 	luatimer = LUA_NEWUSERDATA(L,lua_timer);
 	if(!luatimer) {
 		CHK_SYSLOG(LOG_ERROR,"LUA_NEWUSERDATA() failed");
 		return 0;
 	}
-	luatimer->timer = chk_loop_addtimer(event_loop,ms,lua_timeout_cb,chk_ud_make_lr(cb));
-
-	if(luatimer->timer)
+	if(NULL != (luatimer->timer = chk_loop_addtimer(event_loop,ms,lua_timeout_cb,chk_ud_make_void((void*)luatimer)))){
+		luatimer->type = type;
+		luatimer->cb = chk_toluaRef(L,3);
+		luatimer->self = chk_toluaRef(L,-1);
 		chk_timer_set_ud_cleaner(luatimer->timer,timer_ud_cleaner);
-	else {
-		chk_luaRef_release(&cb);
+	} else {
 		CHK_SYSLOG(LOG_ERROR,"chk_loop_addtimer() failed");
 		return 0;
 	}
 	luaL_getmetatable(L, TIMER_METATABLE);
 	lua_setmetatable(L, -2);	
 	return 1;
+}
+
+static int32_t lua_event_loop_addtimer(lua_State *L) {
+	return _register_timer(L,timer_repeat);
+}
+
+static int32_t lua_event_loop_oncetimer(lua_State *L) {
+	return _register_timer(L,timer_once);
 }
 
 static int32_t lua_event_loop_set_idle(lua_State *L) {
@@ -169,6 +176,7 @@ static void register_event_loop(lua_State *L) {
 		{"Run",    	     lua_event_loop_run},
 		{"Stop",         lua_event_loop_end},
 		{"AddTimer",     lua_event_loop_addtimer},
+		{"AddTimerOnce", lua_event_loop_oncetimer},
 		{"SetIdle",      lua_event_loop_set_idle},
 		{NULL,     NULL}
 	};

@@ -134,8 +134,10 @@ void register_signum(lua_State *L) {
 int32_t luaopen_chuck(lua_State *L)
 {
 	signal(SIGPIPE,SIG_IGN);
+	
+	register_timer(L);
 	lua_newtable(L);
-	REGISTER_MODULE(L,"timer",register_timer);
+	//REGISTER_MODULE(L,"timer",register_timer);
 	REGISTER_MODULE(L,"event_loop",register_event_loop);
 	REGISTER_MODULE(L,"socket",register_socket);
 	REGISTER_MODULE(L,"redis",register_redis);

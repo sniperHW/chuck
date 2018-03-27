@@ -126,7 +126,7 @@ local function run()
 		event_loop:Stop()
 	end)
 
-	timer = event_loop:AddTimer(1000,function ()
+	event_loop:AddTimer(1000,function ()
 		collectgarbage("collect")
 	end)
 
