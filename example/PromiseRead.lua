@@ -77,6 +77,10 @@ if server then
 		end)
 	end
 
+	event_loop:AddTimer(1000,function ()
+		collectgarbage("collect")
+	end)
+
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
 		event_loop:Stop()
 	end)	

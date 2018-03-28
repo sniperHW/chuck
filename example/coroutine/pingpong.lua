@@ -22,7 +22,7 @@ local function startServer()
 	local bytes = 0
 	local lastShow = chuck.time.systick()
 
-	server = CoroSocket.ListenIP4("0.0.0.0",8010,function(socket,err)
+	server = CoroSocket.ListenIP4("127.0.0.1",8010,function(socket,err)
 		if socket then
 			client_count = client_count + 1
 			while true do
