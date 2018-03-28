@@ -10,27 +10,51 @@ function M.init(event_loop)
 	return M
 end
 
-local PromiseConnection = {}
+local PromiseSocket = {}
 
-PromiseConnection.__index = PromiseConnection
+PromiseSocket.__index = PromiseSocket
 
-local function newPromiseConnection(fd)
+function PromiseSocket.new(fd)
 	local c = {}
 	c.conn = socket.stream.New(fd,65536)
-	c = setmetatable(c, PromiseConnection)
+	c = setmetatable(c, PromiseSocket)
 	c.buff = chuck.buffer.New(1024)
+
+	c.conn:SetCloseCallBack(function ()
+		while c.promise do
+			local p = c.promise
+			if p.timer then
+				p.timer:UnRegister()
+			end
+			p.reject("disconnected")
+			c.promise = p.next
+		end
+		c.promiseTail = nil
+
+		if c.onClose then
+			c.onClose()
+		end
+	end)
+
+
 	c.conn:Start(M.event_loop,function (data,err)
 		if data then
 			c.buff:AppendStr(data:Content())
 			while c.promise do
-				if c.promise.process(c.buff) then
-					c.promise = promise.next
+				local p = c.promise
+				if p.process(c.buff) then
+					c.promise = p.next
 					if c.promise == nil then
 						c.promiseTail = nil
 					end					
 				else
 					break
 				end
+			end
+			if c.buff:Size() > 512*1024 then
+				--接收太快,暫時停止接收
+				c.conn:PauseRead()
+				c.needResume = true
 			end
 		else
 			c:Close(err)
@@ -48,19 +72,14 @@ local function addPromise(conn,promise)
 	conn.promiseTail = promise
 end
 
-function PromiseConnection:Close(delay)
+function PromiseSocket:Close(delay)
 	if self.conn then
 		self.conn:Close(delay)
 		self.conn = nil
-		while self.promise do
-			self.promise.reject("disconnected")
-			self.promise = self.promise.next
-		end
-		self.promiseTail = nil
 	end
 end
 
-function PromiseConnection:Send(msg)
+function PromiseSocket:Send(msg)
 	if self.conn == nil then
 		return "invaild connection"
 	elseif type(msg) ~= "string" then
@@ -70,13 +89,41 @@ function PromiseConnection:Send(msg)
 	end
 end
 
-function PromiseConnection:SetCloseCallBack(cb)
+function PromiseSocket:OnClose(cb)
 	if self.conn and cb then
-		self.conn:SetCloseCallBack(cb)
+		self.onClose = cb
 	end
 end
 
-function PromiseConnection:Recv(byteCount)
+local function onRecvTimeout(c,readPromise)
+	local pre = nil
+	local cur = c.promise
+	while cur do
+		if cur == readPromise then
+			if pre == nil then
+				--首元素
+				c.promise = cur.next
+				if c.promise == nil then
+					c.promiseTail = nil
+				end
+			else
+				pre.next = cur.next
+				if c.promiseTail == cur then
+					--尾元素
+					c.promiseTail = pre
+				end
+			end
+			cur.next = nil
+			cur.reject("timeout")
+			break
+		else
+			pre = cur
+			cur = cur.next
+		end
+	end
+end
+
+function PromiseSocket:Recv(byteCount,timeout)
 	return promise.new(function(resolve,reject)
 		  if nil == self.conn then
 		  	reject("invaild connection")	
@@ -85,6 +132,10 @@ function PromiseConnection:Recv(byteCount)
 		  	readPromise.process = function (buff)
 		  		local msg = buff:Read(byteCount)
 		  		if msg then
+		  			if self.needResume then
+						self.needResume = false
+						self.conn:ResumeRead()
+					end	
 		  			resolve(msg)
 		  			return true
 		  		else
@@ -99,12 +150,19 @@ function PromiseConnection:Recv(byteCount)
 		  			reject(err)
 		  		end
 		  		addPromise(self,readPromise)
+
+				if timeout then
+					readPromise.timer = M.event_loop:AddTimerOnce(timeout,function ()
+						readPromise.timer = nil
+						onRecvTimeout(self,readPromise)
+					end)
+				end	
 		  	end
 		  end
 	   end)
 end
 
-function PromiseConnection:RecvUntil(str)
+function PromiseSocket:RecvUntil(str,timeout)
 	return promise.new(function(resolve,reject)
 		  if nil == self.conn then
 		  	reject("invaild connection")
@@ -115,6 +173,10 @@ function PromiseConnection:RecvUntil(str)
 		  	readPromise.process = function (buff)
 		  		local s,e = string.find(buff:Content(), str)
 		  		if s then
+					if self.needResume then
+						self.needResume = false
+						self.conn:ResumeRead()
+					end			  			
 		  			resolve(buff:Read(e))
 		  			return true	  			
 		  		else
@@ -128,6 +190,12 @@ function PromiseConnection:RecvUntil(str)
 		  			reject(err)
 		  		end
 		  		addPromise(self,readPromise)
+				if timeout then
+					readPromise.timer = M.event_loop:AddTimerOnce(timeout,function ()
+						readPromise.timer = nil
+						onRecvTimeout(self,readPromise)
+					end)
+				end		  		
 		  	end
 		  end
 	   end)
@@ -143,7 +211,7 @@ function M.connect(ip,port,timeout)
 			if errCode then
 				reject("connect error:" .. errCode)
 			else
-				resolve(newPromiseConnection(fd))
+				resolve(PromiseSocket.new(fd))
 			end
 		end)
 
@@ -157,7 +225,7 @@ end
 
 function M.listen(ip,port,onClient)
 	return socket.stream.ip4.listen(M.event_loop,ip,port,function (fd)
-		onClient(newPromiseConnection(fd))
+		onClient(PromiseSocket.new(fd))
 	end)
 end
 

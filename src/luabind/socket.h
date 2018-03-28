@@ -339,9 +339,9 @@ static int32_t lua_stream_socket_close(lua_State *L) {
 	}
 	if(s->cb.L) {
 		chk_luaRef_release(&s->cb);
-	}
+	}	
 	chk_stream_socket_setUd(s->socket,chk_ud_make_void(NULL));
-	uint32_t delay = (uint32_t)luaL_optinteger(L,2,0);		
+	uint32_t delay = (uint32_t)luaL_optinteger(L,2,0);			
 	chk_stream_socket_close(s->socket,delay);	
 	s->socket = NULL;
 	return 0;

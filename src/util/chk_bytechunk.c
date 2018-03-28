@@ -359,8 +359,11 @@ uint32_t chk_bytebuffer_read(chk_bytebuffer *b,uint32_t offset,char *out,uint32_
 uint32_t chk_bytebuffer_read_drain(chk_bytebuffer *b,char *out,uint32_t size) {
     uint32_t remain,copysize;
     chk_bytechunk *old_head;
-    if(!b->head) return 0;
-    remain = size = MIN(size,b->datasize);
+    if(!b->head || size > b->datasize ) {
+        return 0;
+    }
+
+    remain = size;
     while(remain) {
         copysize = MIN(b->head->cap - b->spos,remain);
         memcpy(out,b->head->data + b->spos,copysize);
@@ -382,6 +385,7 @@ uint32_t chk_bytebuffer_read_drain(chk_bytebuffer *b,char *out,uint32_t size) {
     }
 
     return size;
+    
 }
 
 int32_t chk_bytebuffer_rewrite(chk_bytebuffer *b,uint32_t offset,uint8_t *v,uint32_t size) {

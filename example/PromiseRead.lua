@@ -3,7 +3,7 @@ package.path = './lib/?.lua;'
 
 local chuck = require("chuck")
 local event_loop = chuck.event_loop.New()
-local PromiseConnection = require("PromiseConnection").init(event_loop)
+local PromiseSocket = require("PromiseSocket").init(event_loop)
 local strpack = string.pack
 local strunpack = string.unpack
 
@@ -18,12 +18,10 @@ end
 local packet_count = 0
 local lastShow = chuck.time.systick()
 
-local server = PromiseConnection.listen("127.0.0.1",9010,function (conn)
+local server = PromiseSocket.listen("127.0.0.1",9010,function (conn)
 
-	print("newclient",conn)
-
-	conn:SetCloseCallBack(function (err)
-		print("client disconnected:",err)
+	conn:OnClose(function ()
+		print("client disconnected")
 	end)
 
 	local function recv()
@@ -43,7 +41,8 @@ local server = PromiseConnection.listen("127.0.0.1",9010,function (conn)
 			end
 			recv()
 		end):catch(function (err)
-			print(err)
+			print("recv error",err)
+			conn:Close()
 		end)
 	end
 	recv()
@@ -51,9 +50,9 @@ end)
 
 if server then
 	for i=1,arg[1] do
-		PromiseConnection.connect("127.0.0.1",9010):andThen(function (conn)
-			conn:SetCloseCallBack(function (err)
-				print("disconnected:",err)
+		PromiseSocket.connect("127.0.0.1",9010):andThen(function (conn)
+			conn:OnClose(function ()
+				print("disconnected")
 			end)
 
 			local function send()
