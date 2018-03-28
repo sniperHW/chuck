@@ -25,7 +25,12 @@ function CoroSocket.new(fd)
 		c.waitting = {}
 		local size = #waitting
 		for i = 1,size do
-			coroutine.resume(waitting[i].co,nil,"socket close")
+			local context = waitting[i]
+			if context.timer then
+				context.timer:UnRegister()
+				context.timer = nil
+			end
+			coroutine.resume(context.co,nil,"socket close")
 		end
 		if c.onClose then
 			c.onClose()
@@ -42,6 +47,10 @@ function CoroSocket.new(fd)
 				local msg = context:Read(c.buff)
 				if msg then
 					--喚醒等待的coroutine
+					if context.timer then
+						context.timer:UnRegister()
+						context.timer = nil
+					end
 					coroutine.resume(context.co,msg)
 				else
 					--重添加到waitting
@@ -75,7 +84,7 @@ function readContext:Read(buff)
 	return self.readFunc(buff)
 end
 
-function CoroSocket:Recv(byteCount)
+function CoroSocket:Recv(byteCount,timeout)
 	local co = coroutine.running()
 	if co == nil then
 		return nil,"Recv must call under coroutine context"
@@ -96,12 +105,24 @@ function CoroSocket:Recv(byteCount)
 				return self.buff:Read(byteCount)
 			end)
 			table.insert(self.waitting,context)
+			if timeout then
+				context.timer = event_loop:AddTimerOnce(timeout,function ()
+					context.timer = nil
+					for k,v in pairs(self.waitting) do
+						if v == context then
+							table.remove(self.waitting,k)
+							break
+						end
+					end
+					coroutine.resume(co,nil,"timeout")
+				end)
+			end			
 			return coroutine.yield()
 		end
 	end
 end
 
-function CoroSocket:ReadUntil(str)
+function CoroSocket:RecvUntil(str,timeout)
 	if nil == str then
 		return nil,"str == nil"
 	end
@@ -133,6 +154,18 @@ function CoroSocket:ReadUntil(str)
 				return readUntil(self.buff)
 			end)
 			table.insert(self.waitting,context)
+			if timeout then
+				context.timer = event_loop:AddTimerOnce(timeout,function ()
+					context.timer = nil
+					for k,v in pairs(self.waitting) do
+						if v == context then
+							table.remove(self.waitting,k)
+							break
+						end
+					end
+					coroutine.resume(co,nil,"timeout")
+				end)
+			end
 			return coroutine.yield()
 		end
 	end

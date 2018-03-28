@@ -10,13 +10,16 @@ local server = CoroSocket.ListenIP4("0.0.0.0",8010,function(socket,err)
 	print(socket,err)
 	if socket then
 		while true do
-			local msg,err = socket:ReadUntil('\n')
+			local msg,err = socket:RecvUntil('\n',1000)
 			if msg then
 				socket:Send(msg)
 			else
-				socket:Close()
-				print("connection lose")
-				break
+				if err ~= "timeout" then
+					socket:Close()
+					print("connection lose")
+					break
+				end
+				print("recv timeout")
 			end
 		end
 	end
