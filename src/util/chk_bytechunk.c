@@ -50,12 +50,11 @@ chk_bytechunk *chk_bytechunk_new(void *ptr,uint32_t len) {
     static const uint32_t min_buf_len = 64;
 
 	chk_bytechunk *b;
-	len           = MAX(min_buf_len,chk_size_of_pow2(len));
-	uint32_t size = sizeof(*b) + len;
+	uint32_t size = MAX(min_buf_len,chk_size_of_pow2(len)) + sizeof(*b);
     b 			  = cast(chk_bytechunk*,malloc(size));
 	if(b) {
         b->next = NULL;
-		b->cap = len;
+		b->cap = size - sizeof(*b);
 		b->refcount = 1;
         if(ptr) memcpy(b->data,ptr,len);        
 	}
@@ -206,7 +205,9 @@ chk_bytebuffer *chk_bytebuffer_do_copy(chk_bytebuffer *b,chk_bytechunk *c,uint32
         spos = 0;
         c = c->next;
     }
-    b->flags ^= NEED_COPY_ON_WRITE;
+    if(b->flags & NEED_COPY_ON_WRITE) {
+        b->flags ^= NEED_COPY_ON_WRITE;
+    }
     b->tail = b->head;
     b->append_pos = b->datasize;
     return b;
@@ -376,10 +377,8 @@ uint32_t chk_bytebuffer_read_drain(chk_bytebuffer *b,char *out,uint32_t size) {
         }
     }
 
-    if(b->datasize == 0) {
-        b->flags ^= NEED_COPY_ON_WRITE;
+    if(b->head == NULL) {
         b->tail = NULL;
-        b->append_pos = 0;
     }
 
     return size;
