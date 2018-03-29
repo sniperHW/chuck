@@ -52,6 +52,8 @@ int32_t easy_sockaddr_inet_ntop(chk_sockaddr *addr,char *out,int len);
 
 int32_t easy_sockaddr_port(chk_sockaddr *addr,uint16_t *port);
 
+size_t  chk_sockaddr_size(chk_sockaddr *addr);
+
 //get the first ipv4 address of name
 int32_t easy_hostbyname_ipv4(const char *name,char *host,size_t len);
 

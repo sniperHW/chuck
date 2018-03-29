@@ -214,3 +214,19 @@ int32_t easy_sockaddr_port(chk_sockaddr *addr,uint16_t *port) {
     return 0;
 
 }
+
+size_t  chk_sockaddr_size(chk_sockaddr *addr) {
+    if(addr) {
+        switch(addr->addr_type){
+            case SOCK_ADDR_IPV4:
+                return sizeof(addr->in);
+            case SOCK_ADDR_IPV6:
+                return sizeof(addr->in6);
+            case SOCK_ADDR_UN:
+                return sizeof(addr->un);
+            default:
+                return 0;
+        }
+    }
+    return 0;
+}

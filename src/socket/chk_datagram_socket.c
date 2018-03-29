@@ -57,7 +57,7 @@ static void process_read(chk_datagram_socket *s) {
 
 	_msghdr = (struct msghdr){
 		.msg_name    = &ev.src,
-		.msg_namelen = sizeof(&ev.src),
+		.msg_namelen = chk_sockaddr_size(&ev.src),
 		.msg_iov     = &_iovec,
 		.msg_iovlen  = 1,
 		.msg_flags   = 0,
@@ -184,7 +184,7 @@ int32_t chk_datagram_socket_sendto(chk_datagram_socket *s,chk_bytebuffer *buff,c
 	} else {
 		struct msghdr _msghdr = {
 			.msg_name       = dst,
-			.msg_namelen    = sizeof(*dst),
+			.msg_namelen    = chk_sockaddr_size(dst),
 			.msg_iov        = s->wsendbuf,
 			.msg_iovlen     = i,
 			.msg_flags      = 0,
@@ -196,7 +196,7 @@ int32_t chk_datagram_socket_sendto(chk_datagram_socket *s,chk_bytebuffer *buff,c
 		if(ret >= 0) {
 			return chk_error_ok;
 		} else {
-			CHK_SYSLOG(LOG_ERROR,"sendmsg errno:%d",errno);
+			CHK_SYSLOG(LOG_ERROR,"sendmsg errno:%d,%d,%d",errno,EINVAL,EMSGSIZE);
 			return chk_error_send_failed;
 		}
 	}
