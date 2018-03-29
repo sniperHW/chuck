@@ -749,19 +749,27 @@ static int32_t lua_datagram_socket_new_ip4(lua_State *L) {
 	return 0;
 }
 
-static int32_t lua_ip4_addr(lua_State *L) {
-	const char *ip = luaL_checkstring(L,1);
-	int port = luaL_checkinteger(L,2);
-
+static int32_t lua_addr(lua_State *L) {
+	int family = luaL_checkinteger(L,1);
 	chk_sockaddr *addr = LUA_NEWUSERDATA(L,chk_sockaddr);
 	if(NULL == addr) {
 		return 0;
-	}
+	}	
+	if(family == AF_INET) {
+		const char *ip = luaL_checkstring(L,2);
+		int port = luaL_checkinteger(L,3);
+		if(0 != easy_sockaddr_ip4(addr,ip,port)){
+			return 0;
+		}				
+	} else if(family == AF_LOCAL) {
+		const char *path = luaL_checkstring(L,2);
+		if(0 != easy_sockaddr_un(addr,path)){
+			return 0;
+		}
 
-	if(0 != easy_sockaddr_ip4(addr,ip,port)){
+	} else {
 		return 0;
 	}
-
 	luaL_getmetatable(L, SOCK_ADDR_METATABLE);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -872,8 +880,11 @@ static void register_socket(lua_State *L) {
 
 
 	SET_FUNCTION(L,"closefd",lua_close_fd);
-	SET_FUNCTION(L,"ip4Addr",lua_ip4_addr);
+	SET_FUNCTION(L,"Addr",lua_addr);
 
+	SET_CONST(L,AF_INET);
+	SET_CONST(L,AF_LOCAL);
+	SET_CONST(L,AF_INET6);	
 
 
 }
