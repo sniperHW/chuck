@@ -50,7 +50,7 @@ static void process_read(chk_datagram_socket *s) {
 	int32_t bytes;
 	struct iovec  _iovec;
 	struct msghdr _msghdr;
-	chk_datagram_event ev = {0};
+	chk_datagram_event ev;
 
 	_iovec.iov_base = s->recvbuff;
 	_iovec.iov_len  = sizeof(s->recvbuff);

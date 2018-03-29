@@ -22,7 +22,8 @@ local function server()
 	local bytes = 0
 	local lastShow = chuck.time.systick()
 
-	udpServer = socket.datagram.ip4.listen(socket.Addr(socket.AF_INET,ip,port))
+	udpServer = socket.datagram.new(socket.AF_INET)
+	udpServer:Bind(socket.Addr(socket.AF_INET,ip,port))
 	udpServer:Start(event_loop,function (data,from,err)
 		if data and from then
 			packet_count = packet_count + 1
@@ -55,7 +56,7 @@ local function client(clientCount)
 		content = content .. "11111111"
 	end
 
-	local client = socket.datagram.ip4.new()
+	local client = socket.datagram.new(socket.AF_INET)
 	client:Start(event_loop,function (data,from,err)
 		if data and from then
 			client:Sendto(data,from)		
