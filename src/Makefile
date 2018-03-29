@@ -38,7 +38,6 @@ source.lib =  util/chk_log.c\
 			  util/sds.c\
 			  util/base64.c\
 			  util/sha1.c\
-			  util/strerror.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
 			  socket/chk_datagram_socket.c\
@@ -61,7 +60,6 @@ source.so =   util/chk_log.c\
 			  util/sds.c\
 			  util/base64.c\
 			  util/sha1.c\
-			  util/strerror.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
 			  socket/chk_datagram_socket.c\
