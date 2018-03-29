@@ -174,10 +174,15 @@ end
 function CoroSocket:Send(msg)
 	if self.conn == nil then
 		return "invaild connection"
-	elseif type(msg) ~= "string" then
-		return "msg must be string"
-	else
+	elseif type(msg) == "string" then
 		return self.conn:Send(buffer.New(msg))
+	else
+		local mt = getmetatable(msg)
+		if mt and mt.__name == "lua_bytebuffer" then
+			return self.conn:Send(msg)
+		else
+			return "msg must be [string | lua_bytebuffer]"
+		end
 	end
 end
 
