@@ -428,7 +428,7 @@ static void process_write(chk_stream_socket *s) {
 				chk_disable_write(cast(chk_handle*,s));
 			}
 			shutdown(s->fd,SHUT_RD);//触发read返回0
-			CHK_SYSLOG(LOG_ERROR,"fd:%d writev() failed errno:%d",s->fd,errno);
+			CHK_SYSLOG(LOG_ERROR,"fd:%d writev() failed errno:%s",s->fd,strerror(errno));
 		}
 	}
 }
@@ -504,7 +504,7 @@ static void process_read(chk_stream_socket *s) {
 				chk_disable_read(cast(chk_handle*,s));
 				if(s->write_error != 0) {
 					//由write错误调用shutdown(RD)导致的
-					CHK_SYSLOG(LOG_ERROR,"write failed fd:%d,errno:%d",s->fd,s->write_error); 
+					CHK_SYSLOG(LOG_ERROR,"write failed fd:%d,errno:%s",s->fd,strerror(s->write_error)); 
 					s->cb(s,NULL,chk_error_stream_write);
 					chk_loop_remove_handle((chk_handle*)s);
 				} else {
@@ -514,7 +514,7 @@ static void process_read(chk_stream_socket *s) {
 				}
 			} else {
 				s->status |= (SOCKET_RCLOSE | SOCKET_WCLOSE);
-				CHK_SYSLOG(LOG_ERROR,"read failed fd:%d,errno:%d",s->fd,errno); 
+				CHK_SYSLOG(LOG_ERROR,"read failed fd:%d,errno:%s",s->fd,strerror(errno)); 
 				s->cb(s,NULL,chk_error_stream_read);			
 				chk_loop_remove_handle((chk_handle*)s);
 			}

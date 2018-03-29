@@ -73,6 +73,7 @@ static void process_read(chk_datagram_socket *s) {
 		chk_bytebuffer_del(ev.buff);
 	} else {
 		if(errno != EAGAIN) {
+			CHK_SYSLOG(LOG_ERROR,"recvmsg errno:%s",strerror(errno));
 			s->cb(s,NULL,errno);
 		}
 	}
@@ -196,7 +197,7 @@ int32_t chk_datagram_socket_sendto(chk_datagram_socket *s,chk_bytebuffer *buff,c
 		if(ret >= 0) {
 			return chk_error_ok;
 		} else {
-			CHK_SYSLOG(LOG_ERROR,"sendmsg errno:%d,%d,%d",errno,EINVAL,EMSGSIZE);
+			CHK_SYSLOG(LOG_ERROR,"sendmsg errno:%s",strerror(errno));
 			return chk_error_send_failed;
 		}
 	}

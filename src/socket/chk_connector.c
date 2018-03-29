@@ -51,12 +51,12 @@ static void _process_connect(chk_connector *c) {
 	}
 	do {
 		if(getsockopt(c->fd, SOL_SOCKET, SO_ERROR, &err, &len) == -1){
-			CHK_SYSLOG(LOG_ERROR,"getsockopt() failed fd:%d,errno:%d",c->fd,errno);
+			CHK_SYSLOG(LOG_ERROR,"getsockopt() failed fd:%d,errno:%s",c->fd,strerror(errno));
 			c->cb(-1,c->ud,chk_error_connect);
 		    break;
 		}
 		if(err) {
-			CHK_SYSLOG(LOG_ERROR,"getsockopt() got error:%d fd:%d",err,c->fd);			
+			CHK_SYSLOG(LOG_ERROR,"getsockopt() got error:%s fd:%d",strerror(err),c->fd);			
 		    c->cb(-1,c->ud,chk_error_connect);    
 		    break;
 		}
@@ -136,7 +136,7 @@ int32_t chk_easy_async_connect(chk_event_loop *e,chk_sockaddr *peer,chk_sockaddr
 	errno = 0;
 	fd = socket(family,SOCK_STREAM,IPPROTO_TCP);
 	if(0 > fd) {
-		CHK_SYSLOG(LOG_ERROR,"chk_connect socket failed errno:%d",errno);
+		CHK_SYSLOG(LOG_ERROR,"chk_connect socket failed errno:%s",strerror(errno));
 		return -1;
 	}		
 	return chk_async_connect(fd,e,peer,local,cb,ud,timeout);

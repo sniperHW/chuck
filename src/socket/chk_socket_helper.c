@@ -10,7 +10,7 @@ int32_t easy_listen(int32_t fd,chk_sockaddr *server) {
     if(easy_bind(fd,server) != 0)
          return chk_error_bind;
     if(listen(fd,SOMAXCONN) != 0){
-        CHK_SYSLOG(LOG_ERROR,"listen() failed errno:%d",errno);        
+        CHK_SYSLOG(LOG_ERROR,"listen() failed errno:%s",strerror(errno));        
         return chk_error_listen;
     }
     return chk_error_ok;
@@ -32,7 +32,7 @@ int32_t easy_connect(int32_t fd,chk_sockaddr *server,chk_sockaddr *local) {
     if(ret == chk_error_ok || errno == EINPROGRESS)
         return chk_error_ok;
     else{
-        CHK_SYSLOG(LOG_ERROR,"connect() failed errno:%d",errno);
+        CHK_SYSLOG(LOG_ERROR,"connect() failed errno:%s",strerror(errno));
         return chk_error_connect;
     }
 }
@@ -49,7 +49,7 @@ int32_t easy_bind(int32_t fd,chk_sockaddr *addr) {
     }
 
     if(ret != chk_error_ok) {
-        CHK_SYSLOG(LOG_ERROR,"bind() failed errno:%d",errno);
+        CHK_SYSLOG(LOG_ERROR,"bind() failed errno:%s",strerror(errno));
         return chk_error_bind;
     }
 
@@ -58,7 +58,7 @@ int32_t easy_bind(int32_t fd,chk_sockaddr *addr) {
 
 int32_t easy_addr_reuse(int32_t fd,int32_t yes) {
     if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))){
-        CHK_SYSLOG(LOG_ERROR,"setsockopt(SOL_SOCKET,SO_REUSEADDR) failed errno:%d",errno); 
+        CHK_SYSLOG(LOG_ERROR,"setsockopt(SOL_SOCKET,SO_REUSEADDR) failed errno:%s",strerror(errno)); 
         return chk_error_setsockopt;
     }
     return chk_error_ok;    
@@ -67,7 +67,7 @@ int32_t easy_addr_reuse(int32_t fd,int32_t yes) {
 int32_t easy_noblock(int32_t fd,int32_t noblock) {
     int32_t flags;
     if((flags = fcntl(fd, F_GETFL, 0)) == -1){
-        CHK_SYSLOG(LOG_ERROR,"fcntl(F_GETFL) failed errno:%d",errno);        
+        CHK_SYSLOG(LOG_ERROR,"fcntl(F_GETFL) failed errno:%s",strerror(errno));        
         return chk_error_fcntl;
     }
     if(!noblock){
@@ -77,7 +77,7 @@ int32_t easy_noblock(int32_t fd,int32_t noblock) {
     }
 
     if(0 != fcntl(fd, F_SETFL, flags)) {
-        CHK_SYSLOG(LOG_ERROR,"fcntl(F_SETFL) failed errno:%d",errno);        
+        CHK_SYSLOG(LOG_ERROR,"fcntl(F_SETFL) failed errno:%s",strerror(errno));        
         return chk_error_fcntl;
     }
     return chk_error_ok;    
@@ -86,12 +86,12 @@ int32_t easy_noblock(int32_t fd,int32_t noblock) {
 int32_t easy_close_on_exec(int32_t fd) {
     int32_t flags;;
     if((flags = fcntl(fd, F_GETFD, 0)) == -1){
-        CHK_SYSLOG(LOG_ERROR,"fcntl(F_GETFD) failed fd:%d,errno:%d",fd,errno);         
+        CHK_SYSLOG(LOG_ERROR,"fcntl(F_GETFD) failed fd:%d,errno:%s",fd,strerror(errno));         
         return chk_error_fcntl;
     }
     
     if(0 != fcntl(fd, F_SETFD, flags|FD_CLOEXEC)) {
-        CHK_SYSLOG(LOG_ERROR,"fcntl(F_SETFD) failed fd:%d,errno:%d",fd,errno);        
+        CHK_SYSLOG(LOG_ERROR,"fcntl(F_SETFD) failed fd:%d,errno:%s",fd,strerror(errno));        
         return chk_error_fcntl;
     }
     return chk_error_ok;        
@@ -103,7 +103,7 @@ int32_t easy_sockaddr_ip4(chk_sockaddr *addr,const char *ip,uint16_t port) {
     addr->in.sin_family = AF_INET;
     addr->in.sin_port = htons(port);
     if(inet_pton(AF_INET,ip,&addr->in.sin_addr) < 0){ 
-        CHK_SYSLOG(LOG_ERROR,"inet_pton(AF_INET) failed errno:%d",errno);          
+        CHK_SYSLOG(LOG_ERROR,"inet_pton(AF_INET) failed errno:%s",strerror(errno));          
         return chk_error_invaild_sockaddr;
     }
     return chk_error_ok;
@@ -123,11 +123,11 @@ int32_t easy_hostbyname_ipv4(const char *name,char *host,size_t len) {
 #ifdef _MACH
     struct hostent *result;
     if(NULL == (result = gethostbyname(name))){
-        CHK_SYSLOG(LOG_ERROR,"gethostbyname_r() failed errno:%d",h_errno);       
+        CHK_SYSLOG(LOG_ERROR,"gethostbyname_r() failed errno:%s",hstrerror(h_errno));       
         return chk_error_invaild_hostname;
     }
     if(inet_ntop(AF_INET, result->h_addr_list[0],host, len) == NULL){
-        CHK_SYSLOG(LOG_ERROR,"inet_ntop() failed errno:%d",errno);         
+        CHK_SYSLOG(LOG_ERROR,"inet_ntop() failed errno:%s",strerror(errno));         
         return chk_error_ok;
     }
     return chk_error_invaild_hostname;
@@ -136,11 +136,11 @@ int32_t easy_hostbyname_ipv4(const char *name,char *host,size_t len) {
     char    buf[8192];
     struct hostent ret, *result;
     if(gethostbyname_r(name, &ret, buf, 8192, &result, &h_err) != 0){
-        CHK_SYSLOG(LOG_ERROR,"gethostbyname_r() failed errno:%d",h_err);        
+        CHK_SYSLOG(LOG_ERROR,"gethostbyname_r() failed errno:%s",hstrerror(h_err));        
         return chk_error_invaild_hostname;
     }
     if(inet_ntop(AF_INET, result->h_addr_list[0],host, len) == NULL){
-        CHK_SYSLOG(LOG_ERROR,"inet_ntop() failed errno:%d",errno);        
+        CHK_SYSLOG(LOG_ERROR,"inet_ntop() failed errno:%s",strerror(errno));        
         return chk_error_ok;
     }
     return chk_error_invaild_hostname;
