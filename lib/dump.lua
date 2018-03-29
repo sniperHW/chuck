@@ -1,12 +1,20 @@
 
 local M = {}
 
-
 local function dump_value_(v)
     if type(v) == "string" then
         v = "\"" .. v .. "\""
+        return tostring(v)
+    elseif type(v) == "table" or type(v) == "userdata" then
+        local mt = getmetatable(v)
+        if mt and mt.__name then
+            return "[" .. mt.__name .."]" .. tostring(v)
+        else
+            return tostring(v)
+        end
+    else
+        return tostring(v)
     end
-    return tostring(v)
 end
 
 --function M.dump(value, desciption, nesting)
@@ -35,7 +43,13 @@ local function _dump(value, desciption, nesting)
             if nest > nesting then
                 result[#result +1 ] = string.format("%s%s = *MAX NESTING*", indent, dump_value_(desciption))
             else
-                result[#result +1 ] = string.format("%s%s = {", indent, dump_value_(desciption))
+
+                local mt = getmetatable(value)
+                if mt and mt.__name then
+                    result[#result +1 ] = string.format("%s%s = [%s]{", indent, dump_value_(desciption),mt.__name)
+                else
+                    result[#result +1 ] = string.format("%s%s = {", indent, dump_value_(desciption))
+                end
                 local indent2 = indent.."    "
                 local keys = {}
                 local keylen = 0

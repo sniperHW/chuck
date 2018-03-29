@@ -3,9 +3,28 @@ package.cpath = './lib/?.so;'
 
 local chuck = require("chuck")
 local packet = chuck.packet
+local dump   = require("dump")
 
 local buff = chuck.buffer.New()
+dump.print(buff)
 local w = packet.Writer(buff)
+
+local mt = getmetatable(buff)
+
+
+local o = setmetatable({},{
+	__name = "testobj"
+})
+
+o.field = buff
+dump.print(o)
+
+local oo = {o}
+
+dump.print(oo)
+
+
+
 w:WriteI8(1)
 w:WriteI16(-2)
 w:WriteNum(3.2)
