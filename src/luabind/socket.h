@@ -1,10 +1,13 @@
 
 #include "socket/chk_stream_socket_define.h"
+#include "socket/chk_datagram_socket_define.h"
 #include "socket/chk_acceptor_define.h"
 
 #define ACCEPTOR_METATABLE "lua_acceptor"
 
 #define STREAM_SOCKET_METATABLE "lua_stream_socket"
+
+#define DGRAM_SOCKET_METATABLE "lua_datagram_socket"
 
 #define SOCK_ADDR_METATABLE "lua_sock_addr"
 
@@ -20,6 +23,11 @@ typedef struct {
 }lua_stream_socket;
 
 typedef struct {
+	chk_datagram_socket *socket;
+	chk_luaRef cb;	
+}lua_datagram_socket;
+
+typedef struct {
 	SSL_CTX *ctx;
 }lua_SSL_CTX;
 
@@ -28,6 +36,9 @@ typedef struct {
 
 #define lua_checkstreamsocket(L,I)	\
 	(lua_stream_socket*)luaL_checkudata(L,I,STREAM_SOCKET_METATABLE)
+
+#define lua_checkdatagramsocket(L,I)	\
+	(lua_datagram_socket*)luaL_checkudata(L,I,DGRAM_SOCKET_METATABLE)	
 
 #define lua_check_ssl_ctx(L,I)	\
 	(lua_SSL_CTX*)luaL_checkudata(L,I,SSL_CTX_METATABLE)
@@ -533,6 +544,229 @@ static int32_t lua_inet_port(lua_State *L) {
 	return 1;
 }
 
+//datagram socket
+
+/*
+static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
+	lua_stream_socket *lua_socket = (lua_stream_socket*)chk_stream_socket_getUd(s).v.val;
+	if(!lua_socket) {
+		return;
+	}
+
+	if(!lua_socket->cb.L) {
+		return;
+	}
+
+	luaBufferPusher pusher = {PushBuffer,data};
+	const char *error_str;
+	if(data) {
+		error_str = chk_Lua_PCallRef(lua_socket->cb,"f",(chk_luaPushFunctor*)&pusher);
+	} else {
+		error_str = chk_Lua_PCallRef(lua_socket->cb,"pi",NULL,error);
+	}
+
+	if(error_str) { 
+		CHK_SYSLOG(LOG_ERROR,"error on data_cb %s",error_str);
+	}	
+}
+
+static int32_t lua_stream_socket_bind(lua_State *L) {
+	lua_stream_socket *s;
+	chk_event_loop    *event_loop; 
+	s = lua_checkstreamsocket(L,1);
+	if(!s->socket){
+		return luaL_error(L,"invaild lua_stream_socket");
+	}
+	event_loop = lua_checkeventloop(L,2);
+	if(!lua_isfunction(L,3)) 
+		return luaL_error(L,"argument 3 of stream_socket_bind must be lua function");
+	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)s->socket,data_cb)) {
+		CHK_SYSLOG(LOG_ERROR,"chk_loop_add_handle() failed");
+		lua_pushstring(L,"stream_socket_bind failed");
+		return 1;
+	} else {
+		s->cb = chk_toluaRef(L,3);
+	}
+	return 0;
+}
+*/
+
+
+typedef struct {
+	void (*Push)(chk_luaPushFunctor *self,lua_State *L);
+	chk_sockaddr *addr;
+}luaAddrPusher;
+
+static void PushAddr(chk_luaPushFunctor *_,lua_State *L) {
+	luaAddrPusher *self = (luaAddrPusher*)_;
+	chk_sockaddr  *addr = LUA_NEWUSERDATA(L,chk_sockaddr);
+	if(addr) {
+		*addr = *self->addr;
+		luaL_getmetatable(L, SOCK_ADDR_METATABLE);
+		lua_setmetatable(L, -2);		
+	} else {
+		CHK_SYSLOG(LOG_ERROR,"newuserdata() chk_bytebuffer failed");	
+		lua_pushnil(L);
+	}
+}
+
+static void datagram_event_cb(chk_datagram_socket *datagram_socket,chk_datagram_event *event,int32_t error) {
+
+	lua_datagram_socket *s = (lua_datagram_socket*)chk_datagram_socket_getUd(datagram_socket).v.val;
+	if(!s) {
+		return;
+	}
+
+	if(!s->cb.L) {
+		return;
+	}
+
+	const char *error_str;
+	if(event) {
+		luaBufferPusher pusher1 = {PushBuffer,event->buff};
+		luaAddrPusher   pusher2 = {PushAddr,&event->src};		
+		error_str = chk_Lua_PCallRef(s->cb,"ffi",(chk_luaPushFunctor*)&pusher1,(chk_luaPushFunctor*)&pusher2,error);
+	} else {
+		error_str = chk_Lua_PCallRef(s->cb,"pi",NULL,error);
+	}
+
+	if(error_str) { 
+		CHK_SYSLOG(LOG_ERROR,"error on datagram_event_cb %s",error_str);
+	}
+
+}
+
+static int32_t lua_datagram_socket_sendto(lua_State *L) {
+	chk_bytebuffer    *b,*o;
+	chk_sockaddr      *dst;
+	lua_datagram_socket *s = lua_checkdatagramsocket(L,1);
+	if(!s->socket){
+		lua_pushstring(L,"socket close");		
+		return 1;
+	}
+	o   = lua_checkbytebuffer(L,2);
+	dst = lua_check_sockaddr(L,3);
+	b   = chk_bytebuffer_clone(o);
+	if(!b) {
+		lua_pushstring(L,"send error");		
+		return 1;
+	}
+	if(0 != chk_datagram_socket_sendto(s->socket,b,dst)){
+		lua_pushstring(L,"send error");
+		return 1;
+	}
+	return 0;
+}
+
+static int32_t lua_datagram_socket_close(lua_State *L) {
+	lua_datagram_socket *s = lua_checkdatagramsocket(L,1);
+	if(s->socket){
+		chk_luaRef_release(&s->cb);		
+		chk_datagram_socket_close(s->socket);
+		s->socket = NULL;
+	}
+	return 0;
+}
+
+static int32_t lua_datagram_socket_bind(lua_State *L) {
+	lua_datagram_socket *s;
+	chk_event_loop      *event_loop; 
+	s = lua_checkdatagramsocket(L,1);
+	if(!s->socket){
+		return luaL_error(L,"invaild lua_datagram_socket");
+	}
+	event_loop = lua_checkeventloop(L,2);
+	if(!lua_isfunction(L,3)) 
+		return luaL_error(L,"argument 3 of datagram_socket_bind must be lua function");
+	if(0 != chk_loop_add_handle(event_loop,(chk_handle*)s->socket,datagram_event_cb)) {
+		CHK_SYSLOG(LOG_ERROR,"chk_loop_add_handle() failed");
+		lua_pushstring(L,"datagram_socket_bind failed");
+		return 1;
+	} else {
+		s->cb = chk_toluaRef(L,3);
+	}	
+	return 0;
+}
+
+static int32_t lua_datagram_socket_gc(lua_State *L) {
+	lua_datagram_socket *s = lua_checkdatagramsocket(L,1);
+	if(s->socket){
+		chk_datagram_socket_setUd(s->socket,chk_ud_make_void(NULL));
+		chk_datagram_socket_close(s->socket);
+	}
+	if(s->cb.L) {
+		chk_luaRef_release(&s->cb);
+	}
+	return 0;	
+}
+
+static int32_t lua_datagram_socket_listen_ip4(lua_State *L) {
+	chk_sockaddr *addr = lua_check_sockaddr(L,1);
+	if(NULL == addr) {
+		return luaL_error(L,"invaild chk_sockaddr");
+	}
+	int fd = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+    if(0 != easy_bind(fd,addr)){
+    	return luaL_error(L,"bind failed\n");
+    }
+    chk_datagram_socket *udpsocket = chk_datagram_socket_new(fd,SOCK_ADDR_IPV4);
+    if(NULL == udpsocket){
+    	close(fd);
+    	return luaL_error(L,"chk_datagram_socket_new failed\n");
+    }
+
+    lua_datagram_socket *s = LUA_NEWUSERDATA(L,lua_datagram_socket);
+    if(NULL == s) {
+    	chk_datagram_socket_close(udpsocket);
+    	return luaL_error(L,"LUA_NEWUSERDATA failed\n");
+    } else {
+    	s->socket = udpsocket;
+    	chk_datagram_socket_setUd(s->socket,chk_ud_make_void(s));    	
+		luaL_getmetatable(L, DGRAM_SOCKET_METATABLE);
+		lua_setmetatable(L, -2);    	
+    	return 1;
+    }
+}
+
+static int32_t lua_datagram_socket_new_ip4(lua_State *L) {
+	int fd = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+    chk_datagram_socket *udpsocket = chk_datagram_socket_new(fd,SOCK_ADDR_IPV4);
+    if(NULL == udpsocket){
+    	close(fd);
+    	return luaL_error(L,"chk_datagram_socket_new failed\n");
+    }
+    lua_datagram_socket *s = LUA_NEWUSERDATA(L,lua_datagram_socket);
+    if(NULL == s) {
+    	chk_datagram_socket_close(udpsocket);
+    	return luaL_error(L,"LUA_NEWUSERDATA failed\n");
+    } else {
+    	s->socket = udpsocket;
+    	chk_datagram_socket_setUd(s->socket,chk_ud_make_void(s));
+		luaL_getmetatable(L, DGRAM_SOCKET_METATABLE);
+		lua_setmetatable(L, -2);    	
+    	return 1;
+    }
+	return 0;
+}
+
+static int32_t lua_ip4_addr(lua_State *L) {
+	const char *ip = luaL_checkstring(L,1);
+	int port = luaL_checkinteger(L,2);
+
+	chk_sockaddr *addr = LUA_NEWUSERDATA(L,chk_sockaddr);
+	if(NULL == addr) {
+		return 0;
+	}
+
+	if(0 != easy_sockaddr_ip4(addr,ip,port)){
+		return 0;
+	}
+
+	luaL_getmetatable(L, SOCK_ADDR_METATABLE);
+	lua_setmetatable(L, -2);
+	return 1;
+}
+
 static void register_socket(lua_State *L) {
 	luaL_Reg acceptor_mt[] = {
 		{"__gc", lua_acceptor_gc},
@@ -566,6 +800,19 @@ static void register_socket(lua_State *L) {
 		{NULL,     		NULL}
 	};
 
+	luaL_Reg datagram_socket_mt[] = {
+		{"__gc", lua_datagram_socket_gc},
+		{NULL, NULL}
+	};
+
+	luaL_Reg datagram_socket_methods[] = {
+		{"Sendto",    	lua_datagram_socket_sendto},
+		{"Start",   	lua_datagram_socket_bind},		
+		{"Close",   	lua_datagram_socket_close},
+		{NULL,     		NULL}
+	};
+
+
 	luaL_newmetatable(L, ACCEPTOR_METATABLE);
 	luaL_setfuncs(L, acceptor_mt, 0);
 
@@ -579,6 +826,14 @@ static void register_socket(lua_State *L) {
 	luaL_newlib(L, stream_socket_methods);
 	lua_setfield(L, -2, "__index");
 	lua_pop(L, 1);
+
+	luaL_newmetatable(L, DGRAM_SOCKET_METATABLE);
+	luaL_setfuncs(L, datagram_socket_mt, 0);
+
+	luaL_newlib(L, datagram_socket_methods);
+	lua_setfield(L, -2, "__index");
+	lua_pop(L, 1);
+
 
 	luaL_newmetatable(L, SOCK_ADDR_METATABLE);
 	lua_pop(L, 1);
@@ -605,7 +860,20 @@ static void register_socket(lua_State *L) {
 
 	lua_settable(L,-3);
 
+
+	lua_pushstring(L,"datagram");
+	lua_newtable(L);
+	lua_pushstring(L,"ip4");
+	lua_newtable(L);
+	SET_FUNCTION(L,"new",lua_datagram_socket_new_ip4);
+	SET_FUNCTION(L,"listen",lua_datagram_socket_listen_ip4);
+	lua_settable(L,-3);
+	lua_settable(L,-3);
+
+
 	SET_FUNCTION(L,"closefd",lua_close_fd);
+	SET_FUNCTION(L,"ip4Addr",lua_ip4_addr);
+
 
 
 }

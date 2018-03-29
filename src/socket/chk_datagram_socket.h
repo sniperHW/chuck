@@ -15,13 +15,14 @@ typedef struct chk_datagram_socket chk_datagram_socket;
 
 typedef struct chk_datagram_event {
 	chk_sockaddr    src;
-	chk_sockaddr    dst;
 	chk_bytebuffer *buff;
 }chk_datagram_event;
 
 typedef void (*chk_datagram_socket_cb)(chk_datagram_socket*,chk_datagram_event*,int32_t error);
 
 chk_datagram_socket *chk_datagram_socket_new(int32_t fd,int32_t addr_type);
+
+void chk_datagram_socket_close(chk_datagram_socket *s);
 
 int32_t chk_datagram_socket_sendto(chk_datagram_socket *s,chk_bytebuffer *buff,chk_sockaddr *dst);
 

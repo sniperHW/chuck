@@ -69,7 +69,7 @@ static void process_read(chk_datagram_socket *s) {
 		ev.buff = chk_bytebuffer_new(bytes);
 		chk_bytebuffer_append(ev.buff,(uint8_t*)s->recvbuff,(uint32_t)bytes);
 		ev.src.addr_type = s->addr_type;
-		s->cb(s,&ev,0);
+		s->cb(s,&ev,_msghdr.msg_flags == MSG_TRUNC ? chk_error_msg_trunc : 0);
 		chk_bytebuffer_del(ev.buff);
 	} else {
 		if(errno != EAGAIN) {
@@ -128,7 +128,7 @@ chk_datagram_socket *chk_datagram_socket_new(int32_t fd,int32_t addr_type) {
 	return s;
 }
 
-void chk_datagram_socket_close(chk_datagram_socket *s,uint32_t delay) {
+void chk_datagram_socket_close(chk_datagram_socket *s) {
 	if(s->closed)
 		return;
 	s->closed  = 1;	
