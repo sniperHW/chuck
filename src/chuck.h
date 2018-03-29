@@ -20,6 +20,7 @@
 #include "socket/chk_connector.h"
 #include "socket/chk_decoder.h"
 #include "socket/chk_stream_socket.h"
+#include "socket/chk_datagram_socket.h"
 #include "lua/chk_lua.h"
 #include "redis/chk_client.h"
 

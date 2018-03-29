@@ -40,6 +40,7 @@ source.lib =  util/chk_log.c\
 			  util/sha1.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
+			  socket/chk_datagram_socket.c\
 			  socket/chk_socket_helper.c\
 			  socket/chk_acceptor.c\
 			  socket/chk_connector.c\
@@ -61,6 +62,7 @@ source.so =   util/chk_log.c\
 			  util/sha1.c\
 			  lua/chk_lua.c\
 			  socket/chk_stream_socket.c\
+			  socket/chk_datagram_socket.c\
 			  socket/chk_socket_helper.c\
 			  socket/chk_acceptor.c\
 			  socket/chk_connector.c\
@@ -116,6 +118,9 @@ benchmark:
 	$(CC) $(CFLAGS) -o ../test/bin/benchmark ../test/benchmark.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
 benchmark_brocast:
 	$(CC) $(CFLAGS) -o ../test/bin/benchmark_brocast ../test/benchmark_brocast.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+udp:
+	$(CC) $(CFLAGS) -o ../test/bin/udp ../test/udp.c ../lib/$(LIBNAME) $(OPENSSL) $(CRYPTO) $(INCLUDE) $(DEFINE) $(LDFLAGS)	
+
 
 clean:
 	rm *.o

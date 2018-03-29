@@ -59,6 +59,7 @@ enum {
 	chk_error_stream_read,
 	chk_error_stream_peer_close,
 	chk_error_send_timeout,
+	chk_error_send_failed,
 	chk_error_ssl_error,
 	chk_error_highwater_mark,
 	/*packet相关错误码*/

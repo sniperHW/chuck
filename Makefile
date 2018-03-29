@@ -9,7 +9,9 @@ testcase:
 benchmark:
 	cd src;$(MAKE) benchmark
 benchmark_brocast:
-	cd src;$(MAKE) benchmark_brocast	
+	cd src;$(MAKE) benchmark_brocast
+udp:
+	cd src;$(MAKE) udp		
 pbc:
 	cd deps/pbc;$(MAKE);cp build/libpbc.a ../../lib
 pbc-binding-lua53:
