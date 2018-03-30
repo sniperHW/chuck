@@ -57,7 +57,7 @@ static void process_read(chk_datagram_socket *s) {
 
 	_msghdr = (struct msghdr){
 		.msg_name    = &ev.src,
-		.msg_namelen = chk_sockaddr_size(&ev.src),
+		.msg_namelen = sizeof(ev.src),
 		.msg_iov     = &_iovec,
 		.msg_iovlen  = 1,
 		.msg_flags   = 0,
