@@ -46,14 +46,16 @@ end
 
 local ssl_ctx = init_ssl()
 
+local serverAddr = socket.Addr(socket.AF_INET,"127.0.0.1",8010)
+
 if ssl_ctx then 
-	local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd,err)
+	local server = socket.stream.listen(event_loop,serverAddr,function (fd,err)
 		if err then
 			print("err:" .. err)
 			return
 		end
 
-		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
+		local conn = socket.stream.socket(fd,4096,packet.Decoder(65536))
 		if conn then
 			local err = ssl.SSL_accept(conn,ssl_ctx)
 			if err then

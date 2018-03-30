@@ -1,5 +1,6 @@
 local chuck = require("chuck")
 local socket = chuck.socket
+local buffer = chuck.buffer
 local promise
 
 local M = {}
@@ -16,9 +17,9 @@ PromiseSocket.__index = PromiseSocket
 
 function PromiseSocket.new(fd)
 	local c = {}
-	c.conn = socket.stream.New(fd,65536)
+	c.conn = socket.stream.socket(fd,65536)
 	c = setmetatable(c, PromiseSocket)
-	c.buff = chuck.buffer.New(1024)
+	c.buff = buffer.New(1024)
 
 	c.conn:SetCloseCallBack(function ()
 		while c.promise do
@@ -212,7 +213,8 @@ function M.connect(ip,port,timeout)
       if nil == M.event_loop then
       	reject("use event_loop init module first")
       else
-		local err = socket.stream.ip4.dail(M.event_loop,ip,port,function (fd,errCode)
+      	local addr = socket.Addr(socket.AF_INET,ip,port)
+		local err = socket.stream.dial(M.event_loop,addr,function (fd,errCode)
 			if errCode then
 				reject("connect error:" .. errCode)
 			else
@@ -229,7 +231,8 @@ function M.connect(ip,port,timeout)
 end
 
 function M.listen(ip,port,onClient)
-	return socket.stream.ip4.listen(M.event_loop,ip,port,function (fd)
+    local addr = socket.Addr(socket.AF_INET,ip,port)	
+	return socket.stream.listen(M.event_loop,addr,function (fd)
 		onClient(PromiseSocket.new(fd))
 	end)
 end

@@ -17,7 +17,7 @@ CoroSocket.__index = CoroSocket
 
 function CoroSocket.new(fd)
 	local c = setmetatable({},CoroSocket)
-	c.conn = socket.stream.New(fd,65536)
+	c.conn = socket.stream.socket(fd,65536)
 	c.buff = buffer.New(1024)
 	c.waitting = {}
 	c.conn:SetCloseCallBack(function ()
@@ -203,7 +203,8 @@ function M.ListenIP4(ip,port,onConnection)
 	if event_loop == nil then
 		return nil,"not init"
 	else
-		return socket.stream.ip4.listen(event_loop,ip,port,function (fd,err)
+		local addr = socket.Addr(socket.AF_INET,ip,port)
+		return socket.stream.listen(event_loop,addr,function (fd,err)
 			local c
 			if fd then
 				c = CoroSocket.new(fd)
@@ -223,8 +224,8 @@ function M.ConnectIP4(ip,port,timeout)
 		if co == nil then
 			return nil,"ConnectIP4 must call under coroutine context"
 		end
-
-		local ret = socket.stream.ip4.dail(event_loop,ip,port,function (fd,errCode)
+		local addr = socket.Addr(socket.AF_INET,ip,port)
+		local ret = socket.stream.dial(event_loop,addr,function (fd,errCode)
 			if fd then
 				coroutine.resume(co,CoroSocket.new(fd))
 			else

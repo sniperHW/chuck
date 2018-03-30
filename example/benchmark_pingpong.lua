@@ -15,6 +15,8 @@ local ip = "127.0.0.1"
 
 local port = 8010
 
+local serverAddr = socket.Addr(socket.AF_INET,ip,port)
+
 local function server()
 	local clients = {}
 	local client_count = 0
@@ -22,11 +24,11 @@ local function server()
 	local bytes = 0
 	local lastShow = chuck.time.systick()
 
-	tcpServer = socket.stream.ip4.listen(event_loop,ip,port,function (fd,err)
+	tcpServer = socket.stream.listen(event_loop,serverAddr,function (fd,err)
 		if err then
 			return
 		end
-		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
+		local conn = socket.stream.socket(fd,4096,packet.Decoder(65536))
 		if conn then
 			clients[fd] = conn
 			client_count = client_count + 1
@@ -75,13 +77,13 @@ local function client(clientCount)
 
 	local c = 0
 	for i=1,clientCount do
-		socket.stream.ip4.dail(event_loop,ip,port,function (fd,errCode)
+		socket.stream.dial(event_loop,serverAddr,function (fd,errCode)
 			if errCode then
 				print("connect error:" .. errCode)
 				return
 			end
 			c = c + 1
-			local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
+			local conn = socket.stream.socket(fd,4096,packet.Decoder(65536))
 			if conn then
 				conn:SetNoDelay(1)
 				conn:SetCloseCallBack(function ()

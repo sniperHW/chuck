@@ -28,13 +28,15 @@ rpc.pack = function(rpcmsg)
 	return buff
 end
 
+local serverAddr = socket.Addr(socket.AF_INET,ip,port)
+
 local function main()
 
-	local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd,err)
+	local server = socket.stream.listen(event_loop,serverAddr,function (fd,err)
 		if err then
 			return
 		end
-		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
+		local conn = socket.stream.socket(fd,4096,packet.Decoder(65536))
 		if conn then
 			conn:Start(event_loop,function (data)
 				if data then
@@ -67,12 +69,12 @@ local function main()
 		end
 	end 
 
-	socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
+	socket.stream.dail(event_loop,serverAddr,function (fd,errCode)
 		if errCode then
 			print("connect error:" .. errCode)
 			return
 		end
-		local conn = socket.stream.New(fd,4096,packet.Decoder(65536))
+		local conn = socket.stream.socket(fd,4096,packet.Decoder(65536))
 		if conn then
 			conn:Start(event_loop,function (data)
 				if data then 

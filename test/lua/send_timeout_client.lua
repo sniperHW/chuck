@@ -15,12 +15,14 @@ protobuf.register(pb_buffer)
 
 local event_loop = chuck.event_loop.New()
 
-socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
+local serverAddr = socket.Addr(socket.AF_INET,"127.0.0.1",8010)
+
+socket.stream.dail(event_loop,serverAddr,function (fd,errCode)
 	if errCode then
 		print("connect error:" .. errCode)
 		return
 	end
-	local conn = socket.stream.New(fd,4096)
+	local conn = socket.stream.socket(fd,4096)
 	if conn then
 
 		print("connect ok")

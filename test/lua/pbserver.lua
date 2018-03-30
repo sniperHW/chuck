@@ -13,12 +13,13 @@ addr:close()
 
 protobuf.register(buffer)
 
+local serverAddr = socket.Addr(socket.AF_INET,"127.0.0.1",8010)
 
-local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd,err)
+local server = socket.stream.listen(event_loop,serverAddr,function (fd,err)
 	if err then
 		return
 	end	
-	local conn = socket.stream.New(fd,4096)
+	local conn = socket.stream.socket(fd,4096)
 	if conn then
 		conn:Start(event_loop,function (data)
 			if data then

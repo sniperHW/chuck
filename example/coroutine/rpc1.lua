@@ -50,9 +50,11 @@ end
 
 local timer
 
+local serverAddr = socket.Addr(socket.AF_INET,"127.0.0.1",8010)
+
 local function main()
 
-	local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd,err)
+	local server = socket.stream.listen(event_loop,serverAddr,function (fd,err)
 		if err then
 			return
 		end
@@ -73,7 +75,7 @@ local function main()
 		end
 	end)
 
-	socket.stream.ip4.dail(event_loop,"127.0.0.1",8010,function (fd,errCode)
+	socket.stream.dail(event_loop,serverAddr,function (fd,errCode)
 		if errCode then
 			print("connect error:" .. errCode)
 			return
