@@ -74,7 +74,7 @@ static void process_read(chk_datagram_socket *s) {
 	} else {
 		if(errno != EAGAIN) {
 			CHK_SYSLOG(LOG_ERROR,"recvmsg errno:%s",strerror(errno));
-			s->cb(s,NULL,errno);
+			s->cb(s,NULL,chk_error_dgram_read);
 		}
 	}
 }

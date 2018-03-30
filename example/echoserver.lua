@@ -18,13 +18,13 @@ local server = socket.stream.listen(event_loop,serverAddr,function (fd)
 
 		print("client from",socket.util.inet_ntop(peerAddr),socket.util.inet_port(peerAddr))
 
-		conn:Start(event_loop,function (data)
+		conn:Start(event_loop,function (data,err)
 			if data then
 				local response = data:Clone()
 				response:AppendStr("hello world\r\n")
 				conn:Send(response)
 			else
-				log.SysLog(log.info,"client disconnected") 
+				log.SysLog(log.info,string.format("client disconnected:%s",err)) 
 				conn:Close() 
 			end
 		end)

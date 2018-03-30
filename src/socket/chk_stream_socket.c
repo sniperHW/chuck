@@ -509,7 +509,7 @@ static void process_read(chk_stream_socket *s) {
 					chk_loop_remove_handle((chk_handle*)s);
 				} else {
 					s->status |= SOCKET_RCLOSE;
-					s->cb(s,NULL,chk_error_stream_peer_close);
+					s->cb(s,NULL,chk_error_eof);
 					chk_disable_read((chk_handle*)s);
 				}
 			} else {

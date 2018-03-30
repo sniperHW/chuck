@@ -53,7 +53,7 @@ static void lua_acceptor_cb(chk_acceptor *_,int32_t fd,chk_sockaddr *addr,chk_ud
 	if(0 == err) {
 		error = chk_Lua_PCallRef(cb,"i",fd);
 	}else {
-		error = chk_Lua_PCallRef(cb,"pi",NULL,err);
+		error = chk_Lua_PCallRef(cb,"ps",NULL,chk_get_errno_str(err));
 	}
 	if(error) {
 		close(fd);
@@ -178,7 +178,7 @@ static void dail_cb(int32_t fd,chk_ud ud,int32_t err) {
 	if(0 == err) {
 		error = chk_Lua_PCallRef(cb,"i",fd);
 	}else {
-		error = chk_Lua_PCallRef(cb,"pi",NULL,err);		
+		error = chk_Lua_PCallRef(cb,"ps",NULL,chk_get_errno_str(err));		
 	} 
 	if(error) {
 		close(fd);
@@ -249,7 +249,7 @@ static void data_cb(chk_stream_socket *s,chk_bytebuffer *data,int32_t error) {
 	if(data) {
 		error_str = chk_Lua_PCallRef(lua_socket->cb,"f",(chk_luaPushFunctor*)&pusher);
 	} else {
-		error_str = chk_Lua_PCallRef(lua_socket->cb,"pi",NULL,error);
+		error_str = chk_Lua_PCallRef(lua_socket->cb,"ps",NULL,chk_get_errno_str(error));
 	}
 
 	if(error_str) { 
@@ -545,7 +545,7 @@ static void datagram_event_cb(chk_datagram_socket *datagram_socket,chk_datagram_
 		luaAddrPusher   pusher2 = {PushAddr,&event->src};		
 		error_str = chk_Lua_PCallRef(s->cb,"ffi",(chk_luaPushFunctor*)&pusher1,(chk_luaPushFunctor*)&pusher2,error);
 	} else {
-		error_str = chk_Lua_PCallRef(s->cb,"pi",NULL,error);
+		error_str = chk_Lua_PCallRef(s->cb,"ps",NULL,chk_get_errno_str(error));
 	}
 
 	if(error_str) { 
