@@ -8,9 +8,9 @@ local event_loop = chuck.event_loop.New()
 local log = chuck.log
 
 
-local serverAddr = socket.Addr(socket.AF_INET,"127.0.0.1",9010)
+local serverAddr = socket.addr(socket.AF_INET,"127.0.0.1",9010)
 
-local server = socket.stream.ip4.listen(event_loop,serverAddr,function (fd)
+local server = socket.stream.listen(event_loop,serverAddr,function (fd)
 	local conn = socket.stream.socket(fd,4096)
 	if conn then
 

@@ -46,7 +46,7 @@ end
 
 local ssl_ctx = init_ssl()
 
-local serverAddr = socket.Addr(socket.AF_INET,"127.0.0.1",8010)
+local serverAddr = socket.addr(socket.AF_INET,"127.0.0.1",8010)
 
 if ssl_ctx then 
 	local server = socket.stream.listen(event_loop,serverAddr,function (fd,err)

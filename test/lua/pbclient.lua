@@ -15,7 +15,7 @@ protobuf.register(pb_buffer)
 
 local event_loop = chuck.event_loop.New()
 
-local serverAddr = socket.Addr(socket.AF_INET,"127.0.0.1",8010)
+local serverAddr = socket.addr(socket.AF_INET,"127.0.0.1",8010)
 
 socket.stream.dial(event_loop,serverAddr,function (fd,errCode)
 	if 0 ~= errCode then

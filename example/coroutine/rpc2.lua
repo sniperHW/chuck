@@ -54,7 +54,7 @@ end
 
 local timer
 
-local serverAddr = socket.Addr(socket.AF_INET,"127.0.0.1",8010)
+local serverAddr = socket.addr(socket.AF_INET,"127.0.0.1",8010)
 
 local function main()
 	local server

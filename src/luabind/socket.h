@@ -790,7 +790,7 @@ static void register_socket(lua_State *L) {
 
 
 	SET_FUNCTION(L,"closefd",lua_close_fd);
-	SET_FUNCTION(L,"Addr",lua_addr);
+	SET_FUNCTION(L,"addr",lua_addr);
 
 	SET_CONST(L,AF_INET);
 	SET_CONST(L,AF_LOCAL);

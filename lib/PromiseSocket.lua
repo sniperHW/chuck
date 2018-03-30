@@ -213,7 +213,7 @@ function M.connect(ip,port,timeout)
       if nil == M.event_loop then
       	reject("use event_loop init module first")
       else
-      	local addr = socket.Addr(socket.AF_INET,ip,port)
+      	local addr = socket.addr(socket.AF_INET,ip,port)
 		local err = socket.stream.dial(M.event_loop,addr,function (fd,errCode)
 			if errCode then
 				reject("connect error:" .. errCode)
@@ -231,7 +231,7 @@ function M.connect(ip,port,timeout)
 end
 
 function M.listen(ip,port,onClient)
-    local addr = socket.Addr(socket.AF_INET,ip,port)	
+    local addr = socket.addr(socket.AF_INET,ip,port)	
 	return socket.stream.listen(M.event_loop,addr,function (fd)
 		onClient(PromiseSocket.new(fd))
 	end)

@@ -28,7 +28,7 @@ rpc.pack = function(rpcmsg)
 	return buff
 end
 
-local serverAddr = socket.Addr(socket.AF_INET,ip,port)
+local serverAddr = socket.addr(socket.AF_INET,ip,port)
 
 local function main()
 

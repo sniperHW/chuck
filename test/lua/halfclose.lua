@@ -15,11 +15,11 @@ local ip = "127.0.0.1"
 
 local port = 8010
 
-local serverAddr = socket.Addr(socket.AF_INET,ip,port)
+local serverAddr = socket.addr(socket.AF_INET,ip,port)
 
 local function server()
 
-	tcpServer = socket.stream.ip4.listen(event_loop,serverAddr,function (fd,err)
+	tcpServer = socket.stream.listen(event_loop,serverAddr,function (fd,err)
 		if err then
 			return
 		end

@@ -203,7 +203,7 @@ function M.ListenIP4(ip,port,onConnection)
 	if event_loop == nil then
 		return nil,"not init"
 	else
-		local addr = socket.Addr(socket.AF_INET,ip,port)
+		local addr = socket.addr(socket.AF_INET,ip,port)
 		return socket.stream.listen(event_loop,addr,function (fd,err)
 			local c
 			if fd then
@@ -224,7 +224,7 @@ function M.ConnectIP4(ip,port,timeout)
 		if co == nil then
 			return nil,"ConnectIP4 must call under coroutine context"
 		end
-		local addr = socket.Addr(socket.AF_INET,ip,port)
+		local addr = socket.addr(socket.AF_INET,ip,port)
 		local ret = socket.stream.dial(event_loop,addr,function (fd,errCode)
 			if fd then
 				coroutine.resume(co,CoroSocket.new(fd))

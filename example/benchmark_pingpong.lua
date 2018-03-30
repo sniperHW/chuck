@@ -15,7 +15,7 @@ local ip = "127.0.0.1"
 
 local port = 8010
 
-local serverAddr = socket.Addr(socket.AF_INET,ip,port)
+local serverAddr = socket.addr(socket.AF_INET,ip,port)
 
 local function server()
 	local clients = {}
