@@ -214,10 +214,6 @@ static int32_t lua_dail_ip4(lua_State *L) {
 	int16_t         port;
 	chk_event_loop *event_loop;
 
-	if(!lua_isfunction(L,4)) { 
-		return luaL_error(L,"argument 4 of dail must be lua function");
-	}
-
 	event_loop = lua_checkeventloop(L,1);
 	ip = luaL_checkstring(L,2);
 	port = (int16_t)luaL_checkinteger(L,3);	
