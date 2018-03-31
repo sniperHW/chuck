@@ -1,0 +1,8 @@
+syntax = "proto2";
+package chuck;
+
+message AuthReq {
+	required string name = 1;
+	required string ip   = 2;
+	required int32  port = 3;
+}

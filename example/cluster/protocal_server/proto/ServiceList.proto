@@ -1,0 +1,20 @@
+syntax = "proto2";
+package chuck;
+
+message ServiceListReq {
+	repeated string services = 1; 
+}
+
+message ServiceLocation {
+	required string ip = 1;
+	required int32  port = 2;
+}
+
+message ServiceInfo {
+	required string name = 1;
+	repeated ServiceLocation locations = 2;
+}
+
+message ServiceListResp {
+	repeated ServiceInfo infos = 1;
+}
