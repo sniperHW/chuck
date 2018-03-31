@@ -14,6 +14,29 @@ M.timeout = 10 --调用超时时间
 M.seq = 1
 M.clients = {}
 
+--以下5个函数用户可以重定义
+function M.pack(buff)
+	return buffer.New(buff)
+end
+
+function M.serializeArg(writer,args)
+	writer:WriteTable(args)
+end
+
+function M.unserializeArg(reader)
+	return reader:ReadTable()
+end
+
+function M.serializeMethod(writer,method)
+	return writer:WriteStr(method)
+end
+
+function M.unserializeMethod(reader)
+	return reader:ReadStr()
+end
+
+--
+
 function M.init(event_loop)
 	if nil == M.event_loop then
 		M.event_loop = event_loop
@@ -24,10 +47,10 @@ end
 
 local logger = log.CreateLogfile("RPC")
 
-local method = {}
+local methods = {}
 
-function M.registerMethod(methodName,func)
-	method[methodName] = func
+function M.registerMethod(method,func)
+	methods[method] = func
 end
 
 local rpcResponse = {}
@@ -66,7 +89,7 @@ function rpcResponse:Return(...)
 end
 
 local function callMethod(methodName,args,response)
-	local func = method[methodName]
+	local func = methods[methodName]
 	if nil == func then
 		logger:Log(log.error,string.format("callMethod method not found:%s",methodName))
 		sendResponse(response,nil,"method not found:" .. methodName)
@@ -82,17 +105,16 @@ local function callMethod(methodName,args,response)
 	end
 end
 
-
 function M.OnRPCMsg(conn,msg)
 	local buff = buffer.New(msg)
 	local rpacket = packet.Reader(buff)
 	local cmd   = rpacket:ReadI8()
 	if cmd == cmd_request then
 		local seqno = rpacket:ReadI64()
-		local name  = rpacket:ReadStr()
-		local args  = rpacket:ReadTable()
+		local method = M.unserializeMethod(rpacket)
+		local args  = M.unserializeArg(rpacket)
 		local response = newResponse(conn,seqno)
-		callMethod(name,args,response)
+		callMethod(method,args,response)
 	elseif cmd == cmd_response then
 		local rpcclient = M.clients[conn]
 		if not rpcclient then
@@ -129,14 +151,10 @@ M.RPCClient = function (conn)
 	return c
 end
 
-M.pack = function (buff)
-	return buffer.New(buff)
-end
+function rpcClient:Call(method,callback,...)
 
-function rpcClient:Call(methodName,callback,...)
-
-	if nil == methodName then
-		return "methodName == nil"
+	if nil == method then
+		return "method == nil"
 	end
 
 	if nil == self.conn then
@@ -151,9 +169,8 @@ function rpcClient:Call(methodName,callback,...)
 	local writer = packet.Writer(buff)
 	writer:WriteI8(cmd_request)
 	writer:WriteI64(seqno)
-	writer:WriteStr(methodName)
-	writer:WriteTable(args)
-
+	M.serializeMethod(writer,method)
+	M.serializeArg(writer,args)
 	buff = M.pack(buff:Content())
 	
 	if nil ~= self.conn:Send(buff) then

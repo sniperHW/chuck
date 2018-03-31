@@ -28,7 +28,7 @@ rpc.pack = function(rpcmsg)
 	return buff
 end
 
-local serverAddr = socket.addr(socket.AF_INET,ip,port)
+local serverAddr = socket.addr(socket.AF_INET,"127.0.0.1",8010)
 
 local function main()
 
@@ -69,7 +69,7 @@ local function main()
 		end
 	end 
 
-	socket.stream.dail(event_loop,serverAddr,function (fd,errCode)
+	socket.stream.dial(event_loop,serverAddr,function (fd,errCode)
 		if errCode then
 			print("connect error:" .. errCode)
 			return
@@ -108,6 +108,10 @@ local function main()
 				conn:Send(buff)			
 			end)
 		end
+	end)
+
+	event_loop:WatchSignal(chuck.signal.SIGINT,function()
+		event_loop:Stop()
 	end)
 
 	event_loop:Run()
