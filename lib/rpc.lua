@@ -35,7 +35,11 @@ function M.unserializeMethod(reader)
 	return reader:ReadStr()
 end
 
-function M.serializeResp(writer,err,result)
+function M.serializeResp(writer,err,...)
+	local result = {...}
+	if #result == 0 then
+		result = nil
+	end
 	writer:WriteTable({err=err,ret=result})
 end
 
@@ -73,13 +77,13 @@ local function newResponse(conn,seqno)
 	return r
 end
 
-local function sendResponse(response,result,err)
+local function sendResponse(response,err,...)
 	if response.seqno > 0 then
 		local buff = buffer.New()
 		local writer = packet.Writer(buff)
 		writer:WriteI8(cmd_response)
 		writer:WriteI64(response.seqno)
-		M.serializeResp(writer,err,result)
+		M.serializeResp(writer,err,...)
 		buff = M.pack(buff:Content())
 		local err = response.conn:Send(buff)
 		if err then
@@ -89,18 +93,18 @@ local function sendResponse(response,result,err)
 end
 
 function rpcResponse:Return(...)
-	local result = {...}
-	if #result == 0 then
-		result = nil
-	end
-	sendResponse(self,result)
+	sendResponse(self,nil,...)
+end
+
+function rpcResponse:Error(errmsg)
+	sendResponse(self,errmsg)
 end
 
 local function callMethod(methodName,args,response)
 	local func = methods[methodName]
 	if nil == func then
 		logger:Log(log.error,string.format("callMethod method not found:%s",methodName))
-		sendResponse(response,nil,"method not found:" .. methodName)
+		response:Error("method not found:" .. methodName)
 	else
 		local errmsg
 		local success,ret = xpcall(func,function (err)
@@ -108,7 +112,7 @@ local function callMethod(methodName,args,response)
 			end,response,table.unpack(args))
 		if nil ~= errmsg then
 			logger:Log(log.error,string.format("error on callMethod:%s",errmsg))
-			sendResponse(response,nil,errmsg)
+			response:Error(errmsg)
 		end
 	end
 end
