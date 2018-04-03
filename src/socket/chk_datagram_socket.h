@@ -30,5 +30,9 @@ chk_ud chk_datagram_socket_getUd(chk_datagram_socket *s);
 
 void chk_datagram_socket_setUd(chk_datagram_socket *s,chk_ud ud);
 
+int32_t chk_datagram_socket_set_broadcast(chk_datagram_socket *s);
+
+int32_t chk_datagram_socket_broadcast(chk_datagram_socket *s,chk_bytebuffer *buff,chk_sockaddr *addr);
+
 
 #endif

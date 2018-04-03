@@ -202,3 +202,71 @@ int32_t chk_datagram_socket_sendto(chk_datagram_socket *s,chk_bytebuffer *buff,c
 		}
 	}
 }
+
+
+int32_t chk_datagram_socket_set_broadcast(chk_datagram_socket *s) {
+	if(s->closed) {
+		return chk_error_socket_close;
+	}
+	if(0 == s->boradcast) {
+		const int opt=-1;
+		int nb=0;
+		nb=setsockopt(s->fd,SOL_SOCKET,SO_BROADCAST,(char*)&opt,sizeof(opt));//设置套接字类型
+		if(nb==-1) {	
+			CHK_SYSLOG(LOG_ERROR,"set SO_BROADCAST failed errno:%s",strerror(errno));
+			return chk_error_dgram_set_boradcast;
+		}
+		s->boradcast = 1;		
+	}
+	return chk_error_ok;		
+}
+
+
+int32_t chk_datagram_socket_broadcast(chk_datagram_socket *s,chk_bytebuffer *buff,chk_sockaddr *addr) {
+	if(s->closed) {
+		chk_bytebuffer_del(buff);
+		return chk_error_socket_close;
+	}
+	if(0 == s->boradcast) {
+		chk_bytebuffer_del(buff);	
+		return chk_error_dgram_boradcast_flag;
+	}
+	int              ret      = 0;
+	int32_t          i        = 0;
+	chk_bytechunk   *chunk    = buff->head;
+	uint32_t         pos      = buff->spos;
+	uint32_t         datasize = buff->datasize; 
+	uint32_t         size     = 0;
+	while(i < MAX_WBAF && chunk && datasize) {
+		s->wsendbuf[i].iov_base = chunk->data + pos;
+		size = MIN(chunk->cap - pos,datasize);
+		datasize -= size;
+		s->wsendbuf[i].iov_len = size;
+		++i;			
+		chunk = chunk->next;
+		pos = 0;		
+	}
+
+	if(i >= MAX_WBAF) {
+		chk_bytebuffer_del(buff);	
+		return chk_error_packet_too_large;		
+	} else {
+		struct msghdr _msghdr = {
+			.msg_name       = addr,
+			.msg_namelen    = chk_sockaddr_size(addr),
+			.msg_iov        = s->wsendbuf,
+			.msg_iovlen     = i,
+			.msg_flags      = 0,
+			.msg_control    = NULL,
+			.msg_controllen = 0
+		};		
+		ret = TEMP_FAILURE_RETRY(sendmsg(s->fd,&_msghdr,0)); 
+		chk_bytebuffer_del(buff);
+		if(ret >= 0) {
+			return chk_error_ok;
+		} else {
+			CHK_SYSLOG(LOG_ERROR,"sendmsg errno:%s",strerror(errno));
+			return chk_error_send_failed;
+		}
+	}
+}
