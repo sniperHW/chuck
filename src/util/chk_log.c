@@ -40,6 +40,7 @@ struct chk_logfile {
 	chk_dlist_entry   entry;
 	char              filename[MAX_LOG_FILE_NAME];
 	FILE             *file;
+	struct tm         tm;
 	uint32_t          total_size;
 };
 
@@ -126,34 +127,34 @@ log_entry *logqueue_fetch(uint32_t ms) {
 
 int32_t chk_log_prefix(char *buf,uint8_t loglev) {
 	struct timespec tv;
-	struct tm _tm;
-    clock_gettime (CLOCK_REALTIME, &tv);	
-	localtime_r(&tv.tv_sec, &_tm);
+	struct tm tm;
+    chk_clock_real(&tv);
+    chk_localtime(&tm);
 	return sprintf(buf,"[%8s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u]:",
 				   log_lev_str[loglev],
-				   _tm.tm_year+1900,
-				   _tm.tm_mon+1,
-				   _tm.tm_mday,
-				   _tm.tm_hour,
-				   _tm.tm_min,
-				   _tm.tm_sec,
+				   tm.tm_year+1900,
+				   tm.tm_mon+1,
+				   tm.tm_mday,
+				   tm.tm_hour,
+				   tm.tm_min,
+				   tm.tm_sec,
 				   cast(int32_t,tv.tv_nsec/1000000),
 				   cast(uint32_t,chk_thread_current_tid()));
 }
 
 int32_t chk_log_prefix_detail(char *buf,uint8_t loglev,const char *function,const char *file,int32_t line) {
 	struct timespec tv;
-	struct tm _tm;
-    clock_gettime (CLOCK_REALTIME, &tv);	
-	localtime_r(&tv.tv_sec, &_tm);
+	struct tm tm;
+    chk_clock_real(&tv);
+    chk_localtime(&tm);
 	return sprintf(buf,"[%8s]%04d-%02d-%02d-%02d:%02d:%02d.%03d[%u] %s():%s:%d:",
 				   log_lev_str[loglev],
-				   _tm.tm_year+1900,
-				   _tm.tm_mon+1,
-				   _tm.tm_mday,
-				   _tm.tm_hour,
-				   _tm.tm_min,
-				   _tm.tm_sec,
+				   tm.tm_year+1900,
+				   tm.tm_mon+1,
+				   tm.tm_mday,
+				   tm.tm_hour,
+				   tm.tm_min,
+				   tm.tm_sec,
 				   cast(int32_t,tv.tv_nsec/1000000),
 				   cast(uint32_t,chk_thread_current_tid()),
 				   function,
@@ -194,6 +195,24 @@ static int32_t create_log_dir(const char *log_dir) {
 	}
 }
 
+int need_create_logfile(log_entry *entry,struct tm *tm) {
+	if(!entry->_logfile->file) {
+		return 1;
+	}
+
+	if(entry->_logfile->total_size > CHK_MAX_LOG_FILE_SIZE) {
+		return 1;
+	}
+
+	if(entry->_logfile->tm.tm_year != tm->tm_year  ||
+	   entry->_logfile->tm.tm_mon  != tm->tm_mon   ||
+	   entry->_logfile->tm.tm_mday != tm->tm_mday) {
+		return 1;
+	}
+
+	return 0;
+}
+
 static void *log_routine(void *arg) {
 	log_entry       *entry;
 	chk_logfile     *l;
@@ -203,36 +222,37 @@ static void *log_routine(void *arg) {
 	char             logdir[MAX_LOG_FILE_NAME] = {0};
 	char             buf[128] = {0};
 	struct timespec  tv;
-	struct tm        _tm;			
+	struct tm        tm;			
 	time_t           next_fulsh = time(NULL) + flush_interval;
 	int32_t          ret;
 
 	for(;;) {
 		if((entry = logqueue_fetch(stop?0:100))) {
-			if(!entry->_logfile->file || entry->_logfile->total_size > CHK_MAX_LOG_FILE_SIZE) {
+			chk_localtime(&tm);
+			if(1 == need_create_logfile(entry,&tm)) {
+				chk_clock_real(&tv);
 				if(entry->_logfile->file) {
 					fclose(entry->_logfile->file);
 					entry->_logfile->file = NULL;
 					entry->_logfile->total_size = 0;
 				}
 				//创建文件
-				clock_gettime(CLOCK_REALTIME, &tv);
-				localtime_r(&tv.tv_sec, &_tm);
-				snprintf(logdir,sizeof(logdir),"%s/%04d-%02d-%02d",g_log_dir,_tm.tm_year+1900,_tm.tm_mon+1,_tm.tm_mday);
+				snprintf(logdir,sizeof(logdir),"%s/%04d-%02d-%02d",g_log_dir,tm.tm_year+1900,tm.tm_mon+1,tm.tm_mday);
 				ret = create_log_dir(logdir);
 				if(0 == ret) {
 					snprintf(filename,sizeof(filename) - 1,"%s/%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
 							 logdir,
 							 entry->_logfile->filename,
 							 getpid(),
-						     _tm.tm_year+1900,
-						     _tm.tm_mon+1,
-						     _tm.tm_mday,
-						     _tm.tm_hour,
-						     _tm.tm_min,
-						     _tm.tm_sec,
+						     tm.tm_year+1900,
+						     tm.tm_mon+1,
+						     tm.tm_mday,
+						     tm.tm_hour,
+						     tm.tm_min,
+						     tm.tm_sec,
 						     cast(int32_t,tv.tv_nsec/1000000));
-					entry->_logfile->file = fopen(filename,"w+");					
+					entry->_logfile->file = fopen(filename,"w+");
+					entry->_logfile->tm = tm;					
 				} else {
 					printf("create log dir failed:%d\n",ret);
 					exit(0);

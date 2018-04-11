@@ -48,10 +48,18 @@ static inline int clock_gettime(int clk_id, struct timespec *t){
 
 #endif
 
+/*
+    struct timespec tv;
+    struct tm _tm;
+    clock_gettime (CLOCK_REALTIME, &tv);    
+    localtime_r(&tv.tv_sec, &_tm);
+*/
 
 struct _clock {
-    uint64_t last_tsc;
-    uint64_t last_time;
+    uint64_t  last_tsc;
+    uint64_t  last_time;
+    struct timespec tv;
+    struct tm tm;
 };
 
 static __thread struct _clock *__t_clock = NULL;
@@ -100,8 +108,10 @@ static void __clock_child_at_fork() {
 }
 
 static inline void _clock_init() {
-    __t_clock->last_tsc = _clock_rdtsc();
-    __t_clock->last_time = _clock_time();
+    __t_clock->last_tsc  = _clock_rdtsc();
+    __t_clock->last_time = _clock_time();    
+    clock_gettime(CLOCK_REALTIME,&__t_clock->tv); 
+    localtime_r(&__t_clock->tv.tv_sec, &__t_clock->tm);
     pthread_atfork(NULL,NULL,__clock_child_at_fork);
 }
 
@@ -130,8 +140,65 @@ static inline uint64_t chk_systick64() {
         measurement now. */
     c->last_tsc = tsc;
     c->last_time = _clock_time();
+    clock_gettime(CLOCK_REALTIME,&c->tv); 
+    localtime_r(&c->tv.tv_sec, &c->tm);
     return c->last_time;
 }
+
+static inline void chk_clock_real(struct timespec *tv) {
+    uint64_t tsc = _clock_rdtsc();
+    if (!tsc){
+        clock_gettime(CLOCK_REALTIME,tv);
+        return;
+    }
+
+    struct _clock *c = get_thread_clock();
+
+    /*  If tsc haven't jumped back or run away too far, we can use the cached
+        time value. */
+    if (chk_likely(tsc - c->last_tsc <= (NN_CLOCK_PRECISION / 2) && tsc >= c->last_tsc)){
+        *tv = c->tv;
+        return;
+    }
+        
+
+    /*  It's a long time since we've last measured the time. We'll do a new
+        measurement now. */
+    c->last_tsc = tsc;
+    c->last_time = _clock_time();
+    clock_gettime(CLOCK_REALTIME,&c->tv); 
+    localtime_r(&c->tv.tv_sec, &c->tm);
+    *tv = c->tv;    
+}
+
+static inline void chk_localtime(struct tm *tm) {
+    uint64_t tsc = _clock_rdtsc();
+    if (!tsc){
+        struct timespec tv;
+        clock_gettime (CLOCK_REALTIME, &tv);    
+        localtime_r(&tv.tv_sec, tm);        
+        return;
+    }
+
+
+    struct _clock *c = get_thread_clock();
+
+    /*  If tsc haven't jumped back or run away too far, we can use the cached
+        time value. */
+    if (chk_likely(tsc - c->last_tsc <= (NN_CLOCK_PRECISION / 2) && tsc >= c->last_tsc)){
+        *tm = c->tm;
+        return;
+    }
+
+    /*  It's a long time since we've last measured the time. We'll do a new
+        measurement now. */
+    c->last_tsc = tsc;
+    c->last_time = _clock_time();
+    clock_gettime(CLOCK_REALTIME,&c->tv); 
+    localtime_r(&c->tv.tv_sec, &c->tm);
+    *tm = c->tm;  
+}
+
 
 static inline uint64_t chk_accurate_tick64(){
     return _clock_time();
