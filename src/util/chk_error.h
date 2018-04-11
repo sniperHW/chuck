@@ -64,8 +64,9 @@
 	XX(51,chk_error_invaild_packet_size)                        			\
 	XX(52,chk_error_http_packet)                                			\
 	XX(53,chk_error_unpack)    												\
-	XX(54,chk_error_dgram_read)
-
+	XX(54,chk_error_dgram_read)												\
+	XX(55,chk_error_dgram_set_boradcast)                                    \
+	XX(56,chk_error_dgram_boradcast_flag)
 
 enum 
   {

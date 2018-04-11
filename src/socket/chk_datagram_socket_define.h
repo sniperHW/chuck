@@ -11,6 +11,7 @@ struct chk_datagram_socket {
     chk_datagram_socket_cb cb;
     int8_t                 closed;
     int8_t                 inloop;
+    int8_t                 boradcast;
     int                    addr_type;    
 };
 

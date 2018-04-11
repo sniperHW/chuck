@@ -14,13 +14,13 @@ M.timeout = 10 --调用超时时间
 M.seq = 1
 M.clients = {}
 
---以下5个函数用户可以重定义
+--以下7个函数用户可以重定义
 function M.pack(buff)
 	return buffer.New(buff)
 end
 
-function M.serializeArg(writer,args)
-	writer:WriteTable(args)
+function M.serializeArg(writer,...)
+	writer:WriteTable({...})
 end
 
 function M.unserializeArg(reader)
@@ -28,11 +28,24 @@ function M.unserializeArg(reader)
 end
 
 function M.serializeMethod(writer,method)
-	return writer:WriteStr(method)
+	writer:WriteStr(method)
 end
 
 function M.unserializeMethod(reader)
 	return reader:ReadStr()
+end
+
+function M.serializeResp(writer,err,...)
+	local result = {...}
+	if #result == 0 then
+		result = nil
+	end
+	writer:WriteTable({err=err,ret=result})
+end
+
+function M.unserializeResp(reader)
+	local resp = reader:ReadTable()
+	return resp.err,resp.ret
 end
 
 --
@@ -64,14 +77,13 @@ local function newResponse(conn,seqno)
 	return r
 end
 
-local function sendResponse(response,result,err)
+local function sendResponse(response,err,...)
 	if response.seqno > 0 then
-		local resp = {err = err,ret=result}
 		local buff = buffer.New()
 		local writer = packet.Writer(buff)
 		writer:WriteI8(cmd_response)
 		writer:WriteI64(response.seqno)
-		writer:WriteTable(resp)
+		M.serializeResp(writer,err,...)
 		buff = M.pack(buff:Content())
 		local err = response.conn:Send(buff)
 		if err then
@@ -81,18 +93,18 @@ local function sendResponse(response,result,err)
 end
 
 function rpcResponse:Return(...)
-	local result = {...}
-	if #result == 0 then
-		result = nil
-	end
-	sendResponse(self,result)
+	sendResponse(self,nil,...)
+end
+
+function rpcResponse:Error(errmsg)
+	sendResponse(self,errmsg)
 end
 
 local function callMethod(methodName,args,response)
 	local func = methods[methodName]
 	if nil == func then
 		logger:Log(log.error,string.format("callMethod method not found:%s",methodName))
-		sendResponse(response,nil,"method not found:" .. methodName)
+		response:Error("method not found:" .. methodName)
 	else
 		local errmsg
 		local success,ret = xpcall(func,function (err)
@@ -100,7 +112,7 @@ local function callMethod(methodName,args,response)
 			end,response,table.unpack(args))
 		if nil ~= errmsg then
 			logger:Log(log.error,string.format("error on callMethod:%s",errmsg))
-			sendResponse(response,nil,errmsg)
+			response:Error(errmsg)
 		end
 	end
 end
@@ -125,10 +137,10 @@ function M.OnRPCMsg(conn,msg)
 		if cb_info then
 			rpcclient.callbacks[seqno]= nil
 			cb_info.timer:UnRegister()
-			local resp = rpacket:ReadTable()
+			local err,ret = M.unserializeResp(rpacket)
 			xpcall(cb_info.cb,function (err)
 			    logger:Log(log.error,string.format("error on rpc callback:%s",err))
-			end,resp.err,resp.ret)
+			end,err,ret)
 		end
 	else
 		logger:Log(log.error,string.format("onRequest unkonw cmd:%d",cmd))
@@ -139,7 +151,7 @@ local rpcClient = {}
 rpcClient.__index = rpcClient
 
 --在一个conn上只能建立一个rpcclient,如果重复建立会失败返回nil
-M.RPCClient = function (conn)	
+function M.RPCClient(conn)	
 	if M.clients[conn] then
 		return nil
 	end
@@ -161,7 +173,6 @@ function rpcClient:Call(method,callback,...)
 		return "connection loss"
 	end
 
-	local args = {...}
 	local seqno = callback and M.seq or 0
 	M.seq = M.seq + 1
 
@@ -170,7 +181,7 @@ function rpcClient:Call(method,callback,...)
 	writer:WriteI8(cmd_request)
 	writer:WriteI64(seqno)
 	M.serializeMethod(writer,method)
-	M.serializeArg(writer,args)
+	M.serializeArg(writer,...)
 	buff = M.pack(buff:Content())
 	
 	if nil ~= self.conn:Send(buff) then

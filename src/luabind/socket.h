@@ -566,7 +566,7 @@ static int32_t lua_datagram_socket_sendto(lua_State *L) {
 	dst = lua_check_sockaddr(L,3);
 	b   = chk_bytebuffer_clone(o);
 	if(!b) {
-		lua_pushstring(L,"send error");		
+		lua_pushstring(L,"invaild buff");		
 		return 1;
 	}
 	if(0 != chk_datagram_socket_sendto(s->socket,b,dst)){
@@ -574,6 +574,42 @@ static int32_t lua_datagram_socket_sendto(lua_State *L) {
 		return 1;
 	}
 	return 0;
+}
+
+static int32_t lua_datagram_socket_broadcast(lua_State *L) {
+	chk_bytebuffer    *b,*o;
+	chk_sockaddr      *addr;
+	lua_datagram_socket *s = lua_checkdatagramsocket(L,1);
+	if(!s->socket){
+		lua_pushstring(L,"socket close");		
+		return 1;
+	}
+	o    = lua_checkbytebuffer(L,2);
+	addr = lua_check_sockaddr(L,3);
+	b    = chk_bytebuffer_clone(o);
+	if(!b) {
+		lua_pushstring(L,"invaild buff");		
+		return 1;
+	}
+	if(0 != chk_datagram_socket_broadcast(s->socket,b,addr)){
+		lua_pushstring(L,"broadcast error");
+		return 1;
+	}
+	return 0;	
+}
+
+static int32_t lua_datagram_socket_set_broadcast(lua_State *L) {
+	lua_datagram_socket *s = lua_checkdatagramsocket(L,1);
+	if(!s->socket){
+		lua_pushstring(L,"socket close");		
+		return 1;
+	}
+	if(chk_error_ok != chk_datagram_socket_set_broadcast(s->socket)) {
+		lua_pushstring(L,"set broadcast failed");
+		return 1;
+	}else {
+		return 0;
+	}	
 }
 
 static int32_t lua_datagram_socket_close(lua_State *L) {
@@ -735,6 +771,8 @@ static void register_socket(lua_State *L) {
 
 	luaL_Reg datagram_socket_methods[] = {
 		{"Sendto",    	lua_datagram_socket_sendto},
+		{"Broadcast",	lua_datagram_socket_broadcast},
+		{"SetBroadcast",lua_datagram_socket_set_broadcast},
 		{"Start",   	lua_datagram_socket_start},
 		{"Bind",   	    lua_datagram_socket_bind},		
 		{"Close",   	lua_datagram_socket_close},
