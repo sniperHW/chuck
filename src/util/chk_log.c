@@ -38,7 +38,8 @@ const char *log_lev_str[] = {
 
 struct chk_logfile {
 	chk_dlist_entry   entry;
-	char              filename[MAX_LOG_FILE_NAME];
+	char              filename[MAX_LOG_FILE_NAME + 1];//文件名
+	char              path[MAX_LOG_FILE_NAME + 1];    //所在目录
 	FILE             *file;
 	struct tm         tm;
 	uint32_t          total_size;
@@ -213,50 +214,58 @@ int need_create_logfile(log_entry *entry,struct tm *tm) {
 	return 0;
 }
 
+static void close_and_rename(chk_logfile *logfile) {
+	char oldname[MAX_LOG_FILE_NAME + 1];
+	char newname[MAX_LOG_FILE_NAME + 1];	
+	if(logfile->file) {
+		fflush(logfile->file);
+		fclose(logfile->file);
+		snprintf(oldname,sizeof(oldname) - 1,"%s/%s[%d].log",logfile->path,logfile->filename,getpid());
+		oldname[sizeof(oldname) - 1] = 0;		
+		snprintf(newname,sizeof(newname) - 1,"%s/%s[%d]-%02d.%02d.%02d.log",
+			logfile->path,
+			logfile->filename,
+			getpid(),
+			logfile->tm.tm_hour,
+			logfile->tm.tm_min,
+			logfile->tm.tm_sec			
+		);
+		newname[sizeof(newname) - 1] = 0;
+		rename(oldname,newname);	
+	}
+}
+
+static void create_os_file(log_entry *entry,struct tm *tm) {
+	char filename[MAX_LOG_FILE_NAME + 1];
+	chk_logfile *logfile = entry->_logfile;
+	snprintf(logfile->path,sizeof(logfile->path) - 1,"%s/%04d-%02d-%02d",g_log_dir,(*tm).tm_year+1900,(*tm).tm_mon+1,(*tm).tm_mday);
+	logfile->path[sizeof(logfile->path)] = 0;
+	if(0 == create_log_dir(logfile->path)) {
+		snprintf(filename,sizeof(filename) - 1,"%s/%s[%d].log",logfile->path,logfile->filename,getpid());
+		filename[sizeof(filename) - 1] = 0;
+		entry->_logfile->file = fopen(filename,"w+");
+		entry->_logfile->tm = *tm;					
+	}
+}
+
 static void *log_routine(void *arg) {
 	log_entry       *entry;
 	chk_logfile     *l;
 	chk_dlist_entry *n;	
-	int32_t          size;
-	char             filename[MAX_LOG_FILE_NAME] = {0};
-	char             logdir[MAX_LOG_FILE_NAME] = {0};
-	char             buf[128] = {0};
-	struct timespec  tv;
 	struct tm        tm;			
 	time_t           next_fulsh = time(NULL) + flush_interval;
-	int32_t          ret;
 
 	for(;;) {
 		if((entry = logqueue_fetch(stop?0:100))) {
 			chk_localtime(&tm);
 			if(1 == need_create_logfile(entry,&tm)) {
-				chk_clock_real(&tv);
 				if(entry->_logfile->file) {
-					fclose(entry->_logfile->file);
+					close_and_rename(entry->_logfile);
 					entry->_logfile->file = NULL;
 					entry->_logfile->total_size = 0;
 				}
 				//创建文件
-				snprintf(logdir,sizeof(logdir),"%s/%04d-%02d-%02d",g_log_dir,tm.tm_year+1900,tm.tm_mon+1,tm.tm_mday);
-				ret = create_log_dir(logdir);
-				if(0 == ret) {
-					snprintf(filename,sizeof(filename) - 1,"%s/%s[%d]-%04d-%02d-%02d %02d.%02d.%02d.%03d.log",
-							 logdir,
-							 entry->_logfile->filename,
-							 getpid(),
-						     tm.tm_year+1900,
-						     tm.tm_mon+1,
-						     tm.tm_mday,
-						     tm.tm_hour,
-						     tm.tm_min,
-						     tm.tm_sec,
-						     cast(int32_t,tv.tv_nsec/1000000));
-					entry->_logfile->file = fopen(filename,"w+");
-					entry->_logfile->tm = tm;					
-				} else {
-					printf("create log dir failed:%d\n",ret);
-					exit(0);
-				}		
+				create_os_file(entry,&tm);	
 			}
 			
 			if(entry->_logfile && entry->_logfile->file){
@@ -284,14 +293,7 @@ static void *log_routine(void *arg) {
 	LOCK();
 	chk_dlist_foreach(&g_log_file_list,n) {
 		l = cast(chk_logfile*,n);
-		if(l->file) {
-			size = chk_log_prefix(buf,LOG_INFO);
-			snprintf(&buf[size],sizeof(buf)-size-1,"%s.log close success",l->filename);
-			fprintf(l->file,"%s\n",buf);
-			fflush(l->file);
-			fclose(l->file);
-			write_console(LOG_INFO,buf);			
-		}
+		close_and_rename(l);
 	}	
 	UNLOCK();
 	return NULL;
