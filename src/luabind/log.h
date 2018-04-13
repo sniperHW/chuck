@@ -100,6 +100,22 @@ static int32_t lua_set_log_dir(lua_State *L) {
 	return 0;
 }
 
+static int32_t lua_set_log_level(lua_State *L) {
+	int32_t loglev = luaL_checkinteger(L,1);
+	if(loglev >= LOG_TRACE && loglev <= LOG_CRITICAL) {
+		chk_set_loglev(loglev);
+		lua_pushboolean(L,1);
+	} else {
+		lua_pushboolean(L,0);
+	}
+	return 1;	
+}
+
+static int32_t lua_get_log_level(lua_State *L) {
+	lua_pushinteger(L,chk_current_loglev());
+	return 1;	
+}
+
 static void register_log(lua_State *L) {
 
 	luaL_Reg logfile_mt[] = {
@@ -124,6 +140,8 @@ static void register_log(lua_State *L) {
 	SET_FUNCTION(L,"SysLog",lua_sys_log);
 	SET_FUNCTION(L,"SetSysLogPrefix",lua_set_syslog_file_prefix);
 	SET_FUNCTION(L,"SetLogDir",lua_set_log_dir);
+	SET_FUNCTION(L,"SetLogLevel",lua_set_log_level);
+	SET_FUNCTION(L,"GetLogLevel",lua_get_log_level);	
 	lua_pushstring(L,"trace");lua_pushinteger(L,LOG_TRACE);lua_settable(L, -3);		
 	lua_pushstring(L,"info");lua_pushinteger(L,LOG_INFO);lua_settable(L, -3);
 	lua_pushstring(L,"debug");lua_pushinteger(L,LOG_DEBUG);lua_settable(L, -3);

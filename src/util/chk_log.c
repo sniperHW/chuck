@@ -49,7 +49,7 @@ struct chk_logfile {
 typedef struct {
 	chk_list_entry entry;
 	int8_t         lev;
-	chk_logfile   *_logfile;
+	chk_logfile   *logfile;
 	char          *content;
 }log_entry;
 
@@ -100,7 +100,6 @@ void chk_set_syslog_file_prefix(const char *prefix){
 }
 
 void logqueue_push(log_entry *item) {
-	write_console(item->lev,item->content);
 	chk_mutex_lock(&logqueue.mtx);
 	chk_list_pushback(&logqueue.share_queue,cast(chk_list_entry*,item));
 	if(logqueue.wait && chk_list_size(&logqueue.share_queue) == 1) {
@@ -199,17 +198,17 @@ static int32_t create_log_dir(const char *log_dir) {
 }
 
 int need_create_logfile(log_entry *entry,struct tm *tm) {
-	if(!entry->_logfile->file) {
+	if(!entry->logfile->file) {
 		return 1;
 	}
 
-	if(entry->_logfile->total_size > CHK_MAX_LOG_FILE_SIZE) {
+	if(entry->logfile->total_size > CHK_MAX_LOG_FILE_SIZE) {
 		return 1;
 	}
 
-	if(entry->_logfile->tm.tm_year != tm->tm_year  ||
-	   entry->_logfile->tm.tm_mon  != tm->tm_mon   ||
-	   entry->_logfile->tm.tm_mday != tm->tm_mday) {
+	if(entry->logfile->tm.tm_year != tm->tm_year  ||
+	   entry->logfile->tm.tm_mon  != tm->tm_mon   ||
+	   entry->logfile->tm.tm_mday != tm->tm_mday) {
 		return 1;
 	}
 
@@ -239,14 +238,14 @@ static void close_and_rename(chk_logfile *logfile) {
 
 static void create_os_file(log_entry *entry,struct tm *tm) {
 	char filename[MAX_LOG_FILE_NAME + 1];
-	chk_logfile *logfile = entry->_logfile;
+	chk_logfile *logfile = entry->logfile;
 	snprintf(logfile->path,sizeof(logfile->path) - 1,"%s/%04d-%02d-%02d",g_log_dir,(*tm).tm_year+1900,(*tm).tm_mon+1,(*tm).tm_mday);
 	logfile->path[sizeof(logfile->path)] = 0;
 	if(0 == create_log_dir(logfile->path)) {
 		snprintf(filename,sizeof(filename) - 1,"%s/%s[%d].log",logfile->path,logfile->filename,getpid());
 		filename[sizeof(filename) - 1] = 0;
-		entry->_logfile->file = fopen(filename,"w+");
-		entry->_logfile->tm = *tm;					
+		entry->logfile->file = fopen(filename,"w+");
+		entry->logfile->tm = *tm;					
 	}
 }
 
@@ -261,20 +260,19 @@ static void *log_routine(void *arg) {
 		if((entry = logqueue_fetch(stop?0:100))) {
 			chk_localtime(&tm);
 			if(1 == need_create_logfile(entry,&tm)) {
-				if(entry->_logfile->file) {
-					close_and_rename(entry->_logfile);
-					entry->_logfile->file = NULL;
-					entry->_logfile->total_size = 0;
+				if(entry->logfile->file) {
+					close_and_rename(entry->logfile);
+					entry->logfile->file = NULL;
+					entry->logfile->total_size = 0;
 				}
 				//创建文件
 				create_os_file(entry,&tm);	
 			}
-			
-			if(entry->_logfile && entry->_logfile->file){
-				fprintf(entry->_logfile->file,"%s\n",entry->content);
-				entry->_logfile->total_size += strlen(entry->content);
+			write_console(entry->lev,entry->content);
+			if(entry->logfile->file){
+				fprintf(entry->logfile->file,"%s\n",entry->content);
+				entry->logfile->total_size += strlen(entry->content);
 			}
-
 			free(entry->content);
 			free(entry);
 		}else if(stop) break;
@@ -291,7 +289,6 @@ static void *log_routine(void *arg) {
 		}		
 	}
 
-	//向所有打开的日志文件写入"log close success"
 	LOCK();
 	chk_dlist_foreach(&g_log_file_list,n) {
 		l = cast(chk_logfile*,n);
@@ -311,7 +308,7 @@ static void on_process_end() {
 void _write_log(chk_logfile *l,int32_t loglev,char *content) {
 	log_entry *entry = calloc(1,sizeof(*entry));
 	if(!entry) free(content);
-	entry->_logfile  = l;
+	entry->logfile  = l;
 	entry->content   = content;
 	entry->lev       = loglev;
 	logqueue_push(entry);

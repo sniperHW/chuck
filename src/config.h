@@ -16,14 +16,6 @@
 
 #define MAX_SEND_SIZE        1024*64
 
-
-/*
-*  fiber栈的最小值,如果创建fiber时传入的栈大小小于MIN_FIBER_STACK_SIZE
-*  fiber栈将被设置为MIN_FIBER_STACK_SIZE 
-*/
-
-#define MIN_FIBER_STACK_SIZE 8192
-
 /*
 *  定时器支持的最大超时值(毫秒),如果传入的超时值大于MAX_TIMEOUT
 *  超时值将被设置为MAX_TIMEOUT 
