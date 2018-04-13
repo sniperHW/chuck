@@ -19,7 +19,7 @@ char    g_log_dir[MAX_LOG_FILE_NAME] = "./log";
 static pthread_once_t 	g_log_key_once      = PTHREAD_ONCE_INIT;
 static pid_t          	g_pid               = -1;
 static uint32_t         flush_interval      = 1;  //flush every 1 second
-int32_t                 g_loglev            = LOG_INFO;
+int32_t                 g_loglev            = LOG_TRACE;
 static volatile int32_t stop                = 0;
 static int32_t   		lock 				= 0;
 static chk_dlist        g_log_file_list;
@@ -29,8 +29,9 @@ static chk_thread      *g_log_thd;
 #define UNLOCK() __sync_lock_release(&lock);
 
 const char *log_lev_str[] = {
+	"TRACE",
+	"DEBUG",	
 	"INFO",
-	"DEBUG",
 	"WARN",
 	"ERROR",
 	"CRITICAL",
@@ -62,6 +63,7 @@ struct {
 
 static void  write_console(int8_t loglev,char *content) {
 	switch(loglev) {
+		case LOG_TRACE    : printf("%s\n",content); break;
 		case LOG_INFO     : printf("%s\n",content); break;
 		case LOG_DEBUG    : printf("\033[1;32;40m%s\033[0m\n",content); break;
 		case LOG_WARN     : printf("\033[1;33;40m%s\033[0m\n",content); break;

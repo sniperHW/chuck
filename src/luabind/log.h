@@ -123,7 +123,8 @@ static void register_log(lua_State *L) {
 	SET_FUNCTION(L,"CreateLogfile",lua_create_logfile);
 	SET_FUNCTION(L,"SysLog",lua_sys_log);
 	SET_FUNCTION(L,"SetSysLogPrefix",lua_set_syslog_file_prefix);
-	SET_FUNCTION(L,"SetLogDir",lua_set_log_dir);	
+	SET_FUNCTION(L,"SetLogDir",lua_set_log_dir);
+	lua_pushstring(L,"trace");lua_pushinteger(L,LOG_TRACE);lua_settable(L, -3);		
 	lua_pushstring(L,"info");lua_pushinteger(L,LOG_INFO);lua_settable(L, -3);
 	lua_pushstring(L,"debug");lua_pushinteger(L,LOG_DEBUG);lua_settable(L, -3);
 	lua_pushstring(L,"warning");lua_pushinteger(L,LOG_WARN);lua_settable(L, -3);

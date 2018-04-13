@@ -12,8 +12,9 @@
 */
 
 enum{
-    LOG_INFO = 0,
+    LOG_TRACE = 0,
     LOG_DEBUG,
+    LOG_INFO,
     LOG_WARN,
     LOG_ERROR,
     LOG_CRITICAL
