@@ -13,8 +13,8 @@
 CHK_DEF_LOG(chk_sys_log,CHK_SYSLOG_NAME);
 CHK_IMP_LOG(chk_sys_log);
 
-char    g_syslog_file_prefix[MAX_LOG_FILE_NAME] = {0};
-char    g_log_dir[MAX_LOG_FILE_NAME] = "./log";
+char    g_syslog_file_prefix[MAX_LOG_FILE_NAME + 1] = {0};
+char    g_log_dir[MAX_LOG_FILE_NAME + 1] = "./log";
 
 static pthread_once_t 	g_log_key_once      = PTHREAD_ONCE_INIT;
 static pid_t          	g_pid               = -1;
@@ -75,8 +75,8 @@ static void  write_console(int8_t loglev,char *content) {
 
 void chk_set_log_dir(const char *log_dir){
 	if(log_dir) {
-		strncpy(g_log_dir,log_dir,MAX_LOG_FILE_NAME-1);
-		g_log_dir[MAX_LOG_FILE_NAME-1] = 0;
+		strncpy(g_log_dir,log_dir,MAX_LOG_FILE_NAME);
+		g_log_dir[MAX_LOG_FILE_NAME] = 0;
 	}
 }
 
@@ -94,8 +94,8 @@ const char *chk_get_syslog_file_prefix() {
 
 void chk_set_syslog_file_prefix(const char *prefix){
 	if(prefix)	{
-		strncpy(g_syslog_file_prefix,prefix,MAX_LOG_FILE_NAME-1);
-		g_syslog_file_prefix[MAX_LOG_FILE_NAME - 1] = 0;
+		strncpy(g_syslog_file_prefix,prefix,MAX_LOG_FILE_NAME);
+		g_syslog_file_prefix[MAX_LOG_FILE_NAME] = 0;
 	}
 }
 
@@ -221,9 +221,9 @@ static void close_and_rename(chk_logfile *logfile) {
 	if(logfile->file) {
 		fflush(logfile->file);
 		fclose(logfile->file);
-		snprintf(oldname,sizeof(oldname) - 1,"%s/%s[%d].log",logfile->path,logfile->filename,getpid());
-		oldname[sizeof(oldname) - 1] = 0;		
-		snprintf(newname,sizeof(newname) - 1,"%s/%s[%d]-%02d.%02d.%02d.log",
+		snprintf(oldname,MAX_LOG_FILE_NAME,"%s/%s[%d].log",logfile->path,logfile->filename,getpid());
+		oldname[MAX_LOG_FILE_NAME] = 0;		
+		snprintf(newname,MAX_LOG_FILE_NAME,"%s/%s[%d]-%02d.%02d.%02d.log",
 			logfile->path,
 			logfile->filename,
 			getpid(),
@@ -231,7 +231,7 @@ static void close_and_rename(chk_logfile *logfile) {
 			logfile->tm.tm_min,
 			logfile->tm.tm_sec			
 		);
-		newname[sizeof(newname) - 1] = 0;
+		newname[MAX_LOG_FILE_NAME] = 0;
 		rename(oldname,newname);	
 	}
 }
@@ -239,11 +239,11 @@ static void close_and_rename(chk_logfile *logfile) {
 static void create_os_file(log_entry *entry,struct tm *tm) {
 	char filename[MAX_LOG_FILE_NAME + 1];
 	chk_logfile *logfile = entry->logfile;
-	snprintf(logfile->path,sizeof(logfile->path) - 1,"%s/%04d-%02d-%02d",g_log_dir,(*tm).tm_year+1900,(*tm).tm_mon+1,(*tm).tm_mday);
-	logfile->path[sizeof(logfile->path)] = 0;
+	snprintf(logfile->path,MAX_LOG_FILE_NAME,"%s/%04d-%02d-%02d",g_log_dir,(*tm).tm_year+1900,(*tm).tm_mon+1,(*tm).tm_mday);
+	logfile->path[MAX_LOG_FILE_NAME] = 0;
 	if(0 == create_log_dir(logfile->path)) {
-		snprintf(filename,sizeof(filename) - 1,"%s/%s[%d].log",logfile->path,logfile->filename,getpid());
-		filename[sizeof(filename) - 1] = 0;
+		snprintf(filename,MAX_LOG_FILE_NAME,"%s/%s[%d].log",logfile->path,logfile->filename,getpid());
+		filename[MAX_LOG_FILE_NAME] = 0;
 		entry->logfile->file = fopen(filename,"w+");
 		entry->logfile->tm = *tm;					
 	}
@@ -330,7 +330,8 @@ chk_logfile *chk_create_logfile(const char *filename) {
 	pthread_once(&g_log_key_once,log_once_routine);
 	l = calloc(1,sizeof(*l));
 	if(!l) return NULL;
-	strncpy(l->filename,filename,sizeof(l->filename) - 1);
+	strncpy(l->filename,filename,MAX_LOG_FILE_NAME);
+	l->filename[MAX_LOG_FILE_NAME] = 0;
 	LOCK();
 	chk_dlist_pushback(&g_log_file_list,cast(chk_dlist_entry*,l));
 	UNLOCK();	
