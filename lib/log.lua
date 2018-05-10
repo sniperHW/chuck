@@ -53,37 +53,37 @@ local function logger_new(name)
 end
 
 function logger:trace(...)
-	if global_loglevel >=  log.trace then
+	if global_loglevel <=  log.trace then
 		self.clogger:Log(log.trace,string.format(...))
 	end
 end
 
 function logger:debug(...)
-	if global_loglevel >=  log.debug then
+	if global_loglevel <=  log.debug then
 		self.clogger:Log(log.debug,string.format(...))
 	end
 end
 
 function logger:info(...)
-	if global_loglevel >=  log.info then
+	if global_loglevel <=  log.info then
 		self.clogger:Log(log.info,string.format(...))
 	end
 end
 
 function logger:warning(...)
-	if global_loglevel >=  log.warning then
+	if global_loglevel <=  log.warning then
 		self.clogger:Log(log.warning,string.format(...))
 	end
 end
 
 function logger:error(...)
-	if global_loglevel >=  log.error then
+	if global_loglevel <=  log.error then
 		self.clogger:Log(log.error,string.format(...))
 	end
 end
 
 function logger:critical(...)
-	if global_loglevel >=  log.critical then
+	if global_loglevel <=  log.critical then
 		self.clogger:Log(log.critical,string.format(...))
 	end
 end
@@ -97,37 +97,37 @@ function M.SysLogger()
 end
 
 function syslogger:trace(...)
-	if global_loglevel >=  log.trace then
+	if global_loglevel <=  log.trace then
 		log.SysLog(log.trace,string.format(...))
 	end
 end
 
 function syslogger:debug(...)
-	if global_loglevel >=  log.debug then
+	if global_loglevel <=  log.debug then
 		log.SysLog(log.debug,string.format(...))
 	end
 end
 
 function syslogger:info(...)
-	if global_loglevel >=  log.info then
+	if global_loglevel <=  log.info then
 		log.SysLog(log.info,string.format(...))
 	end
 end
 
 function syslogger:warning(...)
-	if global_loglevel >=  log.warning then
+	if global_loglevel <=  log.warning then
 		log.SysLog(log.warning,string.format(...))
 	end
 end
 
 function syslogger:error(...)
-	if global_loglevel >=  log.error then
+	if global_loglevel <=  log.error then
 		log.SysLog(log.error,string.format(...))
 	end
 end
 
 function syslogger:critical(...)
-	if global_loglevel >=  log.critical then
+	if global_loglevel <=  log.critical then
 		log.SysLog(log.critical,string.format(...))
 	end
 end
