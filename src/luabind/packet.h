@@ -188,6 +188,34 @@ static inline int32_t lua_rpacket_readStr(lua_State *L) {
 	return 1;
 }
 
+static inline int32_t lua_rpacket_readRawBytes(lua_State *L) {
+	luaL_Buffer     lb;
+	char           *in;
+	lua_rpacket    *r = lua_checkrpacket(L,1);
+	size_t          size = (size_t)r->data_remain;
+
+	if(size == 0) {
+		//返回空串
+		lua_pushstring(L,"");
+		return 1;
+	}
+
+#if LUA_VERSION_NUM >= 503
+	in = luaL_buffinitsize(L,&lb,size);
+	if(0 != (uint32_t)lua_rpacket_read(r,in,size))
+		return luaL_error(L,"lua_rpacket_readRawBytes invaild packet");
+	luaL_pushresultsize(&lb,size);
+#else
+	luaL_buffinit(L, &b);
+	in = luaL_prepbuffsize(&b,size);
+	if(0 != (uint32_t)lua_rpacket_read(r,in,size))
+		return luaL_error(L,"lua_rpacket_readRawBytes invaild packet");
+	luaL_addsize(&b,size);
+	luaL_pushresult(&b);
+#endif
+	return 1;	
+}
+
 static inline int32_t _lua_unpack_boolean(lua_rpacket *rpk,lua_State *L) {
 	lua_pushboolean(L,LUA_RPACKET_READ(rpk,uint8_t));
 	return 0;
@@ -442,6 +470,27 @@ static inline int32_t lua_wpacket_writeStr(lua_State *L) {
 
 	return 0;
 }
+
+static inline int32_t lua_wpacket_writeRawBytes(lua_State *L) {
+	const char  *str;
+	size_t       len;
+	int32_t      ret = -1;	
+	lua_wpacket *w = lua_checkwpacket(L,1);
+	if(!lua_isstring(L,2)) luaL_error(L,"argument 2 or lua_rpacket_readstr must be string");
+	str = lua_tolstring(L,2,&len);
+	do{
+		if(len > 0){
+			if(0 != (ret = lua_wpacket_write(w,(char*)str,len)))
+				break;
+		}		
+	}while(0);
+
+	if(0 != ret)
+		return luaL_error(L,"write beyond limited");
+
+	return 0;	
+}
+
 
 static int32_t encode_double(lua_wpacket *wpk, double d) {
     unsigned char b[9];
@@ -726,6 +775,7 @@ static void register_packet(lua_State *L) {
 		{"WriteI64",  lua_wpacket_writeI64},
 		{"WriteNum",  lua_wpacket_writeDub},
 		{"WriteStr",  lua_wpacket_writeStr},
+		{"WriteRawBytes",lua_wpacket_writeRawBytes},
 		{"WriteTable",lua_wpacket_writeTable},
 		{"GetWritePos",lua_wpacket_get_write_pos},
 		{"ReWriteI8",lua_wpacket_rewriteI8},
@@ -742,6 +792,7 @@ static void register_packet(lua_State *L) {
 		{"ReadI64",  lua_rpacket_readI64},
 		{"ReadNum",  lua_rpacket_readDub},
 		{"ReadStr",  lua_rpacket_readStr},
+		{"ReadRawBytes",  lua_rpacket_readRawBytes},
 		{"ReadTable",  lua_rpacket_readTable},
 		{NULL,     NULL}
 	};	

@@ -23,7 +23,7 @@ endif
 
 ifeq ($(uname_S),Darwin)
 	MAKE += make
-	CC += clang
+	CC += gcc
 	DEFINE += -D_MACH
 	SHAREFLAGS += -bundle -undefined dynamic_lookup	
 endif
