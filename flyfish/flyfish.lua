@@ -208,7 +208,6 @@ local function repl()
 	return true
 end
 
-
 if arg == nil or #arg ~= 2 then
 	print("useage:lua flyfish.lua ip port")
 else
