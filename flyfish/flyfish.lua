@@ -144,6 +144,11 @@ function get(table,key,fields)
 			fields = fields,
 		}		
 	}
+
+	if cmd.req.fields == nil then
+		cmd.req.all = true
+	end
+
 	doCmd(cmd)
 end
 
@@ -163,6 +168,24 @@ function set(table,key,fields,version)
 		}		
 	}
 	doCmd(cmd)	
+end
+
+function del(table,key,version)
+	local cmd = {
+		cmd = 9,
+		req = {
+			head = {
+				seqno = 1,
+				table = table,
+				key = key,
+				timeout = 5000000000,
+			},
+			version = version,
+		}		
+	}
+	doCmd(cmd)		
+
+
 end
 
 local function execute_chunk(str)
