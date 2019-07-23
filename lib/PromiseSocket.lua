@@ -58,7 +58,7 @@ function PromiseSocket.new(fd)
 				c.needResume = true
 			end
 		else
-			c:Close(err)
+			c:Close(0)
 		end
 	end)
 	return c
