@@ -38,6 +38,14 @@ local CmdToProto = {
 	[20] = "proto.compare_and_set_nx_resp",	
 }
 
+local function _set_byte1(n)
+    return strpack(">I1", n)
+end
+
+local function _get_byte1(data, i)
+    return strunpack(">I1", data, i)
+end
+
 local function _set_byte2(n)
     return strpack(">I2", n)
 end
@@ -57,37 +65,57 @@ end
 
 local function pack(cmd,data) 
 	local code = protobuf.encode(CmdToProto[cmd], data)
-	local len = 2 + #code
-	return _set_byte4(len) .. _set_byte2(cmd) .. code 
+	local len = 1 + 2 + #code
+	return _set_byte4(len) .. _set_byte1(0) ..  _set_byte2(cmd) .. code 
 end
 
 local function unpack(buff)
-	local cmd = _get_byte2(buff,1)
-	return protobuf.decode(CmdToProto[cmd] , string.sub(buff,3))
+	_get_byte1(buff,1)
+	local cmd = _get_byte2(buff,2)
+	return protobuf.decode(CmdToProto[cmd] , string.sub(buff,4))
 end
+
+
+
+local loginReq = protobuf.encode("proto.loginReq", {compress=0})
+
 
 local function doCmd(cmd)
 
 	local ok
+	local c
+	local timeout = 5000
 
-	PromiseSocket.connect(ip,port,5000):andThen(function (conn)
+	PromiseSocket.connect(ip,port,timeout):andThen(function (conn)
+		c = conn
 		conn:OnClose(function ()
 			ok = true
+			c = nil
 		end)
-		conn:Send(pack(cmd.cmd,cmd.req))
-		conn:Recv(4,5000):andThen(function (msg)
+
+		conn:Send(_set_byte2(#loginReq) .. loginReq)
+		
+		conn:Recv(2,timeout):andThen(function(msg)
+			local len = _get_byte2(msg,1)
+			return conn:Recv(len,timeout)
+		end):andThen(function(msg)
+			local loginResp = protobuf.decode("proto.loginResp", string.sub(msg,1))
+			conn:Send(pack(cmd.cmd,cmd.req))
+			return conn:Recv(4,timeout)
+		end):andThen(function(msg)
 			local len = _get_byte4(msg,1)
-			conn:Recv(len,5000):andThen(function (msg)
-				dump.print(unpack(msg),"resp",10)
-			end)
-			conn:Close()
-		end):catch(function (err)
-			print(err)
+			return conn:Recv(len,timeout)			
+		end):andThen(function (msg)
+			dump.print(unpack(msg),"resp",10)
 			conn:Close()
 		end)
+
 	end):catch(function (err)
 		print(err)
 		ok = true
+		if c then
+			c:Close()
+		end
 	end)
 
 	while not ok do
@@ -131,6 +159,7 @@ function Blob(name,value)
 	}	
 end
 
+--get("users1","huangwei:1015")
 function get(table,key,fields)
 	local cmd = {
 		cmd = 5,
