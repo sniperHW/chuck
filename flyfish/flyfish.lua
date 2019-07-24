@@ -36,6 +36,13 @@ local CmdToProto = {
 	[18] = "proto.compare_and_set_resp",	
 	[19] = "proto.compare_and_set_nx_req",
 	[20] = "proto.compare_and_set_nx_resp",	
+	[21] = "proto.scan_req",
+	[22] = "proto.scan_resp",
+	[23] = "proto.reloadTableConfReq",
+	[24] = "proto.reloadTableConfResp",
+	[25] = "proto.reloadConfigReq",
+	[26] = "proto.reloadConfigResp",	
+
 }
 
 local function _set_byte1(n)
@@ -216,6 +223,23 @@ function del(table,key,version)
 
 
 end
+
+function reloadTableConfig()
+	local cmd = {
+		cmd = 23,
+		req = {}		
+	}
+	doCmd(cmd)		
+end
+
+function reloadConfig(path)
+	local cmd = {
+		cmd = 25,
+		req = {path=path}		
+	}
+	doCmd(cmd)		
+end
+
 
 local function execute_chunk(str)
 	local func,err = load(str)

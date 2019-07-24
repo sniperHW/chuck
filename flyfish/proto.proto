@@ -12,6 +12,23 @@ message loginResp {
   optional bool compress = 2;
 }
 
+message reloadTableConfReq {
+  
+}
+
+message reloadTableConfResp {
+  optional bool ok = 1;
+}
+
+message reloadConfigReq {
+  optional string path = 1;
+}
+
+message reloadConfigResp {
+  optional string err = 1;  
+}
+
+
 enum ValueType {
   invaild  = 0;
   nil      = 1;
