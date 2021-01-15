@@ -27,7 +27,7 @@ void connect_callback(int32_t fd,chk_ud ud,int32_t err) {
 			chk_bytebuffer *buffer = chk_bytebuffer_new(64);
 			const char *msg = "world";
 			chk_bytebuffer_append(buffer,(uint8_t*)msg,strlen(msg));	
-			if(0 != chk_stream_socket_send(s,buffer,NULL,chk_ud_make_void(NULL))){
+			if(0 != chk_stream_socket_send(s,buffer)){
 				printf("send error\n");
 			}		
 		}

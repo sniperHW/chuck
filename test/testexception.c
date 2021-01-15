@@ -21,6 +21,7 @@ int main(){
 		printf("call stack\n");
 		chk_exp_log_call_stack("[call stack]");
 	}ENDTRY
+	//fun2();
 	//chk_exp_log_stack();
 	return 0;
 }
